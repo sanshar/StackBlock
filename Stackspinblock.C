@@ -1,0 +1,1046 @@
+/*                                                                           
+Developed by Sandeep Sharma and Garnet K.-L. Chan, 2012                      
+Copyright (c) 2012, Garnet K.-L. Chan                                        
+                                                                             
+This program is integrated in Molpro with the permission of 
+Sandeep Sharma and Garnet K.-L. Chan
+*/
+#include "IntegralMatrix.h"
+#include "stackopxop.h"
+#include "operatorfunctions.h"
+#include "Stackwavefunction.h"
+#include <boost/format.hpp>
+#include "distribute.h"
+#include "StackOperators.h"
+#include "Stackdensity.h"
+#include "csf.h"
+#include "StateInfo.h"
+#include <boost/serialization/array.hpp>
+#include <boost/function.hpp>
+#include <boost/functional.hpp>
+#include <boost/bind.hpp>
+#include <boostutils.h>
+
+#ifndef SERIAL
+#include <boost/mpi.hpp>
+#endif
+#include "pario.h"
+
+namespace SpinAdapted{
+using namespace operatorfunctions;
+
+void StackSpinBlock::deallocate() 
+{
+  Stackmem.deallocate(data, totalMemory);
+}
+
+//the relevant data is in the brackets
+//------- [---------------]       this is old data
+//[---------]-------------        this is new data
+//the user is incharge of making sure that there is enough space in the new data
+//also some part of the new data might overlap with the old data (see the figure above)
+// i.e. end of new data might point to the same memory location as the start of old data.
+//so copy from begining and move to the end
+void StackSpinBlock::moveToNewMemory(double* pData)
+{
+  double* oldData = data;
+  data = pData;
+
+  DCOPY(totalMemory, oldData, 1, data, 1);
+
+  double* localdata = data; 
+  for (std::map<opTypes, boost::shared_ptr< StackOp_component_base> >::iterator it = ops.begin(); it != ops.end(); ++it)
+  {
+    if(it->second->is_core()) {
+      
+      for (int i=0; i<it->second->get_size(); i++) {
+	int vecsize = it->second->get_local_element(i).size();
+	for (int j=0; j<vecsize; j++) {
+	  it->second->get_local_element(i)[j]->set_data(localdata);
+	  it->second->get_local_element(i)[j]->allocateOperatorMatrix();
+	  localdata = localdata + it->second->get_local_element(i)[j]->memoryUsed();
+	}
+      }
+    }
+  }
+
+}
+
+void StackSpinBlock::printOperatorSummary()
+{
+#ifndef SERIAL
+  mpi::communicator world;
+
+  if (mpigetrank() != 0) {
+    for (std::map<opTypes, boost::shared_ptr< StackOp_component_base> >::const_iterator it = ops.begin(); it != ops.end(); ++it)
+      sendobject(it->second->get_size(), 0);
+  }
+  else {
+    for (std::map<opTypes, boost::shared_ptr< StackOp_component_base> >::const_iterator it = ops.begin(); it != ops.end(); ++it)
+    {
+      if(it->second->is_core())
+      {
+         p2out << "\t\t\t " << it->second->size()<<" :  "<<it->second->get_op_string()<<"  Core Operators  ";
+      }
+      else
+      {
+         p2out << "\t\t\t " << it->second->size()<<" :  "<<it->second->get_op_string()<<"  Virtual Operators  ";      
+      }
+      
+      vector<int> numops(world.size(), 0);
+      for (int proc = 0; proc <world.size(); proc++) {
+         if (proc != 0) 
+            receiveobject(numops[proc],proc);
+         else 
+            numops[proc] = it->second->get_size();
+         p2out << " " << numops[proc]<<"  ";
+      }
+      p2out << endl;
+    }
+  }
+#else
+  for (std::map<opTypes, boost::shared_ptr< StackOp_component_base> >::const_iterator it = ops.begin(); it != ops.end(); ++it)
+  {
+    if(it->second->is_core()) 
+      p2out << "\t\t\t " << it->second->size()<<" :  "<<it->second->get_op_string()<<"  Core Operators  ";      
+    else
+      p2out << "\t\t\t " << it->second->size()<<" :  "<<it->second->get_op_string()<<"  Virtual Operators  ";      
+    p2out << endl;
+  }
+#endif
+  
+}
+ostream& operator<< (ostream& os, const StackSpinBlock& b)
+{
+  os << "\t\t\t Sites ::  ";
+  for (int i = 0; i < b.sites.size(); ++i) { os << b.sites[i] << " "; } 
+  
+  if (dmrginp.outputlevel() > 1) {
+    os << endl;
+    os << b.braStateInfo;
+    os << b.ketStateInfo;
+  }
+  else {
+    os <<"    # states: "<<b.braStateInfo.totalStates;
+    os <<"    # states: "<<b.ketStateInfo.totalStates<<endl;
+  }
+  return os;
+}
+
+
+StackSpinBlock::StackSpinBlock () : 
+  totalMemory(0),
+  data(0),
+  localstorage(false),
+  name (rand()), 
+  integralIndex(0),
+  loopblock(false),
+  direct(false), complementary(false), normal(true), leftBlock(0), rightBlock(0) { }
+
+StackSpinBlock::StackSpinBlock(int start, int finish, int p_integralIndex, bool implicitTranspose, bool is_complement) :  
+  name (rand()), 
+  integralIndex(p_integralIndex),
+  direct(false), leftBlock(0), rightBlock(0)
+{
+  complementary = is_complement;
+  normal = !is_complement;
+
+  //this is used to make dot block and we make the 
+  //additional operators by default because they are cheap
+  default_op_components(is_complement, implicitTranspose);
+
+  std::vector<int> sites; 
+  if (dmrginp.use_partial_two_integrals()) {
+    if (start != finish) {
+      pout << "Cannot use partial two electron integrals, when making spin block with more than two orbitals"<<endl;
+      abort();
+    }
+    std::vector<int> o;
+    for (int i=dmrginp.spatial_to_spin()[start]; i<dmrginp.spatial_to_spin()[start+1]; i+=2)
+      o.push_back(i/2);
+    twoInt = boost::shared_ptr<PartialTwoElectronArray> (new PartialTwoElectronArray(o));
+    twoInt->Load(dmrginp.load_prefix(), integralIndex);
+#ifndef SERIAL
+    mpi::communicator world;
+    PartialTwoElectronArray& ar = dynamic_cast<PartialTwoElectronArray&>(*twoInt.get());
+    mpi::broadcast(world, ar, 0);
+#endif
+  }
+  else
+    twoInt = boost::shared_ptr<TwoElectronArray>( &v_2[integralIndex], boostutils::null_deleter());
+
+  int lower = min(start, finish);
+  int higher = max(start, finish);
+  sites.resize(higher - lower + 1);
+  for (int i=0; i < sites.size(); i++)
+      sites[i] = lower + i;
+
+  BuildTensorProductBlock(sites);
+}
+
+StackSpinBlock::StackSpinBlock (const StackSpinBlock& b) { *this = b; }
+
+StackSpinBlock::StackSpinBlock(const StateInfo& s, int pintegralIndex)
+{
+  braStateInfo = s;
+  ketStateInfo = s;
+  sites.resize(0);
+  integralIndex = pintegralIndex;
+}
+
+void StackSpinBlock::BuildTensorProductBlock(std::vector<int>& new_sites)
+{
+
+  if (twoInt.get() == 0 && dmrginp.use_partial_two_integrals()) { //this is when dummy block is being added for non zero spin
+    std::vector<int> o;
+    for (int i=dmrginp.spatial_to_spin()[new_sites[0]]; i<dmrginp.spatial_to_spin()[new_sites[new_sites.size()-1]+1]; i+=2)
+      o.push_back(i/2);
+    twoInt = boost::shared_ptr<PartialTwoElectronArray> (new PartialTwoElectronArray(o));
+    twoInt->Load(dmrginp.load_prefix(), integralIndex);
+#ifndef SERIAL
+    mpi::communicator world;
+    PartialTwoElectronArray& ar = dynamic_cast<PartialTwoElectronArray&>(*twoInt.get());
+    mpi::broadcast(world, ar, 0);
+    //world.broadcast(twoInt);
+#endif
+  }
+  else if (twoInt.get() == 0)
+    twoInt = boost::shared_ptr<TwoElectronArray>( &v_2[integralIndex], boostutils::null_deleter());
+
+  name = get_name();
+
+
+  std::vector< std::vector<Csf> > ladders;
+  std::vector< Csf > dets; 
+
+  if (dmrginp.spinAdapted()) {
+    sites = new_sites;
+    dets = CSFUTIL::spinfockstrings(new_sites, ladders);
+  }
+  else {
+    for (int i=0; i<new_sites.size(); i++) {
+      sites.push_back( dmrginp.spatial_to_spin()[new_sites[i]]   );
+      sites.push_back( dmrginp.spatial_to_spin()[new_sites[i]]+1 );
+    }
+    // dets is   {0, alpha, beta, alphabeta;}
+    // in StateInfo.C, they are sorted, they become {0,beta,alpha,alphabeta}
+    dets = CSFUTIL::spinfockstrings(new_sites);
+    for (int j=0; j<dets.size(); j++)
+      ladders.push_back(std::vector<Csf>(1,dets[j]));
+  }
+
+  braStateInfo = StateInfo(dets);
+  ketStateInfo = StateInfo(dets);
+
+  setstoragetype(LOCAL_STORAGE);
+  complementary_sites = make_complement(sites);
+
+  //this is where we are building blocks from sites
+  //currently only used for building single site blocks
+  //temporarily disable screening for single site blocks
+  double twoindex_ScreenTol = dmrginp.twoindex_screen_tol();
+  double oneindex_ScreenTol = dmrginp.oneindex_screen_tol();
+  if (new_sites.size() == 1 ){
+    dmrginp.twoindex_screen_tol() = 0.0;
+    dmrginp.oneindex_screen_tol() = 0.0;
+  }
+
+  totalMemory = build_iterators();
+
+  if (totalMemory != 0)
+    data = Stackmem.allocate(totalMemory);
+  if (new_sites.size() == 1 ) {
+    dmrginp.twoindex_screen_tol() = twoindex_ScreenTol;
+    dmrginp.oneindex_screen_tol() = oneindex_ScreenTol;
+  }
+
+  build_operators(dets, ladders);
+
+}
+
+std::vector<int> StackSpinBlock::make_complement(const std::vector<int>& sites)
+{
+  std::vector<int> complementary_sites;
+  for (int i=0; i<dmrginp.last_site(); ++i)
+    if (find(sites.begin(), sites.end(), i) == sites.end())
+      complementary_sites.push_back(i);
+  
+  return complementary_sites;
+  
+}
+
+long StackSpinBlock::build_iterators()
+{
+  dmrginp.builditeratorsT->start();
+  long memoryRequired = 0;
+  for (std::map<opTypes, boost::shared_ptr< StackOp_component_base> >::iterator it = ops.begin(); it != ops.end(); ++it)
+  {
+    if(it->second->is_core()) 
+      memoryRequired += it->second->build_iterators(*this, true);
+    else
+      it->second->build_iterators(*this, false);
+  }
+  dmrginp.builditeratorsT->stop();
+  return memoryRequired;
+}
+
+
+void StackSpinBlock::build_operators(std::vector< Csf >& dets, std::vector< std::vector<Csf> >& ladders)
+{
+  dmrginp.buildcsfops->start();
+  double* localdata = data; 
+  for (std::map<opTypes, boost::shared_ptr< StackOp_component_base> >::iterator it = ops.begin(); it != ops.end(); ++it)
+    {
+      if(it->second->is_core()) {
+	localdata = it->second->allocateOperators(braStateInfo, ketStateInfo, localdata);
+        it->second->build_csf_operators(dets, ladders, *this);      
+      }
+    }
+  dmrginp.buildcsfops->stop();
+}
+  
+
+
+void StackSpinBlock::build_operators()
+{
+  double* localdata = data; 
+  for (std::map<opTypes, boost::shared_ptr< StackOp_component_base> >::iterator it = ops.begin(); it != ops.end(); ++it)
+    {
+      if(it->second->is_core()) {
+	localdata = it->second->allocateOperators(braStateInfo, ketStateInfo, localdata);
+	it->second->build_operators(*this);
+      }
+    }
+}
+
+
+
+void StackSpinBlock::build_and_renormalise_operators(const std::vector<Matrix>& rotateMatrix, const StateInfo *newStateInfo)
+{
+  for (std::map<opTypes, boost::shared_ptr< StackOp_component_base> >::iterator it = ops.begin(); it != ops.end(); ++it) {
+    opTypes ot = it->first;
+    if(! it->second->is_core()) {
+      it->second->build_and_renormalise_operators(*this, ot, rotateMatrix, newStateInfo);
+    }
+  }
+}
+
+
+void StackSpinBlock::build_and_renormalise_operators(const std::vector<Matrix>& leftMat, const StateInfo *bra, const std::vector<Matrix>& rightMat, const StateInfo *ket)
+{
+  for (std::map<opTypes, boost::shared_ptr< StackOp_component_base> >::iterator it = ops.begin(); it != ops.end(); ++it) {
+    opTypes ot = it->first;
+    if(! it->second->is_core()) {
+      it->second->build_and_renormalise_operators(*this, ot, leftMat, bra, rightMat, ket);
+    }
+  }
+}
+
+void StackSpinBlock::transform_operators(std::vector<Matrix>& rotateMatrix) 
+{
+  p1out << "\t\t\t Transforming to new basis " << endl;
+  Timer transformtimer;
+
+  StateInfo oldStateInfo = braStateInfo;
+  std::vector<SpinQuantum> newQuanta;
+  std::vector<int> newQuantaStates;
+  std::vector<int> newQuantaMap;
+  for (int Q = 0; Q < rotateMatrix.size (); ++Q)
+  {
+    if (rotateMatrix [Q].Ncols () != 0)
+      {
+	newQuanta.push_back (braStateInfo.quanta [Q]);
+	newQuantaStates.push_back (rotateMatrix [Q].Ncols ());
+	newQuantaMap.push_back (Q);
+      }
+  }
+  StateInfo newStateInfo = StateInfo (newQuanta, newQuantaStates, newQuantaMap);
+
+  //first find out how much memory is required and allocate all the operators
+  long requiredMemory = 0;
+  for (std::map<opTypes, boost::shared_ptr< StackOp_component_base> >::iterator it = ops.begin(); it != ops.end(); ++it)
+    requiredMemory += it->second->getRequiredMemory(newStateInfo, newStateInfo);
+  totalMemory = requiredMemory;
+  data = Stackmem.allocate(requiredMemory);
+  double* localdata = data;
+  for (std::map<opTypes, boost::shared_ptr< StackOp_component_base> >::iterator it = ops.begin(); it != ops.end(); ++it)
+    localdata = it->second->allocateOperators(newStateInfo, newStateInfo, localdata);
+
+  build_and_renormalise_operators( rotateMatrix, &newStateInfo );
+
+  braStateInfo = newStateInfo;
+  braStateInfo.AllocatePreviousStateInfo ();
+  *braStateInfo.previousStateInfo = oldStateInfo;
+  ketStateInfo = braStateInfo;
+
+
+  p3out << "\t\t\t total elapsed time " << globaltimer.totalwalltime() << " " << globaltimer.totalcputime() << " ... " 
+       << globaltimer.elapsedwalltime() << " " << globaltimer.elapsedcputime() << endl;
+
+  for (std::map<opTypes, boost::shared_ptr< StackOp_component_base> >::iterator it = ops.begin(); it != ops.end(); ++it)
+    if (! it->second->is_core())
+      ops[it->first]->set_core(true);
+
+  this->direct = false;
+  p3out << "\t\t\t transform time " << transformtimer.elapsedwalltime() << " " << transformtimer.elapsedcputime() << endl;
+
+  leftBlock = 0;
+  rightBlock = 0;
+}
+
+
+void StackSpinBlock::transform_operators(std::vector<Matrix>& leftrotateMatrix, std::vector<Matrix>& rightrotateMatrix, bool clearRightBlock, bool clearLeftBlock) 
+{
+  p1out << "\t\t\t Transforming to new basis " << endl;
+  Timer transformtimer;
+
+  StateInfo oldbraStateInfo=braStateInfo, oldketStateInfo=ketStateInfo;
+  StateInfo newbraStateInfo, newketStateInfo;
+  StateInfo::transform_state(leftrotateMatrix, braStateInfo, newbraStateInfo);
+  StateInfo::transform_state(rightrotateMatrix, ketStateInfo, newketStateInfo);
+
+  //first find out how much memory is required and allocate all the operators
+  long requiredMemory = 0;
+  for (std::map<opTypes, boost::shared_ptr< StackOp_component_base> >::iterator it = ops.begin(); it != ops.end(); ++it)
+    requiredMemory += it->second->getRequiredMemory(newbraStateInfo, newketStateInfo);
+  totalMemory = requiredMemory;
+  data = Stackmem.allocate(requiredMemory);
+  double* localdata = data;
+  for (std::map<opTypes, boost::shared_ptr< StackOp_component_base> >::iterator it = ops.begin(); it != ops.end(); ++it)
+    localdata = it->second->allocateOperators(newbraStateInfo, newketStateInfo, localdata);
+
+  build_and_renormalise_operators( leftrotateMatrix, &newbraStateInfo, rightrotateMatrix, &newketStateInfo );
+
+  braStateInfo = newbraStateInfo;
+  braStateInfo.AllocatePreviousStateInfo ();
+  *braStateInfo.previousStateInfo = oldbraStateInfo;
+
+  ketStateInfo = newketStateInfo;
+  ketStateInfo.AllocatePreviousStateInfo ();
+  *ketStateInfo.previousStateInfo = oldketStateInfo;
+
+
+  p3out << "\t\t\t total elapsed time " << globaltimer.totalwalltime() << " " << globaltimer.totalcputime() << " ... " 
+       << globaltimer.elapsedwalltime() << " " << globaltimer.elapsedcputime() << endl;
+
+
+  for (std::map<opTypes, boost::shared_ptr< StackOp_component_base> >::iterator it = ops.begin(); it != ops.end(); ++it)
+    if (! it->second->is_core())
+      ops[it->first]->set_core(true);
+
+  this->direct = false;
+  p3out << "\t\t\t transform time " << transformtimer.elapsedwalltime() << " " << transformtimer.elapsedcputime() << endl;
+
+  if (leftBlock && clearLeftBlock)
+    leftBlock->clear();
+  if (rightBlock && clearRightBlock)
+    rightBlock->clear();
+  leftBlock = 0;
+  rightBlock = 0;
+}
+
+
+void StackSpinBlock::clear()
+{
+  for (std::map<opTypes, boost::shared_ptr< StackOp_component_base> >::iterator it = ops.begin(); it != ops.end(); ++it)
+    it->second->clear();
+}
+
+
+void StackSpinBlock::BuildSumBlockSkeleton(int condition, StackSpinBlock& lBlock, StackSpinBlock& rBlock, StateInfo* compState)
+{
+
+  name = get_name();
+  p1out << "\t\t\t Building Sum Block " << name << endl;
+  leftBlock = &lBlock;
+  rightBlock = &rBlock;
+
+  sites.reserve (lBlock.sites.size () + rBlock.sites.size ());
+
+  dmrginp.blockintegrals -> start();
+  
+  if (dmrginp.use_partial_two_integrals()) {
+    if (rBlock.sites.size() == 1) {
+      std::vector<int> o;
+      for (int i=dmrginp.spatial_to_spin().at(rBlock.sites[0]); i<dmrginp.spatial_to_spin().at(rBlock.sites[0]+1); i+=2)
+	o.push_back(i/2);
+      twoInt = boost::shared_ptr<PartialTwoElectronArray> (new PartialTwoElectronArray(o));
+      twoInt->Load(dmrginp.load_prefix(), integralIndex);
+#ifndef SERIAL
+      mpi::communicator world;
+      PartialTwoElectronArray& ar = dynamic_cast<PartialTwoElectronArray&>(*twoInt.get());
+      mpi::broadcast(world, ar, 0);
+#endif
+
+    }
+    //pout << "Cannot use partial two electron integrals, when the dot block has more than one orbital"<<endl;
+    //abort();
+
+  }
+  else 
+    twoInt = boost::shared_ptr<TwoElectronArray>( &v_2[integralIndex],  boostutils::null_deleter());
+
+  dmrginp.blockintegrals -> stop();
+
+  dmrginp.blocksites -> start();
+
+  sites = lBlock.sites;
+  copy (rBlock.sites.begin(), rBlock.sites.end (), back_inserter (sites));
+  sort(sites.begin(), sites.end());
+  complementary_sites = make_complement(sites);
+  p2out << "\t\t\t ";
+  for (int i = 0; i < sites.size(); ++i) p2out << sites[i] << " ";
+  p2out << endl;
+  dmrginp.blocksites -> stop();
+
+  dmrginp.statetensorproduct -> start();
+  if(dmrginp.transition_diff_irrep()){
+    if( condition== PARTICLE_SPIN_NUMBER_CONSTRAINT)
+    // When bra and ket wavefuntion have different spatial or spin irrep,
+    // Bra Stateinfo for the big block should not be used with quantum number of effective_molecule_quantum
+      TensorProduct (lBlock.braStateInfo, rBlock.braStateInfo, dmrginp.bra_quantum(), EqualQ, braStateInfo);
+    else if (condition== NO_PARTICLE_SPIN_NUMBER_CONSTRAINT) 
+      TensorProduct (lBlock.braStateInfo, rBlock.braStateInfo, dmrginp.bra_quantum(), LessThanQ, braStateInfo,compState);
+    // When bra and ket wavefuntion have different spatial or spin irrep,
+  }
+ else {
+   TensorProduct (lBlock.braStateInfo, rBlock.braStateInfo, braStateInfo, condition, compState);
+ }
+
+  TensorProduct (lBlock.ketStateInfo, rBlock.ketStateInfo, ketStateInfo, condition, compState);
+  dmrginp.statetensorproduct -> stop();
+
+  dmrginp.statecollectquanta -> start();
+  if (!( (dmrginp.hamiltonian() == BCS && condition == SPIN_NUMBER_CONSTRAINT)  ||
+	 (dmrginp.hamiltonian() != BCS && condition == PARTICLE_SPIN_NUMBER_CONSTRAINT))) {
+    braStateInfo.CollectQuanta();
+    ketStateInfo.CollectQuanta();
+  }
+  dmrginp.statecollectquanta -> stop();
+
+}
+
+void StackSpinBlock::BuildSumBlock(int condition, StackSpinBlock& lBlock, StackSpinBlock& rBlock, StateInfo* compState)
+{
+  if (!(lBlock.integralIndex == rBlock.integralIndex && lBlock.integralIndex == integralIndex))  {
+    pout << "The left, right and dot block should use the same integral indices"<<endl;
+    pout << "ABORTING!!"<<endl;
+    exit(0);
+  }
+  dmrginp.buildsumblock -> start();
+  BuildSumBlockSkeleton(condition, lBlock, rBlock, compState);
+
+  totalMemory = build_iterators();
+  if (totalMemory != 0)
+    data = Stackmem.allocate(totalMemory);
+
+  dmrginp.buildblockops -> start();
+  build_operators();
+  dmrginp.buildblockops -> stop();
+  dmrginp.buildsumblock -> stop();
+}
+
+
+void StackSpinBlock::operator= (const StackSpinBlock& b)
+{
+  localstorage = b.localstorage;
+  name = b.name;
+  complementary = b.is_complementary();
+  normal = b.is_normal();
+  loopblock = b.is_loopblock();
+
+  sites = b.sites;
+  complementary_sites = b.complementary_sites;
+  integralIndex = b.integralIndex;
+
+  direct = b.is_direct();
+
+  braStateInfo = b.braStateInfo;
+  ketStateInfo = b.ketStateInfo;
+  leftBlock = b.leftBlock;
+  rightBlock = b.rightBlock;
+  twoInt = b.twoInt;
+  ops = b.ops;
+  totalMemory = b.totalMemory;
+  data = b.data;
+}
+
+void StackSpinBlock::initialise_op_array(opTypes optype, bool is_core)
+{
+  ops[optype] = make_new_stackop(optype, is_core);
+  return;
+}
+
+void StackSpinBlock::multiplyOverlap(StackWavefunction& c, StackWavefunction* v, int num_threads) const
+{
+  if (mpigetrank() == 0) {
+    boost::shared_ptr<StackSparseMatrix> op = leftBlock->get_op_array(OVERLAP).get_local_element(0)[0];
+    bool deallocate1 = op->memoryUsed() == 0 ? true : false; 
+    op->allocate(leftBlock->get_braStateInfo(), leftBlock->get_ketStateInfo());
+    op->build(*leftBlock);
+
+    boost::shared_ptr<StackSparseMatrix> overlap = rightBlock->get_op_array(OVERLAP).get_local_element(0)[0];
+    bool deallocate2 = overlap->memoryUsed() == 0 ? true : false; 
+    overlap->allocate(rightBlock->get_braStateInfo(), rightBlock->get_ketStateInfo());
+    overlap->build(*rightBlock);
+
+    TensorMultiply(leftBlock, *op, *overlap, this, c, v, op->get_deltaQuantum(0) ,1.0);  // dmrginp.ef
+    
+    if (deallocate2) overlap->deallocate();
+    if (deallocate1) op->deallocate();
+  }
+
+}
+
+
+void StackSpinBlock::multiplyH(StackWavefunction& c, StackWavefunction* v, int num_threads) const
+{
+
+  StackSpinBlock* loopBlock=(leftBlock->is_loopblock()) ? leftBlock : rightBlock;
+  StackSpinBlock* otherBlock = loopBlock == leftBlock ? rightBlock : leftBlock;
+
+  StackWavefunction* v_array; 
+  initiateMultiThread(v, v_array, numthrds);
+
+  dmrginp.oneelecT -> start();
+  dmrginp.s0time -> start();
+
+  //coreEnergy
+  if (fabs(coreEnergy[integralIndex]) > TINY && mpigetrank() == 0) {
+    multiplyOverlap(c, v_array, num_threads);
+    for (int i=0; i<numthrds; i++)
+      Scale(coreEnergy[integralIndex], v_array[i]);
+  }
+
+  boost::shared_ptr<StackSparseMatrix> op = leftBlock->get_op_array(HAM).get_local_element(0)[0];
+  boost::shared_ptr<StackSparseMatrix> overlap = rightBlock->get_op_array(OVERLAP).get_local_element(0)[0];
+  bool deallocate1 = op->memoryUsed() == 0 ? true : false; 
+  op->allocate(leftBlock->get_braStateInfo(), leftBlock->get_ketStateInfo());
+  op->build(*leftBlock);
+
+  bool deallocate2 = overlap->memoryUsed() == 0 ? true : false; 
+  overlap->allocate(rightBlock->get_braStateInfo(), rightBlock->get_ketStateInfo());
+  overlap->build(*rightBlock);      
+  if (mpigetrank() == 0) {
+    TensorMultiply(leftBlock, *op, *overlap, this, c, v_array, op->get_deltaQuantum(0) ,1.0); 
+  }
+
+  if (deallocate2) overlap->deallocate();
+  if (deallocate1) op->deallocate();
+ 
+  op = rightBlock->get_op_array(HAM).get_local_element(0)[0];
+  overlap = leftBlock->get_op_array(OVERLAP).get_local_element(0)[0];
+  op->allocate(rightBlock->get_braStateInfo(), rightBlock->get_ketStateInfo());
+  op->build(*rightBlock);
+  
+  overlap->allocate(leftBlock->get_braStateInfo(), leftBlock->get_ketStateInfo());
+  overlap->build(*leftBlock);
+  if (mpigetrank() == 0) {
+    TensorMultiply(rightBlock, *op, *overlap, this, c, v_array, op->get_deltaQuantum(0), 1.0);  
+  }
+
+  if (deallocate1) overlap->deallocate();
+  if (deallocate2) op->deallocate();
+
+  
+
+  dmrginp.s0time -> stop();
+#ifndef SERIAL
+  boost::mpi::communicator world;
+  int size = world.size();
+#endif
+
+  dmrginp.s1time -> start();
+  FUNCTOR f = boost::bind(&stackopxop::cxcddcomp, leftBlock, _1, this, boost::ref(c), v_array, dmrginp.effective_molecule_quantum() ); 
+  if (!(leftBlock->get_op_array(CRE_CRE_DESCOMP).is_local() && mpigetrank() != 0))
+    for_all_singlethread(rightBlock->get_op_array(CRE), f);
+
+  f = boost::bind(&stackopxop::cxcddcomp, rightBlock, _1, this, boost::ref(c), v_array, dmrginp.effective_molecule_quantum() ); 
+  if (!(rightBlock->get_op_array(CRE_CRE_DESCOMP).is_local() && mpigetrank() != 0))
+    for_all_singlethread(leftBlock->get_op_array(CRE), f);  
+
+  dmrginp.s1time -> stop();
+
+  dmrginp.oneelecT -> stop();
+
+  dmrginp.twoelecT -> start();
+
+  if (dmrginp.hamiltonian() != HUBBARD) {
+    
+    dmrginp.s0time -> start();
+    f = boost::bind(&stackopxop::cdxcdcomp, otherBlock, _1, this, boost::ref(c), v_array, dmrginp.effective_molecule_quantum() );
+    if (!(otherBlock->get_op_array(CRE_DESCOMP).is_local()&& loopBlock->get_op_array(CRE_DES).is_local() && mpigetrank() != 0))
+      for_all_singlethread(loopBlock->get_op_array(CRE_DES), f);
+    
+    f = boost::bind(&stackopxop::ddxcccomp, otherBlock, _1, this, boost::ref(c), v_array, dmrginp.effective_molecule_quantum() );
+    if (!(otherBlock->get_op_array(DES_DESCOMP).is_local() && loopBlock->get_op_array(CRE_CRE).is_local() && mpigetrank() != 0))
+      for_all_singlethread(loopBlock->get_op_array(CRE_CRE), f);
+    dmrginp.s0time -> stop();
+  }
+  
+  dmrginp.twoelecT -> stop();
+
+
+  accumulateMultiThread(v, v_array, numthrds);
+}
+
+
+
+
+
+void StackSpinBlock::diagonalH(DiagonalMatrix& e) const
+{
+  StackSpinBlock* loopBlock=(leftBlock->is_loopblock()) ? leftBlock : rightBlock;
+  StackSpinBlock* otherBlock = loopBlock == leftBlock ? rightBlock : leftBlock;
+  
+  DiagonalMatrix *e_array=&e;
+
+  //initiateMultiThread(&e, e_array, MAX_THRD);
+
+  boost::shared_ptr<StackSparseMatrix> op =leftBlock->get_op_array(HAM).get_local_element(0)[0];
+  bool deallocate1 = op->memoryUsed() == 0 ? true : false; 
+  op->allocate(leftBlock->get_braStateInfo(), leftBlock->get_ketStateInfo());
+  op->build(*leftBlock);
+  if (mpigetrank() == 0) 
+    TensorTrace(leftBlock, *op, this, &(get_stateInfo()), e, 1.0);
+  if (deallocate1) op->deallocate();
+
+  op =rightBlock->get_op_array(HAM).get_local_element(0)[0];
+  bool deallocate2 = op->memoryUsed() == 0 ? true : false; 
+  op->allocate(rightBlock->get_braStateInfo(), rightBlock->get_ketStateInfo());
+  op->build(*rightBlock);
+
+
+  if (mpigetrank() == 0) {
+    TensorTrace(rightBlock, *op, this, &(get_stateInfo()), e, 1.0);
+    for (int i=0; i<e.Nrows(); i++)
+      e(i+1) += coreEnergy[integralIndex];
+  }
+  
+  if (deallocate2) op->deallocate();
+  
+
+#ifndef SERIAL
+  boost::mpi::communicator world;
+  int size = world.size();
+#endif
+
+  if (dmrginp.hamiltonian() != HUBBARD) {
+    
+    FUNCTOR f = boost::bind(&stackopxop::cdxcdcomp_d, otherBlock, _1, this, e_array);
+    if (!(otherBlock->get_op_array(CRE_DESCOMP).is_local()&& loopBlock->get_op_array(CRE_DES).is_local() && mpigetrank() != 0))
+      for_all_singlethread(loopBlock->get_op_array(CRE_DES), f);  
+    
+  }
+
+  //accumulateMultiThread(&e);
+
+}
+
+void StackSpinBlock::BuildSlaterBlock (std::vector<int> sts, std::vector<SpinQuantum> qnumbers, std::vector<int> distribution, bool random, const bool haveNormops)
+{
+  name = get_name();
+
+  if (dmrginp.spinAdapted()) {
+    sites = sts;
+  }
+  else {
+    for (int i=0; i<sts.size(); i++) {
+      sites.push_back( dmrginp.spatial_to_spin()[sts[i]]   );
+      sites.push_back( dmrginp.spatial_to_spin()[sts[i]]+1 );
+    }
+  }
+
+  complementary_sites = make_complement(sites);
+
+  assert (sites.size () > 0);
+  sort (sites.begin (), sites.end ());
+
+  //always have implicit transpose in this case
+  default_op_components(!haveNormops, true);
+  
+  setstoragetype(DISTRIBUTED_STORAGE);
+
+
+  std::vector< Csf > dets;
+  std::vector< Csf > det_ex;
+  Timer slatertimer;
+
+  for (int i = 0; i < qnumbers.size (); ++i)
+    {
+      if (distribution [i] == 0 || (qnumbers [i].get_n() > 2*sites.size ())) continue;
+
+      if(dmrginp.spinAdapted()) 
+	det_ex = Csf::distribute (qnumbers [i].get_n(), qnumbers [i].get_s().getirrep(), IrrepVector(qnumbers [i].get_symm().getirrep(), 0) , sites [0],
+				  sites [0] + sites.size (), dmrginp.last_site(), integralIndex);
+      else
+	det_ex = Csf::distributeNonSpinAdapted (qnumbers [i].get_n(), qnumbers [i].get_s().getirrep(), IrrepVector(qnumbers [i].get_symm().getirrep(), 0) , sites [0],
+						sites [0] + sites.size (), dmrginp.last_site(), integralIndex);
+
+      multimap <double, Csf > slater_emap;
+
+      for (int j = 0; j < det_ex.size(); ++j) {
+	slater_emap.insert (pair <double, Csf > (csf_energy (det_ex[j], integralIndex), det_ex[j]));
+      }
+
+      multimap <double, Csf >::iterator m = slater_emap.begin();
+      int sz = det_ex.size();
+      det_ex.resize (min (distribution [i], sz));
+      for (int j = 0; j < det_ex.size(); ++j)
+        {
+          det_ex[j] = m->second;
+          ++m;
+        }
+
+      copy (det_ex.begin(), det_ex.end(), back_inserter (dets));
+    }
+
+  std::multimap<SpinQuantum, Csf > tmp;
+  for (int i = 0; i < dets.size (); ++i) {
+    tmp.insert(pair<SpinQuantum, Csf > (SpinQuantum ( (dets [i]).n, (dets [i]).S, (dets[i]).sym_is()), dets[i]));
+  }
+  std::multimap<SpinQuantum, Csf >::iterator tmpiter = tmp.begin();
+  dets.clear();
+  for (; tmpiter != tmp.end();)
+  {
+    dets.push_back(tmpiter->second);
+    tmpiter++;
+  }
+
+  braStateInfo = StateInfo (dets);
+  ketStateInfo = StateInfo (dets);
+
+  twoInt = boost::shared_ptr<TwoElectronArray>( &v_2[integralIndex], boostutils::null_deleter());
+
+  totalMemory = build_iterators();
+  if (totalMemory != 0)
+    data = Stackmem.allocate(totalMemory);
+  pout << "Allocating "<<totalMemory<<" for the block "<<endl;
+
+  p3out << "\t\t\t time in slater distribution " << slatertimer.elapsedwalltime() << " " << slatertimer.elapsedcputime() << endl;
+
+  std::vector< std::vector<Csf> > ladders; ladders.resize(dets.size());
+  for (int i=0; i< dets.size(); i++)
+    ladders[i] = dets[i].spinLadder(min(2, dets[i].S.getirrep()));
+
+
+  build_operators(dets, ladders);
+  p3out << "\t\t\t time in slater operator build " << slatertimer.elapsedwalltime() << " " << slatertimer.elapsedcputime() << endl;
+
+
+}
+
+void StackSpinBlock::BuildSingleSlaterBlock(std::vector<int> sts) {
+  name = get_name();
+  if (dmrginp.spinAdapted()) {
+    sites = sts;
+  }
+  else {
+    for (int i=0; i<sts.size(); i++) {
+      sites.push_back( dmrginp.spatial_to_spin()[sts[i]]   );
+      sites.push_back( dmrginp.spatial_to_spin()[sts[i]]+1 );
+    }
+  }
+
+  complementary_sites = make_complement(sites);
+  assert (sites.size () > 0);
+  sort (sites.begin (), sites.end ());
+
+  int left = sites[0], right = sites[0] + sites.size(), edge = dmrginp.last_site();
+  int n = 0, sp = 0;
+  std::vector<bool> tmp(0);
+  IrrepSpace irrep(0);
+
+  if (dmrginp.spinAdapted()) {
+    for (int orbI = left; orbI < right; ++orbI) {
+      n += dmrginp.hf_occupancy()[dmrginp.spatial_to_spin()[orbI]] + dmrginp.hf_occupancy()[dmrginp.spatial_to_spin()[orbI]+1];
+      sp += dmrginp.hf_occupancy()[dmrginp.spatial_to_spin()[orbI]] - dmrginp.hf_occupancy()[dmrginp.spatial_to_spin()[orbI]+1];
+
+      // FIXME: NN wrote, follows don't work correctly for non-abelian symmetry
+      if (dmrginp.hf_occupancy()[dmrginp.spatial_to_spin()[orbI]] == 1) {
+        irrep = IrrepSpace(Symmetry::add(irrep.getirrep(),SymmetryOfSpatialOrb(orbI).getirrep())[0]);
+      }
+      if (dmrginp.hf_occupancy()[dmrginp.spatial_to_spin()[orbI]+1] == 1) {
+        irrep = IrrepSpace(Symmetry::add(irrep.getirrep(),SymmetryOfSpatialOrb(orbI).getirrep())[0]);
+      }
+    }
+
+    for (int i = 0; i < dmrginp.spatial_to_spin()[left]; ++i) {
+      tmp.push_back(0);
+    }
+    for (int orbI = left; orbI < right; ++orbI) {
+      tmp.push_back(dmrginp.hf_occupancy()[dmrginp.spatial_to_spin()[orbI]]);
+      tmp.push_back(dmrginp.hf_occupancy()[dmrginp.spatial_to_spin()[orbI]+1]);
+    }
+    for (int i = 0; i < dmrginp.spatial_to_spin()[edge]-dmrginp.spatial_to_spin()[right]; ++i) {
+      tmp.push_back(0);
+    }
+  } else {
+    for (int i = 0; i < left; ++i) {
+      tmp.push_back(0);
+    }
+    for (int orbI = left; orbI < right; ++orbI) {
+      if (dmrginp.hf_occupancy()[orbI] == 1) {
+        n += 1;
+        sp += SpinOf(orbI);
+      }
+      tmp.push_back(dmrginp.hf_occupancy()[orbI]);
+    }
+    for (int i = 0; i < edge-right; ++i) {
+      tmp.push_back(0);
+    }
+  }
+
+  Slater new_det = Slater(Orbstring(tmp));
+  map<Slater, double> m;
+  m[new_det] = 1.0;
+
+  Csf origin(m, n, SpinSpace(sp), sp, IrrepVector(irrep.getirrep(), 0));
+  std::vector<Csf> dets(1, origin);
+  braStateInfo = StateInfo (dets);
+  ketStateInfo = StateInfo (dets);
+  twoInt = boost::shared_ptr<TwoElectronArray>( &v_2[integralIndex], boostutils::null_deleter());
+
+  totalMemory = build_iterators();
+  if (totalMemory != 0)
+    data = Stackmem.allocate(totalMemory);
+  pout << "Allocating "<<totalMemory<<" for the block "<<endl;
+
+  std::vector< std::vector<Csf> > ladders; ladders.resize(dets.size());
+  for (int i=0; i< dets.size(); i++)
+    ladders[i] = dets[i].spinLadder(min(2, dets[i].S.getirrep()));
+
+  build_operators(dets, ladders);
+
+}
+
+std::string StackSpinBlock::restore (bool forward, const vector<int>& sites, StackSpinBlock& b, int left, int right, char* name)
+{
+  Timer disktimer;
+  std::string file;
+
+  if (forward)
+    file = str(boost::format("%s%s%d%s%d%s%d%s%d%s%d%s%d%s") % dmrginp.save_prefix() % "/Block-f-sites-"% sites[0] % "." % sites[sites.size()-1] % "-states" % left % "." % right % "-integral" %b.integralIndex % "rank" % mpigetrank() % ".tmp" );
+  else
+    file = str(boost::format("%s%s%d%s%d%s%d%s%d%s%d%s%d%s") % dmrginp.save_prefix() % "/Block-b-sites-"% sites[0] % "." % sites[sites.size()-1] % "-states" % left % "." % right % "-integral" %b.integralIndex % "rank" % mpigetrank() % ".tmp" );
+  
+  p1out << "\t\t\t Restoring block file :: " << file << endl;
+
+  std::ifstream ifs(file.c_str(), std::ios::binary);
+
+  int lstate =  left;
+  int rstate =  right;
+
+  if (mpigetrank() == 0) {
+    StateInfo::restore(forward, sites, b.braStateInfo, lstate);
+    StateInfo::restore(forward, sites, b.ketStateInfo, rstate);
+  }
+  
+#ifndef SERIAL
+  mpi::communicator world;
+  mpi::broadcast(world, b.braStateInfo, 0);
+  mpi::broadcast(world, b.ketStateInfo, 0);
+#endif
+
+  b.Load (ifs);
+  ifs.close();
+
+  
+
+
+  return file;
+}
+  
+void StackSpinBlock::store (bool forward, const vector<int>& sites, StackSpinBlock& b, int left, int right, char *name)
+{
+  Timer disktimer;
+  std::string file;
+
+  if (forward)
+    file = str(boost::format("%s%s%d%s%d%s%d%s%d%s%d%s%d%s") % dmrginp.save_prefix() % "/Block-f-sites-"% sites[0] % "." % sites[sites.size()-1] % "-states" % left % "." % right % "-integral" %b.integralIndex % "rank" % mpigetrank() % ".tmp" );
+  else
+    file = str(boost::format("%s%s%d%s%d%s%d%s%d%s%d%s%d%s") % dmrginp.save_prefix() % "/Block-b-sites-"% sites[0] % "." % sites[sites.size()-1] % "-states" % left % "." % right % "-integral" %b.integralIndex % "rank" % mpigetrank() % ".tmp" );
+  
+  p1out << "\t\t\t Saving block file :: " << file << endl;
+  
+  
+  std::ofstream ofs(file.c_str(), std::ios::binary);
+  
+  int lstate =  left;
+  int rstate =  right;
+  
+  if (mpigetrank()==0) {
+    StateInfo::store(forward, sites, b.braStateInfo, lstate);
+    StateInfo::store(forward, sites, b.ketStateInfo, rstate);
+  }
+
+
+  b.Save (ofs);
+  ofs.close(); 
+
+
+  //p1out << "\t\t\t block save disk time " << disktimer.elapsedwalltime() << " " << disktimer.elapsedcputime() << endl;
+}
+
+void StackSpinBlock::Save (std::ofstream &ofs)
+{
+  dmrginp.diskio->start();
+  boost::archive::binary_oarchive save_block(ofs);
+  save_block << *this;
+
+  save_block << totalMemory;
+  save_block << boost::serialization::make_array<double>(data, totalMemory);
+  //for (int i=0; i<totalMemory; i++) 
+  //save_block << data[i];
+
+  dmrginp.diskio->stop();
+}
+
+//helper function
+void StackSpinBlock::Load (std::ifstream & ifs)
+{
+  dmrginp.diskio->start();
+  boost::archive::binary_iarchive load_block(ifs);
+  load_block >> *this;
+
+  load_block >> totalMemory;
+  data = Stackmem.allocate(totalMemory);
+  load_block >> boost::serialization::make_array<double>(data, totalMemory);
+  //for (int i=0; i<totalMemory; i++) 
+  //load_block >> data[i];
+
+  double* localdata = data; 
+  for (std::map<opTypes, boost::shared_ptr< StackOp_component_base> >::iterator it = ops.begin(); it != ops.end(); ++it)
+  {
+    if(it->second->is_core()) {
+      
+      for (int i=0; i<it->second->get_size(); i++) {
+	int vecsize = it->second->get_local_element(i).size();
+	for (int j=0; j<vecsize; j++) {
+	  it->second->get_local_element(i)[j]->set_data(localdata);
+	  it->second->get_local_element(i)[j]->allocateOperatorMatrix();
+	  localdata = localdata + it->second->get_local_element(i)[j]->memoryUsed();
+	}
+      }
+    }
+  }
+
+  dmrginp.diskio->stop();
+}
+
+
+void initialiseSingleSiteBlocks(std::vector<StackSpinBlock>& singleSiteBlocks, int integralIndex) {
+  
+  int niter; 
+  if (dmrginp.spinAdapted())
+    niter = dmrginp.last_site();
+  else
+    niter = dmrginp.last_site()/2; 
+
+  singleSiteBlocks.resize(niter);
+  int dotStart, dotEnd;
+  for (int i=0; i<niter; i++)
+    singleSiteBlocks[i] = StackSpinBlock(i, i, integralIndex, true);
+}
+
+}
