@@ -29,7 +29,7 @@ long SpinAdapted::getRequiredMemoryForWavefunction(const StateInfo& sr, const St
 	}
       }
       if (allowedcoupling)
-	memory += sr.quantaStates[i]*sc.quantaStates[j];
+	memory += sr.quantaStates[i]*sc.quantaStates[j]+ CACHEBUFFER;
     }
 
   return memory;
@@ -45,7 +45,7 @@ void SpinAdapted::StackWavefunction::initialise(const StackWavefunction& w)
   for (int i = 0; i<nonZeroBlocks.size(); i++) {
     int lQ = nonZeroBlocks[i].first.first, rQ = nonZeroBlocks[i].first.second;
     operatorMatrix(lQ,rQ).allocate(&data[index], operatorMatrix(lQ, rQ).Nrows(), operatorMatrix(lQ, rQ).Ncols());
-    index += operatorMatrix(lQ, rQ).Nrows()* operatorMatrix(lQ, rQ).Ncols();
+    index += operatorMatrix(lQ, rQ).Nrows()* operatorMatrix(lQ, rQ).Ncols()+ CACHEBUFFER;
     nonZeroBlocks[i].second= operatorMatrix(lQ,rQ);
   }
   if (index != totalMemory) exit(0);
@@ -68,6 +68,7 @@ void SpinAdapted::StackWavefunction::initialise(const vector<SpinQuantum>& dQ, c
   totalMemory = ptotalMemory;
   initialised = true;
   fermion = false;
+  built = true;
   deltaQuantum = dQ;
   onedot = onedot_; 
 
@@ -94,7 +95,7 @@ void SpinAdapted::StackWavefunction::initialise(const vector<SpinQuantum>& dQ, c
       if (allowedQuantaMatrix(lQ, rQ))
       {
 	operatorMatrix(lQ,rQ).allocate(&data[index], sl.quantaStates [lQ], sr.quantaStates [rQ]);
-	index += sl.quantaStates [lQ]* sr.quantaStates [rQ];
+	index += sl.quantaStates [lQ]* sr.quantaStates [rQ]+ CACHEBUFFER;
 	nonZeroBlocks.push_back(std::pair< std::pair<int, int> , StackMatrix>( std::pair<int,int>(lQ,rQ), operatorMatrix(lQ,rQ)));
 	mapToNonZeroBlocks.insert(std::pair< std::pair<int, int>, int>(std::pair<int, int>(lQ, rQ), nonZeroBlocks.size()-1));
       }
@@ -104,16 +105,25 @@ void SpinAdapted::StackWavefunction::initialise(const vector<SpinQuantum>& dQ, c
 }
 
 
+/*
 void SpinAdapted::StackWavefunction::FlattenInto (Matrix& C)
 {
   C.ReSize(totalMemory,1);
   DCOPY(totalMemory, data, 1, C.Store(), 1);
 }
+*/
 
 void SpinAdapted::StackWavefunction::CollectFrom (const RowVector& C)
 {
   assert(totalMemory == C.Storage());
-  DCOPY(totalMemory, C.Store(), 1, data, 1);
+  long index = 0;
+  for (int lQ = 0; lQ < nrows(); ++lQ)
+  for (int rQ = 0; rQ < ncols(); ++rQ)
+  if (allowed(lQ, rQ)) {
+    int copysize = operatorMatrix(lQ, rQ).Nrows()* operatorMatrix(lQ, rQ).Ncols();
+    DCOPY(copysize, C.Store()+(index), 1, operatorMatrix(lQ, rQ).Store(), 1);
+    index += copysize;
+  }
 }
 
 
@@ -198,8 +208,9 @@ void SpinAdapted::StackWavefunction::CollectQuantaAlongRows (const StateInfo& sR
       allowedQuantaMatrix = tmpOper.allowedQuantaMatrix;
       operatorMatrix = tmpOper.operatorMatrix;
 
-      DCOPY(totalMemory, tmpOper.data, 1, data, 1);
       allocateOperatorMatrix(); 
+      copy(tmpOper.operatorMatrix, operatorMatrix);
+      //DCOPY(totalMemory, tmpOper.data, 1, data, 1);
 
       tmpOper.deallocate();
     }
@@ -253,9 +264,9 @@ void SpinAdapted::StackWavefunction::UnCollectQuantaAlongRows (const StateInfo& 
       allowedQuantaMatrix = tmpOper.allowedQuantaMatrix;
       operatorMatrix = tmpOper.operatorMatrix;
 
-      DCOPY(totalMemory, tmpOper.data, 1, data, 1);
       allocateOperatorMatrix(); 
-
+      copy(tmpOper.operatorMatrix, operatorMatrix);
+      
       tmpOper.deallocate();
 
     }
@@ -304,8 +315,9 @@ void SpinAdapted::StackWavefunction::CollectQuantaAlongColumns (const StateInfo&
       allowedQuantaMatrix = tmpOper.allowedQuantaMatrix;
       operatorMatrix = tmpOper.operatorMatrix;
 
-      DCOPY(totalMemory, tmpOper.data, 1, data, 1);
       allocateOperatorMatrix(); 
+      copy(tmpOper.operatorMatrix, operatorMatrix);
+      //DCOPY(totalMemory, tmpOper.data, 1, data, 1);
 
       tmpOper.deallocate();
     }
@@ -356,8 +368,9 @@ void  SpinAdapted::StackWavefunction::UnCollectQuantaAlongColumns (const StateIn
   }
   allowedQuantaMatrix = tmpOper.allowedQuantaMatrix;
   operatorMatrix = tmpOper.operatorMatrix;
-  DCOPY(totalMemory, tmpOper.data, 1, data, 1);
   allocateOperatorMatrix(); 
+  copy(tmpOper.operatorMatrix, operatorMatrix);
+
   
   tmpOper.deallocate();
 }
