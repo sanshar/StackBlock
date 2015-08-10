@@ -48,13 +48,13 @@ void StackSpinBlock::RenormaliseFrom(vector<double> &energies, vector<double> &s
   int nroots = dmrginp.setStateSpecific() ? 1 : dmrginp.nroots(sweepiter);
   vector<StackWavefunction> wave_solutions(nroots);
 
-  wave_solutions[0].initialise(dmrginp.effective_molecule_quantum_vec(), big.get_leftBlock()->get_stateInfo(), big.get_rightBlock()->get_stateInfo(), onedot);
+  StateInfo l = big.get_leftBlock()->get_stateInfo(), r = big.get_rightBlock()->get_stateInfo();
+
+  wave_solutions[0].initialise(dmrginp.effective_molecule_quantum_vec(), l, r, onedot);
   wave_solutions[0].Clear();
-
-
   if (mpigetrank() == 0) {
     for (int i=1; i<nroots; i++) {
-      wave_solutions[i].initialise(dmrginp.effective_molecule_quantum_vec(), big.get_leftBlock()->get_stateInfo(), big.get_rightBlock()->get_stateInfo(), onedot);
+      wave_solutions[i].initialise(dmrginp.effective_molecule_quantum_vec(), l, r, onedot);
       wave_solutions[i].Clear();
     }
   }
@@ -68,7 +68,6 @@ void StackSpinBlock::RenormaliseFrom(vector<double> &energies, vector<double> &s
   Solver::solve_wavefunction(wave_solutions, energies, big, tol, guesswavetype, onedot, 
 			     dot_with_sys, warmUp, additional_noise, currentRoot, lowerStates);
   dmrginp.solvewf -> stop();
-
   StackSpinBlock newsystem;
   StackSpinBlock newenvironment;
   StackSpinBlock newbig;

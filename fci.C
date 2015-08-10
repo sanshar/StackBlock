@@ -43,13 +43,16 @@ void SpinAdapted::Sweep::fullci(double sweep_tol)
     StackSpinBlock& sysdot = singleSiteBlocks[integralIndex][i+1];
     system.addAdditionalCompOps();
     newSystem.set_integralIndex() = integralIndex;
-    if (i == forwardsites-2)
+    if (i == forwardsites-2) {
       newSystem.default_op_components(true, system, sysdot, false, true, true);
-    else
+      newSystem.setstoragetype(DISTRIBUTED_STORAGE);
+      newSystem.BuildSumBlock (NO_PARTICLE_SPIN_NUMBER_CONSTRAINT, system, sysdot);
+    }
+    else {
       newSystem.default_op_components(false, system, sysdot, false, true, true);
-
-    newSystem.setstoragetype(DISTRIBUTED_STORAGE);
-    newSystem.BuildSumBlock (NO_PARTICLE_SPIN_NUMBER_CONSTRAINT, system, sysdot);
+      newSystem.setstoragetype(DISTRIBUTED_STORAGE);
+      newSystem.BuildSumBlock (NO_PARTICLE_SPIN_NUMBER_CONSTRAINT, system, sysdot);
+    }
 
     pout << newSystem<<endl;
     long memoryToFree = system.memoryUsed();
@@ -70,12 +73,16 @@ void SpinAdapted::Sweep::fullci(double sweep_tol)
     StackSpinBlock& envdot=singleSiteBlocks[integralIndex][numsites-2-i];
     environment.addAdditionalCompOps();
     newEnvironment.set_integralIndex() = integralIndex;
-    if (i == backwardsites-2)
+    if (i == backwardsites-2) {
       newEnvironment.default_op_components(true, environment, envdot, true, true, true);
-    else
+      newEnvironment.setstoragetype(DISTRIBUTED_STORAGE);
+      newEnvironment.BuildSumBlock (NO_PARTICLE_SPIN_NUMBER_CONSTRAINT, environment, envdot);
+    }
+    else {
       newEnvironment.default_op_components(false, environment, envdot, true, true, true);
-    newEnvironment.setstoragetype(DISTRIBUTED_STORAGE);
-    newEnvironment.BuildSumBlock (NO_PARTICLE_SPIN_NUMBER_CONSTRAINT, environment, envdot);
+      newEnvironment.setstoragetype(DISTRIBUTED_STORAGE);
+      newEnvironment.BuildSumBlock (NO_PARTICLE_SPIN_NUMBER_CONSTRAINT, environment, envdot);
+    }
 
     if (i!=backwardsites-2) {
       if (i != 0) {
@@ -145,7 +152,6 @@ void SpinAdapted::Sweep::fullci(double sweep_tol)
       solution[i].deallocate();
   }
   solution[0].deallocate();
-
 
 }
 
