@@ -99,8 +99,8 @@ class StackSparseMatrix : public Baseoperator<StackMatrix>  // the sparse matrix
  StackSparseMatrix(const StackSparseMatrix& a) : 
   orbs(a.get_orbs()), deltaQuantum(a.get_deltaQuantum()), fermion(a.get_fermion()), 
     initialised(a.get_initialised()), allowedQuantaMatrix(a.get_allowedQuantaMatrix()), 
-    Sign(a.get_sign()), totalMemory(a.totalMemory), data(a.data), conj('n'),
-    operatorMatrix(a.operatorMatrix), rowCompressedForm(a.rowCompressedForm), 
+    Sign(a.get_sign()), totalMemory(a.totalMemory), data(a.data), conj('n'), built(a.built),
+    operatorMatrix(a.operatorMatrix), rowCompressedForm(a.rowCompressedForm), built_on_disk(a.built_on_disk),
     colCompressedForm(a.colCompressedForm), nonZeroBlocks(a.nonZeroBlocks), mapToNonZeroBlocks(a.mapToNonZeroBlocks) 
     {};
 
@@ -115,6 +115,7 @@ class StackSparseMatrix : public Baseoperator<StackMatrix>  // the sparse matrix
   virtual void build(const StackSpinBlock& block) {};
   double* get_data() {return data;}
   const double* get_data() const {return data;}
+  long& set_totalMemory() {return totalMemory;}
   void set_data(double* pData) {data = pData;}
   void deepCopy(const StackSparseMatrix& o) ;
   void deepClearCopy(const StackSparseMatrix& o) ;
@@ -146,6 +147,7 @@ class StackSparseMatrix : public Baseoperator<StackMatrix>  // the sparse matrix
   }
 
   ObjectMatrix<StackMatrix>& get_operatorMatrix() {return operatorMatrix;}
+  const ObjectMatrix<StackMatrix>& get_operatorMatrix() const {return operatorMatrix;}
   friend ostream& operator<<(ostream& os, const StackSparseMatrix& a);
   void operator=(const StackSparseMatrix& m);
   void Randomise();

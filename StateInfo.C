@@ -77,7 +77,7 @@ SpinAdapted::StateInfo::StateInfo (const std::vector<SpinQuantum>& q, const std:
 }
 
 
-SpinAdapted::StateInfo::StateInfo (const std::vector< Csf >& dets, bool addWavefunctionQuanta) : totalStates (0), initialised (true), hasAllocatedMemory (false), hasCollectedQuanta (false), hasPreviousStateInfo (false)
+SpinAdapted::StateInfo::StateInfo (const std::vector< Csf >& dets, bool addWavefunctionQuanta) : leftStateInfo(0), rightStateInfo(0), totalStates (0), initialised (true), hasAllocatedMemory (false), hasCollectedQuanta (false), hasPreviousStateInfo (false)
 {
   std::vector<SpinQuantum> tmp;
   for (int i = 0; i < dets.size (); ++i) {
@@ -104,6 +104,7 @@ SpinAdapted::StateInfo::StateInfo (const std::vector< Csf >& dets, bool addWavef
 
 void SpinAdapted::StateInfo::UnBlockIndex ()
 {
+  unBlockedIndex.clear();
   unBlockedIndex.resize (quanta.size ());
   for (int i = 0; i < unBlockedIndex.size (); ++i)
     unBlockedIndex [i] = (i > 0) ? unBlockedIndex [i - 1] + quantaStates [i - 1] : 0; 
@@ -376,6 +377,7 @@ void SpinAdapted::StateInfo::CollectQuanta ()
   uniqueStateInfo.AllocateUnCollectedStateInfo ();
   *uniqueStateInfo.unCollectedStateInfo = *this;
   *this = uniqueStateInfo;
+  hasCollectedQuanta=true;
   UnBlockIndex ();
 }
 

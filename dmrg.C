@@ -87,7 +87,7 @@ namespace SpinAdapted{
   CCCCArray v_cccc;
   CCCDArray v_cccd;
   Input dmrginp;
-  int CACHEBUFFER = 100;
+  int CACHEBUFFER = 0;
   int MAX_THRD = 1;
   bool FULLRESTART;
   bool RESTART;

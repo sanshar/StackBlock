@@ -67,7 +67,8 @@ void GuessWave::transpose_previous_wavefunction(StackWavefunction& trial, const 
     oldWave.LoadWavefunctionInfo (oldStateInfo, big.get_rightBlock()->get_sites(), state, true);
 
     temptrial.initialise(trial); temptrial.Clear();
-    DCOPY(trial.memoryUsed(), trial.get_data(), 1, temptrial.get_data(), 1);
+    copy(trial.get_operatorMatrix(), temptrial.get_operatorMatrix());
+
     if (oldWave.get_onedot()) {
       temptrial.deallocate();
       temptrial.initialise(oldWave.get_deltaQuantum(), *oldStateInfo.rightStateInfo, *oldStateInfo.leftStateInfo, false);
@@ -111,7 +112,8 @@ void GuessWave::transpose_previous_wavefunction(StackWavefunction& trial, const 
       }
     }
     else 
-      DCOPY(trial.memoryUsed(), temptrial.get_data(), 1, trial.get_data(), 1);
+      copy(temptrial.get_operatorMatrix(), trial.get_operatorMatrix());
+
       
     temptrial.deallocate();
     oldWave.deallocate();
@@ -407,7 +409,8 @@ void GuessWave::onedot_twoindex_to_threeindex_wavefunction(const StateInfo& stat
   threewavefunction.ReSize(NDimsys, NDimdot, NDimenv);
 
   StackWavefunction uncollectedwf; uncollectedwf.initialise(twowavefunction);
-  DCOPY(uncollectedwf.memoryUsed(), const_cast<double*>(twowavefunction.get_data()), 1, uncollectedwf.get_data(), 1);
+  copy(twowavefunction.get_operatorMatrix(), uncollectedwf.get_operatorMatrix());
+  //DCOPY(uncollectedwf.memoryUsed(), const_cast<double*>(twowavefunction.get_data()), 1, uncollectedwf.get_data(), 1);
   uncollectedwf.UnCollectQuantaAlongRows(*stateinfo.leftStateInfo, *stateinfo.rightStateInfo);
 
   const StateInfo& uncollectedstateinfo = *(stateinfo.leftStateInfo->unCollectedStateInfo);
@@ -451,9 +454,9 @@ void GuessWave::onedot_twoindex_to_threeindex_shufflesysdot(const StateInfo& sta
   threewavefunction.ReSize(NDimsys, NDimdot, NDimenv);
 
   StackWavefunction uncollectedwf; uncollectedwf.initialise(twowavefunction);
-  DCOPY(uncollectedwf.memoryUsed(), const_cast<double*>(twowavefunction.get_data()), 1, uncollectedwf.get_data(), 1);
+  copy(twowavefunction.get_operatorMatrix(), uncollectedwf.get_operatorMatrix());
+  //DCOPY(uncollectedwf.memoryUsed(), const_cast<double*>(twowavefunction.get_data()), 1, uncollectedwf.get_data(), 1);
   uncollectedwf.UnCollectQuantaAlongColumns(*stateinfo.leftStateInfo, *stateinfo.rightStateInfo);
-
   const StateInfo& uncollectedstateinfo = *(stateinfo.rightStateInfo->unCollectedStateInfo);
 
   for (int a = 0; a < uncollectedwf.nrows(); ++a)

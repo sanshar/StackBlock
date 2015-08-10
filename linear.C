@@ -158,6 +158,7 @@ void SpinAdapted::Linear::block_davidson(vector<StackWavefunction>& b, DiagonalM
     }
     dmrginp.hmultiply -> stop();
 
+
     DiagonalMatrix subspace_eigenvalues;
 
     if (mpigetrank() == 0) {
@@ -174,13 +175,11 @@ void SpinAdapted::Linear::block_davidson(vector<StackWavefunction>& b, DiagonalM
       for (int i = 1; i <= subspace_eigenvalues.Ncols (); ++i)
 	p3out << "\t\t\t " << i << " ::  " << subspace_eigenvalues(i,i) << endl;
 
-   pout << *dmrginp.tensormultiply<<endl;
-    exit(0);
       //now calculate the ritz vectors which are approximate eigenvectors
-      vector<double*> tmp(bsize);
+      vector<StackWavefunction> tmp(bsize);
       for (int i=0; i<bsize; i++) {
-	tmp[i] = Stackmem.allocate(b[i].memoryUsed());
-	DCOPY(b[i].memoryUsed(), b[i].get_data(), 1, tmp[i], 1);
+	tmp[i].initialise(b[i]);
+	copy(b[i].get_operatorMatrix(), tmp[i].get_operatorMatrix());
       }
       for (int i = 0; i < bsize; ++i)
 	Scale(alpha.element(i, i), b[i]);
@@ -188,10 +187,12 @@ void SpinAdapted::Linear::block_davidson(vector<StackWavefunction>& b, DiagonalM
       for (int i = 0; i < bsize; ++i)
       for (int j = 0; j < bsize; ++j)
       if (i != j)
-	DAXPY(b[0].memoryUsed(), alpha.element(i, j),  tmp[i], 1, b[j].get_data(), 1);
+	ScaleAdd(alpha.element(i,j), tmp[i], b[j]);
+      //DAXPY(b[0].memoryUsed(), alpha.element(i, j),  tmp[i], 1, b[j].get_data(), 1);
 
       for (int i=0; i<bsize; i++) 
-	DCOPY(sigma[i].memoryUsed(), sigma[i].get_data(), 1, tmp[i], 1);
+	copy(sigma[i].get_operatorMatrix(), tmp[i].get_operatorMatrix());
+
 
       for (int i = 0; i < bsize; ++i)
 	Scale(alpha.element(i, i), sigma[i]);
@@ -199,14 +200,15 @@ void SpinAdapted::Linear::block_davidson(vector<StackWavefunction>& b, DiagonalM
       for (int i = 0; i < bsize; ++i)
       for (int j = 0; j < bsize; ++j)
       if (i != j)
-	DAXPY(sigma[j].memoryUsed(), alpha.element(i, j),  tmp[i], 1, sigma[j].get_data(), 1);
+	ScaleAdd(alpha.element(i,j), tmp[i], sigma[j]);
+      //DAXPY(sigma[j].memoryUsed(), alpha.element(i, j),  tmp[i], 1, sigma[j].get_data(), 1);
 
       for (int i=bsize-1; i>-1; i--)
-	Stackmem.deallocate(tmp[i], b[i].memoryUsed());
+	tmp[i].deallocate();
 	
       // build residual 
       for (int i=0; i<converged_roots; i++) {
-	DCOPY(r.memoryUsed(), sigma[i].get_data(), 1, r.get_data(), 1); 
+	copy(sigma[i].get_operatorMatrix(), r.get_operatorMatrix());
 	ScaleAdd(-subspace_eigenvalues(i+1), b[i], r);
 	double rnorm = DotProduct(r,r);
 	if (rnorm > normtol) {
@@ -216,7 +218,7 @@ void SpinAdapted::Linear::block_davidson(vector<StackWavefunction>& b, DiagonalM
 	}
       }
 
-      DCOPY(r.memoryUsed(), sigma[converged_roots].get_data(), 1, r.get_data(), 1); 
+      copy(sigma[converged_roots].get_operatorMatrix(), r.get_operatorMatrix());
       ScaleAdd(-subspace_eigenvalues(converged_roots+1), b[converged_roots], r);
 
       if (lowerStates.size() != 0) {
@@ -284,7 +286,8 @@ void SpinAdapted::Linear::block_davidson(vector<StackWavefunction>& b, DiagonalM
       //double tau2 = DotProduct(r,r);
 
       Normalise(r);
-      DCOPY(r.memoryUsed(), r.get_data(), 1, b[bsize].get_data(), 1);
+      
+      copy(r.get_operatorMatrix(), b[bsize].get_operatorMatrix());
       bsize++;
     }
     

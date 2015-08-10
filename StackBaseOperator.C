@@ -176,6 +176,8 @@ void StackSparseMatrix::operator=(const StackSparseMatrix& a)
   allowedQuantaMatrix = a.get_allowedQuantaMatrix();
   operatorMatrix = a.operatorMatrix;
   Sign = a.get_sign();
+  built = a.built;
+  built_on_disk = a.built_on_disk;
   totalMemory = a.totalMemory;
   data=a.data;
   rowCompressedForm = a.rowCompressedForm;
@@ -295,7 +297,7 @@ double* StackSparseMatrix::allocate(const StateInfo& rowSI, const StateInfo& col
       if (allowedQuantaMatrix(lQ, rQ))
       {
 	operatorMatrix(lQ,rQ).allocate(&data[index], rowSI.quantaStates [lQ], colSI.quantaStates [rQ]);
-	index += rowSI.quantaStates [lQ]* colSI.quantaStates [rQ];
+	index += rowSI.quantaStates [lQ]* colSI.quantaStates [rQ] + CACHEBUFFER;
 	nonZeroBlocks.push_back(std::pair< std::pair<int, int> , StackMatrix>( std::pair<int,int>(lQ,rQ), operatorMatrix(lQ,rQ)));
 	mapToNonZeroBlocks.insert(std::pair< std::pair<int, int>, int>(std::pair<int, int>(lQ, rQ), nonZeroBlocks.size()-1));
       }
@@ -326,7 +328,7 @@ double* StackSparseMatrix::allocateOperatorMatrix()
   for (int i=0; i<nonZeroBlocks.size(); i++) {
     int lQ = nonZeroBlocks[i].first.first, rQ = nonZeroBlocks[i].first.second;
     operatorMatrix(lQ,rQ).allocate(&data[index], operatorMatrix(lQ, rQ).Nrows(), operatorMatrix(lQ, rQ).Ncols());
-    index += operatorMatrix(lQ, rQ).Nrows()* operatorMatrix(lQ, rQ).Ncols();
+    index += operatorMatrix(lQ, rQ).Nrows()* operatorMatrix(lQ, rQ).Ncols()+ CACHEBUFFER;
     nonZeroBlocks[i].second= operatorMatrix(lQ,rQ);
   }
   totalMemory = index;
@@ -371,7 +373,7 @@ long getRequiredMemory(const StateInfo& sr, const StateInfo& sc, const std::vect
 	}
       }
       if (allowedcoupling)
-	memory += sr.quantaStates[i]*sc.quantaStates[j];
+	memory += sr.quantaStates[i]*sc.quantaStates[j]+ CACHEBUFFER;
     }
   dmrginp.getreqMem->stop();
 
@@ -381,11 +383,6 @@ long getRequiredMemory(const StateInfo& sr, const StateInfo& sc, const std::vect
 
 void StackSparseMatrix::CleanUp ()
 {
-  built = false;
-  initialised = false;
-  fermion = 0;
-  deltaQuantum.clear();
-  orbs.resize(0);
   allowedQuantaMatrix.ReSize (0,0);
   operatorMatrix.ReSize (0,0);
   nonZeroBlocks.resize(0);
@@ -398,7 +395,7 @@ void StackSparseMatrix::CleanUp ()
 
 ostream& operator<< (ostream& os, const StackSparseMatrix& a)
 {
-  os << " nonZeroBlocks "<<a.nonZeroBlocks.size();
+  os << " nonZeroBlocks "<<a.nonZeroBlocks.size()<<endl;
   for (int i=0; i<a.nonZeroBlocks.size(); i++)
     os << a.nonZeroBlocks[i].first.first<<"  "<<a.nonZeroBlocks[i].first.second<<endl;
   if (!a.initialised){
@@ -412,6 +409,7 @@ ostream& operator<< (ostream& os, const StackSparseMatrix& a)
   for (int i = 0; i < a.get_deltaQuantum_size(); ++i) {
     os<<a.get_deltaQuantum(i)<<endl;
   }
+  os<<a.totalMemory<<endl;
   for (int i = 0; i < a.nrows (); ++i)
 	for (int j = 0; j < a.ncols (); ++j)
 	{

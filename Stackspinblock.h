@@ -92,7 +92,8 @@ class StackSpinBlock
 
   //can only be called before the data is initialized
   void BuildTensorProductBlock (std::vector<int>& new_sites);
-
+  void recreateStateInfo(int condition);
+  void collectQuanta();
 
   //These functions need to be called before the required memory can be calculated
   //These functions decide what operators are to be built and stored in memory
@@ -136,6 +137,7 @@ class StackSpinBlock
   StackSpinBlock* get_rightBlock() const {return rightBlock;}
 
   //related to retriving information from oparray
+  void CleanUpOperators();
   void erase(opTypes optype) {assert(has(optype)); ops.erase(optype);}
   boost::shared_ptr<StackOp_component_base>& set_op_array(opTypes optype){assert(has(optype));return ops.find(optype)->second;}
   StackOp_component_base& get_op_array(opTypes optype){assert(has(optype));return *(ops.find(optype)->second);}
@@ -193,8 +195,8 @@ class StackSpinBlock
   void renormalise_transform(const std::vector<Matrix>& rotateMatrix, const StateInfo *stateinfo);
   void renormalise_transform(const std::vector<Matrix>& leftMat, const StateInfo *bra, const std::vector<Matrix>& rightMat, const StateInfo *ket);
 
-  void BuildSumBlock(int condition, StackSpinBlock& b_1, StackSpinBlock& b_2, StateInfo* compState=0);
-  void BuildSumBlockSkeleton(int condition, StackSpinBlock& lBlock, StackSpinBlock& rBlock, StateInfo* compState=0);
+  void BuildSumBlock(int condition, StackSpinBlock& b_1, StackSpinBlock& b_2, bool collectQuanta = true, StateInfo* compState=0);
+  void BuildSumBlockSkeleton(int condition, StackSpinBlock& lBlock, StackSpinBlock& rBlock, bool collectQuanta = true, StateInfo* compState=0);
   void BuildSlaterBlock (std::vector<int> sts, std::vector<SpinQuantum> qnumbers, std::vector<int> distribution, bool random, 
 			 const bool haveNormops);
   void BuildSingleSlaterBlock(std::vector<int> sts);

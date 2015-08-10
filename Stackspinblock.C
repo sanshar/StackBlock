@@ -336,6 +336,23 @@ void StackSpinBlock::build_and_renormalise_operators(const std::vector<Matrix>& 
   }
 }
 
+void StackSpinBlock::CleanUpOperators()
+{
+  for (std::map<opTypes, boost::shared_ptr< StackOp_component_base> >::iterator it = ops.begin(); it != ops.end(); ++it)
+  {
+      
+    for (int i=0; i<it->second->get_size(); i++) {
+      int vecsize = it->second->get_local_element(i).size();
+      for (int j=0; j<vecsize; j++) {
+	it->second->get_local_element(i)[j]->CleanUp();
+	it->second->get_local_element(i)[j]->set_totalMemory() = 0;
+      }
+    }
+  }
+
+}
+
+
 void StackSpinBlock::transform_operators(std::vector<Matrix>& rotateMatrix) 
 {
   p1out << "\t\t\t Transforming to new basis " << endl;
@@ -447,7 +464,34 @@ void StackSpinBlock::clear()
 }
 
 
-void StackSpinBlock::BuildSumBlockSkeleton(int condition, StackSpinBlock& lBlock, StackSpinBlock& rBlock, StateInfo* compState)
+void StackSpinBlock::recreateStateInfo(int condition)
+{
+  if (rightBlock == 0) return;
+  ketStateInfo = StateInfo();
+  braStateInfo = StateInfo();
+  if(dmrginp.transition_diff_irrep()){
+    if( condition== PARTICLE_SPIN_NUMBER_CONSTRAINT)
+    // When bra and ket wavefuntion have different spatial or spin irrep,
+    // Bra Stateinfo for the big block should not be used with quantum number of effective_molecule_quantum
+      TensorProduct (leftBlock->braStateInfo, rightBlock->braStateInfo, dmrginp.bra_quantum(), EqualQ, braStateInfo);
+    else if (condition== NO_PARTICLE_SPIN_NUMBER_CONSTRAINT) 
+      TensorProduct (leftBlock->braStateInfo, rightBlock->braStateInfo, dmrginp.bra_quantum(), LessThanQ, braStateInfo);
+    // When bra and ket wavefuntion have different spatial or spin irrep,
+  }
+ else {
+   TensorProduct (leftBlock->braStateInfo, rightBlock->braStateInfo, braStateInfo, condition);
+ }
+
+  TensorProduct (leftBlock->ketStateInfo, rightBlock->ketStateInfo, ketStateInfo, condition);
+}
+
+void StackSpinBlock::collectQuanta()
+{
+  braStateInfo.CollectQuanta();
+  ketStateInfo.CollectQuanta();
+}
+
+void StackSpinBlock::BuildSumBlockSkeleton(int condition, StackSpinBlock& lBlock, StackSpinBlock& rBlock, bool collectQuanta, StateInfo* compState)
 {
 
   name = get_name();
@@ -511,16 +555,22 @@ void StackSpinBlock::BuildSumBlockSkeleton(int condition, StackSpinBlock& lBlock
   dmrginp.statetensorproduct -> stop();
 
   dmrginp.statecollectquanta -> start();
+  if (collectQuanta) {
   if (!( (dmrginp.hamiltonian() == BCS && condition == SPIN_NUMBER_CONSTRAINT)  ||
 	 (dmrginp.hamiltonian() != BCS && condition == PARTICLE_SPIN_NUMBER_CONSTRAINT))) {
     braStateInfo.CollectQuanta();
     ketStateInfo.CollectQuanta();
   }
+  }
+  else {
+    braStateInfo.hasCollectedQuanta = false;
+    ketStateInfo.hasCollectedQuanta = false;
+  }
   dmrginp.statecollectquanta -> stop();
 
 }
 
-void StackSpinBlock::BuildSumBlock(int condition, StackSpinBlock& lBlock, StackSpinBlock& rBlock, StateInfo* compState)
+void StackSpinBlock::BuildSumBlock(int condition, StackSpinBlock& lBlock, StackSpinBlock& rBlock, bool collectQuanta, StateInfo* compState)
 {
   if (!(lBlock.integralIndex == rBlock.integralIndex && lBlock.integralIndex == integralIndex))  {
     pout << "The left, right and dot block should use the same integral indices"<<endl;
@@ -528,7 +578,7 @@ void StackSpinBlock::BuildSumBlock(int condition, StackSpinBlock& lBlock, StackS
     exit(0);
   }
   dmrginp.buildsumblock -> start();
-  BuildSumBlockSkeleton(condition, lBlock, rBlock, compState);
+  BuildSumBlockSkeleton(condition, lBlock, rBlock, collectQuanta, compState);
 
   totalMemory = build_iterators();
   if (totalMemory != 0)
@@ -625,6 +675,7 @@ void StackSpinBlock::multiplyH(StackWavefunction& c, StackWavefunction* v, int n
     TensorMultiply(leftBlock, *op, *overlap, this, c, v_array, op->get_deltaQuantum(0) ,1.0); 
   }
 
+
   if (deallocate2) overlap->deallocate();
   if (deallocate1) op->deallocate();
  
@@ -659,6 +710,7 @@ void StackSpinBlock::multiplyH(StackWavefunction& c, StackWavefunction* v, int n
   if (!(rightBlock->get_op_array(CRE_CRE_DESCOMP).is_local() && mpigetrank() != 0))
     for_all_singlethread(leftBlock->get_op_array(CRE), f);  
 
+
   dmrginp.s1time -> stop();
 
   dmrginp.oneelecT -> stop();
@@ -679,7 +731,6 @@ void StackSpinBlock::multiplyH(StackWavefunction& c, StackWavefunction* v, int n
   }
   
   dmrginp.twoelecT -> stop();
-
 
   accumulateMultiThread(v, v_array, numthrds);
 }
