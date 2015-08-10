@@ -6,6 +6,7 @@
 #include <boost/bind.hpp>
 
 typedef boost::function<void (std::vector<boost::shared_ptr<SpinAdapted::StackSparseMatrix> >)> FUNCTOR;
+typedef boost::function<void (boost::shared_ptr<SpinAdapted::StackSparseMatrix>)> FUNCTOR2;
 
 namespace SpinAdapted{
   class StackSpinBlock;

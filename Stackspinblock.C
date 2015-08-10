@@ -649,51 +649,25 @@ void StackSpinBlock::multiplyH(StackWavefunction& c, StackWavefunction* v, int n
   StackSpinBlock* loopBlock=(leftBlock->is_loopblock()) ? leftBlock : rightBlock;
   StackSpinBlock* otherBlock = loopBlock == leftBlock ? rightBlock : leftBlock;
 
+  std::vector<boost::shared_ptr<StackSparseMatrix> >  allops;
+
+  //accumulate ham
   StackWavefunction* v_array; 
   initiateMultiThread(v, v_array, numthrds);
 
   dmrginp.oneelecT -> start();
   dmrginp.s0time -> start();
 
-  //coreEnergy
-  if (fabs(coreEnergy[integralIndex]) > TINY && mpigetrank() == 0) {
-    multiplyOverlap(c, v_array, num_threads);
-    for (int i=0; i<numthrds; i++)
-      Scale(coreEnergy[integralIndex], v_array[i]);
-  }
-
-  boost::shared_ptr<StackSparseMatrix> op = leftBlock->get_op_array(HAM).get_local_element(0)[0];
-  boost::shared_ptr<StackSparseMatrix> overlap = rightBlock->get_op_array(OVERLAP).get_local_element(0)[0];
-  bool deallocate1 = op->memoryUsed() == 0 ? true : false; 
-  op->allocate(leftBlock->get_braStateInfo(), leftBlock->get_ketStateInfo());
-  op->build(*leftBlock);
-
-  bool deallocate2 = overlap->memoryUsed() == 0 ? true : false; 
-  overlap->allocate(rightBlock->get_braStateInfo(), rightBlock->get_ketStateInfo());
-  overlap->build(*rightBlock);      
+  FUNCTOR2 f = boost::bind(&stackopxop::oxo, leftBlock, _1, this, boost::ref(c), v_array, dmrginp.effective_molecule_quantum(), coreEnergy[integralIndex]);
   if (mpigetrank() == 0) {
-    TensorMultiply(leftBlock, *op, *overlap, this, c, v_array, op->get_deltaQuantum(0) ,1.0); 
+    for_all_singlethread_hmult(rightBlock->get_op_array(OVERLAP), f);
+
+    f = boost::bind(&stackopxop::hxo, leftBlock, _1, this, boost::ref(c), v_array, dmrginp.effective_molecule_quantum() ); 
+    for_all_singlethread_hmult(rightBlock->get_op_array(HAM), f);
+    
+    f = boost::bind(&stackopxop::hxo, rightBlock, _1, this, boost::ref(c), v_array, dmrginp.effective_molecule_quantum() ); 
+    for_all_singlethread_hmult(leftBlock->get_op_array(HAM), f);
   }
-
-
-  if (deallocate2) overlap->deallocate();
-  if (deallocate1) op->deallocate();
- 
-  op = rightBlock->get_op_array(HAM).get_local_element(0)[0];
-  overlap = leftBlock->get_op_array(OVERLAP).get_local_element(0)[0];
-  op->allocate(rightBlock->get_braStateInfo(), rightBlock->get_ketStateInfo());
-  op->build(*rightBlock);
-  
-  overlap->allocate(leftBlock->get_braStateInfo(), leftBlock->get_ketStateInfo());
-  overlap->build(*leftBlock);
-  if (mpigetrank() == 0) {
-    TensorMultiply(rightBlock, *op, *overlap, this, c, v_array, op->get_deltaQuantum(0), 1.0);  
-  }
-
-  if (deallocate1) overlap->deallocate();
-  if (deallocate2) op->deallocate();
-
-  
 
   dmrginp.s0time -> stop();
 #ifndef SERIAL
@@ -702,13 +676,13 @@ void StackSpinBlock::multiplyH(StackWavefunction& c, StackWavefunction* v, int n
 #endif
 
   dmrginp.s1time -> start();
-  FUNCTOR f = boost::bind(&stackopxop::cxcddcomp, leftBlock, _1, this, boost::ref(c), v_array, dmrginp.effective_molecule_quantum() ); 
+  f = boost::bind(&stackopxop::cxcddcomp, leftBlock, _1, this, boost::ref(c), v_array, dmrginp.effective_molecule_quantum() ); 
   if (!(leftBlock->get_op_array(CRE_CRE_DESCOMP).is_local() && mpigetrank() != 0))
-    for_all_singlethread(rightBlock->get_op_array(CRE), f);
+    for_all_singlethread_hmult(rightBlock->get_op_array(CRE), f);
 
   f = boost::bind(&stackopxop::cxcddcomp, rightBlock, _1, this, boost::ref(c), v_array, dmrginp.effective_molecule_quantum() ); 
   if (!(rightBlock->get_op_array(CRE_CRE_DESCOMP).is_local() && mpigetrank() != 0))
-    for_all_singlethread(leftBlock->get_op_array(CRE), f);  
+    for_all_singlethread_hmult(leftBlock->get_op_array(CRE), f);  
 
 
   dmrginp.s1time -> stop();
@@ -722,11 +696,11 @@ void StackSpinBlock::multiplyH(StackWavefunction& c, StackWavefunction* v, int n
     dmrginp.s0time -> start();
     f = boost::bind(&stackopxop::cdxcdcomp, otherBlock, _1, this, boost::ref(c), v_array, dmrginp.effective_molecule_quantum() );
     if (!(otherBlock->get_op_array(CRE_DESCOMP).is_local()&& loopBlock->get_op_array(CRE_DES).is_local() && mpigetrank() != 0))
-      for_all_singlethread(loopBlock->get_op_array(CRE_DES), f);
+      for_all_singlethread_hmult(loopBlock->get_op_array(CRE_DES), f);
     
     f = boost::bind(&stackopxop::ddxcccomp, otherBlock, _1, this, boost::ref(c), v_array, dmrginp.effective_molecule_quantum() );
     if (!(otherBlock->get_op_array(DES_DESCOMP).is_local() && loopBlock->get_op_array(CRE_CRE).is_local() && mpigetrank() != 0))
-      for_all_singlethread(loopBlock->get_op_array(CRE_CRE), f);
+      for_all_singlethread_hmult(loopBlock->get_op_array(CRE_CRE), f);
     dmrginp.s0time -> stop();
   }
   
