@@ -31,7 +31,7 @@ using namespace operatorfunctions;
 
 void StackSpinBlock::deallocate() 
 {
-  Stackmem.deallocate(data, totalMemory);
+  Stackmem[omprank].deallocate(data, totalMemory);
 }
 
 //the relevant data is in the brackets
@@ -248,7 +248,7 @@ void StackSpinBlock::BuildTensorProductBlock(std::vector<int>& new_sites)
   totalMemory = build_iterators();
 
   if (totalMemory != 0)
-    data = Stackmem.allocate(totalMemory);
+    data = Stackmem[omprank].allocate(totalMemory);
   if (new_sites.size() == 1 ) {
     dmrginp.twoindex_screen_tol() = twoindex_ScreenTol;
     dmrginp.oneindex_screen_tol() = oneindex_ScreenTol;
@@ -378,7 +378,7 @@ void StackSpinBlock::transform_operators(std::vector<Matrix>& rotateMatrix)
   for (std::map<opTypes, boost::shared_ptr< StackOp_component_base> >::iterator it = ops.begin(); it != ops.end(); ++it)
     requiredMemory += it->second->getRequiredMemory(newStateInfo, newStateInfo);
   totalMemory = requiredMemory;
-  data = Stackmem.allocate(requiredMemory);
+  data = Stackmem[omprank].allocate(requiredMemory);
   double* localdata = data;
   for (std::map<opTypes, boost::shared_ptr< StackOp_component_base> >::iterator it = ops.begin(); it != ops.end(); ++it)
     localdata = it->second->allocateOperators(newStateInfo, newStateInfo, localdata);
@@ -421,7 +421,7 @@ void StackSpinBlock::transform_operators(std::vector<Matrix>& leftrotateMatrix, 
   for (std::map<opTypes, boost::shared_ptr< StackOp_component_base> >::iterator it = ops.begin(); it != ops.end(); ++it)
     requiredMemory += it->second->getRequiredMemory(newbraStateInfo, newketStateInfo);
   totalMemory = requiredMemory;
-  data = Stackmem.allocate(requiredMemory);
+  data = Stackmem[omprank].allocate(requiredMemory);
   double* localdata = data;
   for (std::map<opTypes, boost::shared_ptr< StackOp_component_base> >::iterator it = ops.begin(); it != ops.end(); ++it)
     localdata = it->second->allocateOperators(newbraStateInfo, newketStateInfo, localdata);
@@ -582,7 +582,7 @@ void StackSpinBlock::BuildSumBlock(int condition, StackSpinBlock& lBlock, StackS
 
   totalMemory = build_iterators();
   if (totalMemory != 0)
-    data = Stackmem.allocate(totalMemory);
+    data = Stackmem[omprank].allocate(totalMemory);
 
   dmrginp.buildblockops -> start();
   build_operators();
@@ -645,66 +645,77 @@ void StackSpinBlock::multiplyOverlap(StackWavefunction& c, StackWavefunction* v,
 
 void StackSpinBlock::multiplyH(StackWavefunction& c, StackWavefunction* v, int num_threads) const
 {
+  SpinQuantum hq(0,SpinSpace(0),IrrepSpace(0));
 
   StackSpinBlock* loopBlock=(leftBlock->is_loopblock()) ? leftBlock : rightBlock;
   StackSpinBlock* otherBlock = loopBlock == leftBlock ? rightBlock : leftBlock;
 
   std::vector<boost::shared_ptr<StackSparseMatrix> >  allops;
+  std::vector<FUNCTOR2> allfuncs;
 
   //accumulate ham
   StackWavefunction* v_array; 
   initiateMultiThread(v, v_array, numthrds);
 
-  dmrginp.oneelecT -> start();
-  dmrginp.s0time -> start();
+  FUNCTOR2 f1 = boost::bind(&stackopxop::hamandoverlap, leftBlock, _1, this, boost::ref(c), v_array, dmrginp.effective_molecule_quantum(), coreEnergy[integralIndex]);
+  FUNCTOR2 f4 = boost::bind(&stackopxop::cxcddcomp, leftBlock, _1, this, boost::ref(c), v_array, dmrginp.effective_molecule_quantum() ); 
+  FUNCTOR2 f5 = boost::bind(&stackopxop::cxcddcomp, rightBlock, _1, this, boost::ref(c), v_array, dmrginp.effective_molecule_quantum() ); 
+  FUNCTOR2 f6 = boost::bind(&stackopxop::cdxcdcomp, otherBlock, _1, this, boost::ref(c), v_array, dmrginp.effective_molecule_quantum() );
+  FUNCTOR2 f7 = boost::bind(&stackopxop::ddxcccomp, otherBlock, _1, this, boost::ref(c), v_array, dmrginp.effective_molecule_quantum() );
+  
+  allops.push_back(rightBlock->get_op_rep(OVERLAP, hq)); allfuncs.push_back(f1);
 
-  FUNCTOR2 f = boost::bind(&stackopxop::oxo, leftBlock, _1, this, boost::ref(c), v_array, dmrginp.effective_molecule_quantum(), coreEnergy[integralIndex]);
-  if (mpigetrank() == 0) {
-    for_all_singlethread_hmult(rightBlock->get_op_array(OVERLAP), f);
+  for (int i=0; i<rightBlock->get_op_array(CRE).get_size(); i++)
+    for (int j=0; j<rightBlock->get_op_array(CRE).get_local_element(i).size(); j++) {
+      allops.push_back(rightBlock->get_op_array(CRE).get_local_element(i)[j]);
+      allfuncs.push_back(f4);
+    }
 
-    f = boost::bind(&stackopxop::hxo, leftBlock, _1, this, boost::ref(c), v_array, dmrginp.effective_molecule_quantum() ); 
-    for_all_singlethread_hmult(rightBlock->get_op_array(HAM), f);
-    
-    f = boost::bind(&stackopxop::hxo, rightBlock, _1, this, boost::ref(c), v_array, dmrginp.effective_molecule_quantum() ); 
-    for_all_singlethread_hmult(leftBlock->get_op_array(HAM), f);
-  }
+  for (int i=0; i<leftBlock->get_op_array(CRE).get_size(); i++)
+    for (int j=0; j<leftBlock->get_op_array(CRE).get_local_element(i).size(); j++) {
+      allops.push_back(leftBlock->get_op_array(CRE).get_local_element(i)[j]);
+      allfuncs.push_back(f5);
+    }
 
-  dmrginp.s0time -> stop();
-#ifndef SERIAL
-  boost::mpi::communicator world;
-  int size = world.size();
-#endif
-
-  dmrginp.s1time -> start();
-  f = boost::bind(&stackopxop::cxcddcomp, leftBlock, _1, this, boost::ref(c), v_array, dmrginp.effective_molecule_quantum() ); 
-  if (!(leftBlock->get_op_array(CRE_CRE_DESCOMP).is_local() && mpigetrank() != 0))
-    for_all_singlethread_hmult(rightBlock->get_op_array(CRE), f);
-
-  f = boost::bind(&stackopxop::cxcddcomp, rightBlock, _1, this, boost::ref(c), v_array, dmrginp.effective_molecule_quantum() ); 
-  if (!(rightBlock->get_op_array(CRE_CRE_DESCOMP).is_local() && mpigetrank() != 0))
-    for_all_singlethread_hmult(leftBlock->get_op_array(CRE), f);  
-
-
-  dmrginp.s1time -> stop();
-
-  dmrginp.oneelecT -> stop();
-
-  dmrginp.twoelecT -> start();
 
   if (dmrginp.hamiltonian() != HUBBARD) {
-    
-    dmrginp.s0time -> start();
-    f = boost::bind(&stackopxop::cdxcdcomp, otherBlock, _1, this, boost::ref(c), v_array, dmrginp.effective_molecule_quantum() );
-    if (!(otherBlock->get_op_array(CRE_DESCOMP).is_local()&& loopBlock->get_op_array(CRE_DES).is_local() && mpigetrank() != 0))
-      for_all_singlethread_hmult(loopBlock->get_op_array(CRE_DES), f);
-    
-    f = boost::bind(&stackopxop::ddxcccomp, otherBlock, _1, this, boost::ref(c), v_array, dmrginp.effective_molecule_quantum() );
-    if (!(otherBlock->get_op_array(DES_DESCOMP).is_local() && loopBlock->get_op_array(CRE_CRE).is_local() && mpigetrank() != 0))
-      for_all_singlethread_hmult(loopBlock->get_op_array(CRE_CRE), f);
-    dmrginp.s0time -> stop();
+    for (int i=0; i<loopBlock->get_op_array(CRE_DES).get_size(); i++)
+      for (int j=0; j<loopBlock->get_op_array(CRE_DES).get_local_element(i).size(); j++) {
+	allops.push_back(loopBlock->get_op_array(CRE_DES).get_local_element(i)[j]);
+	allfuncs.push_back(f6);
+      }
+
+    for (int i=0; i<loopBlock->get_op_array(CRE_CRE).get_size(); i++)
+      for (int j=0; j<loopBlock->get_op_array(CRE_CRE).get_local_element(i).size(); j++) {
+	allops.push_back(loopBlock->get_op_array(CRE_CRE).get_local_element(i)[j]);
+	allfuncs.push_back(f7);
+      }
   }
-  
-  dmrginp.twoelecT -> stop();
+
+
+  //now we have to distribute remaining memory equally among different threads
+  long originalSize = Stackmem[0].size;
+  long remainingMem = Stackmem[0].size - Stackmem[0].memused;
+  long memPerThrd = remainingMem/numthrds;
+  Stackmem[0].size = Stackmem[0].memused+memPerThrd;
+  for (int i=1; i<numthrds; i++) {
+    Stackmem[i].data = Stackmem[i-1].data+memPerThrd;
+    Stackmem[i].memused = 0;
+    Stackmem[i].size = memPerThrd;
+  }
+  dmrginp.tensormultiply->start();
+#pragma omp parallel for schedule(dynamic)
+  for (int i = 0; i<allops.size(); i++)  {
+    allfuncs[i](allops[i]);
+  }
+  dmrginp.tensormultiply->stop();  
+  //put all the memory again in the zeroth thrd
+  Stackmem[0].size = originalSize;
+  for (int i=1; i<numthrds; i++) {
+    Stackmem[i].data = 0;
+    Stackmem[i].memused = 0;
+    Stackmem[i].size = 0;
+  }
 
   accumulateMultiThread(v, v_array, numthrds);
 }
@@ -839,7 +850,7 @@ void StackSpinBlock::BuildSlaterBlock (std::vector<int> sts, std::vector<SpinQua
 
   totalMemory = build_iterators();
   if (totalMemory != 0)
-    data = Stackmem.allocate(totalMemory);
+    data = Stackmem[omprank].allocate(totalMemory);
   pout << "Allocating "<<totalMemory<<" for the block "<<endl;
 
   p3out << "\t\t\t time in slater distribution " << slatertimer.elapsedwalltime() << " " << slatertimer.elapsedcputime() << endl;
@@ -928,7 +939,7 @@ void StackSpinBlock::BuildSingleSlaterBlock(std::vector<int> sts) {
 
   totalMemory = build_iterators();
   if (totalMemory != 0)
-    data = Stackmem.allocate(totalMemory);
+    data = Stackmem[omprank].allocate(totalMemory);
   pout << "Allocating "<<totalMemory<<" for the block "<<endl;
 
   std::vector< std::vector<Csf> > ladders; ladders.resize(dets.size());
@@ -1029,7 +1040,7 @@ void StackSpinBlock::Load (std::ifstream & ifs)
   load_block >> *this;
 
   load_block >> totalMemory;
-  data = Stackmem.allocate(totalMemory);
+  data = Stackmem[omprank].allocate(totalMemory);
   load_block >> boost::serialization::make_array<double>(data, totalMemory);
   //for (int i=0; i<totalMemory; i++) 
   //load_block >> data[i];

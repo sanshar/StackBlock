@@ -38,6 +38,19 @@ class StackSpinBlock;
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
 //execute a function on all elements of an array
 //single thread and multithread versions of the code
+template<typename T2, class A> void for_all_singlethread_hmult(A& array, const T2& func)
+{
+  int i;
+  {
+    for (i = 0; i < array.get_size(); ++i) {
+      for (int j=0; j<array.get_local_element(i).size(); j++)
+	func(array.get_local_element(i)[j]);
+    }
+  }
+}
+
+//execute a function on all elements of an array
+//single thread and multithread versions of the code
 template<typename T2, class A> void for_all_singlethread(A& array, const T2& func)
 {
   int i;

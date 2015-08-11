@@ -57,7 +57,7 @@ void SpinAdapted::Sweep::fullci(double sweep_tol)
     if (i != forwardsites-2) {
       if (i != 0) {
 	newSystem.moveToNewMemory(system.getdata());
-	Stackmem.deallocate(newSystem.getdata()+newSystem.memoryUsed(), memoryToFree);
+	Stackmem[0].deallocate(newSystem.getdata()+newSystem.memoryUsed(), memoryToFree);
       }
       system.clear();
       system = newSystem;
@@ -82,7 +82,7 @@ void SpinAdapted::Sweep::fullci(double sweep_tol)
 	long memoryToFree = environment.memoryUsed();
 	long newenvMemory = newEnvironment.memoryUsed();
 	newEnvironment.moveToNewMemory(environment.getdata());
-	Stackmem.deallocate(newEnvironment.getdata()+newEnvironment.memoryUsed(), memoryToFree);
+	Stackmem[0].deallocate(newEnvironment.getdata()+newEnvironment.memoryUsed(), memoryToFree);
       }
       environment.clear();
       environment = newEnvironment;

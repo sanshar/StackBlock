@@ -22,7 +22,7 @@ namespace SpinAdapted{
 void StackSparseMatrix::deepCopy(const StackSparseMatrix& o)
 {
   *this = o;
-  data = Stackmem.allocate(totalMemory);
+  data = Stackmem[omprank].allocate(totalMemory);
   DCOPY(totalMemory, o.data, 1, data, 1);
   allocateOperatorMatrix();
 }
@@ -30,10 +30,13 @@ void StackSparseMatrix::deepCopy(const StackSparseMatrix& o)
 void StackSparseMatrix::deepClearCopy(const StackSparseMatrix& o)
 {
   *this = o;
-  data = Stackmem.allocate(totalMemory);
+  data = Stackmem[omprank].allocate(totalMemory);
   memset(data, 0, totalMemory*sizeof(double));
   allocateOperatorMatrix();
 }
+
+const StackTransposeview Transpose(StackSparseMatrix& op) { return StackTransposeview(op); };
+
 
 void StackSparseMatrix::build_and_renormalise_transform(StackSpinBlock *big, const opTypes &ot, const std::vector<Matrix>& rotate_matrix, 
 							const StateInfo *newStateInfo) 
@@ -230,7 +233,7 @@ long getRequiredMemory(const StateInfo& s, const std::vector<SpinQuantum>& q) {r
 
 void StackSparseMatrix::deallocate() 
 { 
-  Stackmem.deallocate(data, totalMemory);
+  Stackmem[omprank].deallocate(data, totalMemory);
   totalMemory = 0;
   data = 0;
 }
@@ -239,7 +242,7 @@ void StackSparseMatrix::deallocate()
 void StackSparseMatrix::allocate(const StateInfo& sr, const StateInfo& sl) {
   if (totalMemory != 0) return; //allready built
   long requiredData = getRequiredMemory(sr, sl, get_deltaQuantum());
-  double* data = Stackmem.allocate(requiredData);
+  double* data = Stackmem[omprank].allocate(requiredData);
   memset(data, 0, requiredData * sizeof(double));      
   allocate(sr, sl, data);
 } 
@@ -247,7 +250,7 @@ void StackSparseMatrix::allocate(const StateInfo& sr, const StateInfo& sl) {
 void StackSparseMatrix::allocate(const StateInfo& s) {
   if (totalMemory != 0) return; //allready built
   long requiredData = getRequiredMemory(s, s, get_deltaQuantum());
-  double* data = Stackmem.allocate(requiredData);
+  double* data = Stackmem[omprank].allocate(requiredData);
   memset(data, 0, requiredData * sizeof(double));      
   allocate(s, s, data);
 } 
@@ -343,8 +346,7 @@ void StackSparseMatrix::Save(std::ofstream &ofs) const
   save_op << *this;
 
   save_op << totalMemory;
-  for (int i=0; i<totalMemory; i++)
-    save_op << data[i];
+  save_op << boost::serialization::make_array<double>(data, totalMemory);
 }
  
 void StackSparseMatrix::Load(std::ifstream &ifs, bool allocateData)
@@ -353,9 +355,8 @@ void StackSparseMatrix::Load(std::ifstream &ifs, bool allocateData)
   load_op >> *this;
 
   load_op >> totalMemory;
-  if (allocateData) data = Stackmem.allocate(totalMemory);
-  for (int i=0; i<totalMemory; i++)
-    load_op >> data[i];
+  if (allocateData) data = Stackmem[omprank].allocate(totalMemory);
+  load_op >> boost::serialization::make_array<double>(data, totalMemory);
 }
 
 long getRequiredMemory(const StateInfo& sr, const StateInfo& sc, const std::vector<SpinQuantum>& q) {

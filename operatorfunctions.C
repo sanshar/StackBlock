@@ -534,7 +534,7 @@ void SpinAdapted::operatorfunctions::TensorMultiply(const StackSpinBlock *ablock
 void SpinAdapted::operatorfunctions::TensorMultiply(const StackSpinBlock *ablock, const StackSparseMatrix& a, const StackSparseMatrix& b, const StackSpinBlock *cblock, StackWavefunction& c, StackWavefunction* v, const SpinQuantum opQ, double scale)
 {
   long starttime = globaltimer.totalwalltime();
-  dmrginp.tensormultiply->start();
+
     // can be used for situation with different bra and ket
   const int leftBraOpSz = cblock->get_leftBlock()->get_braStateInfo().quanta.size ();
   const int leftKetOpSz = cblock->get_leftBlock()->get_ketStateInfo().quanta.size ();
@@ -553,7 +553,6 @@ void SpinAdapted::operatorfunctions::TensorMultiply(const StackSpinBlock *ablock
 
   const std::vector< std::pair<std::pair<int, int>, StackMatrix> >& nonZeroBlocks = v[0].get_nonZeroBlocks();
 
-#pragma omp parallel for schedule(dynamic)
   for (int index = 0; index<nonZeroBlocks.size(); index++) {
     int lQ = nonZeroBlocks[index].first.first, rQ = nonZeroBlocks[index].first.second;
 
@@ -593,89 +592,9 @@ void SpinAdapted::operatorfunctions::TensorMultiply(const StackSpinBlock *ablock
   }
 
 
-  dmrginp.tensormultiply->stop();
   
 
 }
-
-
- /*
-void SpinAdapted::operatorfunctions::TensorMultiply(const StackSpinBlock *ablock, const StackSparseMatrix& a, const StackSparseMatrix& b, const StackSpinBlock *cblock, StackWavefunction& c, StackWavefunction* v, const SpinQuantum opQ, double scale)
-{
-  long starttime = globaltimer.totalwalltime();
-  dmrginp.tensormultiply->start();
-    // can be used for situation with different bra and ket
-  const int leftBraOpSz = cblock->get_leftBlock()->get_braStateInfo().quanta.size ();
-  const int leftKetOpSz = cblock->get_leftBlock()->get_ketStateInfo().quanta.size ();
-  const int rightBraOpSz = cblock->get_rightBlock()->get_braStateInfo().quanta.size ();
-  const int rightKetOpSz = cblock->get_rightBlock()->get_ketStateInfo().quanta.size ();
-
-  const StateInfo* lbraS = cblock->get_braStateInfo().leftStateInfo, *rbraS = cblock->get_braStateInfo().rightStateInfo;
-  const StateInfo* lketS = cblock->get_ketStateInfo().leftStateInfo, *rketS = cblock->get_ketStateInfo().rightStateInfo;
-
-  const char conjC = (cblock->get_leftBlock() == ablock) ? 'n' : 't';
-
-  const StackSparseMatrix& leftOp = (conjC == 'n') ? a : b; // an ugly hack to support the release memory optimisation
-  const StackSparseMatrix& rightOp = (conjC == 'n') ? b : a;
-  const char leftConj = (conjC == 'n') ? a.conjugacy() : b.conjugacy();
-  const char rightConj = (conjC == 'n') ? b.conjugacy() : a.conjugacy();
-
-  const std::vector< std::pair<std::pair<int, int>, StackMatrix> >& nonZeroBlocks = v[0].get_nonZeroBlocks();
-
-  long* loop = reinterpret_cast<long*>(Stackmem.data);
-  int niter = 0;
-  for (int index = 0; index<nonZeroBlocks.size(); index++) {
-    int lQ = nonZeroBlocks[index].first.first, rQ = nonZeroBlocks[index].first.second;
-    for (int rQPrime=0; rQPrime <rightKetOpSz; rQPrime ++) 
-      if (rightOp.allowed(rQ, rQPrime)) {
-	const std::vector<int>& rowinds = c.getActiveRows(rQPrime);
-	for (int l = 0; l < rowinds.size(); l++) {
-	  int lQPrime = rowinds[l];
-	  if (leftOp.allowed(lQ, lQPrime) ) {
-	    loop[4*niter+0] = lQ;
-	    loop[4*niter+1] = lQPrime;
-	    loop[4*niter+2] = rQ;
-	    loop[4*niter+3] = rQPrime;
-	    niter++;
-	  }
-	}
-      }
-  }
-
-#pragma omp parallel for schedule(dynamic)
-  for (int index=0; index <niter; index++) {
-    int lQ      = loop[4*index+0];
-    int lQPrime = loop[4*index+1];
-    int rQ      = loop[4*index+2];
-    int rQPrime = loop[4*index+3];
-
-    double data[lbraS->getquantastates(lQ)* rketS->getquantastates(rQPrime)];
-    StackMatrix m(data, lbraS->getquantastates(lQ), rketS->getquantastates(rQPrime));
-    
-    double factor = leftOp.get_scaling(lbraS->quanta[lQ], lketS->quanta[lQPrime]);
-    MatrixMultiply (leftOp.operator_element(lQ, lQPrime), leftConj, c.operator_element(lQPrime, rQPrime), 'n',
-		    m, factor, 0.);	      
-    
-    {
-      double factor = scale;
-      
-      factor *= dmrginp.get_ninej()(lketS->quanta[lQPrime].get_s().getirrep(), rketS->quanta[rQPrime].get_s().getirrep() , c.get_deltaQuantum(0).get_s().getirrep(), 
-				    leftOp.get_spin().getirrep(), rightOp.get_spin().getirrep(), opQ.get_s().getirrep(),
-				    lbraS->quanta[lQ].get_s().getirrep(), rbraS->quanta[rQ].get_s().getirrep() , v[omprank].get_deltaQuantum(0).get_s().getirrep());
-      factor *= Symmetry::spatial_ninej(lketS->quanta[lQPrime].get_symm().getirrep() , rketS->quanta[rQPrime].get_symm().getirrep(), c.get_symm().getirrep(), 
-					leftOp.get_symm().getirrep(), rightOp.get_symm().getirrep(), opQ.get_symm().getirrep(),
-					lbraS->quanta[lQ].get_symm().getirrep() , rbraS->quanta[rQ].get_symm().getirrep(), v[omprank].get_symm().getirrep());
-      int parity = rightOp.get_fermion() && IsFermion(lketS->quanta[lQPrime]) ? -1 : 1;
-      factor *=  rightOp.get_scaling(rbraS->quanta[rQ], rketS->quanta[rQPrime]);
-      MatrixMultiply (m, 'n', rightOp.operator()(rQ, rQPrime), TransposeOf(rightOp.conjugacy()), v[omprank].operator_element(lQ, rQ), factor*parity);
-    }
-  }
-
-  dmrginp.tensormultiply->stop();
-}
-*/
-
-  
 
 
 

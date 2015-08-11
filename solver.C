@@ -97,7 +97,9 @@ void SpinAdapted::Solver::solve_wavefunction(vector<StackWavefunction>& solution
 	  solution[i].deallocate();
       }
 
-
+      pout << *dmrginp.tensormultiply<<endl;
+      pout << globaltimer.totalwalltime()<<endl;
+      exit(0);
     }
     else if (dmrginp.solve_method() == CONJUGATE_GRADIENT) {
 

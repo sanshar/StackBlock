@@ -81,7 +81,6 @@ extern bool NonabelianSym;
 extern std::vector<int> NPROP;
 extern int PROPBITLEN;
 extern double NUMERICAL_ZERO;
-extern StackAllocator<double> Stackmem; 
-//extern ifstream* coutbuf;
+extern std::vector<StackAllocator<double> > Stackmem; 
 }
 #endif

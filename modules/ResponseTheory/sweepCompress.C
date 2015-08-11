@@ -147,7 +147,7 @@ void SpinAdapted::SweepCompress::BlockDecimateAndCompress (SweepParams &sweepPar
 
     double* backupData;
     if (mpigetrank() == 0) {
-      backupData = Stackmem.allocate(bratracedMatrix.memoryUsed());
+      backupData = Stackmem[omprank].allocate(bratracedMatrix.memoryUsed());
       DCOPY(bratracedMatrix.memoryUsed(), bratracedMatrix.get_data(), 1, backupData, 1);
     }
     bratracedMatrix.Clear();
@@ -165,7 +165,7 @@ void SpinAdapted::SweepCompress::BlockDecimateAndCompress (SweepParams &sweepPar
 	bratracedMatrix.SymmetricRandomise();
       
       pout << "after noise  "<<trace(bratracedMatrix)<<"  "<<sweepParams.get_noise()<<endl;
-      Stackmem.deallocate(backupData, bratracedMatrix.memoryUsed());
+      Stackmem[omprank].deallocate(backupData, bratracedMatrix.memoryUsed());
     }
   }
   environment.clear();

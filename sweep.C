@@ -264,7 +264,7 @@ void SpinAdapted::Sweep::BlockAndDecimate (SweepParams &sweepParams, StackSpinBl
     long memoryToFree = newSystem.getdata() - system.getdata();
     long newsysmem = newSystem.memoryUsed();
     newSystem.moveToNewMemory(system.getdata());
-    Stackmem.deallocate(newSystem.getdata()+newsysmem, memoryToFree);
+    Stackmem[omprank].deallocate(newSystem.getdata()+newsysmem, memoryToFree);
     system.clear();
   }
 
@@ -487,7 +487,7 @@ double SpinAdapted::Sweep::do_one(SweepParams &sweepParams, const bool &warmUp, 
 
   system.deallocate();
   system.clear();
-  pout << "**** STACK MEMORY REMAINING ***** "<<1.0*(Stackmem.size-Stackmem.memused)*sizeof(double)/1.e9<<" GB"<<endl;
+  pout << "**** STACK MEMORY REMAINING ***** "<<1.0*(Stackmem[omprank].size-Stackmem[omprank].memused)*sizeof(double)/1.e9<<" GB"<<endl;
 
   for(int j=0;j<nroots;++j) {
     int istate = dmrginp.setStateSpecific() ? sweepParams.current_root() : j;

@@ -62,8 +62,8 @@ void StackDensityMatrix::makedensitymatrix(std::vector<StackWavefunction>& wave_
       //make a backup of the actual density Matrix, only on the main root node
       if (mpigetrank() == 0) {
 	requiredData = getRequiredMemory(*big.get_leftBlock(), get_deltaQuantum());
-	backupData = Stackmem.allocate(requiredData);
-	noiseMatrix = Stackmem.allocate(requiredData);
+	backupData = Stackmem[omprank].allocate(requiredData);
+	noiseMatrix = Stackmem[omprank].allocate(requiredData);
 	memset(noiseMatrix, 0, requiredData * sizeof(double));
 	DCOPY(requiredData, this->get_data(), 1, &backupData[0], 1);
       }
@@ -90,7 +90,7 @@ void StackDensityMatrix::makedensitymatrix(std::vector<StackWavefunction>& wave_
       //copy back the noiseMatrix to "this", and deallocate the noiseMatrix
       if (mpigetrank() == 0) {
 	DCOPY(requiredData, noiseMatrix, 1, this->get_data(), 1);
-	Stackmem.deallocate(noiseMatrix, requiredData);
+	Stackmem[omprank].deallocate(noiseMatrix, requiredData);
       }
 	
       if (mpigetrank() == 0) {
@@ -109,7 +109,7 @@ void StackDensityMatrix::makedensitymatrix(std::vector<StackWavefunction>& wave_
       }
 
       if (mpigetrank() == 0)
-	Stackmem.deallocate(backupData, requiredData);
+	Stackmem[omprank].deallocate(backupData, requiredData);
     }
     
   }

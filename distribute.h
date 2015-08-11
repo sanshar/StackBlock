@@ -165,14 +165,14 @@ namespace SpinAdapted
       }
       else if (size == 1 && MAX_THRD > 1) {  //only multithreaded
 	for (int i=MAX_THRD-1; i>0; i--) {
-	  DAXPY(op_array[0].memoryUsed(), 1.0, op_array[i].get_data(), 1, op->get_data(), 1);
+	  ScaleAdd(1.0, op_array[i], op_array[0]);
 	  op_array[i].deallocate();
 	}
 	delete [] op_array;
       }
       else {  //multithreaded and mpi
 	for (int i=MAX_THRD-1; i>0; i--) {
-	  DAXPY(op_array[0].memoryUsed(), 1.0, op_array[i].get_data(), 1, op->get_data(), 1);
+	  ScaleAdd(1.0, op_array[i], op_array[0]);
 	  op_array[i].deallocate();
 	}
 	delete [] op_array;
@@ -185,7 +185,7 @@ namespace SpinAdapted
 	return;
       else {  //only multithreaded
 	for (int i=MAX_THRD-1; i>0; i--) {
-	  DAXPY(op_array[0].memoryUsed(), 1.0, op_array[i].get_data(), 1, op->get_data(), 1);
+	  ScaleAdd(1.0, op_array[i], op_array[0]);
 	  op_array[i].deallocate();
 	}
 	delete [] op_array;

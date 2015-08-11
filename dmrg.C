@@ -99,7 +99,7 @@ namespace SpinAdapted{
   boost::interprocess::shared_memory_object segment(boost::interprocess::open_or_create, "Integrals", boost::interprocess::read_write);
   boost::interprocess::mapped_region region;
 
-  StackAllocator<double> Stackmem;
+  std::vector<StackAllocator<double> > Stackmem;
 }
 
 using namespace SpinAdapted;
@@ -129,8 +129,9 @@ int calldmrg(char* input, char* output)
   pout.precision (12);
   pout << std::fixed;
   double* stackmemory = new double[dmrginp.getMemory()];
-  Stackmem.data = stackmemory;
-  Stackmem.size = dmrginp.getMemory();
+  Stackmem.resize(numthrds);
+  Stackmem[0].data = stackmemory;
+  Stackmem[0].size = dmrginp.getMemory();
 
    //Initializing timer calls
   dmrginp.initCumulTimer();
@@ -139,7 +140,7 @@ int calldmrg(char* input, char* output)
   for (int i=0; i<v_2.size(); i++)
     initialiseSingleSiteBlocks(singleSiteBlocks[i], i);
 
-  pout << "**** STACK MEMORY REMAINING ***** "<<1.0*(Stackmem.size-Stackmem.memused)*sizeof(double)/1.e9<<" GB"<<endl;
+  pout << "**** STACK MEMORY REMAINING ***** "<<1.0*(Stackmem[0].size-Stackmem[0].memused)*sizeof(double)/1.e9<<" GB"<<endl;
   double sweep_tol = 1e-7;
   sweep_tol = dmrginp.get_sweep_tol();
   bool direction;

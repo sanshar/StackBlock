@@ -9,34 +9,16 @@
 template<class T> class StackAllocator
 {
  public:
-  static std::size_t size;
-  static T* data ;
-  static std::size_t memused;
-
-  typedef T* pointer;
-  typedef const T* const_pointer;
-
-  typedef T& reference;
-  typedef const T& const_reference;
-
-  typedef std::size_t size_type;
-  typedef std::ptrdiff_t difference_type;
-
-  typedef T value_type;
+  std::size_t size;
+  T* data ;
+  std::size_t memused;
 
 
-  StackAllocator(pointer data_ptr, size_type max_size)  {size =max_size; data=data_ptr;}
+ StackAllocator(T* data_ptr, std::size_t max_size): memused(0)  {size =max_size; data=data_ptr;}
   
-  StackAllocator(const StackAllocator &other) {}
-  StackAllocator() {}
-
-  template<typename U>
-    struct rebind {typedef StackAllocator<U> other;};
-
-  void operator=(const StackAllocator& other) {size=other.size; data=other.data;}
-  void construct(pointer p, const_reference val) {*p = val;}
-  void destroy(pointer p) {*p = 0;}
-  pointer allocate(size_type n, const void* hint = 0) 
+ StackAllocator() : size(0), data(0), memused(0) {}
+  void clear() {size = 0;data=0; memused=0}
+  T* allocate(std::size_t n, const void* hint = 0) 
   {
     if (memused+n >=size) {
       std::cout << "exceeding allowed memory"<<std::endl;
@@ -47,7 +29,7 @@ template<class T> class StackAllocator
       return &data[memused-n];
     }
   }
-  void deallocate(void* ptr, size_type n) {
+  void deallocate(void* ptr, std::size_t n) {
     if (n == 0) return;
     if (memused < n || ptr != &data[memused-n]) {
       std::cout << "deallocation not happening in reverse order"<<std::endl;
@@ -57,19 +39,11 @@ template<class T> class StackAllocator
       memused = memused - n;
     }
   }
-  size_type max_size() const {return size;}
+  std::size_t max_size() const {return size;}
   friend std::ostream& operator<<(std::ostream& os, const StackAllocator& c) {
-    os<<c.size<<"  "<<c.data<<"  "<<StackAllocator::memused<<std::endl;
+    os<<c.size<<"  "<<c.data<<"  "<<c.memused<<std::endl;
     return os;
   }
 };
-
-
-template<class T> 
-std::size_t StackAllocator<T>::memused = 0;
-template<class T>
-T* StackAllocator<T>::data = 0;
-template<class T>
-std::size_t StackAllocator<T>::size = 0;
 
 #endif

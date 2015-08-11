@@ -12,6 +12,7 @@ Sandeep Sharma and Garnet K.-L. Chan
 #include "ObjectMatrix.h"
 #include "csf.h"
 #include "StateInfo.h"
+#include "boostutils.h"
 
 namespace SpinAdapted{
   class StackSpinBlock;
@@ -240,7 +241,7 @@ class StackSparseMatrix : public Baseoperator<StackMatrix>  // the sparse matrix
   bool& set_built() { return built; }  
   const bool& get_built_on_disk() const { return built_on_disk; }
   bool& set_built_on_disk() { return built_on_disk; }
-  double get_scaling(SpinQuantum leftq, SpinQuantum rightq) const;
+  virtual double get_scaling(SpinQuantum leftq, SpinQuantum rightq) const ;
 
   void build_and_renormalise_transform(StackSpinBlock *big, const opTypes &ot, const std::vector<Matrix>& rotate_matrix, 
 				       const StateInfo *newStateInfo);
@@ -258,6 +259,45 @@ class StackSparseMatrix : public Baseoperator<StackMatrix>  // the sparse matrix
   std::vector<double> calcMatrixElements(Csf& c1, TensorOp& Top, Csf& c2);
 };
 
+
+class StackTransposeview : public StackSparseMatrix
+{
+private:
+  boost::shared_ptr<StackSparseMatrix> opdata; 
+public:
+ StackTransposeview(const boost::shared_ptr<StackSparseMatrix>& opptr) : opdata(opptr) {}
+  StackTransposeview(StackSparseMatrix& op) { opdata = boost::shared_ptr<StackSparseMatrix>(&op, boostutils::null_deleter());}
+  int get_deltaQuantum_size() const { return opdata->get_deltaQuantum_size(); }  
+  SpinQuantum get_deltaQuantum(int i) const {return -opdata->get_deltaQuantum(i);}
+  std::vector<SpinQuantum> get_deltaQuantum() const {
+    std::vector<SpinQuantum> q;
+    for (int i = 0; i < opdata->get_deltaQuantum_size(); ++i) {
+      q.push_back(-opdata->get_deltaQuantum(i));
+    }
+    return q;
+  }
+  bool get_fermion() const { return opdata->get_fermion(); }
+  bool get_initialised() const { return opdata->get_initialised(); }
+  int nrows() const { return opdata->ncols(); }
+  int ncols() const { return opdata->nrows(); }
+  const char &allowed(int i, int j) const { return opdata->allowed(j, i); }
+  char &allowed(int i, int j) { return opdata->allowed(j, i); }
+  const StackMatrix& operator_element(int i, int j) const { return opdata->operator_element(j, i); }
+  StackMatrix& operator_element(int i, int j) { return opdata->operator_element(j, i); }
+  SpinSpace get_spin(int i=0) const  { return opdata->get_deltaQuantum(i).get_s();}
+  IrrepSpace get_symm(int i=0) const  { return -opdata->get_deltaQuantum(i).get_symm();}
+  int get_orbs(int i) const {return opdata->get_orbs(i);}
+  const std::vector<int>& get_orbs() const { return opdata->get_orbs(); }
+  const StackMatrix& operator()(int i, int j) const { return opdata->operator()(j, i); }
+  StackMatrix& operator()(int i, int j) { return opdata->operator()(j, i); }
+  char conjugacy() const { if (opdata->conjugacy() == 'n') return 't'; else return 'n';}
+  //double get_scaling(SpinQuantum leftq, SpinQuantum rightq) const ;
+  boost::shared_ptr<StackSparseMatrix> getworkingrepresentation(const StackSpinBlock* block) {return opdata;}
+  void build(const StackSpinBlock& b){};
+  double redMatrixElement(Csf c1, vector<Csf>& ladder, const StackSpinBlock* b){return 0.0;}
+}; 
+
+const StackTransposeview Transpose(StackSparseMatrix& op);
 
 
 void assignloopblock(StackSpinBlock*& loopblock, StackSpinBlock*& otherblock, StackSpinBlock* leftBlock,
