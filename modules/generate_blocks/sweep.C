@@ -6,6 +6,7 @@ This program is integrated in Molpro with the permission of
 Sandeep Sharma and Garnet K.-L. Chan
 */
 
+#include "Stackspinblock.h"
 #include "global.h"
 #include "solver.h"
 #include "initblocks.h"
@@ -57,7 +58,7 @@ void SweepGenblock::BlockAndDecimate (SweepParams &sweepParams, StackSpinBlock& 
 
   dmrginp.guessgenT -> stop();
   dmrginp.datatransfer -> start();
-  system.addAdditionalCompOps();
+  system.addAdditionalOps();
   dmrginp.datatransfer -> stop();
   dmrginp.initnewsystem->start();
   bool doNorms = (dot_with_sys || dmrginp.new_npdm_code() == true);

@@ -28,33 +28,37 @@ Sandeep Sharma and Garnet K.-L. Chan
 
 using namespace std;
 namespace SpinAdapted{
+
 class cumulTimer
 {
+ private:
+  double localStart;
+  double cumulativeSum;
+
  public:
 
-#ifndef SERIAL
- cumulTimer() : localStart(-1.0), cumulativeSum(0){t = boost::shared_ptr<boost::mpi::timer> (new boost::mpi::timer());};
-  void start() {localStart = t->elapsed().wall/1e9;}
+ cumulTimer() : localStart(-1.0), cumulativeSum(0) {};
+
+
+#ifdef _OPENMP
+  void start() {
+    if(!omp_get_thread_num()) {
+      localStart = time(NULL);
+    }
+  }
 #else
-  cumulTimer() : localStart(-1.0), cumulativeSum(0) {};
-  void start() {localStart = time(NULL);}
+  void start() {
+    localStart = time(NULL);
+  }
 #endif
+
 
   void stop() 
   {
-#ifndef SERIAL
-      if (localStart < 0 || localStart > t->elapsed().wall/1e9 +1 ) 
-	{
-	  
-	  cout << "local stop called without starting first"<<endl;
-	  cout << localStart<<"  "<<t->elapsed().wall/1e9;
-	  throw 20;
-	  assert(1==2);
-	  abort();
-	}
+#ifdef _OPENMP
+    if(!omp_get_thread_num()){
+#endif
 
-      cumulativeSum = cumulativeSum + t->elapsed().wall/1e9 - localStart;
-#else
       if (localStart < 0 || localStart > time(NULL) +1 ) 
 	{
 	  
@@ -66,26 +70,19 @@ class cumulTimer
 	}
 
       cumulativeSum = cumulativeSum + time(NULL) - localStart;
-#endif
       localStart = 0;
+
+#ifdef _OPENMP
+    }
+#endif
   }
 
   friend ostream& operator<<(ostream& os, const cumulTimer& t)
   {
-#ifndef SERIAL
-    os << t.cumulativeSum;
-#else
     os << ((float)t.cumulativeSum);
-#endif
     return os;
   }
 
- private:
-#ifndef SERIAL
-  boost::shared_ptr<boost::mpi::timer> t;
-#endif
-  double localStart;
-  double cumulativeSum;
 };
 
 class Timer

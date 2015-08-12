@@ -100,7 +100,7 @@ void SpinAdapted::Sweep::makeSystemEnvironmentBigBlocks(StackSpinBlock& system, 
 {
   bool forward = (system.get_sites() [0] == 0);
   bool haveNormOps = dot_with_sys, haveCompOps = true;
-  system.addAdditionalCompOps();
+  system.addAdditionalOps();
 
   const int nexact = forward ? sweepParams.get_forward_starting_size() : sweepParams.get_backward_starting_size();
   if (!sweepParams.get_onedot() || dot_with_sys) {
@@ -247,6 +247,7 @@ void SpinAdapted::Sweep::BlockAndDecimate (SweepParams &sweepParams, StackSpinBl
                              sweepParams.get_additional_noise(), sweepParams.get_onedot(), system, systemDot, environment, 
 			     dot_with_sys, useSlater, sweepParams.get_sweep_iter(), sweepParams.current_root(), lowerStates);
 
+  environment.removeAdditionalOps();
   environment.clear();
   environment.deallocate();
   newEnvironment.clear();
@@ -328,6 +329,14 @@ void SpinAdapted::Sweep::BlockAndDecimate (SweepParams &sweepParams, StackSpinBl
   //if (dmrginp.outputlevel() > 0)
   //mcheck("after rotation and transformation of block");
 
+  p2out << str(boost::format("%-40s - %-10.4f\n") % "Total walltime" % globaltimer.totalwalltime());
+  p2out << str(boost::format("%-40s - %-10.4f\n") % "  -->Blocking" % *(dmrginp.guessgenT));
+  p2out << str(boost::format("%-40s - %-10.4f\n") % "  -->Wavefunction Solution" % *(dmrginp.davidsonT));
+  p2out << str(boost::format("%-40s - %-10.4f\n") % "  -->Add noise" % *(dmrginp.rotmatrixT));
+  p2out << str(boost::format("%-40s - %-10.4f\n") % "  -->Renormalisation" % *(dmrginp.operrotT));
+  p2out << str(boost::format("%-40s - %-10.4f\n") % "diskio" % *(dmrginp.diskio)); 
+  p2out << str(boost::format("%-40s - %-10.4f\n") % "mpicommunication" % *(dmrginp.datatransfer)); 
+  /*
   p2out << (*dmrginp.guessgenT)<<" "<<*(dmrginp.multiplierT)<<" "<<*(dmrginp.operrotT)<< "  "<<globaltimer.totalwalltime()<<" timer "<<endl;
   p2out << (*dmrginp.davidsonT)<<"  "<<(*dmrginp.rotmatrixT)<<"  "<<(*dmrginp.postwfrearrange)<<"  davidson and rotmatrix "<<endl;
   p2out << *dmrginp.makeopsT<<" makeops "<<endl;
@@ -340,6 +349,7 @@ void SpinAdapted::Sweep::BlockAndDecimate (SweepParams &sweepParams, StackSpinBl
   p2out << *dmrginp.dscreen<<"  "<<*dmrginp.ddscreen<<"  "<<*dmrginp.cdscreen<<"  screen time"<<endl;
   p2out << "addnoise  S_0_opxop  S_1_opxop   S_2_opxop"<<endl;
   //p3out << *dmrginp.addnoise<<" "<<*dmrginp.s0time<<" "<<*dmrginp.s1time<<" "<<*dmrginp.s2time<<endl;
+  */
 }
 
 double SpinAdapted::Sweep::do_one(SweepParams &sweepParams, const bool &warmUp, const bool &forward, const bool &restart, const int &restartSize)
@@ -515,7 +525,8 @@ double SpinAdapted::Sweep::do_one(SweepParams &sweepParams, const bool &warmUp, 
 #endif
   }
   pout << "\t\t\t ============================================================================ " << endl;
-  pout << "\t\t\t Elapsed Sweep CPU  Time (seconds): " << sweeptimer.elapsedcputime() << endl;
+  double cputime = sweeptimer.elapsedcputime();
+  pout << "\t\t\t Elapsed Sweep CPU  Time (seconds): " << cputime << endl;
   pout << "\t\t\t Elapsed Sweep Wall Time (seconds): " << sweeptimer.elapsedwalltime()<< endl;
 
   // update the static number of iterations
@@ -581,9 +592,7 @@ void SpinAdapted::Sweep::Startup (SweepParams &sweepParams, StackSpinBlock& syst
   
   const int nexact = forward ? sweepParams.get_forward_starting_size() : sweepParams.get_backward_starting_size();
 
-  dmrginp.datatransfer -> start();
-  system.addAdditionalCompOps(); // communicate between different processors, broadcast operators from system block
-  dmrginp.datatransfer -> stop();
+  system.addAdditionalOps(); // communicate between different processors, broadcast operators from system block
   InitBlocks::InitNewSystemBlock(system, systemDot, newSystem, sweepParams.current_root(), sweepParams.current_root(), sweepParams.get_sys_add(), dmrginp.direct(), 
 				 system.get_integralIndex(), DISTRIBUTED_STORAGE, true, true);
 

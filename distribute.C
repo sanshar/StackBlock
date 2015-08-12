@@ -14,34 +14,41 @@ Sandeep Sharma and Garnet K.-L. Chan
 #endif
 
 namespace SpinAdapted{
-#ifdef SERIAL
-int receivefrom(int offsetproc)
+
+void SplitStackmem()
 {
-  return 0;
+  //now we have to distribute remaining memory equally among different threads
+  long originalSize = Stackmem[0].size;
+  long remainingMem = Stackmem[0].size - Stackmem[0].memused;
+  long memPerThrd = remainingMem/numthrds;
+  Stackmem[0].size = Stackmem[0].memused+memPerThrd;
+  for (int i=1; i<numthrds; i++) {
+    Stackmem[i].data = Stackmem[i-1].data+memPerThrd;
+    Stackmem[i].memused = 0;
+    Stackmem[i].size = memPerThrd;
+  }
+  Stackmem[numthrds-1].size += remainingMem%numthrds; 
 }
-void makesendlist(vector<int>& tolist, int offsetproc) {;}
-#else
+
+void MergeStackmem()
+{
+  //put all the memory again in the zeroth thrd
+  for (int i=1; i<numthrds; i++) {
+    Stackmem[0].size += Stackmem[i].size;
+    Stackmem[i].data = 0;
+    Stackmem[i].memused = 0;
+    Stackmem[i].size = 0;
+  }
+}
+
+  
+#ifndef SERIAL
+
 #include <boost/mpi/communicator.hpp>
 
-
-int receivefrom(int offsetproc)
+void distributedaccumulate(StackSparseMatrix& component)
 {
-  boost::mpi::communicator world;
-  int rank = world.rank();
-  int size = world.size();
-  rank -= offsetproc;
-
-  
-  if (rank < 0) rank += size; // modulo size arithmetic
-
-  
-  return ((rank - 1) / Broadcastsettings::npyramid + offsetproc) % size;
-}
-
-
-
-template<> void distributedaccumulate<SpinAdapted::StackSparseMatrix>(SpinAdapted::StackSparseMatrix& component)
-{
+  dmrginp.datatransfer->start();
   Timer distributetimer;
   boost::mpi::communicator world;
   int size = world.size();
@@ -51,10 +58,12 @@ template<> void distributedaccumulate<SpinAdapted::StackSparseMatrix>(SpinAdapte
     MPI::COMM_WORLD.Allreduce(MPI_IN_PLACE, component.get_data(), component.memoryUsed(), MPI_DOUBLE, MPI_SUM);
     //MPI::COMM_WORLD.Allreduce(component.get_data(), &tempArray[0], component.memoryUsed(), MPI_DOUBLE, MPI_SUM);
   }
+  dmrginp.datatransfer->stop();
 }
 
-template<> void distributedaccumulate<DiagonalMatrix>(DiagonalMatrix& component)
+void distributedaccumulate(DiagonalMatrix& component)
 {
+  dmrginp.datatransfer->start();
   Timer distributetimer;
   boost::mpi::communicator world;
   int size = world.size();
@@ -63,53 +72,13 @@ template<> void distributedaccumulate<DiagonalMatrix>(DiagonalMatrix& component)
   {
     MPI::COMM_WORLD.Allreduce(MPI_IN_PLACE, component.Store(), component.Ncols(), MPI_DOUBLE, MPI_SUM);
   }
+  dmrginp.datatransfer->stop();
 }
 
-template<> void distributedaccumulate<SpinAdapted::StackHam>(SpinAdapted::StackHam& component)
-{
-  Timer distributetimer;
-  boost::mpi::communicator world;
-  int size = world.size();
-  int rank = world.rank();
-  if (size > 1)
-  {
-    
-    MPI::COMM_WORLD.Allreduce(MPI_IN_PLACE, component.get_data(), component.memoryUsed(), MPI_DOUBLE, MPI_SUM);
-  }
+#else
 
-}
-
-template<> void distributedaccumulate<SpinAdapted::StackWavefunction>(SpinAdapted::StackWavefunction& component)
-{
-  Timer distributetimer;
-  boost::mpi::communicator world;
-  int size = world.size();
-  int rank = world.rank();
-  if (size > 1)
-  {
-    
-    MPI::COMM_WORLD.Allreduce(MPI_IN_PLACE, component.get_data(), component.memoryUsed(), MPI_DOUBLE, MPI_SUM);
-  }
-
-}
-
-
-
-void makesendlist(vector<int>& tolist, int offsetproc)
-{
-  boost::mpi::communicator world;
-  int rank = world.rank();
-  int size = world.size();
-  rank -= offsetproc; // if offsetproc == rank, then treat current proc as the root node
-  if (rank < 0) rank += size;
-  for (int i = 1; i <= Broadcastsettings::npyramid; ++i)
-    {
-      int tosend = rank * Broadcastsettings::npyramid +i;      
-      if (tosend < size)
-	tolist.push_back((tosend + offsetproc) % size); // if offsetproc is not zero, add it back on, and then wraparound
-    }
-}
-
+void distributedaccumulate(DiagonalMatrix& component) {;}
+void distributedaccumulate(SpinAdapted::StackSparseMatrix& component) {;}
 
 #endif
 

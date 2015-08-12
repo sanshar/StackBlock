@@ -38,7 +38,7 @@ void StackSparseMatrix::deepClearCopy(const StackSparseMatrix& o)
 const StackTransposeview Transpose(StackSparseMatrix& op) { return StackTransposeview(op); };
 
 
-void StackSparseMatrix::build_and_renormalise_transform(StackSpinBlock *big, const opTypes &ot, const std::vector<Matrix>& rotate_matrix, 
+void StackSparseMatrix::build_and_renormalise_transform(StackSpinBlock *big, const std::vector<Matrix>& rotate_matrix, 
 							const StateInfo *newStateInfo) 
 {
   //backup old data
@@ -58,7 +58,7 @@ void StackSparseMatrix::build_and_renormalise_transform(StackSpinBlock *big, con
   build(*big);
 
   //put the new operatorMatrix 
-  StackCre tmp; tmp.operatorMatrix = operatorMatrix;
+  StackSparseMatrix tmp; tmp.operatorMatrix = operatorMatrix;
   tmp.data = data; tmp.totalMemory = totalMemory;
   tmp.allowedQuantaMatrix = allowedQuantaMatrix;
   tmp.initialised = true;
@@ -89,7 +89,7 @@ void StackSparseMatrix::build_and_renormalise_transform(StackSpinBlock *big, con
   tmp.deallocate();
 }
   
-void StackSparseMatrix::build_and_renormalise_transform(StackSpinBlock *big, const opTypes &ot, const std::vector<Matrix>& leftrotate_matrix, const StateInfo *newleftStateInfo, 
+void StackSparseMatrix::build_and_renormalise_transform(StackSpinBlock *big, const std::vector<Matrix>& leftrotate_matrix, const StateInfo *newleftStateInfo, 
 							const std::vector<Matrix>& rightrotate_matrix,  const StateInfo *newrightStateInfo) 
 {
   
@@ -110,7 +110,7 @@ void StackSparseMatrix::build_and_renormalise_transform(StackSpinBlock *big, con
   build(*big);
   
   //put the new operatorMatrix 
-  StackCre tmp; tmp.operatorMatrix = operatorMatrix;
+  StackSparseMatrix tmp; tmp.operatorMatrix = operatorMatrix;
   tmp.data = data; tmp.totalMemory = totalMemory;
   tmp.allowedQuantaMatrix = allowedQuantaMatrix;
   tmp.initialised = true;
@@ -148,7 +148,6 @@ void StackSparseMatrix::buildUsingCsf(const StackSpinBlock& b, vector< vector<Cs
   StateInfo stateinfo = b.get_stateInfo();
   built = true;
   
-  //#pragma omp parallel for schedule(dynamic) 
   for (int index=0; index < nonZeroBlocks.size(); index++) {
     int i = nonZeroBlocks[index].first.first, j = nonZeroBlocks[index].first.second;
     for (int jq =stateinfo.unBlockedIndex[j]; jq < stateinfo.unBlockedIndex[j]+stateinfo.quantaStates[j]; jq++) 
@@ -163,9 +162,11 @@ void StackSparseMatrix::buildUsingCsf(const StackSpinBlock& b, vector< vector<Cs
 void assignloopblock(StackSpinBlock*& loopblock, StackSpinBlock*& otherblock, StackSpinBlock* leftBlock,
 			    StackSpinBlock* rightBlock)
 {
-  loopblock = leftBlock;
-  otherblock = rightBlock;
-  if (!leftBlock->is_loopblock()) {loopblock = rightBlock; otherblock = leftBlock;}
+  loopblock = rightBlock;
+  otherblock = leftBlock;
+  //loopblock = leftBlock;
+  //otherblock = rightBlock;
+  //if (!leftBlock->is_loopblock()) {loopblock = rightBlock; otherblock = leftBlock;}
 }
 
 

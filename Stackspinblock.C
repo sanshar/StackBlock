@@ -5,6 +5,8 @@ Copyright (c) 2012, Garnet K.-L. Chan
 This program is integrated in Molpro with the permission of 
 Sandeep Sharma and Garnet K.-L. Chan
 */
+
+#include "Stackspinblock.h"
 #include "IntegralMatrix.h"
 #include "stackopxop.h"
 #include "operatorfunctions.h"
@@ -20,6 +22,7 @@ Sandeep Sharma and Garnet K.-L. Chan
 #include <boost/functional.hpp>
 #include <boost/bind.hpp>
 #include <boostutils.h>
+
 
 #ifndef SERIAL
 #include <boost/mpi.hpp>
@@ -129,6 +132,8 @@ ostream& operator<< (ostream& os, const StackSpinBlock& b)
 
 
 StackSpinBlock::StackSpinBlock () : 
+  additionalMemory(0),
+  additionaldata(0),
   totalMemory(0),
   data(0),
   localstorage(false),
@@ -140,7 +145,8 @@ StackSpinBlock::StackSpinBlock () :
 StackSpinBlock::StackSpinBlock(int start, int finish, int p_integralIndex, bool implicitTranspose, bool is_complement) :  
   name (rand()), 
   integralIndex(p_integralIndex),
-  direct(false), leftBlock(0), rightBlock(0)
+  direct(false), leftBlock(0), rightBlock(0),  additionalMemory(0),
+  additionaldata(0)
 {
   complementary = is_complement;
   normal = !is_complement;
@@ -182,6 +188,10 @@ StackSpinBlock::StackSpinBlock (const StackSpinBlock& b) { *this = b; }
 
 StackSpinBlock::StackSpinBlock(const StateInfo& s, int pintegralIndex)
 {
+  additionalMemory=0;
+  additionaldata=0;
+  data = 0;
+  totalMemory = 0;
   braStateInfo = s;
   ketStateInfo = s;
   sites.resize(0);
@@ -288,14 +298,23 @@ long StackSpinBlock::build_iterators()
 void StackSpinBlock::build_operators(std::vector< Csf >& dets, std::vector< std::vector<Csf> >& ladders)
 {
   dmrginp.buildcsfops->start();
+  std::vector<boost::shared_ptr<StackSparseMatrix> >  allops;
+  
   double* localdata = data; 
-  for (std::map<opTypes, boost::shared_ptr< StackOp_component_base> >::iterator it = ops.begin(); it != ops.end(); ++it)
-    {
-      if(it->second->is_core()) {
-	localdata = it->second->allocateOperators(braStateInfo, ketStateInfo, localdata);
-        it->second->build_csf_operators(dets, ladders, *this);      
-      }
+  for (std::map<opTypes, boost::shared_ptr< StackOp_component_base> >::iterator it = ops.begin(); it != ops.end(); ++it) {
+    opTypes ot = it->first;
+    if(it->second->is_core()) {
+      localdata = it->second->allocateOperators(braStateInfo, ketStateInfo, localdata);
+      for (int i=0; i<it->second->get_size(); i++)
+	for (int j=0; j<it->second->get_local_element(i).size(); j++) 
+	  allops.push_back(it->second->get_local_element(i)[j]);
     }
+  }
+  
+#pragma omp parallel for schedule(dynamic)
+  for (int i=0; i<allops.size(); i++)
+    allops[i]->buildUsingCsf(*this, ladders, dets);
+  
   dmrginp.buildcsfops->stop();
 }
   
@@ -317,12 +336,22 @@ void StackSpinBlock::build_operators()
 
 void StackSpinBlock::build_and_renormalise_operators(const std::vector<Matrix>& rotateMatrix, const StateInfo *newStateInfo)
 {
+  std::vector<boost::shared_ptr<StackSparseMatrix> >  allops;
+  
   for (std::map<opTypes, boost::shared_ptr< StackOp_component_base> >::iterator it = ops.begin(); it != ops.end(); ++it) {
     opTypes ot = it->first;
     if(! it->second->is_core()) {
-      it->second->build_and_renormalise_operators(*this, ot, rotateMatrix, newStateInfo);
+      for (int i=0; i<it->second->get_size(); i++)
+	for (int j=0; j<it->second->get_local_element(i).size(); j++)
+	  allops.push_back(it->second->get_local_element(i)[j]);
     }
   }
+
+  SplitStackmem();
+#pragma omp parallel for schedule(dynamic)
+  for (int i=0; i<allops.size(); i++)
+    allops[i]->build_and_renormalise_transform(this, rotateMatrix, newStateInfo);
+  MergeStackmem();
 }
 
 
@@ -391,15 +420,15 @@ void StackSpinBlock::transform_operators(std::vector<Matrix>& rotateMatrix)
   ketStateInfo = braStateInfo;
 
 
-  p3out << "\t\t\t total elapsed time " << globaltimer.totalwalltime() << " " << globaltimer.totalcputime() << " ... " 
-       << globaltimer.elapsedwalltime() << " " << globaltimer.elapsedcputime() << endl;
+  p3out << "\t\t\t total elapsed time " << globaltimer.totalwalltime() << " ... " 
+       << globaltimer.elapsedwalltime() << endl;
 
   for (std::map<opTypes, boost::shared_ptr< StackOp_component_base> >::iterator it = ops.begin(); it != ops.end(); ++it)
     if (! it->second->is_core())
       ops[it->first]->set_core(true);
 
   this->direct = false;
-  p3out << "\t\t\t transform time " << transformtimer.elapsedwalltime() << " " << transformtimer.elapsedcputime() << endl;
+  p3out << "\t\t\t transform time " << transformtimer.elapsedwalltime() << endl;
 
   leftBlock = 0;
   rightBlock = 0;
@@ -437,8 +466,8 @@ void StackSpinBlock::transform_operators(std::vector<Matrix>& leftrotateMatrix, 
   *ketStateInfo.previousStateInfo = oldketStateInfo;
 
 
-  p3out << "\t\t\t total elapsed time " << globaltimer.totalwalltime() << " " << globaltimer.totalcputime() << " ... " 
-       << globaltimer.elapsedwalltime() << " " << globaltimer.elapsedcputime() << endl;
+  p3out << "\t\t\t total elapsed time " << globaltimer.totalwalltime() << " ... " 
+       << globaltimer.elapsedwalltime() << endl;
 
 
   for (std::map<opTypes, boost::shared_ptr< StackOp_component_base> >::iterator it = ops.begin(); it != ops.end(); ++it)
@@ -446,7 +475,7 @@ void StackSpinBlock::transform_operators(std::vector<Matrix>& leftrotateMatrix, 
       ops[it->first]->set_core(true);
 
   this->direct = false;
-  p3out << "\t\t\t transform time " << transformtimer.elapsedwalltime() << " " << transformtimer.elapsedcputime() << endl;
+  p3out << "\t\t\t transform time " << transformtimer.elapsedwalltime() << endl;
 
   if (leftBlock && clearLeftBlock)
     leftBlock->clear();
@@ -613,6 +642,8 @@ void StackSpinBlock::operator= (const StackSpinBlock& b)
   ops = b.ops;
   totalMemory = b.totalMemory;
   data = b.data;
+  additionalMemory = b.additionalMemory;
+  additionaldata = b.additionaldata;
 }
 
 void StackSpinBlock::initialise_op_array(opTypes optype, bool is_core)
@@ -623,28 +654,50 @@ void StackSpinBlock::initialise_op_array(opTypes optype, bool is_core)
 
 void StackSpinBlock::multiplyOverlap(StackWavefunction& c, StackWavefunction* v, int num_threads) const
 {
-  if (mpigetrank() == 0) {
-    boost::shared_ptr<StackSparseMatrix> op = leftBlock->get_op_array(OVERLAP).get_local_element(0)[0];
-    bool deallocate1 = op->memoryUsed() == 0 ? true : false; 
-    op->allocate(leftBlock->get_braStateInfo(), leftBlock->get_ketStateInfo());
-    op->build(*leftBlock);
-
-    boost::shared_ptr<StackSparseMatrix> overlap = rightBlock->get_op_array(OVERLAP).get_local_element(0)[0];
-    bool deallocate2 = overlap->memoryUsed() == 0 ? true : false; 
-    overlap->allocate(rightBlock->get_braStateInfo(), rightBlock->get_ketStateInfo());
-    overlap->build(*rightBlock);
-
-    TensorMultiply(leftBlock, *op, *overlap, this, c, v, op->get_deltaQuantum(0) ,1.0);  // dmrginp.ef
-    
-    if (deallocate2) overlap->deallocate();
-    if (deallocate1) op->deallocate();
-  }
-
+  boost::shared_ptr<StackSparseMatrix> op = leftBlock->get_op_array(OVERLAP).get_local_element(0)[0];
+  bool deallocate1 = op->memoryUsed() == 0 ? true : false; 
+  op->allocate(leftBlock->get_braStateInfo(), leftBlock->get_ketStateInfo());
+  op->build(*leftBlock);
+  
+  boost::shared_ptr<StackSparseMatrix> overlap = rightBlock->get_op_array(OVERLAP).get_local_element(0)[0];
+  bool deallocate2 = overlap->memoryUsed() == 0 ? true : false; 
+  overlap->allocate(rightBlock->get_braStateInfo(), rightBlock->get_ketStateInfo());
+  overlap->build(*rightBlock);
+  
+  TensorMultiply(leftBlock, *op, *overlap, this, c, v, op->get_deltaQuantum(0) ,1.0);  // dmrginp.ef
+  
+  if (deallocate2) overlap->deallocate();
+  if (deallocate1) op->deallocate();
+  
 }
 
+int procWithMinOps(std::vector<boost::shared_ptr<StackSparseMatrix> >& allops)
+{
+  int size = 1;
+#ifndef SERIAL
+  boost::mpi::communicator world;
+  size = world.size();
+#endif
+  std::vector<int> numOps(size, 0);
+
+  numOps[mpigetrank()] = allops.size();
+  int minproc = 0;
+#ifndef SERIAL
+  MPI::COMM_WORLD.Allreduce(MPI_IN_PLACE, &numOps[0], size, MPI_INT, MPI_SUM);
+#endif
+
+  for (int i=0; i< size; i++) {
+    if (numOps[i] < numOps[minproc])
+      minproc = i;
+    pout << numOps[i]<<"  ";
+  }
+  pout << endl<<"  minproc "<< minproc<<endl;
+  return minproc;
+}
 
 void StackSpinBlock::multiplyH(StackWavefunction& c, StackWavefunction* v, int num_threads) const
 {
+
   SpinQuantum hq(0,SpinSpace(0),IrrepSpace(0));
 
   StackSpinBlock* loopBlock=(leftBlock->is_loopblock()) ? leftBlock : rightBlock;
@@ -657,13 +710,11 @@ void StackSpinBlock::multiplyH(StackWavefunction& c, StackWavefunction* v, int n
   StackWavefunction* v_array; 
   initiateMultiThread(v, v_array, numthrds);
 
-  FUNCTOR2 f1 = boost::bind(&stackopxop::hamandoverlap, leftBlock, _1, this, boost::ref(c), v_array, dmrginp.effective_molecule_quantum(), coreEnergy[integralIndex]);
   FUNCTOR2 f4 = boost::bind(&stackopxop::cxcddcomp, leftBlock, _1, this, boost::ref(c), v_array, dmrginp.effective_molecule_quantum() ); 
   FUNCTOR2 f5 = boost::bind(&stackopxop::cxcddcomp, rightBlock, _1, this, boost::ref(c), v_array, dmrginp.effective_molecule_quantum() ); 
   FUNCTOR2 f6 = boost::bind(&stackopxop::cdxcdcomp, otherBlock, _1, this, boost::ref(c), v_array, dmrginp.effective_molecule_quantum() );
   FUNCTOR2 f7 = boost::bind(&stackopxop::ddxcccomp, otherBlock, _1, this, boost::ref(c), v_array, dmrginp.effective_molecule_quantum() );
-  
-  allops.push_back(rightBlock->get_op_rep(OVERLAP, hq)); allfuncs.push_back(f1);
+
 
   for (int i=0; i<rightBlock->get_op_array(CRE).get_size(); i++)
     for (int j=0; j<rightBlock->get_op_array(CRE).get_local_element(i).size(); j++) {
@@ -676,6 +727,7 @@ void StackSpinBlock::multiplyH(StackWavefunction& c, StackWavefunction* v, int n
       allops.push_back(leftBlock->get_op_array(CRE).get_local_element(i)[j]);
       allfuncs.push_back(f5);
     }
+
 
 
   if (dmrginp.hamiltonian() != HUBBARD) {
@@ -692,32 +744,23 @@ void StackSpinBlock::multiplyH(StackWavefunction& c, StackWavefunction* v, int n
       }
   }
 
-
-  //now we have to distribute remaining memory equally among different threads
-  long originalSize = Stackmem[0].size;
-  long remainingMem = Stackmem[0].size - Stackmem[0].memused;
-  long memPerThrd = remainingMem/numthrds;
-  Stackmem[0].size = Stackmem[0].memused+memPerThrd;
-  for (int i=1; i<numthrds; i++) {
-    Stackmem[i].data = Stackmem[i-1].data+memPerThrd;
-    Stackmem[i].memused = 0;
-    Stackmem[i].size = memPerThrd;
+  int proc = procWithMinOps(allops);
+  FUNCTOR2 f1 = boost::bind(&stackopxop::hamandoverlap, leftBlock, _1, this, boost::ref(c), v_array, dmrginp.effective_molecule_quantum(), coreEnergy[integralIndex], proc);
+  if (proc == mpigetrank()) {
+    allops.push_back(rightBlock->get_op_rep(OVERLAP, hq)); allfuncs.push_back(f1);//this is just a placeholder function  
   }
+
+  SplitStackmem();
   dmrginp.tensormultiply->start();
 #pragma omp parallel for schedule(dynamic)
   for (int i = 0; i<allops.size(); i++)  {
     allfuncs[i](allops[i]);
   }
   dmrginp.tensormultiply->stop();  
-  //put all the memory again in the zeroth thrd
-  Stackmem[0].size = originalSize;
-  for (int i=1; i<numthrds; i++) {
-    Stackmem[i].data = 0;
-    Stackmem[i].memused = 0;
-    Stackmem[i].size = 0;
-  }
 
+  MergeStackmem();
   accumulateMultiThread(v, v_array, numthrds);
+  distributedaccumulate(*v);
 }
 
 
@@ -726,50 +769,57 @@ void StackSpinBlock::multiplyH(StackWavefunction& c, StackWavefunction* v, int n
 
 void StackSpinBlock::diagonalH(DiagonalMatrix& e) const
 {
+  SpinQuantum hq(0,SpinSpace(0),IrrepSpace(0));
   StackSpinBlock* loopBlock=(leftBlock->is_loopblock()) ? leftBlock : rightBlock;
   StackSpinBlock* otherBlock = loopBlock == leftBlock ? rightBlock : leftBlock;
   
-  DiagonalMatrix *e_array=&e;
-
-  //initiateMultiThread(&e, e_array, MAX_THRD);
-
-  boost::shared_ptr<StackSparseMatrix> op =leftBlock->get_op_array(HAM).get_local_element(0)[0];
-  bool deallocate1 = op->memoryUsed() == 0 ? true : false; 
-  op->allocate(leftBlock->get_braStateInfo(), leftBlock->get_ketStateInfo());
-  op->build(*leftBlock);
-  if (mpigetrank() == 0) 
-    TensorTrace(leftBlock, *op, this, &(get_stateInfo()), e, 1.0);
-  if (deallocate1) op->deallocate();
-
-  op =rightBlock->get_op_array(HAM).get_local_element(0)[0];
-  bool deallocate2 = op->memoryUsed() == 0 ? true : false; 
-  op->allocate(rightBlock->get_braStateInfo(), rightBlock->get_ketStateInfo());
-  op->build(*rightBlock);
-
+  DiagonalMatrix* e_array = new DiagonalMatrix[numthrds];
+  for (int i=0; i<numthrds; i++)
+    e_array[i] = e;
 
   if (mpigetrank() == 0) {
-    TensorTrace(rightBlock, *op, this, &(get_stateInfo()), e, 1.0);
     for (int i=0; i<e.Nrows(); i++)
       e(i+1) += coreEnergy[integralIndex];
   }
-  
-  if (deallocate2) op->deallocate();
-  
 
-#ifndef SERIAL
-  boost::mpi::communicator world;
-  int size = world.size();
-#endif
+  FUNCTOR2 f3 = boost::bind(&stackopxop::cdxcdcomp_d, otherBlock, _1, this, e_array);
+
+  std::vector<boost::shared_ptr<StackSparseMatrix> > allops;
+  std::vector<FUNCTOR2> allfuncs;
+
 
   if (dmrginp.hamiltonian() != HUBBARD) {
-    
-    FUNCTOR f = boost::bind(&stackopxop::cdxcdcomp_d, otherBlock, _1, this, e_array);
-    if (!(otherBlock->get_op_array(CRE_DESCOMP).is_local()&& loopBlock->get_op_array(CRE_DES).is_local() && mpigetrank() != 0))
-      for_all_singlethread(loopBlock->get_op_array(CRE_DES), f);  
-    
+    for (int i=0; i<loopBlock->get_op_array(CRE_DES).get_size(); i++)
+      for (int j=0; j<loopBlock->get_op_array(CRE_DES).get_local_element(i).size(); j++) {
+	allops.push_back(loopBlock->get_op_array(CRE_DES).get_local_element(i)[j]);
+	allfuncs.push_back(f3);
+      }
   }
 
-  //accumulateMultiThread(&e);
+  int proc = procWithMinOps(allops);
+
+  FUNCTOR2 f1 = boost::bind(&stackopxop::ham_d, loopBlock, _1, this, e_array, proc);
+  FUNCTOR2 f2 = boost::bind(&stackopxop::ham_d, otherBlock, _1, this, e_array, proc);
+
+  if (proc == mpigetrank()) {
+    allops.push_back(loopBlock->get_op_rep(HAM, hq)); allfuncs.push_back(f1); //the function is placeholder
+    allops.push_back(otherBlock->get_op_rep(HAM, hq)); allfuncs.push_back(f2);//the function is placeholder
+  }
+
+
+  SplitStackmem();
+  dmrginp.tensormultiply->start();
+#pragma omp parallel for schedule(dynamic)
+  for (int i = 0; i<allops.size(); i++)  {
+    allfuncs[i](allops[i]);
+  }
+  dmrginp.tensormultiply->stop();  
+  MergeStackmem();
+
+  for (int i=0; i<numthrds; i++)
+    e += e_array[i];
+  delete [] e_array;
+  distributedaccumulate(e);
 
 }
 
@@ -853,15 +903,17 @@ void StackSpinBlock::BuildSlaterBlock (std::vector<int> sts, std::vector<SpinQua
     data = Stackmem[omprank].allocate(totalMemory);
   pout << "Allocating "<<totalMemory<<" for the block "<<endl;
 
-  p3out << "\t\t\t time in slater distribution " << slatertimer.elapsedwalltime() << " " << slatertimer.elapsedcputime() << endl;
+  p3out << "\t\t\t time in slater distribution " << slatertimer.elapsedwalltime() << endl;
 
   std::vector< std::vector<Csf> > ladders; ladders.resize(dets.size());
+
+#pragma omp parallel for schedule(dynamic)
   for (int i=0; i< dets.size(); i++)
     ladders[i] = dets[i].spinLadder(min(2, dets[i].S.getirrep()));
 
 
   build_operators(dets, ladders);
-  p3out << "\t\t\t time in slater operator build " << slatertimer.elapsedwalltime() << " " << slatertimer.elapsedcputime() << endl;
+  p3out << "\t\t\t time in slater operator build " << slatertimer.elapsedwalltime() << endl;
 
 
 }
@@ -950,120 +1002,6 @@ void StackSpinBlock::BuildSingleSlaterBlock(std::vector<int> sts) {
 
 }
 
-std::string StackSpinBlock::restore (bool forward, const vector<int>& sites, StackSpinBlock& b, int left, int right, char* name)
-{
-  Timer disktimer;
-  std::string file;
-
-  if (forward)
-    file = str(boost::format("%s%s%d%s%d%s%d%s%d%s%d%s%d%s") % dmrginp.save_prefix() % "/Block-f-sites-"% sites[0] % "." % sites[sites.size()-1] % "-states" % left % "." % right % "-integral" %b.integralIndex % "rank" % mpigetrank() % ".tmp" );
-  else
-    file = str(boost::format("%s%s%d%s%d%s%d%s%d%s%d%s%d%s") % dmrginp.save_prefix() % "/Block-b-sites-"% sites[0] % "." % sites[sites.size()-1] % "-states" % left % "." % right % "-integral" %b.integralIndex % "rank" % mpigetrank() % ".tmp" );
-  
-  p1out << "\t\t\t Restoring block file :: " << file << endl;
-
-  std::ifstream ifs(file.c_str(), std::ios::binary);
-
-  int lstate =  left;
-  int rstate =  right;
-
-  if (mpigetrank() == 0) {
-    StateInfo::restore(forward, sites, b.braStateInfo, lstate);
-    StateInfo::restore(forward, sites, b.ketStateInfo, rstate);
-  }
-  
-#ifndef SERIAL
-  mpi::communicator world;
-  mpi::broadcast(world, b.braStateInfo, 0);
-  mpi::broadcast(world, b.ketStateInfo, 0);
-#endif
-
-  b.Load (ifs);
-  ifs.close();
-
-  
-
-
-  return file;
-}
-  
-void StackSpinBlock::store (bool forward, const vector<int>& sites, StackSpinBlock& b, int left, int right, char *name)
-{
-  Timer disktimer;
-  std::string file;
-
-  if (forward)
-    file = str(boost::format("%s%s%d%s%d%s%d%s%d%s%d%s%d%s") % dmrginp.save_prefix() % "/Block-f-sites-"% sites[0] % "." % sites[sites.size()-1] % "-states" % left % "." % right % "-integral" %b.integralIndex % "rank" % mpigetrank() % ".tmp" );
-  else
-    file = str(boost::format("%s%s%d%s%d%s%d%s%d%s%d%s%d%s") % dmrginp.save_prefix() % "/Block-b-sites-"% sites[0] % "." % sites[sites.size()-1] % "-states" % left % "." % right % "-integral" %b.integralIndex % "rank" % mpigetrank() % ".tmp" );
-  
-  p1out << "\t\t\t Saving block file :: " << file << endl;
-  
-  
-  std::ofstream ofs(file.c_str(), std::ios::binary);
-  
-  int lstate =  left;
-  int rstate =  right;
-  
-  if (mpigetrank()==0) {
-    StateInfo::store(forward, sites, b.braStateInfo, lstate);
-    StateInfo::store(forward, sites, b.ketStateInfo, rstate);
-  }
-
-
-  b.Save (ofs);
-  ofs.close(); 
-
-
-  //p1out << "\t\t\t block save disk time " << disktimer.elapsedwalltime() << " " << disktimer.elapsedcputime() << endl;
-}
-
-void StackSpinBlock::Save (std::ofstream &ofs)
-{
-  dmrginp.diskio->start();
-  boost::archive::binary_oarchive save_block(ofs);
-  save_block << *this;
-
-  save_block << totalMemory;
-  save_block << boost::serialization::make_array<double>(data, totalMemory);
-  //for (int i=0; i<totalMemory; i++) 
-  //save_block << data[i];
-
-  dmrginp.diskio->stop();
-}
-
-//helper function
-void StackSpinBlock::Load (std::ifstream & ifs)
-{
-  dmrginp.diskio->start();
-  boost::archive::binary_iarchive load_block(ifs);
-  load_block >> *this;
-
-  load_block >> totalMemory;
-  data = Stackmem[omprank].allocate(totalMemory);
-  load_block >> boost::serialization::make_array<double>(data, totalMemory);
-  //for (int i=0; i<totalMemory; i++) 
-  //load_block >> data[i];
-
-  double* localdata = data; 
-  for (std::map<opTypes, boost::shared_ptr< StackOp_component_base> >::iterator it = ops.begin(); it != ops.end(); ++it)
-  {
-    if(it->second->is_core()) {
-      
-      for (int i=0; i<it->second->get_size(); i++) {
-	int vecsize = it->second->get_local_element(i).size();
-	for (int j=0; j<vecsize; j++) {
-	  it->second->get_local_element(i)[j]->set_data(localdata);
-	  it->second->get_local_element(i)[j]->allocateOperatorMatrix();
-	  localdata = localdata + it->second->get_local_element(i)[j]->memoryUsed();
-	}
-      }
-    }
-  }
-
-  dmrginp.diskio->stop();
-}
-
 
 void initialiseSingleSiteBlocks(std::vector<StackSpinBlock>& singleSiteBlocks, int integralIndex) {
   
@@ -1075,8 +1013,374 @@ void initialiseSingleSiteBlocks(std::vector<StackSpinBlock>& singleSiteBlocks, i
 
   singleSiteBlocks.resize(niter);
   int dotStart, dotEnd;
-  for (int i=0; i<niter; i++)
+  for (int i=0; i<niter; i++) {
+    SpinQuantum hq(0, SpinSpace(0), IrrepSpace(0));
     singleSiteBlocks[i] = StackSpinBlock(i, i, integralIndex, true);
+  }
 }
+
+
+void StackSpinBlock::sendcompOps(StackOp_component_base& opcomp, int I, int J, int optype, int compsite)
+{
+#ifndef SERIAL
+  boost::mpi::communicator world;
+  std::vector<boost::shared_ptr<StackSparseMatrix> > oparray = opcomp.get_element(I,J);
+  for(int i=0; i<oparray.size(); i++) {
+    world.send(processorindex(compsite), optype+i*10+1000*J+100000*I, *oparray[i]);
+
+    //now broadcast the data
+    //MPI::COMM_WORLD.Bcast(oparray[i]->get_data(), oparray[i]->memoryUsed(), MPI_DOUBLE, trimap_2d(I, J, dmrginp.last_site()));
+    MPI::COMM_WORLD.Send(oparray[i]->get_data(), oparray[i]->memoryUsed(), MPI_DOUBLE, processorindex(compsite), optype+i*10+1000*J+100000*I);
+  }  
+#endif
+}
+
+void StackSpinBlock::recvcompOps(StackOp_component_base& opcomp, int I, int J, int optype)
+{
+#ifndef SERIAL
+  boost::mpi::communicator world;
+  std::vector<boost::shared_ptr<StackSparseMatrix> > oparray = opcomp.get_element(I,J);
+  for(int i=0; i<oparray.size(); i++) {
+    world.recv(processorindex(trimap_2d(I, J, dmrginp.last_site())), optype+i*10+1000*J+100000*I, *oparray[i]);
+
+    double* data = Stackmem[omprank].allocate(oparray[i]->memoryUsed());
+    if (additionalMemory == 0) 
+      additionaldata=data; 
+    additionalMemory+=oparray[i]->memoryUsed();
+    
+    oparray[i]->set_data(data);
+    oparray[i]->allocateOperatorMatrix();
+
+    //now broadcast the data
+    MPI::COMM_WORLD.Recv(oparray[i]->get_data(), oparray[i]->memoryUsed(), MPI_DOUBLE, processorindex(trimap_2d(I, J, dmrginp.last_site())), optype+i*10+1000*J+100000*I);
+  }
+#endif
+}
+
+
+void StackSpinBlock::removeAdditionalOps() 
+{
+  Stackmem[omprank].deallocate(additionaldata, additionalMemory);
+}
+
+
+void StackSpinBlock::addAdditionalOps()
+{
+#ifndef SERIAL
+  dmrginp.datatransfer->start();
+  boost::mpi::communicator world;
+  if (world.size() == 1)
+    return; //there is no need to have additional compops
+
+  int length = dmrginp.last_site();
+
+  //distribute cre to all processors
+  if (!ops[CRE]->is_local()) {
+    for(int i=0; i<get_sites().size(); i++) {
+      if (ops[CRE]->has(sites[i])) {
+        if (processorindex(sites[i]) != mpigetrank()) {
+	  ops[CRE]->add_local_indices(sites[i]);
+	}
+
+        ops[CRE]->set_local() = true;
+	boost::shared_ptr<StackSparseMatrix> op = ops[CRE]->get_element(sites[i])[0];
+
+	//this only broadcasts the frame but no data
+        mpi::broadcast(world, *op, processorindex(sites[i]));
+
+	//now allocate the data
+	if (processorindex(sites[i]) != mpigetrank()) {
+
+	  double *data = Stackmem[omprank].allocate(op->memoryUsed());
+	  op->set_data(data);
+	  if (additionalMemory == 0) 
+	    additionaldata = data;
+	  additionalMemory+=op->memoryUsed();
+	  op->allocateOperatorMatrix();
+	}
+
+	//now broadcast the data
+	MPI::COMM_WORLD.Bcast(op->get_data(), op->memoryUsed(), MPI_DOUBLE, processorindex(sites[i]));
+      }
+    }
+  }
+
+  //distribute DES to all processors
+  if (has(DES) && !ops[DES]->is_local()) {
+    for(int i=0; i<get_sites().size(); i++) {
+      if (ops[DES]->has(sites[i])) {
+	if (processorindex(sites[i]) != mpigetrank()) ops[DES]->add_local_indices(sites[i]);
+
+	ops[DES]->set_local() = true;
+	boost::shared_ptr<StackSparseMatrix> op = ops[DES]->get_element(sites[i])[0];
+
+	//this only broadcasts the frame but no data
+        mpi::broadcast(world, *op, processorindex(sites[i]));
+
+	//now allocate the data when it is not already there
+	if (processorindex(sites[i]) != mpigetrank()) {
+	  double *data = Stackmem[omprank].allocate(op->memoryUsed());
+	  op->set_data(data);
+	  if (additionalMemory == 0) 
+	    additionaldata=data; 
+	  additionalMemory+=op->memoryUsed();
+	  
+	  op->allocateOperatorMatrix();
+	}
+
+	//now broadcast the data
+	MPI::COMM_WORLD.Bcast(op->get_data(), op->memoryUsed(), MPI_DOUBLE, processorindex(sites[i]));
+      }
+    }
+  }
+  
+
+  vector<int> dotindice;
+  dotindice.push_back((sites[0] == 0) ? complementary_sites[0] : complementary_sites[complementary_sites.size()-1]);
+  if (!dmrginp.spinAdapted()) { // when non-spinadapted, sites are spin orbitals
+    dotindice.push_back((sites[0] == 0) ? complementary_sites[1] : complementary_sites[complementary_sites.size()-2]);    
+  }
+  for (int idx = 0; idx < dotindice.size(); ++idx) {
+    int dotopindex = dotindice[idx];
+    int I = dotopindex;
+
+    //CCDcompI should be broadcast to all procs
+    if (has(CRE_CRE_DESCOMP)) {
+      if( !ops[CRE_CRE_DESCOMP]->is_local() ) {
+      int fromproc = processorindex(I);
+      if( ops[CRE_CRE_DESCOMP]->has(I) ) {
+	if (fromproc != mpigetrank()) ops[CRE_CRE_DESCOMP]->add_local_indices(I);
+	
+	std::vector<boost::shared_ptr<StackSparseMatrix> > oparray = ops[CRE_CRE_DESCOMP]->get_element(I);
+	for (int iproc =0; iproc<oparray.size(); iproc++) {
+	  //this only broadcasts the frame but no data
+	  mpi::broadcast(world, *oparray[iproc], fromproc);
+	  
+	  //now allocate the data when it is not already there
+	  if (fromproc != mpigetrank()) {
+	    double *data = Stackmem[omprank].allocate(oparray[iproc]->memoryUsed());
+	    oparray[iproc]->set_data(data);
+	    if (additionalMemory == 0) 
+	      additionaldata=data; 
+	    additionalMemory+=oparray[iproc]->memoryUsed();
+	    
+	    oparray[iproc]->allocateOperatorMatrix();
+	  }
+	  
+	  //now broadcast the data
+	  MPI::COMM_WORLD.Bcast(oparray[iproc]->get_data(), oparray[iproc]->memoryUsed(), MPI_DOUBLE, fromproc);
+	}
+      }
+      }
+    }
+    //CCDcompI should be broadcast to all procs
+    if (has(CRE_DES_DESCOMP)) { 
+      if (!ops[CRE_DES_DESCOMP]->is_local() ) {
+      int fromproc = processorindex(I);
+      if( ops[CRE_DES_DESCOMP]->has(I) ) {
+	if (fromproc != mpigetrank()) ops[CRE_DES_DESCOMP]->add_local_indices(I);
+	
+	std::vector<boost::shared_ptr<StackSparseMatrix> > oparray = ops[CRE_DES_DESCOMP]->get_element(I);
+	for (int iproc =0; iproc<oparray.size(); iproc++) {
+	  //this only broadcasts the frame but no data
+	  mpi::broadcast(world, *oparray[iproc], fromproc);
+	  
+	  //now allocate the data when it is not already there
+	  if (fromproc != mpigetrank()) {
+	    double *data = Stackmem[omprank].allocate(oparray[iproc]->memoryUsed());
+	    oparray[iproc]->set_data(data);
+	    if (additionalMemory == 0) 
+	      additionaldata=data; 
+	    additionalMemory+=oparray[iproc]->memoryUsed();
+	    
+	    oparray[iproc]->allocateOperatorMatrix();
+	  }
+	  
+	  //now broadcast the data
+	  MPI::COMM_WORLD.Bcast(oparray[iproc]->get_data(), oparray[iproc]->memoryUsed(), MPI_DOUBLE, fromproc);
+	}
+      }
+      }
+    }
+    //CDII should be broadcast to all procs
+    if (has(CRE_DESCOMP)) {
+    if (!ops[CRE_DESCOMP]->is_local() ) {
+      int fromproc = processorindex(trimap_2d(I, I, length));
+      if( ops[CRE_DESCOMP]->has(I,I) ) {
+	if (fromproc != mpigetrank()) ops[CRE_DESCOMP]->add_local_indices(I,I);
+	
+	std::vector<boost::shared_ptr<StackSparseMatrix> > oparray = ops[CRE_DESCOMP]->get_element(I,I);
+	for (int iproc =0; iproc<oparray.size(); iproc++) {
+	  //this only broadcasts the frame but no data
+	  mpi::broadcast(world, *oparray[iproc], fromproc);
+	  
+	  //now allocate the data when it is not already there
+	  if (fromproc != mpigetrank()) {
+	    double *data = Stackmem[omprank].allocate(oparray[iproc]->memoryUsed());
+	    oparray[iproc]->set_data(data);
+	    if (additionalMemory == 0) 
+	      additionaldata=data; 
+	    additionalMemory+=oparray[iproc]->memoryUsed();
+	    
+	    oparray[iproc]->allocateOperatorMatrix();
+	  }
+	  
+	  //now broadcast the data
+	  MPI::COMM_WORLD.Bcast(oparray[iproc]->get_data(), oparray[iproc]->memoryUsed(), MPI_DOUBLE, fromproc);
+	}
+      }
+
+      if( ops[DES_DESCOMP]->has(I,I) ) {
+	if (fromproc != mpigetrank()) ops[DES_DESCOMP]->add_local_indices(I,I);
+	
+	std::vector<boost::shared_ptr<StackSparseMatrix> > oparray = ops[DES_DESCOMP]->get_element(I,I);
+	for (int iproc =0; iproc<oparray.size(); iproc++) {
+	  //this only broadcasts the frame but no data
+	  mpi::broadcast(world, *oparray[iproc], fromproc);
+	  
+	  //now allocate the data when it is not already there
+	  if (fromproc != mpigetrank()) {
+	    double *data = Stackmem[omprank].allocate(oparray[iproc]->memoryUsed());
+	    oparray[iproc]->set_data(data);
+	    if (additionalMemory == 0) 
+	      additionaldata=data; 
+	    additionalMemory+=oparray[iproc]->memoryUsed();
+	    
+	    oparray[iproc]->allocateOperatorMatrix();
+	  }
+	  
+	  //now broadcast the data
+	  MPI::COMM_WORLD.Bcast(oparray[iproc]->get_data(), oparray[iproc]->memoryUsed(), MPI_DOUBLE, fromproc);
+	}
+      }
+      if (has(DES)) {
+	if( ops[CRE_CRECOMP]->has(I,I) ) {
+	  if (fromproc != mpigetrank()) ops[CRE_CRECOMP]->add_local_indices(I,I);
+	  
+	  std::vector<boost::shared_ptr<StackSparseMatrix> > oparray = ops[CRE_CRECOMP]->get_element(I,I);
+	  for (int iproc =0; iproc<oparray.size(); iproc++) {
+	    //this only broadcasts the frame but no data
+	    mpi::broadcast(world, *oparray[iproc], fromproc);
+	    
+	    //now allocate the data when it is not already there
+	    if (fromproc != mpigetrank()) {
+	      double *data = Stackmem[omprank].allocate(oparray[iproc]->memoryUsed());
+	      oparray[iproc]->set_data(data);
+	      if (additionalMemory == 0) 
+		additionaldata=data; 
+	      additionalMemory+=oparray[iproc]->memoryUsed();
+	      
+	      oparray[iproc]->allocateOperatorMatrix();
+	    }
+	    
+	    //now broadcast the data
+	    MPI::COMM_WORLD.Bcast(oparray[iproc]->get_data(), oparray[iproc]->memoryUsed(), MPI_DOUBLE, fromproc);
+	  }
+	}
+	if( ops[DES_CRECOMP]->has(I,I) ) {
+	  if (fromproc != mpigetrank()) ops[DES_CRECOMP]->add_local_indices(I,I);
+	  
+	  std::vector<boost::shared_ptr<StackSparseMatrix> > oparray = ops[DES_CRECOMP]->get_element(I,I);
+	  for (int iproc =0; iproc<oparray.size(); iproc++) {
+	    //this only broadcasts the frame but no data
+	    mpi::broadcast(world, *oparray[iproc], fromproc);
+	    
+	    //now allocate the data when it is not already there
+	    if (fromproc != mpigetrank()) {
+	      double *data = Stackmem[omprank].allocate(oparray[iproc]->memoryUsed());
+	      oparray[iproc]->set_data(data);
+	      if (additionalMemory == 0) 
+		additionaldata=data; 
+	      additionalMemory+=oparray[iproc]->memoryUsed();
+	      
+	      oparray[iproc]->allocateOperatorMatrix();
+	    }
+	    
+	    //now broadcast the data
+	    MPI::COMM_WORLD.Bcast(oparray[iproc]->get_data(), oparray[iproc]->memoryUsed(), MPI_DOUBLE, fromproc);
+	  }
+	}
+      }
+    }
+    }
+
+    for (int i=0; i<complementary_sites.size(); i++) {
+      int compsite = complementary_sites[i];
+      if (std::find(dotindice.begin(), dotindice.end(), compsite) != dotindice.end())
+        continue;
+      int I = (compsite > dotopindex) ? compsite : dotopindex;
+      int J = (compsite > dotopindex) ? dotopindex : compsite;
+
+      if (processorindex(compsite) == processorindex(trimap_2d(I, J, length)) || ops[CRE_DESCOMP]->is_local())
+        continue;
+
+      if (processorindex(compsite) == mpigetrank()) {
+        //this will potentially receive some ops        
+        bool other_proc_has_ops = true;
+        world.recv(processorindex(trimap_2d(I, J, length)), 0, other_proc_has_ops);
+        if (other_proc_has_ops) {
+	  ops[CRE_DESCOMP]->add_local_indices(I, J);
+	  recvcompOps(*ops[CRE_DESCOMP], I, J, CRE_DESCOMP);
+        }
+
+        other_proc_has_ops = true;
+        world.recv(processorindex(trimap_2d(I, J, length)), 0, other_proc_has_ops);
+        if (other_proc_has_ops) {
+	  ops[DES_DESCOMP]->add_local_indices(I, J);
+	  recvcompOps(*ops[DES_DESCOMP], I, J, DES_DESCOMP);
+        }
+
+	if (has(DES)) {
+	  other_proc_has_ops = true;
+	  world.recv(processorindex(trimap_2d(I, J, length)), 0, other_proc_has_ops);
+	  if (other_proc_has_ops) {
+	    ops[CRE_CRECOMP]->add_local_indices(I, J);
+	    recvcompOps(*ops[CRE_CRECOMP], I, J, CRE_CRECOMP);
+	  }
+	  other_proc_has_ops = true;
+	  world.recv(processorindex(trimap_2d(I, J, length)), 0, other_proc_has_ops);
+	  if (other_proc_has_ops) {
+	    ops[DES_CRECOMP]->add_local_indices(I, J);
+	    recvcompOps(*ops[DES_CRECOMP], I, J, DES_CRECOMP);
+	  }
+	}
+      } 
+      else {
+        //this will potentially send some ops
+        if (processorindex(trimap_2d(I, J, length)) == mpigetrank()) {
+	  bool this_proc_has_ops = ops[CRE_DESCOMP]->has_local_index(I, J);
+	  world.send(processorindex(compsite), 0, this_proc_has_ops);
+	  if (this_proc_has_ops) {
+	    sendcompOps(*ops[CRE_DESCOMP], I, J, CRE_DESCOMP, compsite);
+	  }
+          this_proc_has_ops = ops[DES_DESCOMP]->has_local_index(I, J);
+	  world.send(processorindex(compsite), 0, this_proc_has_ops);
+	  if (this_proc_has_ops) {
+	    sendcompOps(*ops[DES_DESCOMP], I, J, DES_DESCOMP, compsite);     
+	  }
+	  if (has(DES)) {
+	    this_proc_has_ops = ops[CRE_CRECOMP]->has_local_index(I, J);
+	    world.send(processorindex(compsite), 0, this_proc_has_ops);
+	    if (this_proc_has_ops) {
+	      sendcompOps(*ops[CRE_CRECOMP], I, J, CRE_CRECOMP, compsite);     
+	    }
+	    this_proc_has_ops = ops[DES_CRECOMP]->has_local_index(I, J);
+	    world.send(processorindex(compsite), 0, this_proc_has_ops);
+	    if (this_proc_has_ops) {
+	      sendcompOps(*ops[DES_CRECOMP], I, J, DES_CRECOMP, compsite);     
+	    }
+	  }
+	  
+        } 
+	else 
+	  continue;
+      }
+    }
+  }
+  dmrginp.datatransfer->stop();
+#endif
+}
+
+
 
 }

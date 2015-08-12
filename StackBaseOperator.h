@@ -243,9 +243,9 @@ class StackSparseMatrix : public Baseoperator<StackMatrix>  // the sparse matrix
   bool& set_built_on_disk() { return built_on_disk; }
   virtual double get_scaling(SpinQuantum leftq, SpinQuantum rightq) const ;
 
-  void build_and_renormalise_transform(StackSpinBlock *big, const opTypes &ot, const std::vector<Matrix>& rotate_matrix, 
+  void build_and_renormalise_transform(StackSpinBlock *big, const std::vector<Matrix>& rotate_matrix, 
 				       const StateInfo *newStateInfo);
-  void build_and_renormalise_transform(StackSpinBlock *big, const opTypes &ot, const std::vector<Matrix>& leftrotate_matrix, const StateInfo *leftstateinfo, 
+  void build_and_renormalise_transform(StackSpinBlock *big, const std::vector<Matrix>& leftrotate_matrix, const StateInfo *leftstateinfo, 
 				       const std::vector<Matrix>& rightrotate_matrix,  const StateInfo *newStateInfo);
   void buildUsingCsf(const StackSpinBlock& b, vector< vector<Csf> >& ladders, std::vector< Csf >& s) ;
   virtual double redMatrixElement(Csf c1, vector<Csf>& ladder, const StackSpinBlock* b=0) {return 0;}

@@ -8,6 +8,8 @@
 #include "multiarray.h"
 #include "boost/variant.hpp"
 #include "sweep_params.h"
+#include <newmat.h>
+
 
 namespace SpinAdapted{
 class StackWavefunction;
@@ -75,6 +77,8 @@ class StackSpinBlock
   std::vector<int> complementary_sites;
   long totalMemory;
   double* data;
+  long additionalMemory;
+  double* additionaldata;
  public: 
 
   StackSpinBlock (const StateInfo& s, int integralIndex);
@@ -105,12 +109,10 @@ class StackSpinBlock
 
 
   //these will be tricky to implement
-  void addAdditionalCompOps() {};
-  void remove_normal_ops() {};
-  void sendcompOps(StackOp_component_base& opcomp, int I, int J, int optype, int compsite) {};
-  void recvcompOps(StackOp_component_base& opcomp, int I, int J, int optype) {};
-  void sendOneindexOps(StackOp_component_base& opcomp, int I, int optype, int otherproc) {};
-  void recvOneindexOps(StackOp_component_base& opcomp, int I, int optype) {};
+  void addAdditionalOps() ;
+  void removeAdditionalOps() ;
+  void sendcompOps(StackOp_component_base& opcomp, int I, int J, int optype, int compsite) ;
+  void recvcompOps(StackOp_component_base& opcomp, int I, int J, int optype) ;
 
   //simple functions
   const boost::shared_ptr<TwoElectronArray> get_twoInt() const {return twoInt;}
@@ -183,6 +185,7 @@ class StackSpinBlock
   }
 
   long memoryUsed() {return totalMemory;}
+  long additionalMemoryUsed() {return additionalMemory;}
   void deallocate();
   double* getdata() {return data;}
   void moveToNewMemory(double* pData);

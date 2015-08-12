@@ -585,6 +585,16 @@ namespace SpinAdapted {
       return ret_val;
     }
 
+  template<> void StackOp_component<StackCreCreDesComp>::add_local_indices(int i, int j , int k)
+    {
+      m_op.add_local_index(i);
+      
+      std::vector<boost::shared_ptr<StackCreCreDesComp> >& vec = m_op(i);
+      vec.resize(1);
+      vec[0]=boost::shared_ptr<StackCreCreDesComp>(new StackCreCreDesComp);
+    }
+
+
   //usually not needed, because it can be calculated as a transpose of CCDcomp, but
   //when the bra and ket state in the block are different than transpose cannot be used
   // -------------------- Cddcomp_ ---------------------------  
@@ -645,6 +655,16 @@ namespace SpinAdapted {
 	}
       return ret_val;
     }
+
+  template<> void StackOp_component<StackCreDesDesComp>::add_local_indices(int i, int j , int k)
+    {
+      m_op.add_local_index(i);
+      
+      std::vector<boost::shared_ptr<StackCreDesDesComp> >& vec = m_op(i);
+      vec.resize(1);
+      vec[0]=boost::shared_ptr<StackCreDesDesComp>(new StackCreDesDesComp);
+    }
+
   
   // -------------------- HAM ---------------------------  
   template<> string StackOp_component<StackHam>::get_op_string() const {

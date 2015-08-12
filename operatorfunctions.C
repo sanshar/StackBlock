@@ -7,6 +7,19 @@ Sandeep Sharma and Garnet K.-L. Chan
 */
 
 
+#include "StackMatrix.h"
+#include "timer.h"
+#include "Stackspinblock.h"
+#include "MatrixBLAS.h"
+#include <math.h>
+#include "global.h"
+#include <omp.h>
+#include <iostream>
+#include <map>
+#include <vector>
+#include <newmat.h>
+#include "StateInfo.h"
+#include "StackBaseOperator.h"
 #include "operatorfunctions.h"
 #include "Stackspinblock.h"
 #include "Stackwavefunction.h"
@@ -157,7 +170,7 @@ void SpinAdapted::operatorfunctions::TensorTraceElement(const StackSpinBlock *ab
   }
 }
   
-void SpinAdapted::operatorfunctions::TensorTrace (const StackSpinBlock *ablock, const StackSparseMatrix& a, const StackSpinBlock* cblock, const StateInfo* cstateinfo, DiagonalMatrix& cDiagonal, Real scale)
+void SpinAdapted::operatorfunctions::TensorTrace (const StackSpinBlock *ablock, const StackSparseMatrix& a, const StackSpinBlock* cblock, const StateInfo* cstateinfo, DiagonalMatrix* cDiagonal, Real scale)
 {
   if (fabs(scale) < TINY) return;
   assert (a.get_initialised());
@@ -205,11 +218,63 @@ void SpinAdapted::operatorfunctions::TensorTrace (const StackSpinBlock *ablock, 
 		    s.UnMapQuantumState (cQState, s.rightStateInfo->quantaStates [aQ], bQState, aQState);
 		  }
 		long dindex = s.unBlockedIndex[cQ] + cQState + 1;
-		cDiagonal(dindex) += scale * scaleB * a.operator_element(aQ, aQ)(aQState + 1, aQState + 1); 
+		cDiagonal[omprank](dindex) += scale * scaleB * a.operator_element(aQ, aQ)(aQState + 1, aQState + 1); 
 		
 	      }
 	  }
   
+}
+
+
+void SpinAdapted::operatorfunctions::TensorProduct (const StackSpinBlock *ablock, const StackSparseMatrix& a, const StackSparseMatrix& b, const StackSpinBlock* cblock, const StateInfo* cstateinfo, DiagonalMatrix* cDiagonal, double scale)
+{
+  if (fabs(scale) < TINY) return;
+  const int aSz = a.nrows();
+  const int bSz = b.nrows();
+  const char conjC = (cblock->get_leftBlock() == ablock) ? 'n' : 't';
+  const StackSpinBlock* bblock = (cblock->get_leftBlock() == ablock) ? cblock->get_rightBlock() : cblock->get_leftBlock();
+  const StateInfo& s = cblock->get_stateInfo();
+  const StateInfo* lS = s.leftStateInfo, *rS = s.rightStateInfo;
+
+  for (int aQ = 0; aQ < aSz; ++aQ)
+    if (a.allowed(aQ, aQ))
+      for (int bQ = 0; bQ < bSz; ++bQ)
+	if (b.allowed(bQ, bQ))
+	  if (s.allowedQuanta (aQ, bQ, conjC))
+	  {
+	    int cQ = s.quantaMap (aQ, bQ, conjC)[0];
+	    Real scaleA = scale;
+	    Real scaleB = 1;
+	    if (conjC == 'n')
+	      {
+		scaleB *= dmrginp.get_ninej()(lS->quanta[aQ].get_s().getirrep() , rS->quanta[bQ].get_s().getirrep(), cstateinfo->quanta[cQ].get_s().getirrep(), 
+					      a.get_spin().getirrep(), b.get_spin().getirrep(), 0,
+					      lS->quanta[aQ].get_s().getirrep() , rS->quanta[bQ].get_s().getirrep(), cstateinfo->quanta[cQ].get_s().getirrep());
+		scaleB *= Symmetry::spatial_ninej(lS->quanta[aQ].get_symm().getirrep() , rS->quanta[bQ].get_symm().getirrep(), cstateinfo->quanta[cQ].get_symm().getirrep(), 
+				     a.get_symm().getirrep(), b.get_symm().getirrep(), 0,
+				     lS->quanta[aQ].get_symm().getirrep() , rS->quanta[bQ].get_symm().getirrep(), cstateinfo->quanta[cQ].get_symm().getirrep());
+		
+		if (b.get_fermion() && IsFermion (lS->quanta [aQ])) scaleB *= -1.0;
+		for (int aQState = 0; aQState < lS->quantaStates[aQ] ; aQState++)
+		  MatrixDiagonalScale(a.operator_element(aQ, aQ)(aQState+1, aQState+1)*scaleA*scaleB, b.operator_element(bQ, bQ), 
+				      cDiagonal[omprank].Store()+s.unBlockedIndex[cQ]+aQState*rS->quantaStates[bQ]);
+
+	      }
+	    else
+	      {
+		scaleB *= dmrginp.get_ninej()(lS->quanta[bQ].get_s().getirrep() , rS->quanta[aQ].get_s().getirrep(), cstateinfo->quanta[cQ].get_s().getirrep(), 
+					      b.get_spin().getirrep(), a.get_spin().getirrep(), 0,
+					      lS->quanta[bQ].get_s().getirrep() , rS->quanta[aQ].get_s().getirrep(), cstateinfo->quanta[cQ].get_s().getirrep());
+		scaleB *= Symmetry::spatial_ninej(lS->quanta[bQ].get_symm().getirrep() , rS->quanta[aQ].get_symm().getirrep(), cstateinfo->quanta[cQ].get_symm().getirrep(), 
+				     b.get_symm().getirrep(), a.get_symm().getirrep(), 0,
+				     lS->quanta[bQ].get_symm().getirrep() , rS->quanta[aQ].get_symm().getirrep(), cstateinfo->quanta[cQ].get_symm().getirrep());
+		
+		if (a.get_fermion()&& IsFermion(lS->quanta[bQ])) scaleB *= -1.0;
+		for (int bQState = 0; bQState < lS->quantaStates[bQ] ; bQState++)
+		  MatrixDiagonalScale(b.operator_element(bQ, bQ)(bQState+1, bQState+1)*scaleA*scaleB, a.operator_element(aQ, aQ), 
+				      cDiagonal[omprank].Store()+s.unBlockedIndex[cQ]+bQState*rS->quantaStates[aQ]);
+	      }
+	  }
 }
 
 
@@ -416,57 +481,6 @@ void SpinAdapted::operatorfunctions::TensorProduct (const StackSpinBlock *ablock
 
 
 
-void SpinAdapted::operatorfunctions::TensorProduct (const StackSpinBlock *ablock, const StackSparseMatrix& a, const StackSparseMatrix& b, const StackSpinBlock* cblock, const StateInfo* cstateinfo, DiagonalMatrix& cDiagonal, double scale)
-{
-  if (fabs(scale) < TINY) return;
-  const int aSz = a.nrows();
-  const int bSz = b.nrows();
-  const char conjC = (cblock->get_leftBlock() == ablock) ? 'n' : 't';
-  const StackSpinBlock* bblock = (cblock->get_leftBlock() == ablock) ? cblock->get_rightBlock() : cblock->get_leftBlock();
-  const StateInfo& s = cblock->get_stateInfo();
-  const StateInfo* lS = s.leftStateInfo, *rS = s.rightStateInfo;
-
-  for (int aQ = 0; aQ < aSz; ++aQ)
-    if (a.allowed(aQ, aQ))
-      for (int bQ = 0; bQ < bSz; ++bQ)
-	if (b.allowed(bQ, bQ))
-	  if (s.allowedQuanta (aQ, bQ, conjC))
-	  {
-	    int cQ = s.quantaMap (aQ, bQ, conjC)[0];
-	    Real scaleA = scale;
-	    Real scaleB = 1;
-	    if (conjC == 'n')
-	      {
-		scaleB *= dmrginp.get_ninej()(lS->quanta[aQ].get_s().getirrep() , rS->quanta[bQ].get_s().getirrep(), cstateinfo->quanta[cQ].get_s().getirrep(), 
-					      a.get_spin().getirrep(), b.get_spin().getirrep(), 0,
-					      lS->quanta[aQ].get_s().getirrep() , rS->quanta[bQ].get_s().getirrep(), cstateinfo->quanta[cQ].get_s().getirrep());
-		scaleB *= Symmetry::spatial_ninej(lS->quanta[aQ].get_symm().getirrep() , rS->quanta[bQ].get_symm().getirrep(), cstateinfo->quanta[cQ].get_symm().getirrep(), 
-				     a.get_symm().getirrep(), b.get_symm().getirrep(), 0,
-				     lS->quanta[aQ].get_symm().getirrep() , rS->quanta[bQ].get_symm().getirrep(), cstateinfo->quanta[cQ].get_symm().getirrep());
-		
-		if (b.get_fermion() && IsFermion (lS->quanta [aQ])) scaleB *= -1.0;
-		for (int aQState = 0; aQState < lS->quantaStates[aQ] ; aQState++)
-		  MatrixDiagonalScale(a.operator_element(aQ, aQ)(aQState+1, aQState+1)*scaleA*scaleB, b.operator_element(bQ, bQ), 
-				      cDiagonal.Store()+s.unBlockedIndex[cQ]+aQState*rS->quantaStates[bQ]);
-
-	      }
-	    else
-	      {
-		scaleB *= dmrginp.get_ninej()(lS->quanta[bQ].get_s().getirrep() , rS->quanta[aQ].get_s().getirrep(), cstateinfo->quanta[cQ].get_s().getirrep(), 
-					      b.get_spin().getirrep(), a.get_spin().getirrep(), 0,
-					      lS->quanta[bQ].get_s().getirrep() , rS->quanta[aQ].get_s().getirrep(), cstateinfo->quanta[cQ].get_s().getirrep());
-		scaleB *= Symmetry::spatial_ninej(lS->quanta[bQ].get_symm().getirrep() , rS->quanta[aQ].get_symm().getirrep(), cstateinfo->quanta[cQ].get_symm().getirrep(), 
-				     b.get_symm().getirrep(), a.get_symm().getirrep(), 0,
-				     lS->quanta[bQ].get_symm().getirrep() , rS->quanta[aQ].get_symm().getirrep(), cstateinfo->quanta[cQ].get_symm().getirrep());
-		
-		if (a.get_fermion()&& IsFermion(lS->quanta[bQ])) scaleB *= -1.0;
-		for (int bQState = 0; bQState < lS->quantaStates[bQ] ; bQState++)
-		  MatrixDiagonalScale(b.operator_element(bQ, bQ)(bQState+1, bQState+1)*scaleA*scaleB, a.operator_element(aQ, aQ), 
-				      cDiagonal.Store()+s.unBlockedIndex[cQ]+bQState*rS->quantaStates[aQ]);
-	      }
-	  }
-}
-
 
 void SpinAdapted::operatorfunctions::TensorMultiply(const StackSpinBlock *ablock, const StackSparseMatrix& a, const StackSpinBlock *cblock, StackWavefunction& c, StackWavefunction& v, const SpinQuantum dQ, double scale, int num_thrds)
 {
@@ -620,7 +634,7 @@ void SpinAdapted::operatorfunctions::MultiplyWithOwnTranspose(const StackSparseM
 	  }
 }
 
-void SpinAdapted::operatorfunctions::Product (const StackSpinBlock *ablock, const Baseoperator<Matrix>& a, const Baseoperator<Matrix>& b, Baseoperator<Matrix>& c, double scale)
+void SpinAdapted::operatorfunctions::Product (const StackSpinBlock *ablock, const StackSparseMatrix& a, const StackSparseMatrix& b, StackSparseMatrix& c, double scale)
 {
   const StateInfo* astate = &ablock->get_stateInfo(); 
   if (fabs(scale) < TINY) return;
@@ -651,7 +665,7 @@ void SpinAdapted::operatorfunctions::Product (const StackSpinBlock *ablock, cons
 
 
 
-void SpinAdapted::operatorfunctions::OperatorScaleAdd(double scaleV, const StackSpinBlock& b, const Baseoperator<Matrix>& op1, Baseoperator<Matrix>& op2)
+void SpinAdapted::operatorfunctions::OperatorScaleAdd(double scaleV, const StackSpinBlock& b, const StackSparseMatrix& op1, StackSparseMatrix& op2)
 {
   const StateInfo& s = b.get_stateInfo();
   for (int lQ = 0; lQ< op2.nrows(); lQ++)
@@ -665,7 +679,7 @@ void SpinAdapted::operatorfunctions::OperatorScaleAdd(double scaleV, const Stack
 }
 
 /*
-void SpinAdapted::operatorfunctions::MultiplyProduct(const Baseoperator<Matrix>& a, const Baseoperator<Matrix>& b, Baseoperator<Matrix>& c, Real scale)
+void SpinAdapted::operatorfunctions::MultiplyProduct(const StackSparseMatrix& a, const StackSparseMatrix& b, StackSparseMatrix& c, Real scale)
 {
   if (fabs(scale) < TINY) return;
   const int aSz = a.nrows();

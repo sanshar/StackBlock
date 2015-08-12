@@ -176,10 +176,10 @@ template <class Op> class StackOp_component : public StackOp_component_base
 
   // Note for NPDM higher-index operators, there are template specializations for these functions
   void build_and_renormalise_operators(StackSpinBlock&b, const opTypes &ot, const std::vector<Matrix>& rotateMatrix, const StateInfo *stateinfo)
-    {for_all_operators_singlethread(*this, bind(&StackSparseMatrix::build_and_renormalise_transform, _1, &b, boost::ref(ot), boost::ref(rotateMatrix), stateinfo));}
+    {for_all_operators_singlethread(*this, bind(&StackSparseMatrix::build_and_renormalise_transform, _1, &b, boost::ref(rotateMatrix), stateinfo));}
 
   void build_and_renormalise_operators(StackSpinBlock&b, const opTypes &ot, const std::vector<Matrix>& leftMat, const StateInfo *bra, const std::vector<Matrix>& rightMat, const StateInfo *ket)
-    {for_all_operators_singlethread(*this, bind(&StackSparseMatrix::build_and_renormalise_transform, _1, &b, boost::ref(ot), boost::ref(leftMat), bra, boost::ref(rightMat), ket));}
+    {for_all_operators_singlethread(*this, bind(&StackSparseMatrix::build_and_renormalise_transform, _1, &b, boost::ref(leftMat), bra, boost::ref(rightMat), ket));}
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
 // Use for unique filename for NPDM disk-based operator storage

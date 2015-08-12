@@ -41,7 +41,10 @@ void SpinAdapted::Sweep::fullci(double sweep_tol)
   StackSpinBlock newSystem;
   for (int i=0; i<forwardsites-1; i++) {
     StackSpinBlock& sysdot = singleSiteBlocks[integralIndex][i+1];
-    system.addAdditionalCompOps();
+    system.printOperatorSummary();
+    system.addAdditionalOps();
+    pout << "after additional ops "<<endl;
+    system.printOperatorSummary();
     newSystem.set_integralIndex() = integralIndex;
     if (i == forwardsites-2)
       newSystem.default_op_components(true, system, sysdot, false, true, true);
@@ -52,7 +55,7 @@ void SpinAdapted::Sweep::fullci(double sweep_tol)
     newSystem.BuildSumBlock (NO_PARTICLE_SPIN_NUMBER_CONSTRAINT, system, sysdot);
 
     pout << newSystem<<endl;
-    long memoryToFree = system.memoryUsed();
+    long memoryToFree = newSystem.getdata() - system.getdata();
     long newsysMemory = newSystem.memoryUsed();
     if (i != forwardsites-2) {
       if (i != 0) {
@@ -68,7 +71,7 @@ void SpinAdapted::Sweep::fullci(double sweep_tol)
   InitBlocks::InitStartingBlock(environment, false, 0, 0, sweepParams.get_forward_starting_size(),  sweepParams.get_backward_starting_size(), 0, false, true, integralIndex);
   for (int i=0;i <backwardsites-1; i++) {
     StackSpinBlock& envdot=singleSiteBlocks[integralIndex][numsites-2-i];
-    environment.addAdditionalCompOps();
+    environment.addAdditionalOps();
     newEnvironment.set_integralIndex() = integralIndex;
     if (i == backwardsites-2)
       newEnvironment.default_op_components(true, environment, envdot, true, true, true);
@@ -79,7 +82,7 @@ void SpinAdapted::Sweep::fullci(double sweep_tol)
 
     if (i!=backwardsites-2) {
       if (i != 0) {
-	long memoryToFree = environment.memoryUsed();
+	long memoryToFree = newEnvironment.getdata() - environment.getdata();
 	long newenvMemory = newEnvironment.memoryUsed();
 	newEnvironment.moveToNewMemory(environment.getdata());
 	Stackmem[0].deallocate(newEnvironment.getdata()+newEnvironment.memoryUsed(), memoryToFree);

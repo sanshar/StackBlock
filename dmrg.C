@@ -106,7 +106,7 @@ using namespace SpinAdapted;
 
 int calldmrg(char* input, char* output)
 {
-  //sleep(15);
+  //sleep(8);
   srand(1000);
   streambuf *backup;
   backup = cout.rdbuf();
@@ -424,7 +424,8 @@ int calldmrg(char* input, char* output)
   }
 
   cout.rdbuf(backup);
-  pout << setprecision(3) <<"\n\n\t\t\t BLOCK CPU  Time (seconds): " << globaltimer.totalcputime() << endl;
+  double cputime = globaltimer.totalcputime();
+  pout << setprecision(3) <<"\n\n\t\t\t BLOCK CPU  Time (seconds): " << cputime << endl;
   pout << setprecision(3) <<"\t\t\t BLOCK Wall Time (seconds): " << globaltimer.totalwalltime() << endl;
 
   return 0;

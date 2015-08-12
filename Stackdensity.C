@@ -6,6 +6,7 @@ This program is integrated in Molpro with the permission of
 Sandeep Sharma and Garnet K.-L. Chan
 */
 
+#include "Stackspinblock.h"
 #include "Stackdensity.h"
 #include "Stackwavefunction.h"
 #include "operatorloops.h"
@@ -86,7 +87,6 @@ void StackDensityMatrix::makedensitymatrix(std::vector<StackWavefunction>& wave_
 	  DAXPY(requiredData, 1.0, this->get_data(), 1, noiseMatrix, 1);
       }
       mcheck("just after noise");
-      
       //copy back the noiseMatrix to "this", and deallocate the noiseMatrix
       if (mpigetrank() == 0) {
 	DCOPY(requiredData, noiseMatrix, 1, this->get_data(), 1);
@@ -147,92 +147,61 @@ private:
   StackDensityMatrix*& dm;
   const StackSpinBlock& big; 
   const double scale;
-  const int num_threads;
-  opTypes optype, optype2;
   bool distributed;
   bool synced;
 public:
-  onedot_noise_f(StackDensityMatrix*& dm_, const StackWavefunction& wavefunction_, const StackSpinBlock& big_, const double scale_, const int num_threads_)
-    : distributed(false), synced(true), wavefunction(wavefunction_), dm(dm_), big(big_), scale(scale_), num_threads(num_threads_) { }
+  onedot_noise_f(StackDensityMatrix*& dm_, const StackWavefunction& wavefunction_, const StackSpinBlock& big_, const double scale_)
+    : distributed(false), synced(true), wavefunction(wavefunction_), dm(dm_), big(big_), scale(scale_) { }
   
-  void set_opType(const opTypes &optype_)
+  void operator()(const boost::shared_ptr<StackSparseMatrix> op) const
   {
-    optype = optype_;
-    distributed = !big.get_leftBlock()->get_op_array(optype).is_local();
-    if(distributed) synced = false;
-  }
-  void operator()(const std::vector<boost::shared_ptr<StackSparseMatrix> >& opvec) const
-  {
-    if ((mpigetrank() == 0 || distributed))// && op.get_deltaQuantum().particleNumber != 0)
-    {
-      for (int opind=0; opind<opvec.size(); opind++) {
-	StackSparseMatrix& op = *opvec[opind];
-#ifndef SERIAL
-	boost::mpi::communicator world;
-	if (op.get_orbs().size() == 1 && op.get_orbs()[0]%world.size() != mpigetrank())
-	  continue;
-#endif	  
-	vector<SpinQuantum> wQ = wavefunction.get_deltaQuantum();
-	vector<SpinQuantum> oQ = op.get_deltaQuantum();
-	vector<IrrepSpace> vec = wQ[0].get_symm() + oQ[0].get_symm();
-	vector<SpinSpace> spinvec = wQ[0].get_s()+oQ[0].get_s();
-	for (int k=0; k<wQ.size(); ++k)
-	  for (int l=0; l<oQ.size(); ++l)
-	    for (int j=0; j<vec.size(); j++)
-	      for (int i=0; i<spinvec.size(); i++)
-		{
-		  SpinQuantum q = SpinQuantum(wQ[k].get_n()+oQ[l].get_n(), spinvec[i], vec[j]);
-		  op.allocate(big.get_leftBlock()->get_braStateInfo(), big.get_leftBlock()->get_ketStateInfo());
-		  op.build(*big.get_leftBlock());
-		  if (dmrginp.hamiltonian() != BCS || q.get_n() <= dmrginp.effective_molecule_quantum().get_n()) {
-		    StackWavefunction opxwave;
-		    opxwave.initialise(std::vector<SpinQuantum>(1,q), *big.get_braStateInfo().leftStateInfo, *big.get_ketStateInfo().rightStateInfo, wavefunction.get_onedot());
-		    opxwave.set_onedot(wavefunction.get_onedot());
-		    opxwave.Clear();
-		    TensorMultiply(big.get_leftBlock(), op, &big, const_cast<StackWavefunction&> (wavefunction), opxwave, dmrginp.molecule_quantum(), 1.0);
-		    double norm = DotProduct(opxwave, opxwave);
-		    if (abs(norm) > NUMERICAL_ZERO) {
-		      Scale(1./sqrt(norm), opxwave);
-		      MultiplyWithOwnTranspose (opxwave, dm[0], scale);  
-		      //MultiplyProduct(opxwave, Transpose(opxwave), dm[0], scale);
-		    }
-		    opxwave.deallocate();
-		  }
-
-		  //this block has explicit transpose operators, so dont do this step
-		  if (!big.get_leftBlock()->has(DES)) {
-		    q = SpinQuantum(wQ[k].get_n()-oQ[l].get_n(), spinvec[i], vec[j]);
-		    if (dmrginp.hamiltonian() != BCS || q.get_n() >= 0) {
-		      StackWavefunction opxwave2; //= Wavefunction(q, &big, wavefunction.get_onedot());
-		      opxwave2.initialise(std::vector<SpinQuantum>(1,q), *big.get_braStateInfo().leftStateInfo, *big.get_ketStateInfo().rightStateInfo, wavefunction.get_onedot());
-		      opxwave2.set_onedot(wavefunction.get_onedot());
-		      opxwave2.Clear();
-		      op.set_conjugacy('t');
-		      TensorMultiply(big.get_leftBlock(), op,&big, const_cast<StackWavefunction&> (wavefunction), opxwave2, dmrginp.molecule_quantum(), 1.0);
-		      op.set_conjugacy('n');
-		      double norm = DotProduct(opxwave2, opxwave2);
-		      if (abs(norm) >NUMERICAL_ZERO) {
-			Scale(1./sqrt(norm), opxwave2);
-			MultiplyWithOwnTranspose (opxwave2, dm[0], scale);  
-			//MultiplyProduct(opxwave2, Transpose(opxwave2), dm[0], scale);
-		      } 
-		      opxwave2.deallocate();
-		    }   
-		  }
-		  
-		  op.deallocate();
-		}
-      }
-    }
-  }
-  
-  void syncaccumulate(int toproc = 0)
-  {
-    for(int i=1;i<num_threads;++i)
-      dm[0] += dm[i];
-
-    distributedaccumulate<SpinAdapted::StackSparseMatrix>(dm[0]);
-    synced = true;
+    vector<SpinQuantum> wQ = wavefunction.get_deltaQuantum();
+    vector<SpinQuantum> oQ = op->get_deltaQuantum();
+    vector<IrrepSpace> vec = wQ[0].get_symm() + oQ[0].get_symm();
+    vector<SpinSpace> spinvec = wQ[0].get_s()+oQ[0].get_s();
+    for (int k=0; k<wQ.size(); ++k)
+      for (int l=0; l<oQ.size(); ++l)
+	for (int j=0; j<vec.size(); j++)
+	  for (int i=0; i<spinvec.size(); i++) {
+	    SpinQuantum q = SpinQuantum(wQ[k].get_n()+oQ[l].get_n(), spinvec[i], vec[j]);
+	    op->allocate(big.get_leftBlock()->get_braStateInfo(), big.get_leftBlock()->get_ketStateInfo());
+	    op->build(*big.get_leftBlock());
+	    if (dmrginp.hamiltonian() != BCS || q.get_n() <= dmrginp.effective_molecule_quantum().get_n()) {
+	      StackWavefunction opxwave;
+	      opxwave.initialise(std::vector<SpinQuantum>(1,q), *big.get_braStateInfo().leftStateInfo, *big.get_ketStateInfo().rightStateInfo, wavefunction.get_onedot());
+	      opxwave.set_onedot(wavefunction.get_onedot());
+	      opxwave.Clear();
+	      TensorMultiply(big.get_leftBlock(), *op, &big, const_cast<StackWavefunction&> (wavefunction), opxwave, dmrginp.molecule_quantum(), 1.0);
+	      double norm = DotProduct(opxwave, opxwave);
+	      if (abs(norm) > NUMERICAL_ZERO) {
+		Scale(1./sqrt(norm), opxwave);
+		MultiplyWithOwnTranspose (opxwave, dm[omprank], scale);  
+		//MultiplyProduct(opxwave, Transpose(opxwave), dm[0], scale);
+	      }
+	      opxwave.deallocate();
+	    }
+	    
+	    //this block has explicit transpose operators, so dont do this step
+	    if (!big.get_leftBlock()->has(DES)) {
+	      q = SpinQuantum(wQ[k].get_n()-oQ[l].get_n(), spinvec[i], vec[j]);
+	      if (dmrginp.hamiltonian() != BCS || q.get_n() >= 0) {
+		StackWavefunction opxwave2; //= Wavefunction(q, &big, wavefunction.get_onedot());
+		opxwave2.initialise(std::vector<SpinQuantum>(1,q), *big.get_braStateInfo().leftStateInfo, *big.get_ketStateInfo().rightStateInfo, wavefunction.get_onedot());
+		opxwave2.set_onedot(wavefunction.get_onedot());
+		opxwave2.Clear();
+		TensorMultiply(big.get_leftBlock(), Transpose(*op), &big, const_cast<StackWavefunction&> (wavefunction), opxwave2, dmrginp.molecule_quantum(), 1.0);
+		double norm = DotProduct(opxwave2, opxwave2);
+		if (abs(norm) >NUMERICAL_ZERO) {
+		  Scale(1./sqrt(norm), opxwave2);
+		  MultiplyWithOwnTranspose (opxwave2, dm[omprank], scale);  
+		  //MultiplyProduct(opxwave2, Transpose(opxwave2), dm[0], scale);
+		} 
+		opxwave2.deallocate();
+	      }   
+	    }
+	    
+	    op->deallocate();
+	  }
   }
 };
 
@@ -246,61 +215,97 @@ void StackDensityMatrix::add_onedot_noise(StackWavefunction& wave_solution, Stac
   //p1out << "\t\t\t Modifying density matrix " << endl;
 
 
-  StackDensityMatrix *dm = 0;
-  dm = this;
+  StackDensityMatrix* dm; 
+  initiateMultiThread(this, dm, numthrds);
 
-  onedot_noise_f onedot_noise(dm, wave_solution, big, 1., 1);
+  onedot_noise_f onedot_noise(dm, wave_solution, big, 1.);
+
+  std::vector<boost::shared_ptr<StackSparseMatrix> >  allops;
 
   if (leftBlock->has(CRE)) {
-    onedot_noise.set_opType(CRE);
-    for_all_singlethread(leftBlock->get_op_array(CRE), onedot_noise);
+    for (int i=0; i<leftBlock->get_op_array(CRE).get_size(); i++)
+      for (int j=0; j<leftBlock->get_op_array(CRE).get_local_element(i).size(); j++) {
+	allops.push_back(leftBlock->get_op_array(CRE).get_local_element(i)[j]);
+      }
   }
   if (leftBlock->has(DES)) {
-    onedot_noise.set_opType(DES);
-    for_all_singlethread(leftBlock->get_op_array(DES), onedot_noise);
+    for (int i=0; i<leftBlock->get_op_array(DES).get_size(); i++)
+      for (int j=0; j<leftBlock->get_op_array(DES).get_local_element(i).size(); j++) {
+	allops.push_back(leftBlock->get_op_array(DES).get_local_element(i)[j]);
+      }
   }
+
   //use overlap only when bra and ket are different i.e. when the block has des operator
   if (leftBlock->has(DES)&&leftBlock->has(OVERLAP)) {
-    onedot_noise.set_opType(OVERLAP);
-    for_all_singlethread(leftBlock->get_op_array(OVERLAP), onedot_noise);
+    for (int i=0; i<leftBlock->get_op_array(OVERLAP).get_size(); i++)
+      for (int j=0; j<leftBlock->get_op_array(OVERLAP).get_local_element(i).size(); j++) {
+	allops.push_back(leftBlock->get_op_array(OVERLAP).get_local_element(i)[j]);
+      }
   }
   
   if (dmrginp.hamiltonian() != HUBBARD) {
     
     if (leftBlock->has(CRE_CRE)) {
-      onedot_noise.set_opType(CRE_CRE);
-      for_all_singlethread(leftBlock->get_op_array(CRE_CRE), onedot_noise);
+      for (int i=0; i<leftBlock->get_op_array(CRE_CRE).get_size(); i++)
+	for (int j=0; j<leftBlock->get_op_array(CRE_CRE).get_local_element(i).size(); j++) {
+	  allops.push_back(leftBlock->get_op_array(CRE_CRE).get_local_element(i)[j]);
+	}
       
-      onedot_noise.set_opType(CRE_DES);
-      for_all_singlethread(leftBlock->get_op_array(CRE_DES), onedot_noise);
+      for (int i=0; i<leftBlock->get_op_array(CRE_DES).get_size(); i++)
+	for (int j=0; j<leftBlock->get_op_array(CRE_DES).get_local_element(i).size(); j++) {
+	  allops.push_back(leftBlock->get_op_array(CRE_DES).get_local_element(i)[j]);
+	}
     } 
     else if (leftBlock->has(DES_DESCOMP)) {
-      onedot_noise.set_opType(DES_DESCOMP);
-      for_all_singlethread(leftBlock->get_op_array(DES_DESCOMP), onedot_noise);
+      for (int i=0; i<leftBlock->get_op_array(DES_DESCOMP).get_size(); i++)
+	for (int j=0; j<leftBlock->get_op_array(DES_DESCOMP).get_local_element(i).size(); j++) {
+	  allops.push_back(leftBlock->get_op_array(DES_DESCOMP).get_local_element(i)[j]);
+	}
       
-      onedot_noise.set_opType(CRE_DESCOMP);
-      for_all_singlethread(leftBlock->get_op_array(CRE_DESCOMP), onedot_noise);
+      for (int i=0; i<leftBlock->get_op_array(CRE_DESCOMP).get_size(); i++)
+	for (int j=0; j<leftBlock->get_op_array(CRE_DESCOMP).get_local_element(i).size(); j++) {
+	  allops.push_back(leftBlock->get_op_array(CRE_DESCOMP).get_local_element(i)[j]);
+	}
       
     }
     if (leftBlock->has(DES_DES)) {
-      onedot_noise.set_opType(DES_DES);
-      for_all_singlethread(leftBlock->get_op_array(DES_DES), onedot_noise);
+      for (int i=0; i<leftBlock->get_op_array(DES_DES).get_size(); i++)
+	for (int j=0; j<leftBlock->get_op_array(DES_DES).get_local_element(i).size(); j++) {
+	  allops.push_back(leftBlock->get_op_array(DES_DES).get_local_element(i)[j]);
+	}
       
-      onedot_noise.set_opType(DES_CRE);
-      for_all_singlethread(leftBlock->get_op_array(DES_CRE), onedot_noise);
+      for (int i=0; i<leftBlock->get_op_array(DES_CRE).get_size(); i++)
+	for (int j=0; j<leftBlock->get_op_array(DES_CRE).get_local_element(i).size(); j++) {
+	  allops.push_back(leftBlock->get_op_array(DES_CRE).get_local_element(i)[j]);
+	}
     }
     else if (leftBlock->has(CRE_CRECOMP)) {
-      onedot_noise.set_opType(CRE_CRECOMP);
-      for_all_singlethread(leftBlock->get_op_array(CRE_CRECOMP), onedot_noise);
+      for (int i=0; i<leftBlock->get_op_array(CRE_CRECOMP).get_size(); i++)
+	for (int j=0; j<leftBlock->get_op_array(CRE_CRECOMP).get_local_element(i).size(); j++) {
+	  allops.push_back(leftBlock->get_op_array(CRE_CRECOMP).get_local_element(i)[j]);
+	}
       
-      onedot_noise.set_opType(DES_CRECOMP);
-      for_all_singlethread(leftBlock->get_op_array(DES_CRECOMP), onedot_noise);
-      
+      for (int i=0; i<leftBlock->get_op_array(DES_CRECOMP).get_size(); i++)
+	for (int j=0; j<leftBlock->get_op_array(DES_CRECOMP).get_local_element(i).size(); j++) {
+	  allops.push_back(leftBlock->get_op_array(DES_CRECOMP).get_local_element(i)[j]);
+	}      
     }
     
     
   }
-  onedot_noise.syncaccumulate();
+
+  SplitStackmem();
+  dmrginp.tensormultiply->start();
+#pragma omp parallel for schedule(dynamic)
+  for (int i = 0; i<allops.size(); i++)  {
+    onedot_noise(allops[i]);
+  }
+  dmrginp.tensormultiply->stop();  
+  MergeStackmem();
+
+  accumulateMultiThread(this, dm, numthrds);
+  distributedaccumulate(*this);
+
   
 }
 

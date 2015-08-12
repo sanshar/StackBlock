@@ -705,7 +705,7 @@ void SpinAdapted::SweepResponse::StartUp (SweepParams &sweepParams, StackSpinBlo
   std::vector<Matrix> brarotateMatrix, ketrotateMatrix;
   //<target| H |target>
   {
-    system.addAdditionalCompOps();
+    system.addAdditionalOps();
     InitBlocks::InitNewSystemBlock(system, systemDot, newSystem, correctionVector, correctionVector, 
 				   sweepParams.get_sys_add(), dmrginp.direct(), system.get_integralIndex(), 
 				   DISTRIBUTED_STORAGE, haveNormOps, haveCompOps);
@@ -752,7 +752,7 @@ void SpinAdapted::SweepResponse::StartUp (SweepParams &sweepParams, StackSpinBlo
     StackSpinBlock::restore(forward, systemsites, perturbationSystem, targetState, baseStates[l]);
     perturbationSystemDot = StackSpinBlock(systemDotStart, systemDotEnd, perturbationIntegral, true);
 
-    perturbationSystem.addAdditionalCompOps();
+    perturbationSystem.addAdditionalOps();
     InitBlocks::InitNewSystemBlock(perturbationSystem, perturbationSystemDot, perturbationNewSystem,
 				   targetState, baseStates[l], 
 				   sweepParams.get_sys_add(), dmrginp.direct(), perturbationIntegral,
@@ -870,7 +870,7 @@ void SpinAdapted::SweepResponse::WavefunctionCanonicalize (SweepParams &sweepPar
   
   StackSpinBlock big;  // new_sys = sys+sys_dot; new_env = env+env_dot; big = new_sys + new_env then renormalize to find new_sys(new)
 
-  system.addAdditionalCompOps();
+  system.addAdditionalOps();
   InitBlocks::InitNewSystemBlock(system, systemDot, newSystem, targetState, targetState, sweepParams.get_sys_add(), dmrginp.direct(), system.get_integralIndex(), 
 				 DISTRIBUTED_STORAGE, false, true);
 
@@ -970,7 +970,7 @@ void SpinAdapted::SweepResponse::WavefunctionCanonicalize (SweepParams &sweepPar
 
     overlapsystem.set_integralIndex() = perturbationIntegral;
     StackSpinBlock::restore(forward, systemsites, overlapsystem, targetState, baseStates[l]);
-    overlapsystem.addAdditionalCompOps();
+    overlapsystem.addAdditionalOps();
     InitBlocks::InitNewSystemBlock(overlapsystem, overlapsystemDot, 
 				   overlapnewsystem, targetState, baseStates[l], 
 				   overlapsystemDot.size(), dmrginp.direct(), 

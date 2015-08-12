@@ -404,7 +404,7 @@ void SpinAdapted::SweepCompress::Startup (SweepParams &sweepParams, StackSpinBlo
   //before halfway put the sysdot with system otherwise with environment
   if (!sweepParams.get_onedot()) {
       dmrginp.datatransfer -> start();
-      system.addAdditionalCompOps();
+      system.addAdditionalOps();
       dmrginp.datatransfer -> stop();
 
       bool haveNormOps = dot_with_sys, haveCompOps = true;
@@ -421,7 +421,7 @@ void SpinAdapted::SweepCompress::Startup (SweepParams &sweepParams, StackSpinBlo
   }
   else {
     dmrginp.datatransfer -> start();
-    system.addAdditionalCompOps();
+    system.addAdditionalOps();
     dmrginp.datatransfer -> stop();
 
     bool haveNormOps = dot_with_sys, haveCompOps = true;
@@ -618,7 +618,7 @@ void SpinAdapted::SweepCompress::WavefunctionCanonicalize (SweepParams &sweepPar
   
   StackSpinBlock big;  // new_sys = sys+sys_dot; new_env = env+env_dot; big = new_sys + new_env then renormalize to find new_sys(new)
 
-  system.addAdditionalCompOps();
+  system.addAdditionalOps();
   InitBlocks::InitNewSystemBlock(system, systemDot, newSystem, correctionVector, baseState, sweepParams.get_sys_add(), dmrginp.direct(), 
 				 system.get_integralIndex(), DISTRIBUTED_STORAGE, false, true);
 

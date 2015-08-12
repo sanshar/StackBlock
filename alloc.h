@@ -17,7 +17,7 @@ template<class T> class StackAllocator
  StackAllocator(T* data_ptr, std::size_t max_size): memused(0)  {size =max_size; data=data_ptr;}
   
  StackAllocator() : size(0), data(0), memused(0) {}
-  void clear() {size = 0;data=0; memused=0}
+  void clear() {size = 0;data=0; memused=0;}
   T* allocate(std::size_t n, const void* hint = 0) 
   {
     if (memused+n >=size) {

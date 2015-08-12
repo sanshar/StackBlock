@@ -177,10 +177,8 @@ void SpinAdapted::InitBlocks::InitNewEnvironmentBlock(StackSpinBlock &environmen
         environmentActive.BuildTensorProductBlock(activeSites);
         environmentCore.BuildSingleSlaterBlock(coreSites);
 
-        dmrginp.datatransfer -> start();
-        environmentCore.addAdditionalCompOps();
-        environmentActive.addAdditionalCompOps();
-        dmrginp.datatransfer -> stop();
+        environmentCore.addAdditionalOps();
+        environmentActive.addAdditionalOps();
 
         if ((!dot_with_sys && onedot) || !onedot) {
 	  environment.set_integralIndex() = integralIndex;
@@ -273,9 +271,7 @@ void SpinAdapted::InitBlocks::InitNewEnvironmentBlock(StackSpinBlock &environmen
   }
   // now initialise newEnvironment
   if (!dot_with_sys || !onedot) {
-    dmrginp.datatransfer -> start();
-    environment.addAdditionalCompOps();
-    dmrginp.datatransfer -> stop();
+    environment.addAdditionalOps();
 
     newEnvironment.set_integralIndex() = integralIndex;
     newEnvironment.default_op_components(direct, environment, environmentDot, haveNormops, haveCompops, leftState==rightState);
