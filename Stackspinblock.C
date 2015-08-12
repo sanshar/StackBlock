@@ -5,7 +5,7 @@ Copyright (c) 2012, Garnet K.-L. Chan
 This program is integrated in Molpro with the permission of 
 Sandeep Sharma and Garnet K.-L. Chan
 */
-
+#include "time.h"
 #include "Stackspinblock.h"
 #include "IntegralMatrix.h"
 #include "stackopxop.h"
@@ -744,11 +744,13 @@ void StackSpinBlock::multiplyH(StackWavefunction& c, StackWavefunction* v, int n
       }
   }
 
+
   int proc = procWithMinOps(allops);
   FUNCTOR2 f1 = boost::bind(&stackopxop::hamandoverlap, leftBlock, _1, this, boost::ref(c), v_array, dmrginp.effective_molecule_quantum(), coreEnergy[integralIndex], proc);
   if (proc == mpigetrank()) {
     allops.push_back(rightBlock->get_op_rep(OVERLAP, hq)); allfuncs.push_back(f1);//this is just a placeholder function  
   }
+
 
   SplitStackmem();
   dmrginp.tensormultiply->start();
@@ -808,12 +810,12 @@ void StackSpinBlock::diagonalH(DiagonalMatrix& e) const
 
 
   SplitStackmem();
-  dmrginp.tensormultiply->start();
+  //dmrginp.tensormultiply->start();
 #pragma omp parallel for schedule(dynamic)
   for (int i = 0; i<allops.size(); i++)  {
     allfuncs[i](allops[i]);
   }
-  dmrginp.tensormultiply->stop();  
+  //dmrginp.tensormultiply->stop();  
   MergeStackmem();
 
   for (int i=0; i<numthrds; i++)

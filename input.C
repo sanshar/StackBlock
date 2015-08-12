@@ -70,6 +70,7 @@ void SpinAdapted::Input::initialize_defaults()
 #else
   m_thrds_per_node = vector<int>(1,1);
 #endif
+  m_quanta_thrds = 1;
   m_mkl_thrds = 1;
   m_ham_type = QUANTUM_CHEMISTRY;
   m_algorithm_type = TWODOT_TO_ONEDOT;
@@ -496,7 +497,23 @@ SpinAdapted::Input::Input(const string& config_name) {
 	m_solve_type = LANCZOS;
       else if (boost::iequals(keyword, "mkl_thrds") || boost::iequals(keyword, "threads_mkl")) 
 	m_mkl_thrds = atoi(tok[1].c_str());
-
+      else if (boost::iequals(keyword, "quanta_thrds") || boost::iequals(keyword, "threads_quanta")) 
+	m_quanta_thrds = atoi(tok[1].c_str());
+      else if (boost::iequals(keyword, "num_thrds")) {
+	int nprocs = 1;
+#ifndef SERIAL       
+	mpi::communicator world;
+	nprocs = world.size();
+#endif
+	if (tok.size() !=  2) {
+	  pout << "keyword num_thrds should be followed by a single integer!"<<endl;
+	  pout << "error found in the following line "<<endl;
+	  pout << msg<<endl;
+	  abort();
+	}	
+	m_thrds_per_node.clear();
+	m_thrds_per_node.resize(nprocs, atoi(tok[1].c_str()));
+      }
       else if (boost::iequals(keyword, "thrds_per_node") || boost::iequals(keyword, "threads_per_node")) {
 
 	int nprocs = 1;

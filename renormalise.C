@@ -45,6 +45,7 @@ void StackSpinBlock::RenormaliseFrom(vector<double> &energies, vector<double> &s
 				const bool& warmUp, int sweepiter, int currentRoot, 
 				std::vector<StackWavefunction>& lowerStates, StackDensityMatrix* ReducedDM)
 {
+  dmrginp.davidsonT -> start();
   int nroots = dmrginp.setStateSpecific() ? 1 : dmrginp.nroots(sweepiter);
   vector<StackWavefunction> wave_solutions(nroots);
 
@@ -59,12 +60,12 @@ void StackSpinBlock::RenormaliseFrom(vector<double> &energies, vector<double> &s
     }
   }
 
-  dmrginp.davidsonT -> start();
   if (dmrginp.outputlevel() > 0)
     mcheck("before davidson but after all blocks are built");
 
   dmrginp.solvewf -> start();
 
+  SpinQuantum hq(0, SpinSpace(0), IrrepSpace(0));
   Solver::solve_wavefunction(wave_solutions, energies, big, tol, guesswavetype, onedot, 
 			     dot_with_sys, warmUp, additional_noise, currentRoot, lowerStates);
   dmrginp.solvewf -> stop();

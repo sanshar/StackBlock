@@ -34,6 +34,7 @@ class Input {
 
  private:
   std::vector<int> m_thrds_per_node;
+  int m_quanta_thrds;
   int m_mkl_thrds;
   int m_norbs;
   int m_alpha;
@@ -169,7 +170,7 @@ class Input {
   template<class Archive>
   void serialize(Archive & ar, const unsigned int version)
   {
-    ar & m_memory & m_mkl_thrds & m_thrds_per_node & m_spinAdapted & m_Bogoliubov & m_stateSpecific & m_implicitTranspose & m_num_Integrals;
+    ar & m_memory & m_mkl_thrds & m_quanta_thrds & m_thrds_per_node & m_spinAdapted & m_Bogoliubov & m_stateSpecific & m_implicitTranspose & m_num_Integrals;
     ar & m_norbs & m_alpha & m_beta & m_solve_type & m_Sz & m_set_Sz & m_baseState& m_projectorState& m_targetState;
     ar & m_spin_vector & m_spin_orbs_symmetry & m_guess_permutations & m_nroots & m_weights & m_hf_occ_user & m_hf_occupancy;
     ar & m_sweep_iter_schedule & m_sweep_state_schedule & m_sweep_qstate_schedule & m_sweep_tol_schedule & m_sweep_noise_schedule &m_sweep_additional_noise_schedule & m_reorder;
@@ -355,6 +356,7 @@ class Input {
   const int &max_lanczos_dimension() const {return m_max_lanczos_dimension;}
   std::vector<int> thrds_per_node() const { return m_thrds_per_node; }
   int mkl_thrds() const { return m_mkl_thrds; }
+  int quanta_thrds() const { return m_quanta_thrds; }
   const calcType &calc_type() const { return m_calc_type; }
   const solveTypes &solve_method() const { return m_solve_type; }
   const noiseTypes &noise_type() const {return m_noise_type;}

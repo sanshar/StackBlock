@@ -78,7 +78,8 @@ void StackSparseMatrix::build_and_renormalise_transform(StackSpinBlock *big, con
   const std::vector<int>& newQuantaMap = newStateInfo->newQuantaMap;
 
 
-  //#pragma omp parallel for schedule(dynamic) 
+  int quanta_thrds = dmrginp.quanta_thrds();
+#pragma omp parallel for schedule(dynamic) num_threads(quanta_thrds)
   for (int newQ = 0; newQ < newQuantaMap.size(); newQ++)
     for (int newQPrime = 0; newQPrime < newQuantaMap.size(); newQPrime++) {
       if (this->allowed(newQ, newQPrime)) {

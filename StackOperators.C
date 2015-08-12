@@ -226,9 +226,9 @@ void SpinAdapted::StackCreDes::build(const StackSpinBlock& b)
     }
     else {
       boost::shared_ptr<StackSparseMatrix> op2 = rightBlock->get_op_rep(CRE, getSpinQuantum(j), j);
-      op2->set_conjugacy('t');
-      SpinAdapted::operatorfunctions::TensorProduct(leftBlock, *op1, *op2, &b, &(b.get_stateInfo()), *this, 1.0);
-      op2->set_conjugacy('n');
+      //op2->set_conjugacy('t');
+      SpinAdapted::operatorfunctions::TensorProduct(leftBlock, *op1, Transpose(*op2), &b, &(b.get_stateInfo()), *this, 1.0);
+      //op2->set_conjugacy('n');
     }
   }
   else if (rightBlock->get_op_array(CRE).has(i))
@@ -241,11 +241,11 @@ void SpinAdapted::StackCreDes::build(const StackSpinBlock& b)
     }
     else {
       boost::shared_ptr<StackSparseMatrix> op2 = leftBlock->get_op_rep(CRE, getSpinQuantum(j), j);
-      op2->set_conjugacy('t');
-      double parity = getCommuteParity(op1->get_deltaQuantum()[0], op2->get_deltaQuantum()[0], get_deltaQuantum()[0]);
+      //op2->set_conjugacy('t');
+      double parity = getCommuteParity(op1->get_deltaQuantum()[0], -op2->get_deltaQuantum()[0], get_deltaQuantum()[0]);
     // getCommuteParity doesn't depend on deltaQuantum.get_n()
-      SpinAdapted::operatorfunctions::TensorProduct(rightBlock, *op1, *op2, &b, &(b.get_stateInfo()), *this, 1.0*parity);
-      op2->set_conjugacy('n');
+      SpinAdapted::operatorfunctions::TensorProduct(rightBlock, *op1, Transpose(*op2), &b, &(b.get_stateInfo()), *this, 1.0*parity);
+      //op2->set_conjugacy('n');
     }
   }
   else
@@ -635,9 +635,10 @@ void SpinAdapted::StackCreDesComp::build(const StackSpinBlock& b)
 	  else {
 	    //StackTransposeview top2 = StackTransposeview(rightBlock->get_op_rep(CRE, getSpinQuantum(l), l));
 	    boost::shared_ptr<StackSparseMatrix> op2 = rightBlock->get_op_rep(CRE, getSpinQuantum(l), l);
-	    op2->set_conjugacy('t');
-	    SpinAdapted::operatorfunctions::TensorProduct(leftBlock, *op1, *op2, &b, &(b.get_stateInfo()), *this, scaleV);
-	    op2->set_conjugacy('n');
+	    //op2->set_conjugacy('t');
+	    //SpinAdapted::operatorfunctions::TensorProduct(leftBlock, *op1, *op2, &b, &(b.get_stateInfo()), *this, scaleV);
+	    SpinAdapted::operatorfunctions::TensorProduct(leftBlock, *op1, Transpose(*op2), &b, &(b.get_stateInfo()), *this, scaleV);
+	    //op2->set_conjugacy('n');
 	  }
 	}
       }
@@ -657,9 +658,9 @@ void SpinAdapted::StackCreDesComp::build(const StackSpinBlock& b)
 	    //StackTransposeview top2 = StackTransposeview(leftBlock->get_op_rep(CRE, getSpinQuantum(k), k));
 	    boost::shared_ptr<StackSparseMatrix> op2 = leftBlock->get_op_rep(CRE, getSpinQuantum(k), k);
 	    double parity = getCommuteParity(op1->get_deltaQuantum()[0], op2->get_deltaQuantum()[0], get_deltaQuantum()[0]);
-	    op2->set_conjugacy('t');
-	    SpinAdapted::operatorfunctions::TensorProduct(rightBlock, *op1, *op2, &b, &(b.get_stateInfo()), *this, scaleV*parity);
-	    op2->set_conjugacy('n');
+	    //op2->set_conjugacy('t');
+	    SpinAdapted::operatorfunctions::TensorProduct(rightBlock, *op1, Transpose(*op2), &b, &(b.get_stateInfo()), *this, scaleV*parity);
+	    //op2->set_conjugacy('n');
 	  }
 	}
       }
@@ -705,13 +706,13 @@ void SpinAdapted::StackCreDesComp::build(const StackSpinBlock& b)
             } else {
               boost::shared_ptr<StackSparseMatrix> op1 = leftBlock->get_op_rep(CRE, getSpinQuantum(k), k);
               boost::shared_ptr<StackSparseMatrix> op2 = rightBlock->get_op_rep(CRE, getSpinQuantum(l), l);
-	      op1->set_conjugacy('t'); op2->set_conjugacy('t');
-              double parity = getCommuteParity(op1->get_deltaQuantum()[0], op2->get_deltaQuantum()[0], get_deltaQuantum()[2]);
+	      //op1->set_conjugacy('t'); op2->set_conjugacy('t');
+              double parity = getCommuteParity(-op1->get_deltaQuantum()[0], -op2->get_deltaQuantum()[0], get_deltaQuantum()[2]);
               scaleV += parity * scaleV2;
 	      if (fabs(scaleV) > dmrginp.twoindex_screen_tol()) {
-                SpinAdapted::operatorfunctions::TensorProduct(leftBlock, *op1, *op2, &b, &(b.get_stateInfo()), *this, scaleV);            
+                SpinAdapted::operatorfunctions::TensorProduct(leftBlock, Transpose(*op1), Transpose(*op2), &b, &(b.get_stateInfo()), *this, scaleV);
               }
-	      op1->set_conjugacy('n'); op2->set_conjugacy('n');
+	      //op1->set_conjugacy('n'); op2->set_conjugacy('n');
             }
           }
         }
@@ -1051,13 +1052,13 @@ void SpinAdapted::StackDesDesComp::build(const StackSpinBlock& b)
 	    boost::shared_ptr<StackSparseMatrix> op2 = rightBlock->get_op_rep(CRE, getSpinQuantum(l), l);
 	    //StackTransposeview top1 = StackTransposeview(leftBlock->get_op_rep(CRE, getSpinQuantum(k), k));
 	    //StackTransposeview top2 = StackTransposeview(rightBlock->get_op_rep(CRE, getSpinQuantum(l), l));
-	    op1->set_conjugacy('t'); op2->set_conjugacy('t');
-	    double parity = getCommuteParity(op1->get_deltaQuantum()[0], op2->get_deltaQuantum()[0], get_deltaQuantum()[0]);
+	    //op1->set_conjugacy('t'); op2->set_conjugacy('t');
+	    double parity = getCommuteParity(-op1->get_deltaQuantum()[0], -op2->get_deltaQuantum()[0], get_deltaQuantum()[0]);
 	    scaleV += parity*scaleV2;
 	    
 	    if (fabs(scaleV) > dmrginp.twoindex_screen_tol())
-	      SpinAdapted::operatorfunctions::TensorProduct(leftBlock, *op1, *op2, &b, &(b.get_stateInfo()), *this, scaleV);
-	    op1->set_conjugacy('n'); op2->set_conjugacy('n');
+	      SpinAdapted::operatorfunctions::TensorProduct(leftBlock, Transpose(*op1), Transpose(*op2), &b, &(b.get_stateInfo()), *this, scaleV);
+	    //op1->set_conjugacy('n'); op2->set_conjugacy('n');
 	  }
         }
       }
@@ -1097,9 +1098,9 @@ void SpinAdapted::StackDesDesComp::build(const StackSpinBlock& b)
             } else {
 	      //StackTransposeview top2 = StackTransposeview(rightBlock->get_op_rep(CRE, getSpinQuantum(l), l));
 	      boost::shared_ptr<StackSparseMatrix> op2 = rightBlock->get_op_rep(CRE, getSpinQuantum(l), l);
-	      op2->set_conjugacy('t');
-	      SpinAdapted::operatorfunctions::TensorProduct(leftBlock, *op1, *op2, &b, &(b.get_stateInfo()), *this, scaleV);
-	      op2->set_conjugacy('n');
+	      //op2->set_conjugacy('t');
+	      SpinAdapted::operatorfunctions::TensorProduct(leftBlock, *op1, Transpose(*op2), &b, &(b.get_stateInfo()), *this, scaleV);
+	      //op2->set_conjugacy('n');
             }
           }
         }
@@ -1117,11 +1118,11 @@ void SpinAdapted::StackDesDesComp::build(const StackSpinBlock& b)
 	           SpinAdapted::operatorfunctions::TensorProduct(rightBlock, *op1, *op2, &b, &(b.get_stateInfo()), *this, scaleV*parity);
             } else {
 	      boost::shared_ptr<StackSparseMatrix> op2 = leftBlock->get_op_rep(CRE, getSpinQuantum(k), k);
-	      op2->set_conjugacy('t');
+	      //op2->set_conjugacy('t');
 	      //StackTransposeview top2 = StackTransposeview(leftBlock->get_op_rep(CRE, getSpinQuantum(k), k));
-	      double parity = getCommuteParity(op1->get_deltaQuantum(0), op2->get_deltaQuantum(0), get_deltaQuantum(1));
-	      SpinAdapted::operatorfunctions::TensorProduct(rightBlock, *op1, *op2, &b, &(b.get_stateInfo()), *this, scaleV*parity);
-	      op2->set_conjugacy('n');
+	      double parity = getCommuteParity(op1->get_deltaQuantum(0), -op2->get_deltaQuantum(0), get_deltaQuantum(1));
+	      SpinAdapted::operatorfunctions::TensorProduct(rightBlock, *op1, Transpose(*op2), &b, &(b.get_stateInfo()), *this, scaleV*parity);
+	      //op2->set_conjugacy('n');
             }
           }
         }
@@ -1637,6 +1638,7 @@ void SpinAdapted::StackCreCreDesComp::build(const StackSpinBlock& b)
       {
       FUNCTOR f = boost::bind(&stackopxop::cxcdcomp, otherBlock, _1, &b, k, this, 1.0); 
       for_all_singlethread(loopBlock->get_op_array(CRE), f);
+
       f = boost::bind(&stackopxop::dxcccomp, otherBlock, _1, &b, k, this, 2.0); // factor of 2.0 because CCcomp_{ij} = -CCcomp_{ji}
       for_all_singlethread(loopBlock->get_op_array(CRE), f);
 
@@ -1798,8 +1800,8 @@ void SpinAdapted::StackHam::build(const StackSpinBlock& b)
   StackSpinBlock* rightBlock = b.get_rightBlock();
 
 
-  StackSpinBlock* loopBlock, *otherBlock;
-  assignloopblock(loopBlock, otherBlock, leftBlock, rightBlock);
+  StackSpinBlock* loopBlock=rightBlock, *otherBlock=leftBlock;
+  //assignloopblock(loopBlock, otherBlock, leftBlock, rightBlock);
 
 
 #ifndef SERIAL
@@ -1807,28 +1809,27 @@ void SpinAdapted::StackHam::build(const StackSpinBlock& b)
   int size = world.size();
 #endif
 
-  StackHam *op_array;
+  StackHam *op_array = this;
 
-  initiateMultiThread(this, op_array, 1);
+  //initiateMultiThread(this, op_array, 1);
 
   boost::shared_ptr<StackSparseMatrix> op = leftBlock->get_op_rep(HAM, deltaQuantum);
 
 
   //this action is only performed on the 0th process
-  if (mpigetrank() == 0) {
-    if (rightBlock->get_sites().size() == 0) 
-      SpinAdapted::operatorfunctions::TensorTrace(leftBlock, *op, &b, &(b.get_stateInfo()), *this);
-    else {
-      //const boost::shared_ptr<StackSparseMatrix> Overlap = rightBlock->getOverlap();
-      SpinQuantum hq(0, SpinSpace(0), IrrepSpace(0));
-      const boost::shared_ptr<StackSparseMatrix> Overlap = rightBlock->get_op_rep(OVERLAP, hq);
-      SpinAdapted::operatorfunctions::TensorProduct(leftBlock, *op, *Overlap, &b, &(b.get_stateInfo()), *this, 1.0);
-    }
+  if (rightBlock->get_sites().size() == 0) 
+    SpinAdapted::operatorfunctions::TensorTrace(leftBlock, *op, &b, &(b.get_stateInfo()), *this);
+  else {
+    //const boost::shared_ptr<StackSparseMatrix> Overlap = rightBlock->getOverlap();
+    SpinQuantum hq(0, SpinSpace(0), IrrepSpace(0));
+    const boost::shared_ptr<StackSparseMatrix> Overlap = rightBlock->get_op_rep(OVERLAP, hq);
+    SpinAdapted::operatorfunctions::TensorProduct(leftBlock, *op, *Overlap, &b, &(b.get_stateInfo()), *this, 1.0);
   }
+  
 
   if (rightBlock->get_sites().size() == 0) {
     //this is a special case where the right block is just a dummy block to make the effective wavefunction have spin 0
-    accumulateMultiThread(this, op_array, 1);
+    //distributedaccumulate(*this);
     dmrginp.makeopsT -> stop();
     return;
   }
@@ -1837,31 +1838,25 @@ void SpinAdapted::StackHam::build(const StackSpinBlock& b)
   //const boost::shared_ptr<StackSparseMatrix> Overlap = leftBlock->getOverlap();
   SpinQuantum hq(0, SpinSpace(0), IrrepSpace(0));
   const boost::shared_ptr<StackSparseMatrix> Overlap = leftBlock->get_op_rep(OVERLAP, hq);
-  if (mpigetrank() == 0)
-    SpinAdapted::operatorfunctions::TensorProduct(leftBlock, *Overlap, *op, &b, &(b.get_stateInfo()), *this, 1.0);
-
+  SpinAdapted::operatorfunctions::TensorProduct(leftBlock, *Overlap, *op, &b, &(b.get_stateInfo()), *this, 1.0);
 
   // CCD_A*D_B + CCD_B*D_A + c.c. 
   FUNCTOR f = boost::bind(&stackopxop::cxcddcomp, leftBlock, _1, &b, op_array); 
-  if (!(leftBlock->get_op_array(CRE_CRE_DESCOMP).is_local() && mpigetrank() != 0))
-    for_all_singlethread(rightBlock->get_op_array(CRE), f);
+  for_all_singlethread(rightBlock->get_op_array(CRE), f);
 
   f = boost::bind(&stackopxop::cxcddcomp, rightBlock, _1, &b, op_array); 
-  if (!(rightBlock->get_op_array(CRE_CRE_DESCOMP).is_local() && mpigetrank() != 0))
-    for_all_singlethread(leftBlock->get_op_array(CRE), f);  
+  for_all_singlethread(leftBlock->get_op_array(CRE), f);  
 
   if (dmrginp.hamiltonian() != HUBBARD) {    
     f = boost::bind(&stackopxop::cdxcdcomp, otherBlock, _1, &b, op_array);
-    if (!(otherBlock->get_op_array(CRE_DESCOMP).is_local()&& loopBlock->get_op_array(CRE_DES).is_local() && mpigetrank() != 0))
-      for_all_singlethread(loopBlock->get_op_array(CRE_DES), f);
+    for_all_singlethread(loopBlock->get_op_array(CRE_DES), f);
     
     f = boost::bind(&stackopxop::ddxcccomp, otherBlock, _1, &b, op_array);
-    if (!(otherBlock->get_op_array(DES_DESCOMP).is_local() && loopBlock->get_op_array(CRE_CRE).is_local() && mpigetrank() != 0))
-      for_all_singlethread(loopBlock->get_op_array(CRE_CRE), f);
+    for_all_singlethread(loopBlock->get_op_array(CRE_CRE), f);
   }
   //accumulateSinglethread(this, op_array, op_distributed, maxt);
-  accumulateMultiThread(this, op_array, 1);
-
+  //accumulateMultiThread(this, op_array, 1);
+  //distributedaccumulate(*this);
 
   dmrginp.makeopsT -> stop();    
   

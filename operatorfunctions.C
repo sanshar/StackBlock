@@ -183,7 +183,9 @@ void SpinAdapted::operatorfunctions::TensorTrace (const StackSpinBlock *ablock, 
   const StateInfo& s = cblock->get_stateInfo();
   
   const StateInfo* lS = s.leftStateInfo, *rS = s.rightStateInfo;
-  
+
+  int OMPRANK = omprank; 
+
   for (int aQ = 0; aQ < aSz; ++aQ)
     if (a.allowed(aQ, aQ))
       for (int bQ = 0; bQ < bSz; ++bQ)
@@ -218,7 +220,7 @@ void SpinAdapted::operatorfunctions::TensorTrace (const StackSpinBlock *ablock, 
 		    s.UnMapQuantumState (cQState, s.rightStateInfo->quantaStates [aQ], bQState, aQState);
 		  }
 		long dindex = s.unBlockedIndex[cQ] + cQState + 1;
-		cDiagonal[omprank](dindex) += scale * scaleB * a.operator_element(aQ, aQ)(aQState + 1, aQState + 1); 
+		cDiagonal[OMPRANK](dindex) += scale * scaleB * a.operator_element(aQ, aQ)(aQState + 1, aQState + 1); 
 		
 	      }
 	  }
@@ -235,6 +237,8 @@ void SpinAdapted::operatorfunctions::TensorProduct (const StackSpinBlock *ablock
   const StackSpinBlock* bblock = (cblock->get_leftBlock() == ablock) ? cblock->get_rightBlock() : cblock->get_leftBlock();
   const StateInfo& s = cblock->get_stateInfo();
   const StateInfo* lS = s.leftStateInfo, *rS = s.rightStateInfo;
+
+  int OMPRANK = omprank;
 
   for (int aQ = 0; aQ < aSz; ++aQ)
     if (a.allowed(aQ, aQ))
@@ -257,7 +261,7 @@ void SpinAdapted::operatorfunctions::TensorProduct (const StackSpinBlock *ablock
 		if (b.get_fermion() && IsFermion (lS->quanta [aQ])) scaleB *= -1.0;
 		for (int aQState = 0; aQState < lS->quantaStates[aQ] ; aQState++)
 		  MatrixDiagonalScale(a.operator_element(aQ, aQ)(aQState+1, aQState+1)*scaleA*scaleB, b.operator_element(bQ, bQ), 
-				      cDiagonal[omprank].Store()+s.unBlockedIndex[cQ]+aQState*rS->quantaStates[bQ]);
+				      cDiagonal[OMPRANK].Store()+s.unBlockedIndex[cQ]+aQState*rS->quantaStates[bQ]);
 
 	      }
 	    else
@@ -272,7 +276,7 @@ void SpinAdapted::operatorfunctions::TensorProduct (const StackSpinBlock *ablock
 		if (a.get_fermion()&& IsFermion(lS->quanta[bQ])) scaleB *= -1.0;
 		for (int bQState = 0; bQState < lS->quantaStates[bQ] ; bQState++)
 		  MatrixDiagonalScale(b.operator_element(bQ, bQ)(bQState+1, bQState+1)*scaleA*scaleB, a.operator_element(aQ, aQ), 
-				      cDiagonal[omprank].Store()+s.unBlockedIndex[cQ]+bQState*rS->quantaStates[aQ]);
+				      cDiagonal[OMPRANK].Store()+s.unBlockedIndex[cQ]+bQState*rS->quantaStates[aQ]);
 	      }
 	  }
 }
@@ -285,7 +289,8 @@ void SpinAdapted::operatorfunctions::TensorTrace(const StackSpinBlock *ablock, c
   
   std::vector< std::pair<std::pair<int, int>, StackMatrix> >& nonZeroBlocks = c.get_nonZeroBlocks();
 
-  //#pragma omp parallel for schedule(dynamic)
+  int quanta_thrds = dmrginp.quanta_thrds();
+#pragma omp parallel for schedule(dynamic) num_threads(quanta_thrds)
   for (int index = 0; index<nonZeroBlocks.size(); index++) {
     int cq = nonZeroBlocks[index].first.first, cqprime = nonZeroBlocks[index].first.second;
     TensorTraceElement(ablock, a, cblock, cstateinfo, c, nonZeroBlocks[index].second, cq, cqprime, scale);
@@ -457,8 +462,8 @@ void SpinAdapted::operatorfunctions::TensorProduct (const StackSpinBlock *ablock
   int rows = c.nrows();
   int cols = c.ncols();
 
-  //FIX THIS
-  //#pragma omp parallel for schedule(dynamic)
+  int quanta_thrds = dmrginp.quanta_thrds();
+#pragma omp parallel for schedule(dynamic) num_threads(quanta_thrds)
   for (int cq = 0; cq < rows; ++cq)
   for (int cqprime = 0; cqprime < cols; ++cqprime)
   if (c.allowed(cq, cqprime)) {
@@ -567,6 +572,10 @@ void SpinAdapted::operatorfunctions::TensorMultiply(const StackSpinBlock *ablock
 
   const std::vector< std::pair<std::pair<int, int>, StackMatrix> >& nonZeroBlocks = v[0].get_nonZeroBlocks();
 
+  int OMPRANK = omprank;
+
+  int quanta_thrds = dmrginp.quanta_thrds();
+#pragma omp parallel for schedule(dynamic) num_threads(quanta_thrds)
   for (int index = 0; index<nonZeroBlocks.size(); index++) {
     int lQ = nonZeroBlocks[index].first.first, rQ = nonZeroBlocks[index].first.second;
 
@@ -591,13 +600,13 @@ void SpinAdapted::operatorfunctions::TensorMultiply(const StackSpinBlock *ablock
 	      
 	      factor *= dmrginp.get_ninej()(lketS->quanta[lQPrime].get_s().getirrep(), rketS->quanta[rQPrime].get_s().getirrep() , c.get_deltaQuantum(0).get_s().getirrep(), 
 					    leftOp.get_spin().getirrep(), rightOp.get_spin().getirrep(), opQ.get_s().getirrep(),
-					    lbraS->quanta[lQ].get_s().getirrep(), rbraS->quanta[rQ].get_s().getirrep() , v[omprank].get_deltaQuantum(0).get_s().getirrep());
+					    lbraS->quanta[lQ].get_s().getirrep(), rbraS->quanta[rQ].get_s().getirrep() , v[OMPRANK].get_deltaQuantum(0).get_s().getirrep());
 	      factor *= Symmetry::spatial_ninej(lketS->quanta[lQPrime].get_symm().getirrep() , rketS->quanta[rQPrime].get_symm().getirrep(), c.get_symm().getirrep(), 
 						leftOp.get_symm().getirrep(), rightOp.get_symm().getirrep(), opQ.get_symm().getirrep(),
-						lbraS->quanta[lQ].get_symm().getirrep() , rbraS->quanta[rQ].get_symm().getirrep(), v[omprank].get_symm().getirrep());
+						lbraS->quanta[lQ].get_symm().getirrep() , rbraS->quanta[rQ].get_symm().getirrep(), v[OMPRANK].get_symm().getirrep());
 	      int parity = rightOp.get_fermion() && IsFermion(lketS->quanta[lQPrime]) ? -1 : 1;
 	      factor *=  rightOp.get_scaling(rbraS->quanta[rQ], rketS->quanta[rQPrime]);
-	      MatrixMultiply (m, 'n', rightOp.operator()(rQ, rQPrime), TransposeOf(rightOp.conjugacy()), v[omprank].operator_element(lQ, rQ), factor*parity);
+	      MatrixMultiply (m, 'n', rightOp.operator()(rQ, rQPrime), TransposeOf(rightOp.conjugacy()), v[OMPRANK].operator_element(lQ, rQ), factor*parity);
 	    }
 	  }
 	}
@@ -622,6 +631,8 @@ void SpinAdapted::operatorfunctions::MultiplyWithOwnTranspose(const StackSparseM
     assert (c.nrows() == a.nrows() &&
 	    c.ncols() == a.nrows());
     
+  int quanta_thrds = dmrginp.quanta_thrds();
+#pragma omp parallel for schedule(dynamic) num_threads(quanta_thrds)
     for (int aQ = 0; aQ < aSz; ++aQ)
       for (int aQPrime = 0; aQPrime < aSzPrime; ++aQPrime)
 	for (int bQPrime = 0; bQPrime < aSz; ++bQPrime)
