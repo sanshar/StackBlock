@@ -2048,6 +2048,7 @@ double SpinAdapted::StackHam::redMatrixElement(Csf c1, vector<Csf>& ladder, cons
 void SpinAdapted::StackOverlap::build(const StackSpinBlock& b)
 {
   if (b.get_rightBlock() == 0) return; //already built
+  dmrginp.makeopsT -> start();
 
   StackSpinBlock* leftBlock = b.get_leftBlock();
   StackSpinBlock* rightBlock = b.get_rightBlock();
@@ -2069,6 +2070,7 @@ void SpinAdapted::StackOverlap::build(const StackSpinBlock& b)
     SpinAdapted::operatorfunctions::TensorProduct(rightBlock, *op2, *op, &b, &(b.get_stateInfo()), *this, 1.0);
 
   }
+  dmrginp.makeopsT -> stop();
 
   return;
 

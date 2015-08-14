@@ -260,18 +260,20 @@ void SpinAdapted::Sweep::BlockAndDecimate (SweepParams &sweepParams, StackSpinBl
                              sweepParams.get_additional_noise(), sweepParams.get_onedot(), system, systemDot, environment, 
 			     dot_with_sys, useSlater, sweepParams.get_sweep_iter(), sweepParams.current_root(), lowerStates);
 
+  newEnvironment.deallocate_coreops();
+  newEnvironment.clear();
+  newEnvironment.deallocate();
   environment.removeAdditionalOps();
   environment.clear();
   environment.deallocate();
-  newEnvironment.clear();
-  newEnvironment.deallocate();
+
 
   p1out <<"\t\t\t Performing Renormalization "<<endl;
   pout << "\n\t\t\t Total discarded weight "<<sweepParams.get_lowest_error()<<endl<<endl;
 
+
   dmrginp.multiplierT -> stop();
   dmrginp.operrotT -> start();
-
   newSystem.transform_operators(rotatematrix);
 
   if (system.get_sites().size() != 1) {
@@ -341,7 +343,9 @@ void SpinAdapted::Sweep::BlockAndDecimate (SweepParams &sweepParams, StackSpinBl
   p2out << str(boost::format("%-40s - %-10.4f\n") % "Total walltime" % globaltimer.totalwalltime());
   p2out << str(boost::format("%-40s - %-10.4f\n") % "  |-->Blocking (includes first sweep)" % *(dmrginp.guessgenT));
   p2out << str(boost::format("%-40s - %-10.4f\n") % "      |-->diski" % *(dmrginp.diski));
-  p2out << str(boost::format("%-40s - %-10.4f\n") % "          |-->rawdata" % *(dmrginp.rawdatao));
+  p2out << str(boost::format("%-40s - %-10.4f\n") % "          |-->makeiter" % *(dmrginp.readmakeiter));
+  p2out << str(boost::format("%-40s - %-10.4f\n") % "          |-->allocop" % *(dmrginp.readallocatemem));
+  p2out << str(boost::format("%-40s - %-10.4f\n") % "          |-->rawdata" % *(dmrginp.rawdatai));
   p2out << str(boost::format("%-40s - %-10.4f\n") % "      |-->mpicomm" % *(dmrginp.datatransfer));
   p2out << str(boost::format("%-40s - %-10.4f\n") % "  |-->Wavefunction Solution" % *(dmrginp.multiplierT));
   p2out << str(boost::format("%-40s - %-10.4f\n") % "      |-->davidson/guesswf/diagonal" % *(dmrginp.davidsonT));
@@ -352,6 +356,7 @@ void SpinAdapted::Sweep::BlockAndDecimate (SweepParams &sweepParams, StackSpinBl
   p2out << str(boost::format("%-40s - %-10.4f\n") % "          |-->Add noise" % *(dmrginp.rotmatrixT));
   p2out << str(boost::format("%-40s - %-10.4f\n") % "      |-->wave and rotation io" % *(dmrginp.diskwo));
   p2out << str(boost::format("%-40s - %-10.4f\n") % "  |-->Renormalisation" % *(dmrginp.operrotT));
+  p2out << str(boost::format("%-40s - %-10.4f\n") % "      |-->in parallel region" % *(dmrginp.parallelrenorm));
   p2out << str(boost::format("%-40s - %-10.4f\n") % "  |-->Save block" % *(dmrginp.disko)); 
   p2out << str(boost::format("%-40s - %-10.4f\n") % "      |-->rawdata" % *(dmrginp.rawdatao)); 
 }

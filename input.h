@@ -213,6 +213,7 @@ class Input {
     guesswf       = boost::shared_ptr<cumulTimer> (new cumulTimer());
     multiplierT     = boost::shared_ptr<cumulTimer> (new cumulTimer());
     operrotT        = boost::shared_ptr<cumulTimer> (new cumulTimer());
+    parallelrenorm  = boost::shared_ptr<cumulTimer> (new cumulTimer());
     davidsonT       = boost::shared_ptr<cumulTimer> (new cumulTimer()); 
     rotmatrixT      = boost::shared_ptr<cumulTimer> (new cumulTimer()); 
     blockdavid      = boost::shared_ptr<cumulTimer> (new cumulTimer()); 
@@ -244,6 +245,8 @@ class Input {
     statetensorproduct = boost::shared_ptr<cumulTimer> (new cumulTimer());
     statecollectquanta = boost::shared_ptr<cumulTimer> (new cumulTimer());
     builditeratorsT = boost::shared_ptr<cumulTimer> (new cumulTimer());
+    readallocatemem = boost::shared_ptr<cumulTimer> (new cumulTimer());
+    readmakeiter = boost::shared_ptr<cumulTimer> (new cumulTimer());
     rawdatai = boost::shared_ptr<cumulTimer> (new cumulTimer());
     rawdatao = boost::shared_ptr<cumulTimer> (new cumulTimer());
     diski = boost::shared_ptr<cumulTimer> (new cumulTimer());
@@ -281,6 +284,7 @@ class Input {
   boost::shared_ptr<cumulTimer> guesswf     ;
   boost::shared_ptr<cumulTimer> multiplierT    ;
   boost::shared_ptr<cumulTimer> operrotT      ;
+  boost::shared_ptr<cumulTimer> parallelrenorm ;
   boost::shared_ptr<cumulTimer> davidsonT     ;
   boost::shared_ptr<cumulTimer> rotmatrixT     ;
   boost::shared_ptr<cumulTimer> blockdavid     ;
@@ -312,6 +316,8 @@ class Input {
   boost::shared_ptr<cumulTimer> statetensorproduct;
   boost::shared_ptr<cumulTimer> statecollectquanta;
   boost::shared_ptr<cumulTimer> builditeratorsT;
+  boost::shared_ptr<cumulTimer> readmakeiter;
+  boost::shared_ptr<cumulTimer> readallocatemem;
   boost::shared_ptr<cumulTimer> rawdatai;
   boost::shared_ptr<cumulTimer> rawdatao;
   boost::shared_ptr<cumulTimer> diski;

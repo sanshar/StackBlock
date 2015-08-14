@@ -193,6 +193,7 @@ class StackSpinBlock
   long build_iterators();
   void build_operators(std::vector<Csf >& s, std::vector< std::vector<Csf> >& ladders);
   void build_operators();
+  void deallocate_coreops();
   void build_and_renormalise_operators(const std::vector<Matrix>& rotateMatrix, const StateInfo *newStateInfo);
   void build_and_renormalise_operators(const std::vector<Matrix>& leftMat, const StateInfo *bra, const std::vector<Matrix>& rightMat, const StateInfo *ket);
   void renormalise_transform(const std::vector<Matrix>& rotateMatrix, const StateInfo *stateinfo);

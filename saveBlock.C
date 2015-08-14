@@ -35,17 +35,18 @@ using namespace operatorfunctions;
 void StackSpinBlock::make_iterator(StackSpinBlock& b, opTypes op, int* data, bool oneIndex, int numIndices) {
 
   b.ops[op] = make_new_stackop(op, true);
-  std::vector<int> oneindex;
-  std::vector<std::pair<int, int> > twoindex;
+  std::vector<int> oneindex (numIndices, 0.0);
+  std::vector<std::pair<int, int> > twoindex(numIndices, std::pair<int, int>(0,0));
   
   if (oneIndex) {
     for (int i=0; i<numIndices; i++) {
-      oneindex.push_back(data[i]);
+      oneindex[i] = data[i];
     }
   }
   else {
     for (int i=0; i<numIndices; i++) {
-      twoindex.push_back(std::pair<int, int>(data[2*i], data[2*i+1]));
+      twoindex[i].first = data[2*i];
+      twoindex[i].second = data[2*i+1];
     }
   }
 
@@ -120,6 +121,8 @@ void StackSpinBlock::restore (bool forward, const vector<int>& sites, StackSpinB
   fread(allindices, sizeof(int), allindexsize, fp);
   dmrginp.rawdatai->stop();
 
+  dmrginp.readmakeiter->start();
+
   b.sites.resize(numsites, 0);
   b.complementary_sites.resize(compsites, 0);
 
@@ -148,6 +151,7 @@ void StackSpinBlock::restore (bool forward, const vector<int>& sites, StackSpinB
   if (numdescrecomp    != -1) { make_iterator(b, DES_CRECOMP,     &allindices[index], false, numdescrecomp);    index+=2*numdescrecomp;}
   if (numcredesdescomp != -1) { make_iterator(b, CRE_DES_DESCOMP, &allindices[index], true,  numcredesdescomp); index+=numcredesdescomp;}
   if (numoverlap       != -1) { make_iterator(b, OVERLAP,         &allindices[index], true,  numoverlap);       index+=numoverlap;}
+  dmrginp.readmakeiter->stop();
 
 
   dmrginp.rawdatai->start();
@@ -158,6 +162,7 @@ void StackSpinBlock::restore (bool forward, const vector<int>& sites, StackSpinB
   fclose(fp);
   dmrginp.rawdatai->stop();
 
+  dmrginp.readallocatemem->start();
   double* localdata = b.data; 
   for (std::map<opTypes, boost::shared_ptr< StackOp_component_base> >::iterator it = b.ops.begin(); it != b.ops.end(); ++it)
   {
@@ -172,8 +177,8 @@ void StackSpinBlock::restore (bool forward, const vector<int>& sites, StackSpinB
       }
     }
   }
+  dmrginp.readallocatemem->stop();
 
-  dmrginp.rawdatai->stop();
   dmrginp.diski->stop();
 
   delete [] allindices;
