@@ -46,6 +46,27 @@ namespace SpinAdapted {
 	}
       return requiredMemory;
     }
+
+  template<> void StackOp_component<StackCre>::build_iterators(StackSpinBlock& b, std::vector<int>& screened_c_ix, std::vector<std::pair<int, int> >& screened_pair)
+    {
+      if (b.get_sites().size () == 0) return; // blank construction (used in unset_initialised() Block copy construction, for use with STL)
+      m_op.set_indices(screened_c_ix, dmrginp.last_site());  
+      std::vector<int> orbs(1);
+
+      for (int i = 0; i < m_op.local_nnz(); ++i)
+	{
+	  orbs[0] = m_op.get_local_indices()[i];
+	  m_op.get_local_element(i).resize(1);
+	  m_op.get_local_element(i)[0]=boost::shared_ptr<StackCre>(new StackCre);
+	  StackSparseMatrix& op = *m_op.get_local_element(i)[0];
+	  op.set_orbs() = orbs;
+	  op.set_initialised() = true;
+	  op.set_fermion() = true;
+	  op.set_deltaQuantum(1, getSpinQuantum(orbs[0]));//SpinQuantum(1, 1, SymmetryOfSpatialOrb(orbs[0]));      
+	  //op.set_deltaQuantum() = SpinQuantum(1, SpinOf(orbs[0]), SymmetryOf(orbs[0]));      
+	  op.set_quantum_ladder()["(C)"] = { op.get_deltaQuantum(0) };
+	}
+    }
   
   
   
@@ -105,6 +126,26 @@ namespace SpinAdapted {
 	    requiredMemory += SpinAdapted::getRequiredMemory(b.get_braStateInfo(), b.get_ketStateInfo(), op.get_deltaQuantum());
 	}
       return requiredMemory;
+    }
+  
+  template<> void StackOp_component<StackDes>::build_iterators(StackSpinBlock& b, std::vector<int>& screened_d_ix, std::vector<std::pair<int, int> >& screened_pair)
+    {
+      if (b.get_sites().size () == 0) return; // blank construction (used in unset_initialised() Block copy construction, for use with STL)
+      m_op.set_indices(screened_d_ix, dmrginp.last_site());  
+      std::vector<int> orbs(1);
+
+      for (int i = 0; i < m_op.local_nnz(); ++i)
+	{
+	  orbs[0] = m_op.get_local_indices()[i];
+	  m_op.get_local_element(i).resize(1);
+	  m_op.get_local_element(i)[0]=boost::shared_ptr<StackDes>(new StackDes);
+	  StackSparseMatrix& op = *m_op.get_local_element(i)[0];
+	  op.set_orbs() = orbs;
+	  op.set_initialised() = true;
+	  op.set_fermion() = true;
+	  op.set_deltaQuantum(1, -getSpinQuantum(orbs[0]));//SpinQuantum(1, 1, SymmetryOfSpatialOrb(orbs[0]));      
+	  op.set_quantum_ladder()["(D)"] = { op.get_deltaQuantum(0) };
+	}
     }
   
   
@@ -171,6 +212,32 @@ namespace SpinAdapted {
       return requiredMemory;
     }
   
+  template<> void StackOp_component<StackCreDes>::build_iterators(StackSpinBlock& b, std::vector<int>& screened_c_ix, std::vector<std::pair<int, int> >& screened_cd_ix)
+    {
+      if (b.get_sites().size () == 0) return; // blank construction (used in unset_initialised() Block copy construction, for use with STL)
+      m_op.set_pair_indices(screened_cd_ix, dmrginp.last_site());      
+      std::vector<int> orbs(2);
+      long requiredMemory = 0;
+      for (int i = 0; i < m_op.local_nnz(); ++i)
+	{
+	  orbs = m_op.unmap_local_index(i);
+	  std::vector<boost::shared_ptr<StackCreDes> >& vec = m_op.get_local_element(i);
+	  SpinQuantum spin1 = getSpinQuantum(orbs[0]);//SpinQuantum(1, 1, SymmetryOfSpatialOrb(orbs[0]));
+	  SpinQuantum spin2 = getSpinQuantum(orbs[1]);//SpinQuantum(1, 1, SymmetryOfSpatialOrb(orbs[1]));
+	  std::vector<SpinQuantum> spinvec = spin1-spin2;
+	  vec.resize(spinvec.size());
+	  for (int j=0; j<spinvec.size(); j++) {
+	    vec[j]=boost::shared_ptr<StackCreDes>(new StackCreDes);
+	    StackSparseMatrix& op = *vec[j];
+	    op.set_orbs() = orbs;
+	    op.set_initialised() = true;
+	    op.set_fermion() = false;
+	    op.set_deltaQuantum(1, spinvec[j]);      
+	    op.set_quantum_ladder()["(CD)"] = { op.get_deltaQuantum(0) };
+	  }
+	}
+    }
+  
 
   // -------------------- dC_ ---------------------------  
   template<> string StackOp_component<StackDesCre>::get_op_string() const {
@@ -211,6 +278,31 @@ namespace SpinAdapted {
     }
   
   
+  template<> void StackOp_component<StackDesCre>::build_iterators(StackSpinBlock& b, std::vector<int>& screened_c_ix, std::vector<std::pair<int, int> >& screened_cd_ix)
+    {
+      if (b.get_sites().size () == 0) return; // blank construction (used in unset_initialised() Block copy construction, for use with STL)
+      m_op.set_pair_indices(screened_cd_ix, dmrginp.last_site());      
+      std::vector<int> orbs(2);
+      for (int i = 0; i < m_op.local_nnz(); ++i)
+	{
+	  orbs = m_op.unmap_local_index(i);
+	  std::vector<boost::shared_ptr<StackDesCre> >& vec = m_op.get_local_element(i);
+	  SpinQuantum spin1 = getSpinQuantum(orbs[0]);//SpinQuantum(1, 1, SymmetryOfSpatialOrb(orbs[0]));
+	  SpinQuantum spin2 = getSpinQuantum(orbs[1]);//SpinQuantum(1, 1, SymmetryOfSpatialOrb(orbs[1]));
+	  std::vector<SpinQuantum> spinvec = spin2-spin1;
+	  vec.resize(spinvec.size());
+	  for (int j=0; j<spinvec.size(); j++) {
+	    vec[j]=boost::shared_ptr<StackDesCre>(new StackDesCre);
+	    StackSparseMatrix& op = *vec[j];
+	    op.set_orbs() = orbs;
+	    op.set_initialised() = true;
+	    op.set_fermion() = false;
+	    op.set_deltaQuantum(1, spinvec[j]);      
+	    op.set_quantum_ladder()["(DC)"] = { op.get_deltaQuantum(0) };
+	  }
+	}
+    }
+  
   
   // -------------------- Cc_ ---------------------------  
   template<> string StackOp_component<StackCreCre>::get_op_string() const {
@@ -250,6 +342,32 @@ namespace SpinAdapted {
       return requiredMemory;
     }
   
+  template<> void StackOp_component<StackCreCre>::build_iterators(StackSpinBlock& b, std::vector<int>& screened_c_ix, std::vector<std::pair<int, int> >& screened_dd_ix)
+    {
+      if (b.get_sites().size () == 0) return; // blank construction (used in unset_initialised() Block copy construction, for use with STL)
+      m_op.set_pair_indices(screened_dd_ix, dmrginp.last_site());      
+      std::vector<int> orbs(2);
+
+      for (int i = 0; i < m_op.local_nnz(); ++i)
+	{
+	  orbs = m_op.unmap_local_index(i);
+	  std::vector<boost::shared_ptr<StackCreCre> >& vec = m_op.get_local_element(i);
+	  SpinQuantum spin1 = getSpinQuantum(orbs[0]);//SpinQuantum(1, 1, SymmetryOfSpatialOrb(orbs[0]));
+	  SpinQuantum spin2 = getSpinQuantum(orbs[1]);//SpinQuantum(1, 1, SymmetryOfSpatialOrb(orbs[1]));
+	  std::vector<SpinQuantum> spinvec = spin1+spin2;
+	  vec.resize(spinvec.size());
+	  for (int j=0; j<spinvec.size(); j++) {
+	    vec[j]=boost::shared_ptr<StackCreCre>(new StackCreCre);
+	    StackSparseMatrix& op = *vec[j];
+	    op.set_orbs() = orbs;
+	    op.set_initialised() = true;
+	    op.set_fermion() = false;
+	    op.set_deltaQuantum(1, spinvec[j]);      
+	    op.set_quantum_ladder()["(CC)"] = { op.get_deltaQuantum(0) };
+	  }
+	}
+    }
+  
   
   // -------------------- Dd_ ---------------------------  
   template<> string StackOp_component<StackDesDes>::get_op_string() const {
@@ -287,6 +405,32 @@ namespace SpinAdapted {
 	  }
 	}
       return requiredMemory;
+    }
+  
+  template<> void StackOp_component<StackDesDes>::build_iterators(StackSpinBlock& b, std::vector<int>& screened_c_ix, std::vector<std::pair<int, int> >& screened_dd_ix)
+    {
+      if (b.get_sites().size () == 0) return; // blank construction (used in unset_initialised() Block copy construction, for use with STL)
+      m_op.set_pair_indices(screened_dd_ix, dmrginp.last_site());      
+      std::vector<int> orbs(2);
+
+      for (int i = 0; i < m_op.local_nnz(); ++i)
+	{
+	  orbs = m_op.unmap_local_index(i);
+	  std::vector<boost::shared_ptr<StackDesDes> >& vec = m_op.get_local_element(i);
+	  SpinQuantum spin1 = -getSpinQuantum(orbs[0]);//SpinQuantum(1, 1, SymmetryOfSpatialOrb(orbs[0]));
+	  SpinQuantum spin2 = -getSpinQuantum(orbs[1]);//SpinQuantum(1, 1, SymmetryOfSpatialOrb(orbs[1]));
+	  std::vector<SpinQuantum> spinvec = spin1+spin2;
+	  vec.resize(spinvec.size());
+	  for (int j=0; j<spinvec.size(); j++) {
+	    vec[j]=boost::shared_ptr<StackDesDes>(new StackDesDes);
+	    StackSparseMatrix& op = *vec[j];
+	    op.set_orbs() = orbs;
+	    op.set_initialised() = true;
+	    op.set_fermion() = false;
+	    op.set_deltaQuantum(1, spinvec[j]);      
+	    op.set_quantum_ladder()["(DD)"] = { op.get_deltaQuantum(0) };
+	  }
+	}
     }
   
   
@@ -334,6 +478,38 @@ namespace SpinAdapted {
 	  }
 	}
     return requiredMemory;
+  }
+
+  template<> void StackOp_component<StackCreDesComp>::build_iterators(StackSpinBlock& b, std::vector<int>& screened_c_ix, std::vector<std::pair<int, int> >& screened_cd_ix)
+  {
+    if (b.get_sites().size () == 0) return; // blank construction (used in unset_initialised() Block copy construction, for use with STL)
+    m_op.set_pair_indices(screened_cd_ix, dmrginp.last_site());      
+    
+    std::vector<int> orbs(2);
+    for (int i = 0; i < m_op.local_nnz(); ++i)
+	{
+	  orbs = m_op.unmap_local_index(i);
+	  std::vector<boost::shared_ptr<StackCreDesComp> >& vec = m_op.get_local_element(i);
+	  SpinQuantum spin1 = getSpinQuantum(orbs[0]);
+	  SpinQuantum spin2 = getSpinQuantum(orbs[1]);
+	  std::vector<SpinQuantum> spinvec = spin2-spin1;
+	  vec.resize(spinvec.size());
+	  for (int j=0; j<spinvec.size(); j++) {
+	    vec[j]=boost::shared_ptr<StackCreDesComp>(new StackCreDesComp);
+	    StackSparseMatrix& op = *vec[j];
+	    op.set_orbs() = orbs;
+	    op.set_initialised() = true;
+	    op.set_fermion() = false;
+	    if (dmrginp.hamiltonian() == BCS) {
+	      op.resize_deltaQuantum(3);
+	      op.set_deltaQuantum(0) = spinvec[j];
+	      op.set_deltaQuantum(1) = SpinQuantum(2, spinvec[j].get_s(), spinvec[j].get_symm());
+	      op.set_deltaQuantum(2) = SpinQuantum(-2, spinvec[j].get_s(), spinvec[j].get_symm());
+	    } else {
+	      op.set_deltaQuantum(1, spinvec[j]);
+	    }
+	  }
+	}
   }
   
   template<> void StackOp_component<StackCreDesComp>::add_local_indices(int i, int j , int k)
@@ -393,6 +569,39 @@ namespace SpinAdapted {
       }
     }
     return requiredMemory;
+  }
+  
+  template<> void StackOp_component<StackDesCreComp>::build_iterators(StackSpinBlock& b, std::vector<int>& screened_c_ix, std::vector<std::pair<int, int> >& screened_cd_ix)
+  {
+    if (b.get_sites().size () == 0) return; // blank construction (used in unset_initialised() Block copy construction, for use with STL)
+    m_op.set_pair_indices(screened_cd_ix, dmrginp.last_site());      
+    
+    std::vector<int> orbs(2);
+    for (int i = 0; i < m_op.local_nnz(); ++i)
+    {
+      orbs = m_op.unmap_local_index(i);
+      std::vector<boost::shared_ptr<StackDesCreComp> >& vec = m_op.get_local_element(i);
+      SpinQuantum spin1 = getSpinQuantum(orbs[0]);
+      SpinQuantum spin2 = getSpinQuantum(orbs[1]);
+      std::vector<SpinQuantum> spinvec = spin1-spin2;
+      vec.resize(spinvec.size());
+      for (int j=0; j<spinvec.size(); j++) {
+	vec[j]=boost::shared_ptr<StackDesCreComp>(new StackDesCreComp);
+	StackSparseMatrix& op = *vec[j];
+	op.set_orbs() = orbs;
+	op.set_initialised() = true;
+	op.set_fermion() = false;
+        if (dmrginp.hamiltonian() == BCS) {
+          op.resize_deltaQuantum(3);
+          op.set_deltaQuantum(0) = spinvec[j];
+          op.set_deltaQuantum(1) = SpinQuantum(2, spinvec[j].get_s(), spinvec[j].get_symm());
+          op.set_deltaQuantum(2) = SpinQuantum(-2, spinvec[j].get_s(), spinvec[j].get_symm());
+        } else {
+          op.set_deltaQuantum(1, spinvec[j]);
+        }
+      }
+    }
+
   }
   
   
@@ -455,6 +664,40 @@ namespace SpinAdapted {
 	}
       return requiredMemory;
     }
+
+  template<> void StackOp_component<StackDesDesComp>::build_iterators(StackSpinBlock& b, std::vector<int>& screened_c_ix, std::vector<std::pair<int, int> >& screened_dd_ix)
+    {
+      if (b.get_sites().size () == 0) return; // blank construction (used in unset_initialised() Block copy construction, for use with STL)
+      const double screen_tol = dmrginp.twoindex_screen_tol();
+      m_op.set_pair_indices(screened_dd_ix, dmrginp.last_site());      
+      
+      std::vector<int> orbs(2);
+      for (int i = 0; i < m_op.local_nnz(); ++i)
+	{
+	  orbs = m_op.unmap_local_index(i);
+	  std::vector<boost::shared_ptr<StackDesDesComp> >& vec = m_op.get_local_element(i);
+	  SpinQuantum spin1 = getSpinQuantum(orbs[0]);
+	  SpinQuantum spin2 = getSpinQuantum(orbs[1]);
+	  std::vector<SpinQuantum> spinvec = spin1+spin2;
+	  vec.resize(spinvec.size());
+	  for (int j=0; j<spinvec.size(); j++) {
+	    vec[j]=boost::shared_ptr<StackDesDesComp>(new StackDesDesComp);
+	    StackSparseMatrix& op = *vec[j];
+	    op.set_orbs() = orbs;
+	    op.set_initialised() = true;
+	    op.set_fermion() = false;
+	    
+	    if (dmrginp.hamiltonian() == BCS) {
+	      op.resize_deltaQuantum(3);          
+	      op.set_deltaQuantum(0) = -spinvec[j];
+	      op.set_deltaQuantum(1) = -SpinQuantum(0, spinvec[j].get_s(), spinvec[j].get_symm());
+	      op.set_deltaQuantum(2) = -SpinQuantum(-2, spinvec[j].get_s(), spinvec[j].get_symm());
+	    } else {
+	      op.set_deltaQuantum(1, -spinvec[j]);
+	    }  
+	  }
+	}
+    }
   
   template<> void StackOp_component<StackDesDesComp>::add_local_indices(int i, int j , int k)
     {
@@ -516,6 +759,39 @@ namespace SpinAdapted {
       return requiredMemory;
     }
   
+  template<> void StackOp_component<StackCreCreComp>::build_iterators(StackSpinBlock& b, std::vector<int>& screened_c_ix, std::vector<std::pair<int, int> >& screened_dd_ix)
+    {
+      if (b.get_sites().size () == 0) return; // blank construction (used in unset_initialised() Block copy construction, for use with STL)
+      m_op.set_pair_indices(screened_dd_ix, dmrginp.last_site());      
+      
+      std::vector<int> orbs(2);
+      for (int i = 0; i < m_op.local_nnz(); ++i)
+	{
+	  orbs = m_op.unmap_local_index(i);
+	  std::vector<boost::shared_ptr<StackCreCreComp> >& vec = m_op.get_local_element(i);
+	  SpinQuantum spin1 = getSpinQuantum(orbs[0]);
+	  SpinQuantum spin2 = getSpinQuantum(orbs[1]);
+	  std::vector<SpinQuantum> spinvec = spin1+spin2;
+	  vec.resize(spinvec.size());
+	  for (int j=0; j<spinvec.size(); j++) {
+	    vec[j]=boost::shared_ptr<StackCreCreComp>(new StackCreCreComp);
+	    StackSparseMatrix& op = *vec[j];
+	    op.set_orbs() = orbs;
+	    op.set_initialised() = true;
+	    op.set_fermion() = false;
+	    if (dmrginp.hamiltonian() == BCS) {
+	      op.resize_deltaQuantum(3);          
+	      op.set_deltaQuantum(0) = spinvec[j];
+	      op.set_deltaQuantum(1) = SpinQuantum(0, spinvec[j].get_s(), spinvec[j].get_symm());
+	      op.set_deltaQuantum(2) = SpinQuantum(-2, spinvec[j].get_s(), spinvec[j].get_symm());
+	    } else {
+	      op.set_deltaQuantum(1, spinvec[j]);
+	    }
+	  }
+	}
+    }
+  
+
   template<> void StackOp_component<StackCreCreComp>::add_local_indices(int i, int j , int k)
     {
       m_op.add_local_indices(i,j);
@@ -570,6 +846,34 @@ namespace SpinAdapted {
 	  }
 	}
       return requiredMemory;
+    }
+  
+  template<> void StackOp_component<StackCreCreDesComp>::build_iterators(StackSpinBlock& b, std::vector<int>& screened_cdd_ix, std::vector<std::pair<int, int> >& screened_pair)
+    {
+      if (b.get_sites().size () == 0) return; // blank construction (used in unset_initialised() Block copy construction, for use with STL)
+      m_op.set_indices(screened_cdd_ix, dmrginp.last_site());      
+      std::vector<int> orbs(1);
+
+      for (int i = 0; i < m_op.local_nnz(); ++i)
+	{
+	  orbs[0] = m_op.get_local_indices()[i];
+	  m_op.get_local_element(i).resize(1);
+	  m_op.get_local_element(i)[0]=boost::shared_ptr<StackCreCreDesComp>(new StackCreCreDesComp);
+	  StackSparseMatrix& op = *m_op.get_local_element(i)[0];
+	  op.set_orbs() = orbs;
+	  op.set_initialised() = true;
+	  op.set_fermion() = true;
+	  if (dmrginp.hamiltonian() == BCS) {
+	    op.resize_deltaQuantum(4);
+	    SpinQuantum qorb = getSpinQuantum(orbs[0]);
+	    op.set_deltaQuantum(0) = qorb;
+	    op.set_deltaQuantum(1) = SpinQuantum(3, qorb.get_s(), qorb.get_symm());
+	    op.set_deltaQuantum(2) = SpinQuantum(-1, qorb.get_s(), qorb.get_symm());
+	    op.set_deltaQuantum(3) = SpinQuantum(-3, qorb.get_s(), qorb.get_symm());
+	  } else {
+	    op.set_deltaQuantum(1, getSpinQuantum(orbs[0]));
+	  }
+	}
     }
   
   
@@ -643,6 +947,34 @@ namespace SpinAdapted {
       return requiredMemory;
     }
   
+  template<> void StackOp_component<StackCreDesDesComp>::build_iterators(StackSpinBlock& b, std::vector<int>& screened_cdd_ix, std::vector<std::pair<int, int> >& screened_pair)
+    {
+      if (b.get_sites().size () == 0) return; // blank construction (used in unset_initialised() Block copy construction, for use with STL)
+      m_op.set_indices(screened_cdd_ix, dmrginp.last_site());      
+      std::vector<int> orbs(1);
+
+      for (int i = 0; i < m_op.local_nnz(); ++i)
+	{
+	  orbs[0] = m_op.get_local_indices()[i];
+	  m_op.get_local_element(i).resize(1);
+	  m_op.get_local_element(i)[0]=boost::shared_ptr<StackCreDesDesComp>(new StackCreDesDesComp);
+	  StackSparseMatrix& op = *m_op.get_local_element(i)[0];
+	  op.set_orbs() = orbs;
+	  op.set_initialised() = true;
+	  op.set_fermion() = true;
+	  if (dmrginp.hamiltonian() == BCS) {
+	    op.resize_deltaQuantum(4);
+	    SpinQuantum qorb = getSpinQuantum(orbs[0]);
+	    op.set_deltaQuantum(0) = -qorb;
+	    op.set_deltaQuantum(1) = -SpinQuantum(3, qorb.get_s(), qorb.get_symm());
+	    op.set_deltaQuantum(2) = -SpinQuantum(-1, qorb.get_s(), qorb.get_symm());
+	    op.set_deltaQuantum(3) = -SpinQuantum(-3, qorb.get_s(), qorb.get_symm());
+	  } else {
+	    op.set_deltaQuantum(1, -getSpinQuantum(orbs[0]));//SpinQuantum(1, 1, SymmetryOfSpatialOrb(orbs[0]) );
+	  }     
+	}
+    }
+  
   
   template<> std::vector<std::vector<int> > StackOp_component<StackCreDesDesComp>::get_array() const 
     {
@@ -698,6 +1030,25 @@ namespace SpinAdapted {
       }      
       return requiredMemory;
     }
+
+  template<> void StackOp_component<StackHam>::build_iterators(StackSpinBlock& b, std::vector<int>& screened_c_ix, std::vector<std::pair<int, int> >& screened_pair)
+    {
+      m_op.set_indices();
+      m_op(0).resize(1);
+      m_op(0)[0]=boost::shared_ptr<StackHam>(new StackHam);
+      m_op(0)[0]->set_orbs() = std::vector<int>();
+      m_op(0)[0]->set_initialised() = true;
+      m_op(0)[0]->set_fermion() = false;
+      if (dmrginp.hamiltonian() == BCS) {
+        m_op(0)[0]->resize_deltaQuantum(5);
+        for (int i = 0; i <5; ++i) {
+          m_op(0)[0]->set_deltaQuantum(i) = SpinQuantum(2*(i-2), SpinSpace(0), IrrepSpace(0) );
+	}    
+      } 
+      else {
+        m_op(0)[0]->set_deltaQuantum(1, SpinQuantum(0, SpinSpace(0), IrrepSpace(0)));
+      }      
+    }
   
   template<> std::vector<std::vector<int> > StackOp_component<StackHam>::get_array() const 
     {
@@ -723,6 +1074,18 @@ namespace SpinAdapted {
 	return  SpinAdapted::getRequiredMemory(b.get_braStateInfo(), b.get_ketStateInfo(), m_op(0)[0]->get_deltaQuantum());
       else
 	return 0;
+    }
+
+  template<> void StackOp_component<StackOverlap>::build_iterators(StackSpinBlock& b, std::vector<int>& screened_c_ix, std::vector<std::pair<int, int> >& screened_pair)
+    {
+      m_op.set_indices();
+      m_op(0).resize(1);
+      m_op(0)[0]=boost::shared_ptr<StackOverlap>(new StackOverlap);
+      m_op(0)[0]->set_orbs() = std::vector<int>();
+      m_op(0)[0]->set_initialised() = true;
+      m_op(0)[0]->set_fermion() = false;
+
+      m_op(0)[0]->set_deltaQuantum(1, SpinQuantum(0, SpinSpace(0), IrrepSpace(0)));
     }
   
   template<> std::vector<std::vector<int> > StackOp_component<StackOverlap>::get_array() const 

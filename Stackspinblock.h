@@ -219,7 +219,8 @@ class StackSpinBlock
   void transform_operators(std::vector<Matrix>& rotateMatrix);
   void transform_operators(std::vector<Matrix>& leftrotateMatrix, std::vector<Matrix>& rightrotateMatrix, bool clearRightBlock = true, bool clearLeftBlock = true);
 
-  static std::string  restore (bool forward, const vector<int>& sites, StackSpinBlock& b, int left, int right, char* name=0);//left and right are the bra and ket states and the name is the type of the MPO (currently only H)
+  static void restore (bool forward, const vector<int>& sites, StackSpinBlock& b, int left, int right, char* name=0);//left and right are the bra and ket states and the name is the type of the MPO (currently only H)
+  static void make_iterator(StackSpinBlock& b, opTypes op, int* data, bool oneIndex, int numIndices) ;
   static void store (bool forward, const vector<int>& sites, StackSpinBlock& b, int left, int right, char* name=0);//left and right are the bra and ket states and the name is the type of the MPO (currently only H) 
   void Save (std::ofstream &ofs);
   void Load (std::ifstream &ifs);

@@ -100,6 +100,7 @@ class StackOp_component_base
 
  public:
   virtual long build_iterators(StackSpinBlock& b, bool calcMemory)=0;
+  virtual void build_iterators(StackSpinBlock& b, std::vector<int>& screened_c_ix, std::vector<std::pair<int, int> >& screened_pair)=0;
   virtual void build_operators(StackSpinBlock& b)=0;
   virtual double* allocateOperators(const StateInfo& sl, const StateInfo& sr, double* pData) = 0;
   virtual long getRequiredMemory(const StateInfo& sl, const StateInfo& sr) = 0;
@@ -171,6 +172,7 @@ template <class Op> class StackOp_component : public StackOp_component_base
   void clear(){m_op.clear();}
 
   long build_iterators(StackSpinBlock& b, bool calcMemory);
+  void build_iterators(StackSpinBlock& b, std::vector<int>& screened_c_ix, std::vector<std::pair<int, int> >& screened_pair);
   void build_operators(StackSpinBlock& b) 
     { singlethread_build(*this, b); }
 
