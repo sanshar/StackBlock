@@ -163,11 +163,31 @@ void StackSparseMatrix::buildUsingCsf(const StackSpinBlock& b, vector< vector<Cs
 void assignloopblock(StackSpinBlock*& loopblock, StackSpinBlock*& otherblock, StackSpinBlock* leftBlock,
 			    StackSpinBlock* rightBlock)
 {
-  loopblock = rightBlock;
-  otherblock = leftBlock;
-  //loopblock = leftBlock;
-  //otherblock = rightBlock;
-  //if (!leftBlock->is_loopblock()) {loopblock = rightBlock; otherblock = leftBlock;}
+  //if one of the blocks is a dot block then it should be the loopblock
+  if (dmrginp.spinAdapted() ) {
+    if (rightBlock->get_sites().size() == 1) {
+      loopblock = rightBlock;
+      otherblock = leftBlock;
+      return;
+    }
+  }
+  else {
+    if (rightBlock->get_sites().size() == 2) {
+      loopblock = rightBlock;
+      otherblock = leftBlock;
+      return;
+    }
+  }
+
+  //if none are dot blocks then use the information provided
+  if (leftBlock->is_loopblock()) {
+    loopblock = leftBlock;
+    otherblock = rightBlock;
+  }
+  else {
+    loopblock = rightBlock; 
+    otherblock = leftBlock;
+  }
 }
 
 

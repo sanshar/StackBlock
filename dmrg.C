@@ -132,6 +132,7 @@ int calldmrg(char* input, char* output)
   Stackmem.resize(numthrds);
   Stackmem[0].data = stackmemory;
   Stackmem[0].size = dmrginp.getMemory();
+  //memset(stackmemory, 0, dmrginp.getMemory()*sizeof(double));
 
    //Initializing timer calls
   dmrginp.initCumulTimer();
@@ -425,8 +426,9 @@ int calldmrg(char* input, char* output)
 
   cout.rdbuf(backup);
   double cputime = globaltimer.totalcputime();
+  double walltime = globaltimer.totalwalltime();
   pout << setprecision(3) <<"\n\n\t\t\t BLOCK CPU  Time (seconds): " << cputime << endl;
-  pout << setprecision(3) <<"\t\t\t BLOCK Wall Time (seconds): " << globaltimer.totalwalltime() << endl;
+  pout << setprecision(3) <<"\t\t\t BLOCK Wall Time (seconds): " << walltime << endl;
 
   return 0;
 }

@@ -143,9 +143,20 @@ void SpinAdapted::Sweep::makeSystemEnvironmentBigBlocks(StackSpinBlock& system, 
   }
 
 
-  newSystem.set_loopblock(false); newEnvironment.set_loopblock(false); environment.set_loopblock(false); newEnvironment.set_loopblock(false);
-  if (dot_with_sys) newSystem.set_loopblock(true);
-  else newEnvironment.set_loopblock(true);
+  //newSystem.set_loopblock(false); newEnvironment.set_loopblock(false); environment.set_loopblock(false); newEnvironment.set_loopblock(false);
+  if (dot_with_sys) {
+    newSystem.set_loopblock(true);
+    system.set_loopblock(true);
+    newEnvironment.set_loopblock(false);
+    environment.set_loopblock(false);
+  }
+  else {
+    newSystem.set_loopblock(false);
+    system.set_loopblock(false);
+    newEnvironment.set_loopblock(true);
+    environment.set_loopblock(true);
+  }
+
   if (!dot_with_sys && sweepParams.get_onedot())
     InitBlocks::InitBigBlock(system, newEnvironment, big); 
   else
@@ -154,8 +165,6 @@ void SpinAdapted::Sweep::makeSystemEnvironmentBigBlocks(StackSpinBlock& system, 
 
 void SpinAdapted::Sweep::BlockAndDecimate (SweepParams &sweepParams, StackSpinBlock& system, StackSpinBlock& newSystem, const bool &useSlater, const bool& dot_with_sys)
 {
-  if (dmrginp.outputlevel() > 0)
-    mcheck("at the start of block and decimate");
   p2out << "\t\t\t dot with system "<<dot_with_sys<<endl;
   p1out <<endl<< "\t\t\t Performing Blocking"<<endl;
   // figure out if we are going forward or backwards
@@ -197,11 +206,15 @@ void SpinAdapted::Sweep::BlockAndDecimate (SweepParams &sweepParams, StackSpinBl
   //mcheck(""); 
   if (!dot_with_sys && sweepParams.get_onedot()) {
     pout << "\t\t\t System  Block"<<system;    
+    system.printOperatorSummary();
   }
   else {
     pout << "\t\t\t System  Block"<<newSystem;
+    newSystem.printOperatorSummary();
   }
-  pout << "\t\t\t Environment Block"<<newEnvironment<<endl;
+  pout << endl<<"\t\t\t Environment Block"<<newEnvironment<<endl;
+  newEnvironment.printOperatorSummary();
+
   p1out << "\t\t\t Solving wavefunction "<<endl;
 
   std::vector<StackWavefunction> lowerStates;
@@ -270,7 +283,6 @@ void SpinAdapted::Sweep::BlockAndDecimate (SweepParams &sweepParams, StackSpinBl
   }
 
 
-  dmrginp.operrotT -> stop();
 
   if (mpigetrank() == 0) 
     for (int istate = sweepParams.current_root()-1; istate>-1; istate--) 
@@ -302,8 +314,7 @@ void SpinAdapted::Sweep::BlockAndDecimate (SweepParams &sweepParams, StackSpinBl
       std::vector<Matrix> ketrotatematrix;
       StackDensityMatrix tracedMatrix;
       tracedMatrix.allocate(overlapnewsystem.get_ketStateInfo());
-    //tracedMatrix.allocate(overlapnewsystem.get_ketStateInfo());
-      //operatorfunctions::MultiplyProduct(iwave, Transpose(const_cast<StackWavefunction&> (iwave)), tracedMatrix, 1.0);
+
       operatorfunctions::MultiplyWithOwnTranspose (iwave, tracedMatrix, 1.0);  
       int largeNumber = 1000000;
       if (!mpigetrank())
@@ -324,32 +335,25 @@ void SpinAdapted::Sweep::BlockAndDecimate (SweepParams &sweepParams, StackSpinBl
     }
     dmrginp.setOutputlevel() = originalOutputlevel;
   }
+  dmrginp.operrotT -> stop();
 
-
-  //if (dmrginp.outputlevel() > 0)
-  //mcheck("after rotation and transformation of block");
 
   p2out << str(boost::format("%-40s - %-10.4f\n") % "Total walltime" % globaltimer.totalwalltime());
-  p2out << str(boost::format("%-40s - %-10.4f\n") % "  -->Blocking" % *(dmrginp.guessgenT));
-  p2out << str(boost::format("%-40s - %-10.4f\n") % "  -->Wavefunction Solution" % *(dmrginp.davidsonT));
-  p2out << str(boost::format("%-40s - %-10.4f\n") % "  -->Add noise" % *(dmrginp.rotmatrixT));
-  p2out << str(boost::format("%-40s - %-10.4f\n") % "  -->Renormalisation" % *(dmrginp.operrotT));
-  p2out << str(boost::format("%-40s - %-10.4f\n") % "diskio" % *(dmrginp.diskio)); 
-  p2out << str(boost::format("%-40s - %-10.4f\n") % "mpicommunication" % *(dmrginp.datatransfer)); 
-  /*
-  p2out << (*dmrginp.guessgenT)<<" "<<*(dmrginp.multiplierT)<<" "<<*(dmrginp.operrotT)<< "  "<<globaltimer.totalwalltime()<<" timer "<<endl;
-  p2out << (*dmrginp.davidsonT)<<"  "<<(*dmrginp.rotmatrixT)<<"  "<<(*dmrginp.postwfrearrange)<<"  davidson and rotmatrix "<<endl;
-  p2out << *dmrginp.makeopsT<<" makeops "<<endl;
-  p2out << *dmrginp.getreqMem<<"get req mem "<<endl;
-  p2out << *dmrginp.datatransfer<<" datatransfer "<<endl;
-  p2out <<"oneindexopmult   twoindexopmult   Hc  couplingcoeff"<<endl;  
-  p2out << *dmrginp.oneelecT<<" "<<*dmrginp.twoelecT<<" "<<*dmrginp.hmultiply<<" "<<*dmrginp.couplingcoeff<<" hmult"<<endl;
-  p2out << *dmrginp.buildsumblock<<" "<<*dmrginp.buildblockops<<" build block"<<endl;
-  p2out << *dmrginp.blockintegrals<<"  "<<*dmrginp.blocksites<<"  "<<*dmrginp.statetensorproduct<<"  "<<*dmrginp.statecollectquanta<<"  "<<*dmrginp.buildsumblock<<" "<<*dmrginp.buildblockops<<"  "<<*dmrginp.builditeratorsT<<" build sum block"<<endl;
-  p2out << *dmrginp.dscreen<<"  "<<*dmrginp.ddscreen<<"  "<<*dmrginp.cdscreen<<"  screen time"<<endl;
-  p2out << "addnoise  S_0_opxop  S_1_opxop   S_2_opxop"<<endl;
-  //p3out << *dmrginp.addnoise<<" "<<*dmrginp.s0time<<" "<<*dmrginp.s1time<<" "<<*dmrginp.s2time<<endl;
-  */
+  p2out << str(boost::format("%-40s - %-10.4f\n") % "  |-->Blocking (includes first sweep)" % *(dmrginp.guessgenT));
+  p2out << str(boost::format("%-40s - %-10.4f\n") % "      |-->diski" % *(dmrginp.diski));
+  p2out << str(boost::format("%-40s - %-10.4f\n") % "          |-->rawdata" % *(dmrginp.rawdatao));
+  p2out << str(boost::format("%-40s - %-10.4f\n") % "      |-->mpicomm" % *(dmrginp.datatransfer));
+  p2out << str(boost::format("%-40s - %-10.4f\n") % "  |-->Wavefunction Solution" % *(dmrginp.multiplierT));
+  p2out << str(boost::format("%-40s - %-10.4f\n") % "      |-->davidson/guesswf/diagonal" % *(dmrginp.davidsonT));
+  p2out << str(boost::format("%-40s - %-10.4f\n") % "          |-->guesswf" % *(dmrginp.guesswf));
+  p2out << str(boost::format("%-40s - %-10.4f\n") % "          |-->diagonal" % *(dmrginp.makediagonal));
+  p2out << str(boost::format("%-40s - %-10.4f\n") % "          |-->davidson" % *(dmrginp.blockdavid));
+  p2out << str(boost::format("%-40s - %-10.4f\n") % "      |-->makerotation(includes noise)" % *(dmrginp.rotmatrixT));
+  p2out << str(boost::format("%-40s - %-10.4f\n") % "          |-->Add noise" % *(dmrginp.rotmatrixT));
+  p2out << str(boost::format("%-40s - %-10.4f\n") % "      |-->wave and rotation io" % *(dmrginp.diskwo));
+  p2out << str(boost::format("%-40s - %-10.4f\n") % "  |-->Renormalisation" % *(dmrginp.operrotT));
+  p2out << str(boost::format("%-40s - %-10.4f\n") % "  |-->Save block" % *(dmrginp.disko)); 
+  p2out << str(boost::format("%-40s - %-10.4f\n") % "      |-->rawdata" % *(dmrginp.rawdatao)); 
 }
 
 double SpinAdapted::Sweep::do_one(SweepParams &sweepParams, const bool &warmUp, const bool &forward, const bool &restart, const int &restartSize)
@@ -497,7 +501,6 @@ double SpinAdapted::Sweep::do_one(SweepParams &sweepParams, const bool &warmUp, 
 
   system.deallocate();
   system.clear();
-  pout << "**** STACK MEMORY REMAINING ***** "<<1.0*(Stackmem[omprank].size-Stackmem[omprank].memused)*sizeof(double)/1.e9<<" GB"<<endl;
 
   for(int j=0;j<nroots;++j) {
     int istate = dmrginp.setStateSpecific() ? sweepParams.current_root() : j;
@@ -526,8 +529,9 @@ double SpinAdapted::Sweep::do_one(SweepParams &sweepParams, const bool &warmUp, 
   }
   pout << "\t\t\t ============================================================================ " << endl;
   double cputime = sweeptimer.elapsedcputime();
+  double walltime = sweeptimer.elapsedwalltime();
   pout << "\t\t\t Elapsed Sweep CPU  Time (seconds): " << cputime << endl;
-  pout << "\t\t\t Elapsed Sweep Wall Time (seconds): " << sweeptimer.elapsedwalltime()<< endl;
+  pout << "\t\t\t Elapsed Sweep Wall Time (seconds): " << walltime<< endl;
 
   // update the static number of iterations
 

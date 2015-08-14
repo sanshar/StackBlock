@@ -20,6 +20,7 @@ using namespace std;
 
 void SpinAdapted::SaveRotationMatrix (const std::vector<int>& sites, const std::vector<Matrix>& m1, int state)
 {
+  dmrginp.diskwo->start();
   Timer disktimer;
   int rank = mpigetrank();
   if (rank == 0)
@@ -37,10 +38,12 @@ void SpinAdapted::SaveRotationMatrix (const std::vector<int>& sites, const std::
       save_mat << m1;
       ofs.close();
     }
+  dmrginp.diskwo->stop();
 }
 
 void SpinAdapted::LoadRotationMatrix (const std::vector<int>& sites, std::vector<Matrix>& m1, int state)
 {
+  dmrginp.diskwi->start();
   Timer disktimer;
   int rank = mpigetrank();
   if (rank == 0)
@@ -57,6 +60,7 @@ void SpinAdapted::LoadRotationMatrix (const std::vector<int>& sites, std::vector
     load_mat >> m1;
     ifs.close();
   }
+  dmrginp.diskwi->stop();
 }
 
 void SpinAdapted::allocate(const StateInfo& row, const StateInfo& col, std::vector<Matrix>& rotations)

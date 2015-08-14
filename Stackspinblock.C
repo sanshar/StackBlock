@@ -115,17 +115,16 @@ void StackSpinBlock::printOperatorSummary()
 }
 ostream& operator<< (ostream& os, const StackSpinBlock& b)
 {
-  os << "\t\t\t Sites ::  ";
-  for (int i = 0; i < b.sites.size(); ++i) { os << b.sites[i] << " "; } 
+  os << "\t\t\t Sites ::  "<<b.sites[0]<<"--"<<b.sites[b.sites.size()-1]<<endl;
   
-  if (dmrginp.outputlevel() > 1) {
+  if (dmrginp.outputlevel() > 5) {
     os << endl;
     os << b.braStateInfo;
     os << b.ketStateInfo;
   }
   else {
-    os <<"    # states: "<<b.braStateInfo.totalStates;
-    os <<"    # states: "<<b.ketStateInfo.totalStates<<endl;
+    os <<"\t\t\t # states: "<<b.braStateInfo.totalStates;
+    os <<"\t\t\t # states: "<<b.ketStateInfo.totalStates<<endl;
   }
   return os;
 }
@@ -412,6 +411,8 @@ void StackSpinBlock::transform_operators(std::vector<Matrix>& rotateMatrix)
   for (std::map<opTypes, boost::shared_ptr< StackOp_component_base> >::iterator it = ops.begin(); it != ops.end(); ++it)
     localdata = it->second->allocateOperators(newStateInfo, newStateInfo, localdata);
 
+  pout << "**** STACK MEMORY REMAINING ***** "<<1.0*(Stackmem[omprank].size-Stackmem[omprank].memused)*sizeof(double)/1.e9<<" GB"<<endl;
+  
   build_and_renormalise_operators( rotateMatrix, &newStateInfo );
 
   braStateInfo = newStateInfo;
@@ -524,7 +525,7 @@ void StackSpinBlock::BuildSumBlockSkeleton(int condition, StackSpinBlock& lBlock
 {
 
   name = get_name();
-  p1out << "\t\t\t Building Sum Block " << name << endl;
+  //p1out << "\t\t\t Building Sum Block " << name << endl;
   leftBlock = &lBlock;
   rightBlock = &rBlock;
 
@@ -689,9 +690,7 @@ int procWithMinOps(std::vector<boost::shared_ptr<StackSparseMatrix> >& allops)
   for (int i=0; i< size; i++) {
     if (numOps[i] < numOps[minproc])
       minproc = i;
-    pout << numOps[i]<<"  ";
   }
-  pout << endl<<"  minproc "<< minproc<<endl;
   return minproc;
 }
 
@@ -774,7 +773,7 @@ void StackSpinBlock::diagonalH(DiagonalMatrix& e) const
   SpinQuantum hq(0,SpinSpace(0),IrrepSpace(0));
   StackSpinBlock* loopBlock=(leftBlock->is_loopblock()) ? leftBlock : rightBlock;
   StackSpinBlock* otherBlock = loopBlock == leftBlock ? rightBlock : leftBlock;
-  
+
   DiagonalMatrix* e_array = new DiagonalMatrix[numthrds];
   for (int i=0; i<numthrds; i++)
     e_array[i] = e;
@@ -811,7 +810,7 @@ void StackSpinBlock::diagonalH(DiagonalMatrix& e) const
 
   SplitStackmem();
   //dmrginp.tensormultiply->start();
-#pragma omp parallel for schedule(dynamic)
+  #pragma omp parallel for schedule(dynamic)
   for (int i = 0; i<allops.size(); i++)  {
     allfuncs[i](allops[i]);
   }
@@ -905,7 +904,7 @@ void StackSpinBlock::BuildSlaterBlock (std::vector<int> sts, std::vector<SpinQua
     data = Stackmem[omprank].allocate(totalMemory);
   pout << "Allocating "<<totalMemory<<" for the block "<<endl;
 
-  p3out << "\t\t\t time in slater distribution " << slatertimer.elapsedwalltime() << endl;
+  //p3out << "\t\t\t time in slater distribution " << slatertimer.elapsedwalltime() << endl;
 
   std::vector< std::vector<Csf> > ladders; ladders.resize(dets.size());
 

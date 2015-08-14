@@ -1801,7 +1801,7 @@ void SpinAdapted::StackHam::build(const StackSpinBlock& b)
 
 
   StackSpinBlock* loopBlock=rightBlock, *otherBlock=leftBlock;
-  //assignloopblock(loopBlock, otherBlock, leftBlock, rightBlock);
+
 
 
 #ifndef SERIAL
@@ -2053,9 +2053,6 @@ void SpinAdapted::StackOverlap::build(const StackSpinBlock& b)
   StackSpinBlock* rightBlock = b.get_rightBlock();
 
   memset(data, 0, totalMemory * sizeof(double));
-
-  StackSpinBlock* loopBlock, *otherBlock;
-  assignloopblock(loopBlock, otherBlock, leftBlock, rightBlock);
 
 
 #ifndef SERIAL

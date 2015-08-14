@@ -236,7 +236,7 @@ void StackDensityMatrix::add_onedot_noise(StackWavefunction& wave_solution, Stac
   }
 
   //use overlap only when bra and ket are different i.e. when the block has des operator
-  if (leftBlock->has(DES)&&leftBlock->has(OVERLAP)) {
+  if (leftBlock->has(DES)&&leftBlock->has(OVERLAP) && mpigetrank() == 0) {
     for (int i=0; i<leftBlock->get_op_array(OVERLAP).get_size(); i++)
       for (int j=0; j<leftBlock->get_op_array(OVERLAP).get_local_element(i).size(); j++) {
 	allops.push_back(leftBlock->get_op_array(OVERLAP).get_local_element(i)[j]);

@@ -50,31 +50,17 @@ void SweepGenblock::BlockAndDecimate (SweepParams &sweepParams, StackSpinBlock& 
   vector<int> spindotsites(2); 
   spindotsites[0] = systemDotStart;
   spindotsites[1] = systemDotEnd;
-  dmrginp.sysdotmake->start();
-  systemDot = StackSpinBlock(systemDotStart, systemDotEnd, system.get_integralIndex(), stateA==stateB);
-  dmrginp.sysdotmake->stop();
+
+  systemDot = singleSiteBlocks[system.get_integralIndex()][systemDotStart];
 
   const int nexact = forward ? sweepParams.get_forward_starting_size() : sweepParams.get_backward_starting_size();
 
   dmrginp.guessgenT -> stop();
-  dmrginp.datatransfer -> start();
   system.addAdditionalOps();
-  dmrginp.datatransfer -> stop();
-  dmrginp.initnewsystem->start();
+
   bool doNorms = (dot_with_sys || dmrginp.new_npdm_code() == true);
   InitBlocks::InitNewSystemBlock(system, systemDot, newSystem, stateA, stateB, sweepParams.get_sys_add(), dmrginp.direct(), system.get_integralIndex(), DISTRIBUTED_STORAGE, doNorms, true);
-  dmrginp.initnewsystem->stop();
 
-  /*
-  if (dmrginp.calc_type() == ONEPDM) {
-    if (newSystem.has(CRE_CRE_DESCOMP)) newSystem.erase(CRE_CRE_DESCOMP);
-    if (newSystem.has(CRE_CRE)) newSystem.erase(CRE_CRE);
-    if (newSystem.has(CRE_DES)) newSystem.erase(CRE_DES);
-    if (newSystem.has(CRE_CRECOMP)) newSystem.erase(CRE_CRECOMP);
-    if (newSystem.has(CRE_DESCOMP)) newSystem.erase(CRE_DESCOMP);
-    if (newSystem.has(HAM)) newSystem.erase(HAM);
-  }
-  */
 
   pout << "\t\t\t System  Block"<<newSystem;
   newSystem.printOperatorSummary();
@@ -84,8 +70,6 @@ void SweepGenblock::BlockAndDecimate (SweepParams &sweepParams, StackSpinBlock& 
   LoadRotationMatrix (newSystem.get_sites(), leftrotateMatrix, stateA);
   LoadRotationMatrix (newSystem.get_sites(), rightrotateMatrix, stateB);
 
-  //for (int j=0; j<leftrotateMatrix.size(); j++) {
-  //pout << leftrotateMatrix[j]<<endl;
     
 #ifndef SERIAL
   mpi::communicator world;
@@ -102,22 +86,21 @@ void SweepGenblock::BlockAndDecimate (SweepParams &sweepParams, StackSpinBlock& 
     newSystem.transform_operators(leftrotateMatrix, rightrotateMatrix);
   dmrginp.operrotT->stop();
 
+  if (system.get_sites().size() != 1) {
+    long memoryToFree = newSystem.getdata() - system.getdata();
+    long newsysmem = newSystem.memoryUsed();
+    newSystem.moveToNewMemory(system.getdata());
+    Stackmem[omprank].deallocate(newSystem.getdata()+newsysmem, memoryToFree);
+    system.clear();
+  }
 
-  if (dmrginp.outputlevel() > 0) 
-    //mcheck("after rotation and transformation of block");
-  p2out <<newSystem<<endl;
-  newSystem.printOperatorSummary();
-  //mcheck("After renorm transform");
-
-  p2out << *dmrginp.guessgenT<<" "<<*dmrginp.multiplierT<<" "<<*dmrginp.operrotT<< "  "<<globaltimer.totalwalltime()<<" timer "<<endl;
-  p2out << *dmrginp.makeopsT<<"  "<<*dmrginp.initnewsystem<<"  "<<*dmrginp.sysdotmake<<"  "<<*dmrginp.buildcsfops<<" makeops "<<endl;
-  p2out << *dmrginp.datatransfer<<" datatransfer "<<endl;
-  p2out <<"oneindexopmult   twoindexopmult   Hc  couplingcoeff"<<endl;  
-  p2out << *dmrginp.oneelecT<<" "<<*dmrginp.twoelecT<<" "<<*dmrginp.hmultiply<<" "<<*dmrginp.couplingcoeff<<" hmult"<<endl;
-  p2out << *dmrginp.buildsumblock<<" "<<*dmrginp.buildblockops<<" build block"<<endl;
-  p2out << *dmrginp.blockintegrals<<"  "<<*dmrginp.blocksites<<"  "<<*dmrginp.statetensorproduct<<"  "<<*dmrginp.statecollectquanta<<"  "<<*dmrginp.buildsumblock<<" "<<*dmrginp.builditeratorsT<<"  "<<*dmrginp.diskio<<" build sum block"<<endl;
-  p2out << "addnoise  S_0_opxop  S_1_opxop   S_2_opxop"<<endl;
-  p3out << *dmrginp.addnoise<<" "<<*dmrginp.s0time<<" "<<*dmrginp.s1time<<" "<<*dmrginp.s2time<<endl;
+  p2out << str(boost::format("%-40s - %-10.4f\n") % "Total walltime" % globaltimer.totalwalltime());
+  p2out << str(boost::format("%-40s - %-10.4f\n") % "  -->Blocking" % *(dmrginp.guessgenT));
+  p2out << str(boost::format("%-40s - %-10.4f\n") % "  -->Wavefunction Solution" % *(dmrginp.davidsonT));
+  p2out << str(boost::format("%-40s - %-10.4f\n") % "  -->Add noise" % *(dmrginp.rotmatrixT));
+  p2out << str(boost::format("%-40s - %-10.4f\n") % "  -->Renormalisation" % *(dmrginp.operrotT));
+  //p2out << str(boost::format("%-40s - %-10.4f\n") % "diskio" % *(dmrginp.diskio)); 
+  p2out << str(boost::format("%-40s - %-10.4f\n") % "mpicommunication" % *(dmrginp.datatransfer)); 
 
 }
 
@@ -162,7 +145,6 @@ double SweepGenblock::do_one(SweepParams &sweepParams, const bool &warmUp, const
 	p1out << "\t\t\t Current direction is :: Forwards " << endl;
       else
 	p1out << "\t\t\t Current direction is :: Backwards " << endl;
-      //if (SHOW_MORE) pout << "system block" << endl << system << endl;
   
       if (dmrginp.no_transform())
 	      sweepParams.set_guesstype() = BASIC;
@@ -191,7 +173,7 @@ double SweepGenblock::do_one(SweepParams &sweepParams, const bool &warmUp, const
 	dot_with_sys = false;
 
       StackSpinBlock::store (forward, system.get_sites(), system, stateA, stateB);	 	
-
+      pout << system<<endl;
       p1out << "\t\t\t saving state " << system.get_sites().size() << endl;
       ++sweepParams.set_block_iter();
       //if (sweepParams.get_onedot())
@@ -204,9 +186,10 @@ double SweepGenblock::do_one(SweepParams &sweepParams, const bool &warmUp, const
   // update the static number of iterations
 
   ++sweepParams.set_sweep_iter();
-
-  pout << "\t\t\t Elapsed Sweep CPU  Time (seconds): " << setprecision(3) << sweeptimer.elapsedcputime() << endl;
-  pout << "\t\t\t Elapsed Sweep Wall Time (seconds): " << setprecision(3) << sweeptimer.elapsedwalltime() << endl;
+  double cputime = sweeptimer.elapsedcputime();
+  double walltime = sweeptimer.elapsedwalltime();
+  pout << "\t\t\t Elapsed Sweep CPU  Time (seconds): " << cputime << endl;
+  pout << "\t\t\t Elapsed Sweep Wall Time (seconds): " << walltime << endl;
 
   return finalEnergy[0];
 }
@@ -275,8 +258,10 @@ void SweepGenblock::do_one(SweepParams &sweepParams, const bool &forward, int st
 
   ++sweepParams.set_sweep_iter();
 
-  pout << "\t\t\t Elapsed Sweep CPU  Time (seconds): " << setprecision(3) << sweeptimer.elapsedcputime() << endl;
-  pout << "\t\t\t Elapsed Sweep Wall Time (seconds): " << setprecision(3) << sweeptimer.elapsedwalltime() << endl;
+  double cputime = sweeptimer.elapsedcputime();
+  double walltime = sweeptimer.elapsedwalltime();
+  pout << "\t\t\t Elapsed Sweep CPU  Time (seconds): " << cputime << endl;
+  pout << "\t\t\t Elapsed Sweep Wall Time (seconds): " << walltime << endl;
 
 }
 

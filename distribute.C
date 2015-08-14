@@ -23,7 +23,7 @@ void SplitStackmem()
   long memPerThrd = remainingMem/numthrds;
   Stackmem[0].size = Stackmem[0].memused+memPerThrd;
   for (int i=1; i<numthrds; i++) {
-    Stackmem[i].data = Stackmem[i-1].data+memPerThrd;
+    Stackmem[i].data = Stackmem[i-1].data+Stackmem[i-1].size;
     Stackmem[i].memused = 0;
     Stackmem[i].size = memPerThrd;
   }

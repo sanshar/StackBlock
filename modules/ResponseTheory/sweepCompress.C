@@ -33,11 +33,10 @@ using namespace std;
 void SpinAdapted::SweepCompress::BlockDecimateAndCompress (SweepParams &sweepParams, StackSpinBlock& system, StackSpinBlock& newSystem, const bool &useSlater, const bool& dot_with_sys, int targetState, int baseState)
 {
   int sweepiter = sweepParams.get_sweep_iter();
-  if (dmrginp.outputlevel() > 0)
-    mcheck("at the start of block and decimate");
+
   p2out << "\t\t\t dot with system "<<dot_with_sys<<endl;
   p1out <<endl<< "\t\t\t Performing Blocking"<<endl;
-  // figure out if we are going forward or backwards
+
   dmrginp.guessgenT -> start();
   bool forward = (system.get_sites() [0] == 0);
   StackSpinBlock systemDot;
@@ -61,8 +60,8 @@ void SpinAdapted::SweepCompress::BlockDecimateAndCompress (SweepParams &sweepPar
     environmentDotStart = systemDotEnd - 1;
     environmentDotEnd = environmentDotStart - environmentDotSize;
   }
-  systemDot = StackSpinBlock(systemDotStart, systemDotEnd, system.get_integralIndex(), true);
-  environmentDot = StackSpinBlock(environmentDotStart, environmentDotEnd, system.get_integralIndex(), true);
+  systemDot = singleSiteBlocks[system.get_integralIndex()][systemDotStart];
+  environmentDot = singleSiteBlocks[system.get_integralIndex()][environmentDotStart];
 
   Sweep::makeSystemEnvironmentBigBlocks(system, systemDot, newSystem, environment, environmentDot, newEnvironment, big, sweepParams, dot_with_sys, useSlater, system.get_integralIndex(), targetState, baseState);
 
@@ -90,14 +89,14 @@ void SpinAdapted::SweepCompress::BlockDecimateAndCompress (SweepParams &sweepPar
   //also when you use spinblock operators to multiply a state, it does so from the ket side i.e.  H|ket>
 
   //**********************
-  //GuessWave::guess_wavefunctions(solution, e, big, sweepParams.set_guesstype(), sweepParams.get_onedot(), dot_with_sys, 1, 0.0, baseState); 
+  GuessWave::guess_wavefunctions(solution, e, big, sweepParams.set_guesstype(), sweepParams.get_onedot(), dot_with_sys, 1, 0.0, baseState); 
 #ifndef SERIAL
   mpi::communicator world;
   MPI::COMM_WORLD.Bcast(solution[0].get_data(), solution[0].memoryUsed(), MPI_DOUBLE, 0);
 #endif
   
   //*********************
-  //multiply_h davidson_f(big, sweepParams.get_onedot());
+  multiply_h davidson_f(big, sweepParams.get_onedot());
   vector<StackWavefunction> outputState; outputState.resize(1);
   outputState[0].initialise(dmrginp.effective_molecule_quantum_vec(), big.get_leftBlock()->get_braStateInfo(), big.get_rightBlock()->get_braStateInfo(), sweepParams.get_onedot());
   outputState[0].set_onedot(sweepParams.get_onedot());

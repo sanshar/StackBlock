@@ -25,7 +25,7 @@ void SpinAdapted::Solver::solve_wavefunction(vector<StackWavefunction>& solution
 					     double additional_noise, int currentRoot, std::vector<StackWavefunction>& lowerStates)
 {
   const int nroots = dmrginp.setStateSpecific() ? 1 : dmrginp.nroots();
-
+  dmrginp.makediagonal->start();
   DiagonalMatrix e;
   bool useprecond = true;
 
@@ -44,6 +44,7 @@ void SpinAdapted::Solver::solve_wavefunction(vector<StackWavefunction>& solution
   else 
     e.ReSize(0);
 
+  dmrginp.makediagonal->stop();
 
   bool haveEnoughStates = (e.Ncols()< nroots) ? false : true;
 #ifndef SERIAL
@@ -72,6 +73,7 @@ void SpinAdapted::Solver::solve_wavefunction(vector<StackWavefunction>& solution
   }
   else {
     if(dmrginp.solve_method() == DAVIDSON) {
+      dmrginp.guesswf->start();
       //mcheck ("before guess wavefunction");
       solution.resize(dmrginp.deflation_max_size());
       for (int i=nroots; i<solution.size(); i++)
@@ -81,6 +83,7 @@ void SpinAdapted::Solver::solve_wavefunction(vector<StackWavefunction>& solution
       multiply_h davidson_f(big, onedot);
 
       GuessWave::guess_wavefunctions(solution, e, big, guesswavetype, onedot, dot_with_sys, nroots, additional_noise, currentRoot); 
+      dmrginp.guesswf->stop();
       
       for (int istate=0; istate<lowerStates.size(); istate++)  {
 	for (int jstate=istate+1; jstate<lowerStates.size(); jstate++) {
@@ -89,17 +92,15 @@ void SpinAdapted::Solver::solve_wavefunction(vector<StackWavefunction>& solution
 	}
       }
     
-
+      dmrginp.blockdavid->start();
       Linear::block_davidson(solution, e, tol, warmUp, davidson_f, useprecond, currentRoot, lowerStates);
+      dmrginp.blockdavid->stop();
 
       if (mpigetrank() == 0) {
 	for (int i=solution.size()-1; i>=nroots; i--) 
 	  solution[i].deallocate();
       }
 
-      pout << *dmrginp.tensormultiply<<endl;
-      pout << globaltimer.totalwalltime()<<endl;
-      exit(0);
     }
     else if (dmrginp.solve_method() == CONJUGATE_GRADIENT) {
 

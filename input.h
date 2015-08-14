@@ -210,6 +210,7 @@ class Input {
     sysdotmake       = boost::shared_ptr<cumulTimer> (new cumulTimer());
     initnewsystem       = boost::shared_ptr<cumulTimer> (new cumulTimer());
     guessgenT       = boost::shared_ptr<cumulTimer> (new cumulTimer());
+    guesswf       = boost::shared_ptr<cumulTimer> (new cumulTimer());
     multiplierT     = boost::shared_ptr<cumulTimer> (new cumulTimer());
     operrotT        = boost::shared_ptr<cumulTimer> (new cumulTimer());
     davidsonT       = boost::shared_ptr<cumulTimer> (new cumulTimer()); 
@@ -217,6 +218,7 @@ class Input {
     blockdavid      = boost::shared_ptr<cumulTimer> (new cumulTimer()); 
     datatransfer    = boost::shared_ptr<cumulTimer> (new cumulTimer());
     hmultiply       = boost::shared_ptr<cumulTimer> (new cumulTimer()); 
+    makediagonal    = boost::shared_ptr<cumulTimer> (new cumulTimer()); 
     oneelecT        = boost::shared_ptr<cumulTimer> (new cumulTimer());
     twoelecT        = boost::shared_ptr<cumulTimer> (new cumulTimer());
     makeopsT        = boost::shared_ptr<cumulTimer> (new cumulTimer());
@@ -242,7 +244,12 @@ class Input {
     statetensorproduct = boost::shared_ptr<cumulTimer> (new cumulTimer());
     statecollectquanta = boost::shared_ptr<cumulTimer> (new cumulTimer());
     builditeratorsT = boost::shared_ptr<cumulTimer> (new cumulTimer());
-    diskio = boost::shared_ptr<cumulTimer> (new cumulTimer());
+    rawdatai = boost::shared_ptr<cumulTimer> (new cumulTimer());
+    rawdatao = boost::shared_ptr<cumulTimer> (new cumulTimer());
+    diski = boost::shared_ptr<cumulTimer> (new cumulTimer());
+    disko = boost::shared_ptr<cumulTimer> (new cumulTimer());
+    diskwi = boost::shared_ptr<cumulTimer> (new cumulTimer());
+    diskwo = boost::shared_ptr<cumulTimer> (new cumulTimer());
     tensormultiply = boost::shared_ptr<cumulTimer> (new cumulTimer());
   }
   void writeSummary();
@@ -271,6 +278,7 @@ class Input {
   boost::shared_ptr<cumulTimer> sysdotmake    ;
   boost::shared_ptr<cumulTimer> initnewsystem ;
   boost::shared_ptr<cumulTimer> guessgenT     ;
+  boost::shared_ptr<cumulTimer> guesswf     ;
   boost::shared_ptr<cumulTimer> multiplierT    ;
   boost::shared_ptr<cumulTimer> operrotT      ;
   boost::shared_ptr<cumulTimer> davidsonT     ;
@@ -278,6 +286,7 @@ class Input {
   boost::shared_ptr<cumulTimer> blockdavid     ;
   boost::shared_ptr<cumulTimer> datatransfer  ;
   boost::shared_ptr<cumulTimer> hmultiply     ;
+  boost::shared_ptr<cumulTimer> makediagonal     ;
   boost::shared_ptr<cumulTimer> oneelecT      ;
   boost::shared_ptr<cumulTimer> twoelecT      ;
   boost::shared_ptr<cumulTimer> makeopsT      ;
@@ -303,7 +312,12 @@ class Input {
   boost::shared_ptr<cumulTimer> statetensorproduct;
   boost::shared_ptr<cumulTimer> statecollectquanta;
   boost::shared_ptr<cumulTimer> builditeratorsT;
-  boost::shared_ptr<cumulTimer> diskio;
+  boost::shared_ptr<cumulTimer> rawdatai;
+  boost::shared_ptr<cumulTimer> rawdatao;
+  boost::shared_ptr<cumulTimer> diski;
+  boost::shared_ptr<cumulTimer> disko;
+  boost::shared_ptr<cumulTimer> diskwi;
+  boost::shared_ptr<cumulTimer> diskwo;
   boost::shared_ptr<cumulTimer> tensormultiply;
 
   std::vector<int>& get_openorbs() { return m_openorbs;}

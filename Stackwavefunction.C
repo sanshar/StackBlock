@@ -130,7 +130,7 @@ void SpinAdapted::StackWavefunction::CollectFrom (const RowVector& C)
   
 void SpinAdapted::StackWavefunction::SaveWavefunctionInfo (const StateInfo &waveInfo, const std::vector<int>& sites, const int wave_num)
 {
-  dmrginp.diskio->start();
+  dmrginp.diskwo->start();
   char file [5000];
   int first = min(sites[0], *sites.rbegin()), last = max(sites[0], *sites.rbegin());
   sprintf (file, "%s%s%d%s%d%s%d%s%d%s", dmrginp.save_prefix().c_str(), "/wave-", first, "-", last, ".", mpigetrank(), ".", wave_num, ".tmp");
@@ -147,13 +147,13 @@ void SpinAdapted::StackWavefunction::SaveWavefunctionInfo (const StateInfo &wave
       this->Save (ofs);
       ofs.close();
     }
-  dmrginp.diskio->stop();
+  dmrginp.diskwo->stop();
 
 }
 
 void SpinAdapted::StackWavefunction::LoadWavefunctionInfo (StateInfo &waveInfo, const std::vector<int>& sites, const int wave_num, bool allocateData)
 {
-  dmrginp.diskio->start();
+  dmrginp.diskwi->start();
   char file [5000];
   int first = min(sites[0], *sites.rbegin()), last = max(sites[0], *sites.rbegin());
   sprintf (file, "%s%s%d%s%d%s%d%s%d%s", dmrginp.load_prefix().c_str(), "/wave-", first, "-", last, ".", mpigetrank(), ".", wave_num, ".tmp");
@@ -172,7 +172,7 @@ void SpinAdapted::StackWavefunction::LoadWavefunctionInfo (StateInfo &waveInfo, 
       ifs.close();
       allocateOperatorMatrix(); 
     }
-  dmrginp.diskio->stop();
+  dmrginp.diskwi->stop();
 }
 
 void SpinAdapted::StackWavefunction::CollectQuantaAlongRows (const StateInfo& sRow, const StateInfo& sCol)

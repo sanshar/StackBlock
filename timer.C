@@ -66,37 +66,9 @@ void mcheck(const char* message)
   long page_size_kb = sysconf(_SC_PAGE_SIZE) / 1024; // in case x86-64 is configured to use 2MB pages
   double rass = rss * page_size_kb;
 
-#ifndef SERIAL
-  //#ifndef NDEBUG
-  mpi::communicator world;
+  if (mpigetrank() == 0)
+    p3out << "\t\t\t VM: " << vsize/(1024.0*1024.0) <<" Mb = "<< vsize/(1024.0*1024.0*1024.0) <<" Gb: rss = "<<rass/(1024.0*1024.0) <<" Gb "<<endl;
 
-  p3out << endl<<"\t\t\t "<<message<<endl;
-  p3out << "\t\t\t rss in Gb: "<<rass/(1024.*1024.)<<" ";
-  if (mpigetrank() != 0) 
-    sendobject(rass/(1024.*1024.), 0);
-  else {
-    double memory;
-    for (int proc = 1; proc<world.size(); proc++) {
-      receiveobject(memory, proc);
-      p3out <<memory<<"  ";
-    }
-    p3out<<endl;
-  }
-  p3out << "\t\t\t VM in Gb : "<<vsize/(1024.0*1024.0*1024.0)<<" ";
-  if (mpigetrank() != 0) 
-    sendobject(vsize/(1024.0*1024.0*1024.0), 0);
-  else {
-    double memory;
-    for (int proc = 1; proc<world.size(); proc++) {
-      receiveobject(memory, proc);
-      p3out << memory<<"  ";
-    }
-    p3out<<endl;
-  }
-  p3out <<endl;
-#else
-  p3out << "\t\t\t VM: " << vsize/(1024.0*1024.0) <<" Mb = "<< vsize/(1024.0*1024.0*1024.0) <<" Gb: rss = "<<rass/(1024.0*1024.0) <<" Gb "<<endl;
-#endif   
    //#endif
 }
 
