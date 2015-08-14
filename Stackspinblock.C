@@ -318,48 +318,17 @@ void StackSpinBlock::build_operators(std::vector< Csf >& dets, std::vector< std:
 }
   
 
-
 void StackSpinBlock::build_operators()
 {
-  std::vector<boost::shared_ptr<StackSparseMatrix> >  allops;
-
+  double* localdata = data; 
   for (std::map<opTypes, boost::shared_ptr< StackOp_component_base> >::iterator it = ops.begin(); it != ops.end(); ++it)
     {
       if(it->second->is_core()) {
-	for (int i=0; i<it->second->get_size(); i++)
-	  for (int j=0; j<it->second->get_local_element(i).size(); j++) {
-	    it->second->get_local_element(i)[j]->allocate(braStateInfo, ketStateInfo);
-	    allops.push_back(it->second->get_local_element(i)[j]);
-	  }
+	localdata = it->second->allocateOperators(braStateInfo, ketStateInfo, localdata);
+	it->second->build_operators(*this);
       }
     }
-  
-#pragma omp parallel for schedule(dynamic)
-  for (int i=0; i<allops.size(); i++) {
-    allops[i]->build(*this);
-  }
 }
-
-void StackSpinBlock::deallocate_coreops()
-{
-  std::vector<boost::shared_ptr<StackSparseMatrix> >  allops;
-
-  for (std::map<opTypes, boost::shared_ptr< StackOp_component_base> >::iterator it = ops.begin(); it != ops.end(); ++it)
-    {
-      if(it->second->is_core()) {
-	for (int i=0; i<it->second->get_size(); i++)
-	  for (int j=0; j<it->second->get_local_element(i).size(); j++) {
-	    allops.push_back(it->second->get_local_element(i)[j]);
-	  }
-      }
-    }
-  
-  for (int i=allops.size()-1; i>-1; i--) {
-    allops[i]->deallocate();
-  }
-}
-
-
 
 void StackSpinBlock::build_and_renormalise_operators(const std::vector<Matrix>& rotateMatrix, const StateInfo *newStateInfo)
 {

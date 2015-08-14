@@ -260,7 +260,7 @@ void SpinAdapted::Sweep::BlockAndDecimate (SweepParams &sweepParams, StackSpinBl
                              sweepParams.get_additional_noise(), sweepParams.get_onedot(), system, systemDot, environment, 
 			     dot_with_sys, useSlater, sweepParams.get_sweep_iter(), sweepParams.current_root(), lowerStates);
 
-  newEnvironment.deallocate_coreops();
+  //newEnvironment.deallocate_coreops();
   newEnvironment.clear();
   newEnvironment.deallocate();
   environment.removeAdditionalOps();
