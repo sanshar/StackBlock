@@ -34,10 +34,6 @@ using namespace operatorfunctions;
 
 void StackSpinBlock::make_iterator(StackSpinBlock& b, opTypes op, int* data, bool oneIndex, int numIndices) {
 
-  b.ops[op] = make_new_stackop(op, true);
-  if (b.getlocalstorage()) b.ops[op]->set_local() = true;
-  else b.ops[op]->set_local() = false;
-  
   std::vector<int> oneindex (numIndices, 0.0);
   std::vector<std::pair<int, int> > twoindex(numIndices, std::pair<int, int>(0,0));
   
@@ -67,7 +63,8 @@ void StackSpinBlock::restore (bool forward, const vector<int>& sites, StackSpinB
     file = str(boost::format("%s%s%d%s%d%s%d%s%d%s%d%s%d%s") % dmrginp.save_prefix() % "/Block-f-sites-"% sites[0] % "." % sites[sites.size()-1] % "-states" % left % "." % right % "-integral" %b.integralIndex % "rank" % mpigetrank() % ".tmp" );
   else
     file = str(boost::format("%s%s%d%s%d%s%d%s%d%s%d%s%d%s") % dmrginp.save_prefix() % "/Block-b-sites-"% sites[0] % "." % sites[sites.size()-1] % "-states" % left % "." % right % "-integral" %b.integralIndex % "rank" % mpigetrank() % ".tmp" );
-  
+
+
   p1out << "\t\t\t Restoring block file :: " << file << endl;
 
 
@@ -140,6 +137,25 @@ void StackSpinBlock::restore (bool forward, const vector<int>& sites, StackSpinB
   for (int i=0; i<compsites; i++)
     b.complementary_sites[i] = allindices[index+i];
   index += compsites;
+
+
+  if (numham           != -1) {b.ops[HAM]           =   make_new_stackop(HAM, true);}
+  if (numcre           != -1) {b.ops[CRE]           =   make_new_stackop(CRE, true);}
+  if (numcrecre        != -1) {b.ops[CRE_CRE]           =   make_new_stackop(CRE_CRE, true);}
+  if (numdesdescomp    != -1) {b.ops[DES_DESCOMP]           =   make_new_stackop(DES_DESCOMP, true);}
+  if (numcredes        != -1) {b.ops[CRE_DES]           =   make_new_stackop(CRE_DES, true);}
+  if (numcredescomp    != -1) {b.ops[CRE_DESCOMP]           =   make_new_stackop(CRE_DESCOMP, true);}
+  if (numcrecredescomp != -1) {b.ops[CRE_CRE_DESCOMP]           =   make_new_stackop(CRE_CRE_DESCOMP, true);}
+  if (numdes           != -1) {b.ops[DES]           =   make_new_stackop(DES, true);}
+  if (numdesdes        != -1) {b.ops[DES_DES]           =   make_new_stackop(DES_DES, true);}
+  if (numcrecrecomp    != -1) {b.ops[CRE_CRECOMP]           =   make_new_stackop(CRE_CRECOMP, true);}
+  if (numdescre        != -1) {b.ops[DES_CRE]           =   make_new_stackop(DES_CRE, true);}
+  if (numdescrecomp    != -1) {b.ops[DES_CRECOMP]           =   make_new_stackop(DES_CRECOMP, true);}
+  if (numcredesdescomp != -1) {b.ops[CRE_DES_DESCOMP]           =   make_new_stackop(CRE_DES_DESCOMP, true);}
+  if (numoverlap       != -1) {b.ops[OVERLAP]           =   make_new_stackop(OVERLAP, true);}
+
+  if (b.localstorage) b.setstoragetype(LOCAL_STORAGE);
+  else b.setstoragetype(DISTRIBUTED_STORAGE);
 
   //this should be in the same order as opTypes are written in enumerator.h file
   //
