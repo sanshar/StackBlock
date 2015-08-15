@@ -35,6 +35,9 @@ using namespace operatorfunctions;
 void StackSpinBlock::make_iterator(StackSpinBlock& b, opTypes op, int* data, bool oneIndex, int numIndices) {
 
   b.ops[op] = make_new_stackop(op, true);
+  if (b.getlocalstorage()) b.ops[op]->set_local() = true;
+  else b.ops[op]->set_local() = false;
+  
   std::vector<int> oneindex (numIndices, 0.0);
   std::vector<std::pair<int, int> > twoindex(numIndices, std::pair<int, int>(0,0));
   
@@ -165,9 +168,10 @@ void StackSpinBlock::restore (bool forward, const vector<int>& sites, StackSpinB
   for (std::map<opTypes, boost::shared_ptr< StackOp_component_base> >::iterator it = b.ops.begin(); it != b.ops.end(); ++it)
   {
     if(it->second->is_core()) {
-      
+
       for (int i=0; i<it->second->get_size(); i++) {
 	int vecsize = it->second->get_local_element(i).size();
+	
 	for (int j=0; j<vecsize; j++) {
 	  it->second->get_local_element(i)[j]->set_data(localdata);
 	  localdata = it->second->get_local_element(i)[j]->allocate(b.braStateInfo, b.ketStateInfo, localdata);
@@ -176,7 +180,6 @@ void StackSpinBlock::restore (bool forward, const vector<int>& sites, StackSpinB
     }
   }
   dmrginp.readallocatemem->stop();
-
   dmrginp.diski->stop();
 
   delete [] allindices;
