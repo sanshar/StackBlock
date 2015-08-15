@@ -121,6 +121,7 @@ class StackOp_component_base
   virtual bool is_local() const = 0;
   virtual bool& set_local() = 0; 
   virtual std::vector< std::vector<int> > get_array() const =0;
+  virtual std::vector< int > get_global_array() const =0;
   virtual const std::vector<boost::shared_ptr<StackSparseMatrix> > get_element(int i, int j=-1, int k=-1, int l=-1) const = 0;
   virtual std::vector<boost::shared_ptr<StackSparseMatrix> > get_element(int i, int j=-1, int k=-1, int l=-1) = 0;
   virtual bool has(int i, int j=-1, int k=-1, int l=-1) const = 0;
@@ -257,6 +258,11 @@ template <class Op> class StackOp_component : public StackOp_component_base
     for (int i=0; i<m_op.local_nnz(); i++)
       ret_val[i] = m_op.unmap_local_index(i);
     return ret_val;
+  }
+
+  std::vector< int > get_global_array() const 
+  {
+    return m_op.get_global_array();
   }
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------

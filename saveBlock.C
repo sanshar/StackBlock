@@ -82,11 +82,20 @@ void StackSpinBlock::restore (bool forward, const vector<int>& sites, StackSpinB
   mpi::broadcast(world, b.ketStateInfo, 0);
 #endif
 
-  dmrginp.rawdatai->start();
 
   int* initialData = new int[23];
+  int allindexsize;
+
+  dmrginp.rawdatai->start();
   FILE *fp = fopen(file.c_str(), "rb");
   fread(initialData, sizeof(int), 23, fp);
+  fread(&allindexsize, sizeof(int), 1, fp);
+  int* allindices = new int[allindexsize];//large data
+  fread(allindices, sizeof(int), allindexsize, fp);
+  fread(&(b.totalMemory), sizeof(long), 1, fp);
+  b.data = Stackmem[omprank].allocate(b.totalMemory);
+  fread(b.data, sizeof(double), b.totalMemory, fp);
+  fclose(fp);
   dmrginp.rawdatai->stop();
 
   //nowunpack the first 23 integers
@@ -114,12 +123,6 @@ void StackSpinBlock::restore (bool forward, const vector<int>& sites, StackSpinB
   int numham             = initialData[21];
   int numoverlap         = initialData[22];
 
-  dmrginp.rawdatai->start();
-  int allindexsize;
-  fread(&allindexsize, sizeof(int), 1, fp);
-  int* allindices = new int[allindexsize];
-  fread(allindices, sizeof(int), allindexsize, fp);
-  dmrginp.rawdatai->stop();
 
   dmrginp.readmakeiter->start();
 
@@ -155,11 +158,6 @@ void StackSpinBlock::restore (bool forward, const vector<int>& sites, StackSpinB
 
 
   dmrginp.rawdatai->start();
-  //now read the raw data
-  fread(&(b.totalMemory), sizeof(long), 1, fp);
-  b.data = Stackmem[omprank].allocate(b.totalMemory);
-  fread(b.data, sizeof(double), b.totalMemory, fp);
-  fclose(fp);
   dmrginp.rawdatai->stop();
 
   dmrginp.readallocatemem->start();
@@ -241,16 +239,8 @@ void StackSpinBlock::store (bool forward, const vector<int>& sites, StackSpinBlo
 
   for (std::map<opTypes, boost::shared_ptr< StackOp_component_base> >::iterator it = b.ops.begin(); it != b.ops.end(); ++it)
   {
-    for (int i=0; i<it->second->get_size(); i++) {
-      int vecsize = it->second->get_local_element(i).size();
-      boost::shared_ptr<StackSparseMatrix> op = it->second->get_local_element(i)[0];
-
-      if (it->first != HAM && it->first != OVERLAP)
-	allindices.insert(allindices.end(), op->get_orbs().begin(), op->get_orbs().end());
-      else
-	allindices.push_back(0);
-
-    }
+    std::vector<int> indices = it->second->get_global_array();
+    allindices.insert(allindices.end(), indices.begin(), indices.end());
   }
 
   dmrginp.rawdatao->start();

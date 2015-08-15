@@ -51,6 +51,9 @@ public:
   /// number of non-zero elements in local storage
   virtual int local_nnz()  const {return local_nnz();}
 
+  //return she orb indices of all the operators
+  virtual std::vector<int> get_global_array() const {return std::vector<int> ();}
+
   virtual int global_nnz() const {return global_nnz();}
   /// ith element of local storage
   virtual const T& get_local_element(int i) const {return get_local_element(i);}
@@ -101,6 +104,9 @@ public:
 
   /// implements para_sparse_vector interface by forwarding to para_array_1d
   int num_indices() { return 0; }
+
+  //only one operator with no orbs but we will jsut return 0
+  std::vector<int> get_global_array() const {return std::vector<int> (1,0);}
 
   void clear() { store.clear(); }
   int local_nnz() const { return store.local_nnz(); }
@@ -177,6 +183,8 @@ public:
     store.clear();
   }
   const std::vector<int>& get_local_indices() const { return local_indices; }
+
+  std::vector<int> get_global_array() const {return global_indices;}
 
   /// query whether elements are non-null, locally and globally
   bool has(int i, int j=-1, int k=-1, int l=-1) const
@@ -583,6 +591,16 @@ public:
     setup_local_indices();
   }
 
+  std::vector<int> get_global_array() const {
+    std::vector<int> indices(2*global_index_pair.size(), 0);
+    for (int i=0; i<global_index_pair.size(); i++) {
+      indices[2*i] = global_index_pair[i].first;
+      indices[2*i+1] = global_index_pair[i].second;
+    }
+    return indices;
+  }
+
+
 private:
   /**
    * having filled out the global indices, assign indices
@@ -619,6 +637,7 @@ private:
     ar & stored_local & upper_triangular & length & global_indices & global_indices_map
        & local_indices & local_indices_map & global_index_pair & local_index_pair & store;
   }
+
 
   std::vector<int> global_indices;
   std::vector<int> global_indices_map;
@@ -814,6 +833,15 @@ public:
     store.resize(length_1d);
     // now setup local indices
     setup_local_indices();
+  }
+
+  std::vector<int> get_global_array() const {
+    std::vector<int> indices(2*global_index_pair.size(), 0);
+    for (int i=0; i<global_index_pair.size(); i++) {
+      indices[2*i] = global_index_pair[i].first;
+      indices[2*i+1] = global_index_pair[i].second;
+    }
+    return indices;
   }
 
 private:
