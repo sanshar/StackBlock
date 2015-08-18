@@ -441,7 +441,6 @@ void SpinAdapted::stackopxop::hamandoverlap(const StackSpinBlock* otherblock, bo
   SpinAdapted::operatorfunctions::TensorMultiply(otherblock, *op2ham, *op1, b, c, v, hq, 1.0);	    
   if (deallocate2ham) op2ham->deallocate();
 
-
   SpinAdapted::operatorfunctions::TensorMultiply(otherblock, *op2, *op1, b, c, v, hq, scale);	    
 
   if (deallocate1) op1->deallocate();

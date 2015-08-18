@@ -132,7 +132,7 @@ int calldmrg(char* input, char* output)
   Stackmem.resize(numthrds);
   Stackmem[0].data = stackmemory;
   Stackmem[0].size = dmrginp.getMemory();
-  //memset(stackmemory, 0, dmrginp.getMemory()*sizeof(double));
+  memset(stackmemory, 0, dmrginp.getMemory()*sizeof(double));
 
    //Initializing timer calls
   dmrginp.initCumulTimer();

@@ -49,7 +49,9 @@ void StackSpinBlock::moveToNewMemory(double* pData)
   double* oldData = data;
   data = pData;
 
-  DCOPY(totalMemory, oldData, 1, data, 1);
+  for (long i=0; i<totalMemory; i++)
+    data[i] = oldData[i];
+  //DCOPY(totalMemory, oldData, 1, data, 1);
 
   double* localdata = data; 
   for (std::map<opTypes, boost::shared_ptr< StackOp_component_base> >::iterator it = ops.begin(); it != ops.end(); ++it)
@@ -357,12 +359,25 @@ void StackSpinBlock::build_and_renormalise_operators(const std::vector<Matrix>& 
 
 void StackSpinBlock::build_and_renormalise_operators(const std::vector<Matrix>& leftMat, const StateInfo *bra, const std::vector<Matrix>& rightMat, const StateInfo *ket)
 {
+  std::vector<boost::shared_ptr<StackSparseMatrix> >  allops;
+  
   for (std::map<opTypes, boost::shared_ptr< StackOp_component_base> >::iterator it = ops.begin(); it != ops.end(); ++it) {
     opTypes ot = it->first;
     if(! it->second->is_core()) {
-      it->second->build_and_renormalise_operators(*this, ot, leftMat, bra, rightMat, ket);
+      for (int i=0; i<it->second->get_size(); i++)
+	for (int j=0; j<it->second->get_local_element(i).size(); j++)
+	  allops.push_back(it->second->get_local_element(i)[j]);
     }
   }
+
+  dmrginp.parallelrenorm->start();
+  SplitStackmem();
+#pragma omp parallel for schedule(dynamic)
+  for (int i=0; i<allops.size(); i++)
+    allops[i]->build_and_renormalise_transform(this, leftMat, bra, rightMat, ket);
+  MergeStackmem();
+  dmrginp.parallelrenorm->stop();
+
 }
 
 void StackSpinBlock::CleanUpOperators()
@@ -412,6 +427,10 @@ void StackSpinBlock::transform_operators(std::vector<Matrix>& rotateMatrix)
   for (std::map<opTypes, boost::shared_ptr< StackOp_component_base> >::iterator it = ops.begin(); it != ops.end(); ++it)
     localdata = it->second->allocateOperators(newStateInfo, newStateInfo, localdata);
 
+  if (localdata != data+totalMemory) {
+    pout << "Memory problem in transform_operators"<<endl;
+    exit(0);
+  }
   pout << "**** STACK MEMORY REMAINING ***** "<<1.0*(Stackmem[omprank].size-Stackmem[omprank].memused)*sizeof(double)/1.e9<<" GB"<<endl;
   
   build_and_renormalise_operators( rotateMatrix, &newStateInfo );
@@ -687,6 +706,7 @@ int procWithMinOps(std::vector<boost::shared_ptr<StackSparseMatrix> >& allops)
 #ifndef SERIAL
   MPI::COMM_WORLD.Allreduce(MPI_IN_PLACE, &numOps[0], size, MPI_INT, MPI_SUM);
 #endif
+
 
   for (int i=0; i< size; i++) {
     if (numOps[i] < numOps[minproc])
@@ -1017,7 +1037,10 @@ void initialiseSingleSiteBlocks(std::vector<StackSpinBlock>& singleSiteBlocks, i
   int dotStart, dotEnd;
   for (int i=0; i<niter; i++) {
     SpinQuantum hq(0, SpinSpace(0), IrrepSpace(0));
-    singleSiteBlocks[i] = StackSpinBlock(i, i, integralIndex, true);
+    if (dmrginp.calc_type() == COMPRESS || dmrginp.calc_type() == RESPONSE)
+      singleSiteBlocks[i] = StackSpinBlock(i, i, integralIndex, false);
+    else
+      singleSiteBlocks[i] = StackSpinBlock(i, i, integralIndex, true);
   }
 }
 

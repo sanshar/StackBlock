@@ -57,15 +57,16 @@ void StackSpinBlock::restore (bool forward, const vector<int>& sites, StackSpinB
 {
   dmrginp.diski->start();
   Timer disktimer;
-  std::string file;
+  std::string file[numthrds];
 
-  if (forward)
-    file = str(boost::format("%s%s%d%s%d%s%d%s%d%s%d%s%d%s") % dmrginp.save_prefix() % "/Block-f-sites-"% sites[0] % "." % sites[sites.size()-1] % "-states" % left % "." % right % "-integral" %b.integralIndex % "rank" % mpigetrank() % ".tmp" );
-  else
-    file = str(boost::format("%s%s%d%s%d%s%d%s%d%s%d%s%d%s") % dmrginp.save_prefix() % "/Block-b-sites-"% sites[0] % "." % sites[sites.size()-1] % "-states" % left % "." % right % "-integral" %b.integralIndex % "rank" % mpigetrank() % ".tmp" );
+  for (int i=0; i<numthrds; i++) {
+    if (forward)
+      file[i] = str(boost::format("%s%s%d%s%d%s%d%s%d%s%d%s%d%d%s") % dmrginp.save_prefix() % "/Block-f-sites-"% sites[0] % "." % sites[sites.size()-1] % "-states" % left % "." % right % "-integral" %b.integralIndex % "rank" % mpigetrank() % i % ".tmp" );
+    else
+      file[i] = str(boost::format("%s%s%d%s%d%s%d%s%d%s%d%s%d%d%s") % dmrginp.save_prefix() % "/Block-b-sites-"% sites[0] % "." % sites[sites.size()-1] % "-states" % left % "." % right % "-integral" %b.integralIndex % "rank" % mpigetrank() % i % ".tmp" );
+  }
 
-
-  p1out << "\t\t\t Restoring block file :: " << file << endl;
+  p1out << "\t\t\t Restoring block file :: " << file[0] << endl;
 
 
   int lstate =  left;
@@ -83,21 +84,35 @@ void StackSpinBlock::restore (bool forward, const vector<int>& sites, StackSpinB
 #endif
 
 
+  dmrginp.rawdatai->start();
+  
   int* initialData = new int[23];
   int allindexsize;
+  
+  FILE *fp[numthrds];
+  for (int i=0; i<numthrds; i++)
+    fp[i] = fopen(file[i].c_str(), "rb");
 
-  dmrginp.rawdatai->start();
-  FILE *fp = fopen(file.c_str(), "rb");
-  fread(initialData, sizeof(int), 23, fp);
-  fread(&allindexsize, sizeof(int), 1, fp);
+  fread(initialData, sizeof(int), 23, fp[0]);
+  fread(&allindexsize, sizeof(int), 1, fp[0]);
   int* allindices = new int[allindexsize];//large data
-  fread(allindices, sizeof(int), allindexsize, fp);
-  fread(&(b.totalMemory), sizeof(long), 1, fp);
+  fread(allindices, sizeof(int), allindexsize, fp[0]);
+
+  fread(&(b.totalMemory), sizeof(long), 1, fp[0]);
   b.data = Stackmem[omprank].allocate(b.totalMemory);
-  fread(b.data, sizeof(double), b.totalMemory, fp);
-  fclose(fp);
+
+  double walltime = globaltimer.totalwalltime();
+  fread(b.data, sizeof(double), b.totalMemory, fp[0]);
+  fclose(fp[0]);
+
+  pout << str( boost::format("Read  %-10.4fG of data in  %-10.4f s\n") % (b.totalMemory*sizeof(double)/1.e9) % (globaltimer.totalwalltime()-walltime));
+
   dmrginp.rawdatai->stop();
 
+  int dataperthrd = b.totalMemory/numthrds;
+  int dataonlastthrd = b.totalMemory/numthrds + b.totalMemory%numthrds;
+
+    
   //nowunpack the first 23 integers
   b.localstorage         = initialData[0] == 1 ? true : false;
   b.name                 = initialData[1];
@@ -187,7 +202,6 @@ void StackSpinBlock::restore (bool forward, const vector<int>& sites, StackSpinB
 
       for (int i=0; i<it->second->get_size(); i++) {
 	int vecsize = it->second->get_local_element(i).size();
-	
 	for (int j=0; j<vecsize; j++) {
 	  it->second->get_local_element(i)[j]->set_data(localdata);
 	  localdata = it->second->get_local_element(i)[j]->allocate(b.braStateInfo, b.ketStateInfo, localdata);
@@ -207,14 +221,16 @@ void StackSpinBlock::store (bool forward, const vector<int>& sites, StackSpinBlo
 {
   dmrginp.disko->start();
   Timer disktimer;
-  std::string file;
+  std::string file[numthrds];
 
-  if (forward)
-    file = str(boost::format("%s%s%d%s%d%s%d%s%d%s%d%s%d%s") % dmrginp.save_prefix() % "/Block-f-sites-"% sites[0] % "." % sites[sites.size()-1] % "-states" % left % "." % right % "-integral" %b.integralIndex % "rank" % mpigetrank() % ".tmp" );
-  else
-    file = str(boost::format("%s%s%d%s%d%s%d%s%d%s%d%s%d%s") % dmrginp.save_prefix() % "/Block-b-sites-"% sites[0] % "." % sites[sites.size()-1] % "-states" % left % "." % right % "-integral" %b.integralIndex % "rank" % mpigetrank() % ".tmp" );
+  for (int i=0; i<numthrds; i++) {
+    if (forward)
+      file[i] = str(boost::format("%s%s%d%s%d%s%d%s%d%s%d%s%d%d%s") % dmrginp.save_prefix() % "/Block-f-sites-"% sites[0] % "." % sites[sites.size()-1] % "-states" % left % "." % right % "-integral" %b.integralIndex % "rank" % mpigetrank() % i % ".tmp" );
+    else
+      file[i] = str(boost::format("%s%s%d%s%d%s%d%s%d%s%d%s%d%d%s") % dmrginp.save_prefix() % "/Block-b-sites-"% sites[0] % "." % sites[sites.size()-1] % "-states" % left % "." % right % "-integral" %b.integralIndex % "rank" % mpigetrank() % i % ".tmp" );
+  }
   
-  p1out << "\t\t\t Saving block file :: " << file << endl;
+  p1out << "\t\t\t Saving block file :: " << file[0] << endl;
 
   int lstate =  left;
   int rstate =  right;
@@ -262,15 +278,40 @@ void StackSpinBlock::store (bool forward, const vector<int>& sites, StackSpinBlo
     allindices.insert(allindices.end(), indices.begin(), indices.end());
   }
 
+  /*
+  //******************PLEASE DELETE
+  for (std::map<opTypes, boost::shared_ptr< StackOp_component_base> >::iterator it = b.ops.begin(); it != b.ops.end(); ++it)
+  {
+    if(it->second->is_core()) {
+
+      for (int i=0; i<it->second->get_size(); i++) {
+	int vecsize = it->second->get_local_element(i).size();
+	pout << it->first<<"  "<<it->second->get_local_element(i)[0]->get_data()[0]<<endl;
+      }
+    }
+  }
+  //**************************
+  */
   dmrginp.rawdatao->start();
-  FILE *fp = fopen(file.c_str(), "wb");
+  FILE *fp[numthrds];
+  for (int i=0; i<numthrds; i++)
+    fp[i] = fopen(file[i].c_str(), "wb");
   int size = allindices.size();
-  fwrite(initialData, sizeof(int), 23, fp);
-  fwrite(&size, sizeof(int), 1, fp);
-  fwrite(&allindices[0], sizeof(int), allindices.size(), fp);
-  fwrite(&b.totalMemory, sizeof(long), 1, fp);
-  fwrite(b.data, sizeof(double), b.totalMemory, fp);
-  fclose(fp);
+  fwrite(initialData, sizeof(int), 23, fp[0]);
+  fwrite(&size, sizeof(int), 1, fp[0]);
+  fwrite(&allindices[0], sizeof(int), allindices.size(), fp[0]);
+  fwrite(&b.totalMemory, sizeof(long), 1, fp[0]);
+
+  int dataperthrd = b.totalMemory/numthrds;
+  int dataonlastthrd = b.totalMemory/numthrds + b.totalMemory%numthrds;
+
+  double walltime = globaltimer.totalwalltime();
+  fwrite(b.data, sizeof(double), b.totalMemory, fp[0]);
+  pout <<str( boost::format("Wrote  %-10.4fG of data in  %-10.4f s\n") % (b.totalMemory*sizeof(double)/1.e9) % (globaltimer.totalwalltime()-walltime) );
+
+  fclose(fp[0]);
+
+
   dmrginp.rawdatao->stop();
 
   delete [] initialData;

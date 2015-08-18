@@ -196,7 +196,6 @@ void SpinAdapted::Sweep::BlockAndDecimate (SweepParams &sweepParams, StackSpinBl
 
   makeSystemEnvironmentBigBlocks(system, systemDot, newSystem, environment, environmentDot, newEnvironment, big, sweepParams, dot_with_sys, useSlater, system.get_integralIndex(), sweepParams.current_root(), sweepParams.current_root());
 
-
   //analyse_operator_distribution(big);
   dmrginp.guessgenT -> stop();
   dmrginp.multiplierT -> start();
@@ -347,6 +346,7 @@ void SpinAdapted::Sweep::BlockAndDecimate (SweepParams &sweepParams, StackSpinBl
   p2out << str(boost::format("%-40s - %-10.4f\n") % "          |-->allocop" % *(dmrginp.readallocatemem));
   p2out << str(boost::format("%-40s - %-10.4f\n") % "          |-->rawdata" % *(dmrginp.rawdatai));
   p2out << str(boost::format("%-40s - %-10.4f\n") % "      |-->mpicomm" % *(dmrginp.datatransfer));
+  p2out << str(boost::format("%-40s - %-10.4f\n") % "      |-->builditerators" % *(dmrginp.builditeratorsT));
   p2out << str(boost::format("%-40s - %-10.4f\n") % "  |-->Wavefunction Solution" % *(dmrginp.multiplierT));
   p2out << str(boost::format("%-40s - %-10.4f\n") % "      |-->davidson/guesswf/diagonal" % *(dmrginp.davidsonT));
   p2out << str(boost::format("%-40s - %-10.4f\n") % "          |-->guesswf" % *(dmrginp.guesswf));

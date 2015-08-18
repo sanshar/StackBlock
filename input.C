@@ -1254,8 +1254,14 @@ SpinAdapted::Input::Input(const string& config_name) {
     pout << endl;
   }
 
+  string   loadprefix = str(boost::format("%s") %m_load_prefix );
+  string   saveprefix = str(boost::format("%s") %m_save_prefix );
+
 #ifndef SERIAL
   mpi::broadcast(world, *this,0);
+  m_load_prefix = str(boost::format("%s") %loadprefix);
+  m_save_prefix = str(boost::format("%s") %saveprefix);
+
   for (int i=0; i<m_num_Integrals; i++) {
     mpi::broadcast(world, v_1[i].dim,0);
     mpi::broadcast(world, v_1[i].rhf,0);

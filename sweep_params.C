@@ -179,6 +179,7 @@ void SpinAdapted::SweepParams::restorestate(bool &forward, int &size)
     load_wave >> forward >> size >> *this;
     ifs.close();
   }
+
   size = block_iter+1;
   restart_iter = sweep_iter;
 
