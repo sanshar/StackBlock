@@ -86,7 +86,8 @@ void SweepGenblock::BlockAndDecimate (SweepParams &sweepParams, StackSpinBlock& 
     newSystem.transform_operators(leftrotateMatrix, rightrotateMatrix);
   dmrginp.operrotT->stop();
 
-  if (system.get_sites().size() != 1) {
+  //if (system.get_sites().size() != 1) {
+  if (system.get_sites().size() != 1 || (dmrginp.add_noninteracting_orbs() && dmrginp.molecule_quantum().get_s().getirrep() != 0 && dmrginp.spinAdapted())) {
     long memoryToFree = newSystem.getdata() - system.getdata();
     long newsysmem = newSystem.memoryUsed();
     newSystem.moveToNewMemory(system.getdata());

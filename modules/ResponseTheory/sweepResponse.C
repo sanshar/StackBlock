@@ -143,8 +143,8 @@ void SpinAdapted::SweepResponse::BlockAndDecimate (SweepParams &sweepParams, Sta
     StackWavefunction iwave; iwave.initialise(dmrginp.effective_molecule_quantum_vec(), perturbationBig.get_leftBlock()->get_stateInfo(), perturbationBig.get_rightBlock()->get_stateInfo(), sweepParams.get_onedot()); iwave.Clear();
 
     //************************************
-    //GuessWave::guess_wavefunctions(iwave, e, perturbationBig, guesstype, 
-    //sweepParams.get_onedot(), firstOrderState, dot_with_sys, 0.0);
+    GuessWave::guess_wavefunctions(iwave, e, perturbationBig, guesstype, 
+				   sweepParams.get_onedot(), firstOrderState, dot_with_sys, 0.0);
 
 #ifndef SERIAL
     mpi::communicator world;
@@ -156,7 +156,7 @@ void SpinAdapted::SweepResponse::BlockAndDecimate (SweepParams &sweepParams, Sta
       int sweepiter = sweepParams.get_sweep_iter();
 
       //**********************************
-      //branoiseMatrix.add_onedot_noise(iwave, perturbationBig);
+      branoiseMatrix.add_onedot_noise(iwave, perturbationBig);
       DSCAL( branoiseMatrix.memoryUsed(), 1.0/DotProduct(iwave, iwave)/trace(branoiseMatrix), branoiseMatrix.get_data() , 1);
     }
 
@@ -177,8 +177,14 @@ void SpinAdapted::SweepResponse::BlockAndDecimate (SweepParams &sweepParams, Sta
     temp.deallocate();
     iwave.deallocate();
 
-    perturbationsystem.clear(); perturbationenvironment.clear(); 
-    perturbationnewsystem.clear(); perturbationnewenvironment.clear();  
+    perturbationnewenvironment.deallocate();
+    perturbationenvironment.removeAdditionalOps();
+    perturbationenvironment.deallocate();
+    perturbationnewsystem.deallocate(); 
+    perturbationsystem.removeAdditionalOps();
+    perturbationsystem.deallocate(); 
+    perturbationenvironmentdot.deallocate();
+    perturbationsystemdot.deallocate();
   }
 
 #ifndef SERIAL
@@ -197,7 +203,7 @@ void SpinAdapted::SweepResponse::BlockAndDecimate (SweepParams &sweepParams, Sta
     overlapsystemdot = StackSpinBlock(systemDotStart, systemDotEnd, perturbationIntegral, true);
     overlapenvironmentdot = StackSpinBlock(environmentDotStart, environmentDotEnd, perturbationIntegral, true);
     overlapsystem.set_integralIndex() = perturbationIntegral;
-    StackSpinBlock::restore(forward, systemsites, overlapsystem, targetState, projectors[l]);
+    //StackSpinBlock::restore(forward, systemsites, overlapsystem, targetState, projectors[l]);
     
     Sweep::makeSystemEnvironmentBigOverlapBlocks(systemsites, overlapsystemdot, overlapenvironmentdot, 
 						 overlapsystem, overlapnewsystem, overlapenvironment, 
@@ -207,8 +213,8 @@ void SpinAdapted::SweepResponse::BlockAndDecimate (SweepParams &sweepParams, Sta
     StackWavefunction iwave; iwave.initialise(dmrginp.effective_molecule_quantum_vec(), overlapBig.get_leftBlock()->get_stateInfo(), overlapBig.get_rightBlock()->get_stateInfo(), sweepParams.get_onedot()); iwave.Clear();
 
     //****************************
-    //GuessWave::guess_wavefunctions(iwave, e, overlapBig, guesstype, 
-    //sweepParams.get_onedot(), projectors[l], dot_with_sys, 0.0);
+    GuessWave::guess_wavefunctions(iwave, e, overlapBig, guesstype, 
+				   sweepParams.get_onedot(), projectors[l], dot_with_sys, 0.0);
     
 #ifndef SERIAL
     mpi::communicator world;
@@ -229,8 +235,17 @@ void SpinAdapted::SweepResponse::BlockAndDecimate (SweepParams &sweepParams, Sta
       lowerStates[l+1].Normalise(&success);
     }
     iwave.deallocate();
-    overlapsystem.clear(); overlapenvironment.clear(); 
-    overlapnewsystem.clear(); overlapnewenvironment.clear();  
+
+    overlapnewenvironment.deallocate();
+    overlapenvironment.removeAdditionalOps();
+    overlapenvironment.deallocate();
+    overlapnewsystem.deallocate(); 
+    overlapsystem.removeAdditionalOps();
+    if (overlapsystem.get_sites().size() != 1 || (dmrginp.add_noninteracting_orbs() && dmrginp.molecule_quantum().get_s().getirrep() != 0 && dmrginp.spinAdapted()))     
+      overlapsystem.deallocate(); 
+    overlapenvironmentdot.deallocate();
+    overlapsystemdot.deallocate();
+
   }
 
 
@@ -252,9 +267,6 @@ void SpinAdapted::SweepResponse::BlockAndDecimate (SweepParams &sweepParams, Sta
 
 
 
-  environment.clear();
-  newEnvironment.clear();
-
   p1out <<"\t\t\t Performing Renormalization "<<endl;
 
   rotatematrix.resize(0);
@@ -271,6 +283,12 @@ void SpinAdapted::SweepResponse::BlockAndDecimate (SweepParams &sweepParams, Sta
       lowerStates[istate].deallocate();
   }
   lowerStates[0].deallocate();
+
+  //deallocate all the envirnonment blocks
+  newEnvironment.deallocate();
+  environment.removeAdditionalOps();
+  environment.deallocate();
+
 
   StackWavefunction targetWave; StateInfo braStateInfo;
   targetWave.initialise(dmrginp.effective_molecule_quantum_vec(), big.get_leftBlock()->get_stateInfo(), big.get_rightBlock()->get_stateInfo(), sweepParams.get_onedot()); targetWave.Clear();
@@ -323,8 +341,8 @@ void SpinAdapted::SweepResponse::BlockAndDecimate (SweepParams &sweepParams, Sta
       StackWavefunction iwave;
       iwave.initialise(dmrginp.effective_molecule_quantum_vec(), perturbationnewbig.get_leftBlock()->get_stateInfo(), perturbationnewbig.get_rightBlock()->get_stateInfo(), sweepParams.get_onedot()); iwave.Clear();
       //*************************
-      //GuessWave::guess_wavefunctions(iwave, e, perturbationnewbig, guesstype, 
-      //sweepParams.get_onedot(), firstOrderState, true, 0.0);
+      GuessWave::guess_wavefunctions(iwave, e, perturbationnewbig, guesstype, 
+				     sweepParams.get_onedot(), firstOrderState, true, 0.0);
       
       StackDensityMatrix tracedMatrix;
       tracedMatrix.allocate(perturbationnewbig.get_leftBlock()->get_ketStateInfo());
@@ -347,12 +365,19 @@ void SpinAdapted::SweepResponse::BlockAndDecimate (SweepParams &sweepParams, Sta
     broadcast(world, ketrotatematrix, 0);
 #endif
         
-    perturbationnewsystem.transform_operators(rotatematrix, ketrotatematrix);
+    perturbationnewenvironment.deallocate();
+    perturbationenvironment.removeAdditionalOps();
+    perturbationenvironment.deallocate();
+
+    perturbationnewsystem.transform_operators(rotatematrix, ketrotatematrix, false, false);
 
     StackSpinBlock::store(forward, perturbationnewsystem.get_sites(), perturbationnewsystem, targetState, firstOrderState);
 
+    Stackmem[omprank].deallocate(perturbationsystem.getdata(), (perturbationnewsystem.getdata()-perturbationsystem.getdata())+perturbationnewsystem.memoryUsed());
+    perturbationenvironmentdot.deallocate();
+    perturbationsystemdot.deallocate();
 
-    perturbationsystem.clear(); perturbationenvironment.clear(); perturbationnewsystem.clear(); perturbationnewenvironment.clear();
+    //perturbationsystem.clear(); perturbationenvironment.clear(); perturbationnewsystem.clear(); perturbationnewenvironment.clear();
 
   }
 
@@ -369,7 +394,7 @@ void SpinAdapted::SweepResponse::BlockAndDecimate (SweepParams &sweepParams, Sta
     perturbationsystemdot = StackSpinBlock(systemDotStart, systemDotEnd, perturbationIntegral, true);
     perturbationenvironmentdot = StackSpinBlock(environmentDotStart, environmentDotEnd, perturbationIntegral, true);
     perturbationsystem.set_integralIndex() = perturbationIntegral;
-    StackSpinBlock::restore(forward, systemsites, perturbationsystem, targetState, projectors[l]);
+    //StackSpinBlock::restore(forward, systemsites, perturbationsystem, targetState, projectors[l]);
 
     Sweep::makeSystemEnvironmentBigOverlapBlocks(systemsites, perturbationsystemdot, perturbationenvironmentdot, 
 						 perturbationsystem, perturbationnewsystem, perturbationenvironment, perturbationnewenvironment, 
@@ -396,8 +421,8 @@ void SpinAdapted::SweepResponse::BlockAndDecimate (SweepParams &sweepParams, Sta
       
       StackWavefunction iwave; iwave.initialise(dmrginp.effective_molecule_quantum_vec(), perturbationnewbig.get_leftBlock()->get_stateInfo(), perturbationnewbig.get_rightBlock()->get_stateInfo(), sweepParams.get_onedot()); iwave.Clear();
       //*********************
-      //GuessWave::guess_wavefunctions(iwave, e, perturbationnewbig, guesstype, 
-      //sweepParams.get_onedot(), projectors[l], true, 0.0);
+      GuessWave::guess_wavefunctions(iwave, e, perturbationnewbig, guesstype, 
+				     sweepParams.get_onedot(), projectors[l], true, 0.0);
       
       dmrginp.setOutputlevel() = 10;
       StackDensityMatrix tracedMatrix;
@@ -419,13 +444,21 @@ void SpinAdapted::SweepResponse::BlockAndDecimate (SweepParams &sweepParams, Sta
     broadcast(world, ketrotatematrix, 0);
 #endif
     
+    perturbationnewenvironment.deallocate();
+    perturbationenvironment.removeAdditionalOps();
+    perturbationenvironment.deallocate();
     
-    perturbationnewsystem.transform_operators(rotatematrix, ketrotatematrix);
+    perturbationnewsystem.transform_operators(rotatematrix, ketrotatematrix, false, false);
 
     StackSpinBlock::store(forward, perturbationnewsystem.get_sites(), perturbationnewsystem, targetState, projectors[l]);
 
+    if (perturbationsystem.get_sites().size() != 1 || (dmrginp.add_noninteracting_orbs() && dmrginp.molecule_quantum().get_s().getirrep() != 0 && dmrginp.spinAdapted()))     
+      Stackmem[omprank].deallocate(perturbationsystem.getdata(), (perturbationnewsystem.getdata()-perturbationsystem.getdata())+perturbationnewsystem.memoryUsed());
+    else
+      perturbationnewsystem.deallocate();
+    perturbationenvironmentdot.deallocate();
+    perturbationsystemdot.deallocate();
 
-    perturbationsystem.clear(); perturbationenvironment.clear(); perturbationnewsystem.clear(); perturbationnewenvironment.clear();
 
   }
 
@@ -440,6 +473,14 @@ void SpinAdapted::SweepResponse::BlockAndDecimate (SweepParams &sweepParams, Sta
   newSystem.transform_operators(rotatematrix);
   SaveRotationMatrix (newSystem.get_sites(), rotatematrix, targetState);
   dmrginp.operrotT -> stop();
+
+  if (system.get_sites().size() != 1 || (dmrginp.add_noninteracting_orbs() && dmrginp.molecule_quantum().get_s().getirrep() != 0 && dmrginp.spinAdapted())) {
+    long memoryToFree = newSystem.getdata() - system.getdata();
+    long newsysmem = newSystem.memoryUsed();
+    newSystem.moveToNewMemory(system.getdata());
+    Stackmem[omprank].deallocate(newSystem.getdata()+newsysmem, memoryToFree);
+    //system.clear();
+  }
 
   if (dmrginp.outputlevel() > 0)
     mcheck("after rotation and transformation of block");
@@ -664,6 +705,467 @@ double SpinAdapted::SweepResponse::do_one(SweepParams &sweepParams, const bool &
   return finalError;
 }
 
+
+
+void SpinAdapted::SweepResponse::StartUp (SweepParams &sweepParams, StackSpinBlock& system, StackSpinBlock& newSystem, const bool& dot_with_sys, int targetState, int correctionVector, vector<int>& projectors, vector<int>& baseStates)
+{
+  //if (dmrginp.outputlevel() > 0)
+  mcheck("at the start of block and decimate");
+  p2out << "\t\t\t dot with system "<<dot_with_sys<<endl;
+  p1out <<endl<< "\t\t\t Performing Blocking"<<endl;
+  // figure out if we are going forward or backwards
+  dmrginp.guessgenT -> start();
+
+  bool forward = (system.get_sites() [0] == 0);
+  StackSpinBlock systemDot, environmentDot;
+  int systemDotStart, systemDotEnd, environmentDotStart, environmentDotEnd;
+  int systemDotSize = sweepParams.get_sys_add() - 1;
+  int environmentDotSize = sweepParams.get_env_add() - 1;
+  if (forward)
+  {
+    systemDotStart = dmrginp.spinAdapted() ? 
+      *system.get_sites().rbegin () + 1 : (*system.get_sites().rbegin ())/2 + 1 ;
+    systemDotEnd = systemDotStart + systemDotSize;
+    environmentDotStart = systemDotEnd + 1;
+    environmentDotEnd = environmentDotStart + environmentDotSize;
+  }
+  else
+  {
+    systemDotStart = dmrginp.spinAdapted() ? 
+      system.get_sites()[0] - 1 : (system.get_sites()[0])/2 - 1 ;
+    systemDotEnd = systemDotStart - systemDotSize;
+    environmentDotStart = systemDotEnd - 1;
+    environmentDotEnd = environmentDotStart - environmentDotSize;
+  }
+  systemDot = singleSiteBlocks[system.get_integralIndex()][systemDotStart];
+  environmentDot = singleSiteBlocks[system.get_integralIndex()][environmentDotStart];
+
+  StackSpinBlock environment, newEnvironment;
+
+  StackSpinBlock big;  // new_sys = sys+sys_dot; new_env = env+env_dot; big = new_sys + new_env then renormalize to find new_sys(new)
+  bool haveNormOps = dot_with_sys, haveCompOps = true;
+
+  std::vector<Matrix> brarotateMatrix, ketrotateMatrix;
+  //<target| H |target>
+  {
+    system.addAdditionalOps();
+    InitBlocks::InitNewSystemBlock(system, systemDot, newSystem, correctionVector, correctionVector, 
+				   sweepParams.get_sys_add(), dmrginp.direct(), system.get_integralIndex(), 
+				   DISTRIBUTED_STORAGE, haveNormOps, haveCompOps);
+    
+    dmrginp.guessgenT -> stop();
+    LoadRotationMatrix (newSystem.get_sites(), brarotateMatrix, correctionVector);
+    StackWavefunction targetWave;
+    StateInfo s;
+    if (mpigetrank() == 0) {
+      targetWave.LoadWavefunctionInfo(s, newSystem.get_sites(), correctionVector, true);
+      targetWave.SaveWavefunctionInfo(s, newSystem.get_sites(), targetState);
+      SaveRotationMatrix (newSystem.get_sites(), brarotateMatrix, targetState);
+      targetWave.deallocate();
+    }
+#ifndef SERIAL
+    mpi::communicator world;
+    broadcast(world, brarotateMatrix, 0);
+#endif
+    
+    dmrginp.operrotT -> start();
+    newSystem.transform_operators(brarotateMatrix);
+    dmrginp.operrotT -> stop();
+
+    if (system.get_sites().size() != 1 || (dmrginp.add_noninteracting_orbs() && dmrginp.molecule_quantum().get_s().getirrep() != 0 && dmrginp.spinAdapted())) {
+      long memoryToFree = newSystem.getdata() - system.getdata();
+      long newsysmem = newSystem.memoryUsed();
+      newSystem.moveToNewMemory(system.getdata());
+      Stackmem[omprank].deallocate(newSystem.getdata()+newsysmem, memoryToFree);
+      //system.clear();
+    }
+  }
+
+  std::vector<int> systemsites;
+  if (dmrginp.spinAdapted())
+    systemsites = system.get_sites();
+  else {
+    if (forward) {
+      systemsites.push_back(0); systemsites.push_back(*system.get_sites().rbegin()/2);
+    }
+    else {
+      systemsites.push_back(system.get_sites()[0]/2); systemsites.push_back(*system.get_sites().rbegin()/2);
+    }
+  }
+  
+  //<target| V |baseStates>
+  for(int l=0; l<baseStates.size(); l++) 
+  {
+    dmrginp.guessgenT -> start();
+    int perturbationIntegral = l+1;
+    StackSpinBlock perturbationSystemDot, perturbationSystem, perturbationNewSystem;
+    perturbationSystem.set_integralIndex() = perturbationIntegral;
+    StackSpinBlock::restore(forward, systemsites, perturbationSystem, targetState, baseStates[l]);
+    perturbationSystemDot= singleSiteBlocks[perturbationIntegral][systemDotStart];
+
+    perturbationSystem.addAdditionalOps();
+    InitBlocks::InitNewSystemBlock(perturbationSystem, perturbationSystemDot, perturbationNewSystem,
+				   targetState, baseStates[l], 
+				   sweepParams.get_sys_add(), dmrginp.direct(), perturbationIntegral,
+				   DISTRIBUTED_STORAGE, haveNormOps, haveCompOps);
+
+    
+    dmrginp.guessgenT -> stop();
+
+    LoadRotationMatrix (newSystem.get_sites(), ketrotateMatrix, baseStates[l]);
+    
+#ifndef SERIAL
+    mpi::communicator world;
+    broadcast(world, ketrotateMatrix, 0);
+#endif
+
+    dmrginp.operrotT -> start();
+    perturbationNewSystem.transform_operators(brarotateMatrix, ketrotateMatrix, false, false);
+    dmrginp.operrotT -> stop();
+    StackSpinBlock::store(forward, perturbationNewSystem.get_sites(), perturbationNewSystem, targetState, baseStates[l]);
+
+    if(perturbationSystem.get_sites().size() != 1) 
+      Stackmem[omprank].deallocate(perturbationSystem.getdata(), (perturbationNewSystem.getdata()-perturbationSystem.getdata())+perturbationNewSystem.memoryUsed());
+  }
+
+
+  //<target|O|baseState>
+  //save the updated overlap spinblock
+  for(int l=0; l<projectors.size(); l++) 
+  {
+    int perturbationIntegral = 0;
+    
+    StackSpinBlock overlapsystem, overlapsystemDot, overlapnewSystem;
+    overlapsystem.set_integralIndex() = perturbationIntegral;
+    StackSpinBlock::restore(forward, systemsites, overlapsystem, targetState, projectors[l]);
+    overlapsystemDot= singleSiteBlocks[perturbationIntegral][systemDotStart];
+
+    overlapnewSystem.set_integralIndex() = perturbationIntegral;
+    overlapnewSystem.initialise_op_array(OVERLAP, false);
+    overlapnewSystem.setstoragetype(DISTRIBUTED_STORAGE);
+    overlapnewSystem.BuildSumBlock(NO_PARTICLE_SPIN_NUMBER_CONSTRAINT, overlapsystem, overlapsystemDot);
+
+    LoadRotationMatrix (newSystem.get_sites(), ketrotateMatrix, projectors[l]);
+    
+#ifndef SERIAL
+    mpi::communicator world;
+    broadcast(world, ketrotateMatrix, 0);
+#endif
+
+    dmrginp.operrotT -> start();
+    overlapnewSystem.transform_operators(brarotateMatrix, ketrotateMatrix, false, false);
+    dmrginp.operrotT -> stop();
+    StackSpinBlock::store(forward, overlapnewSystem.get_sites(), overlapnewSystem, targetState, projectors[l]);
+
+    Stackmem[omprank].deallocate(overlapsystem.getdata(), (overlapnewSystem.getdata()-overlapsystem.getdata())+overlapnewSystem.memoryUsed());
+
+  }
+
+
+
+  if (dmrginp.outputlevel() > 0)
+    mcheck("after rotation and transformation of block");
+
+  p2out << *dmrginp.guessgenT<<" "<<*dmrginp.multiplierT<<" "<<*dmrginp.operrotT<< "  "<<globaltimer.totalwalltime()<<" timer "<<endl;
+  p2out << *dmrginp.makeopsT<<" makeops "<<endl;
+  p2out << *dmrginp.datatransfer<<" datatransfer "<<endl;
+  p2out <<"oneindexopmult   twoindexopmult   Hc  couplingcoeff"<<endl;  
+  p2out << *dmrginp.oneelecT<<" "<<*dmrginp.twoelecT<<" "<<*dmrginp.hmultiply<<" "<<*dmrginp.couplingcoeff<<" hmult"<<endl;
+  p2out << *dmrginp.buildsumblock<<" "<<*dmrginp.buildblockops<<" build block"<<endl;
+  p2out << *dmrginp.blockintegrals<<"  "<<*dmrginp.blocksites<<"  "<<*dmrginp.statetensorproduct<<"  "<<*dmrginp.statecollectquanta<<"  "<<*dmrginp.buildsumblock<<" "<<*dmrginp.buildblockops<<" build sum block"<<endl;
+  p2out << "addnoise  S_0_opxop  S_1_opxop   S_2_opxop"<<endl;
+  p3out << *dmrginp.addnoise<<" "<<*dmrginp.s0time<<" "<<*dmrginp.s1time<<" "<<*dmrginp.s2time<<endl;
+
+}
+
+
+void SpinAdapted::SweepResponse::WavefunctionCanonicalize (SweepParams &sweepParams, StackSpinBlock& system, const bool &useSlater, const bool& dot_with_sys, int targetState, vector<int>& projectors, vector<int>& baseStates)
+{
+  if (dmrginp.outputlevel() > 0) 
+    mcheck("at the start of block and decimate");
+  p2out << "\t\t\t dot with system "<<dot_with_sys<<endl;
+  p1out <<endl<< "\t\t\t Performing Blocking"<<endl;
+  // figure out if we are going forward or backwards
+  dmrginp.guessgenT -> start();
+  
+  StackSpinBlock newSystem;
+  
+  bool forward = (system.get_sites() [0] == 0);
+  StackSpinBlock systemDot, environmentDot;
+  int systemDotStart, systemDotEnd, environmentDotStart, environmentDotEnd;
+  int systemDotSize = sweepParams.get_sys_add() - 1;
+  int environmentDotSize = 0;
+  if (forward)
+    {
+      systemDotStart = dmrginp.spinAdapted() ? 
+	*system.get_sites().rbegin () + 1 : (*system.get_sites().rbegin ())/2 + 1 ;
+      systemDotEnd = systemDotStart + systemDotSize;
+      environmentDotStart = systemDotEnd + 1;
+      environmentDotEnd = environmentDotStart + environmentDotSize;
+    }
+  else
+    {
+      systemDotStart = dmrginp.spinAdapted() ? 
+	system.get_sites()[0] - 1 : (system.get_sites()[0])/2 - 1 ;
+      systemDotEnd = systemDotStart - systemDotSize;
+      environmentDotStart = systemDotEnd - 1;
+      environmentDotEnd = environmentDotStart - environmentDotSize;
+    }
+  systemDot = singleSiteBlocks[system.get_integralIndex()][systemDotStart];
+
+  vector<int> sitesenvdot(environmentDotSize+1, 0);
+  int index = 0;
+  for (int i=min(environmentDotStart, environmentDotEnd); i<max(environmentDotStart, environmentDotEnd)+1; i++) {
+    sitesenvdot[index] = (i);
+    index++;
+  }
+
+  environmentDot = singleSiteBlocks[system.get_integralIndex()][sitesenvdot[0]];
+  //StackSpinBlock::restore(!forward, sitesenvdot, environmentDot, targetState, targetState); 
+
+  StackSpinBlock environment, newEnvironment;
+  
+  StackSpinBlock big;  // new_sys = sys+sys_dot; new_env = env+env_dot; big = new_sys + new_env then renormalize to find new_sys(new)
+
+  system.addAdditionalOps();
+  InitBlocks::InitNewSystemBlock(system, systemDot, newSystem, targetState, targetState, 
+				 sweepParams.get_sys_add(), dmrginp.direct(), system.get_integralIndex(), 
+				 DISTRIBUTED_STORAGE, false, true);
+
+  newSystem.set_loopblock(false);  environmentDot.set_loopblock(false); 
+  InitBlocks::InitBigBlock(newSystem, environmentDot, big);
+
+  //analyse_operator_distribution(big);
+  dmrginp.guessgenT -> stop();
+  dmrginp.multiplierT -> start();
+  std::vector<Matrix> rotatematrix;
+  
+  
+  std::vector<StackWavefunction> lowerStates;
+  
+  
+  //make the baseState
+  int originalOutputlevel = dmrginp.outputlevel();
+  dmrginp.setOutputlevel() = -1;
+  DiagonalMatrix e;
+  guessWaveTypes guesstype = sweepParams.get_block_iter() == 0 ? TRANSPOSE : TRANSFORM;
+  
+  std::vector<int> systemsites;
+  if (dmrginp.spinAdapted())
+    systemsites = system.get_sites();
+  else {
+    if (forward) {
+      systemsites.push_back(0); systemsites.push_back(*system.get_sites().rbegin()/2);
+    }
+    else {
+      systemsites.push_back(system.get_sites()[0]/2); systemsites.push_back(*system.get_sites().rbegin()/2);
+    }
+  }
+  
+  
+  StackWavefunction targetWave; targetWave.initialise(dmrginp.effective_molecule_quantum_vec(), big.get_leftBlock()->get_stateInfo(), big.get_rightBlock()->get_stateInfo(), sweepParams.get_onedot()); targetWave.Clear();
+  pout << "transform previous"<<endl;
+
+  //**************************
+  if (!mpigetrank())
+    GuessWave::transform_previous_twodot_to_onedot_wavefunction(targetWave, big, targetState);
+
+  targetWave.set_onedot(true);
+
+  
+  StackDensityMatrix bratracedMatrix;
+  bratracedMatrix.allocate(newSystem.get_braStateInfo());
+
+  //operatorfunctions::MultiplyProduct(targetWave, Transpose(const_cast<StackWavefunction&> (targetWave)), bratracedMatrix, 1.0);
+  operatorfunctions::MultiplyWithOwnTranspose (targetWave, bratracedMatrix, 1.0);  
+  int largeNumber = 1000000;
+  if (!mpigetrank())
+    double error = makeRotateMatrix(bratracedMatrix, rotatematrix, largeNumber, sweepParams.get_keep_qstates());
+  bratracedMatrix.deallocate();
+  pout << "broadcast rotate"<<endl;
+#ifndef SERIAL
+  mpi::communicator world;
+  broadcast(world, rotatematrix, 0);
+#endif
+
+  
+  targetWave.SaveWavefunctionInfo (big.get_braStateInfo(), big.get_leftBlock()->get_sites(), targetState);
+  targetWave.deallocate();
+
+  SaveRotationMatrix (newSystem.get_sites(), rotatematrix, targetState);
+  
+  newSystem.transform_operators(rotatematrix);
+  long memoryToFree = newSystem.getdata() - system.getdata();
+  long newsysmem = newSystem.memoryUsed();
+  newSystem.moveToNewMemory(system.getdata());
+  Stackmem[omprank].deallocate(newSystem.getdata()+newsysmem, memoryToFree);
+
+
+  dmrginp.setOutputlevel() = originalOutputlevel;
+  
+  
+  
+  
+  
+  
+  //<target|O|firstOrderState>
+  //save the updated overlap spinblock
+  for (int l=0; l<baseStates.size(); l++)
+  {
+    int perturbationIntegral = l+1;
+    
+    StackSpinBlock overlapBig;
+    StackSpinBlock overlapsystem, overlapenvironment, overlapnewsystem, overlapnewenvironment, overlapenvironmentDot;
+    StackSpinBlock overlapsystemDot(systemDotStart, systemDotEnd, perturbationIntegral, true);
+
+    overlapenvironmentDot.set_integralIndex() = perturbationIntegral;
+    overlapenvironmentDot = singleSiteBlocks[perturbationIntegral][sitesenvdot[0]];
+    //StackSpinBlock::restore(!forward, sitesenvdot, overlapenvironmentDot, targetState, baseStates[l]); 
+
+    guessWaveTypes guesstype = sweepParams.get_block_iter() == 0 ? TRANSPOSE : TRANSFORM;
+    
+    DiagonalMatrix e;
+
+    overlapsystem.set_integralIndex() = perturbationIntegral;
+    StackSpinBlock::restore(forward, systemsites, overlapsystem, targetState, baseStates[l]);
+    overlapsystem.addAdditionalOps();
+    InitBlocks::InitNewSystemBlock(overlapsystem, overlapsystemDot, 
+				   overlapnewsystem, targetState, baseStates[l], 
+				   overlapsystemDot.size(), dmrginp.direct(), 
+				   perturbationIntegral, DISTRIBUTED_STORAGE, false, true);
+
+    overlapnewsystem.set_loopblock(false);  overlapenvironmentDot.set_loopblock(false); 
+    InitBlocks::InitBigBlock(overlapnewsystem, overlapenvironmentDot, overlapBig);
+
+    
+    pout << "transform iwave"<<endl;
+    StackWavefunction iwave; iwave.initialise(dmrginp.effective_molecule_quantum_vec(), overlapBig.get_leftBlock()->get_stateInfo(), overlapBig.get_rightBlock()->get_stateInfo(), sweepParams.get_onedot()); iwave.Clear();
+    //****************************
+    if (!mpigetrank())
+      GuessWave::transform_previous_twodot_to_onedot_wavefunction(iwave, overlapBig, baseStates[l]);
+    iwave.set_onedot(true);
+
+    std::vector<Matrix> ketrotatematrix;
+    StackDensityMatrix tracedMatrix;
+    tracedMatrix.allocate(overlapnewsystem.get_ketStateInfo());
+    //tracedMatrix.allocate(overlapnewsystem.get_ketStateInfo());
+    operatorfunctions::MultiplyWithOwnTranspose (iwave, tracedMatrix, 1.0);  
+    //operatorfunctions::MultiplyProduct(iwave, Transpose(const_cast<StackWavefunction&> (iwave)), tracedMatrix, 1.0);
+    int largeNumber = 1000000;
+    if (!mpigetrank())
+      double error = makeRotateMatrix(tracedMatrix, ketrotatematrix, largeNumber, sweepParams.get_keep_qstates());
+    tracedMatrix.deallocate();
+
+#ifndef SERIAL
+    broadcast(world, ketrotatematrix, 0);
+#endif
+    
+    iwave.SaveWavefunctionInfo (overlapBig.get_ketStateInfo(), overlapBig.get_leftBlock()->get_sites(), baseStates[l]);
+    iwave.deallocate();
+    SaveRotationMatrix (overlapnewsystem.get_sites(), ketrotatematrix, baseStates[l]);
+
+    
+    overlapnewsystem.transform_operators(rotatematrix, ketrotatematrix, false, false);
+    StackSpinBlock::store(forward, overlapnewsystem.get_sites(), overlapnewsystem, targetState, baseStates[l]);
+
+    if(overlapsystem.get_sites().size() != 1) 
+      Stackmem[omprank].deallocate(overlapsystem.getdata(), (overlapnewsystem.getdata()-overlapsystem.getdata())+overlapnewsystem.memoryUsed());
+
+    //overlapenvironmentDot.deallocate();
+    overlapsystemDot.deallocate();
+
+    //overlapsystem.clear(); overlapenvironment.clear(); overlapnewsystem.clear(); overlapnewenvironment.clear();
+    
+  }
+
+
+  //<target|O|projectors>
+  //save the updated overlap spinblock
+  for (int l=0; l<projectors.size(); l++)
+  {
+    int perturbationIntegral = 0;
+    
+    StackSpinBlock overlapBig;
+    StackSpinBlock overlapsystem, overlapenvironment, overlapnewsystem, overlapnewenvironment, overlapenvironmentDot;
+    StackSpinBlock overlapsystemDot(systemDotStart, systemDotEnd, perturbationIntegral, true);
+
+    overlapenvironmentDot.set_integralIndex() = perturbationIntegral;
+    overlapenvironmentDot = singleSiteBlocks[perturbationIntegral][sitesenvdot[0]];
+    //StackSpinBlock::restore(!forward, sitesenvdot, overlapenvironmentDot, targetState, projectors[l]); 
+
+    guessWaveTypes guesstype = sweepParams.get_block_iter() == 0 ? TRANSPOSE : TRANSFORM;
+    
+    DiagonalMatrix e;
+
+    overlapsystem.set_integralIndex() = perturbationIntegral;
+    StackSpinBlock::restore(forward, systemsites, overlapsystem, targetState, projectors[l]);
+    overlapnewsystem.set_integralIndex() = perturbationIntegral;
+    overlapnewsystem.initialise_op_array(OVERLAP, false);
+    overlapnewsystem.setstoragetype(DISTRIBUTED_STORAGE);
+    overlapnewsystem.BuildSumBlock(NO_PARTICLE_SPIN_NUMBER_CONSTRAINT, overlapsystem, overlapsystemDot);
+
+    overlapnewsystem.set_loopblock(false);  overlapenvironmentDot.set_loopblock(false); 
+    InitBlocks::InitBigBlock(overlapnewsystem, overlapenvironmentDot, overlapBig);
+
+    
+    pout << "transform iwave"<<endl;
+    StackWavefunction iwave; iwave.initialise(dmrginp.effective_molecule_quantum_vec(), overlapBig.get_leftBlock()->get_stateInfo(), overlapBig.get_rightBlock()->get_stateInfo(), sweepParams.get_onedot()); iwave.Clear();
+    //******************************
+    if (!mpigetrank())
+      GuessWave::transform_previous_twodot_to_onedot_wavefunction(iwave, overlapBig, projectors[l]);
+    iwave.set_onedot(true);
+
+
+    std::vector<Matrix> ketrotatematrix;
+    StackDensityMatrix tracedMatrix;
+    tracedMatrix.allocate(overlapnewsystem.get_ketStateInfo());
+
+    //tracedMatrix.allocate(overlapnewsystem.get_ketStateInfo());
+    operatorfunctions::MultiplyWithOwnTranspose (iwave, tracedMatrix, 1.0);  
+    //operatorfunctions::MultiplyProduct(iwave, Transpose(const_cast<StackWavefunction&> (iwave)), tracedMatrix, 1.0);
+    int largeNumber = 1000000;
+    if (!mpigetrank())
+      double error = makeRotateMatrix(tracedMatrix, ketrotatematrix, largeNumber, sweepParams.get_keep_qstates());
+    tracedMatrix.deallocate();
+
+#ifndef SERIAL
+    broadcast(world, ketrotatematrix, 0);
+#endif
+    
+    iwave.SaveWavefunctionInfo (overlapBig.get_ketStateInfo(), overlapBig.get_leftBlock()->get_sites(), projectors[l]);
+    iwave.deallocate();
+
+    SaveRotationMatrix (overlapnewsystem.get_sites(), ketrotatematrix, projectors[l]);
+    
+    overlapnewsystem.transform_operators(rotatematrix, ketrotatematrix, false, false);
+    StackSpinBlock::store(forward, overlapnewsystem.get_sites(), overlapnewsystem, targetState, projectors[l]);
+    overlapsystem.clear(); overlapenvironment.clear(); overlapnewsystem.clear(); overlapnewenvironment.clear();
+
+    if(overlapsystem.get_sites().size() != 1) 
+      Stackmem[omprank].deallocate(overlapsystem.getdata(), (overlapnewsystem.getdata()-overlapsystem.getdata())+overlapnewsystem.memoryUsed());
+    //overlapenvironmentDot.deallocate();
+    overlapsystemDot.deallocate();
+  }
+
+  dmrginp.setOutputlevel() = originalOutputlevel;
+  
+  pout << newSystem<<endl;
+  StackSpinBlock::store(forward, newSystem.get_sites(), newSystem, targetState, targetState);
+  
+  if (dmrginp.outputlevel() > 0)
+    mcheck("after rotation and transformation of block");
+  
+  p2out << *dmrginp.guessgenT<<" "<<*dmrginp.multiplierT<<" "<<*dmrginp.operrotT<< "  "<<globaltimer.totalwalltime()<<" timer "<<endl;
+  p2out << *dmrginp.makeopsT<<" makeops "<<endl;
+  p2out << *dmrginp.datatransfer<<" datatransfer "<<endl;
+  p2out <<"oneindexopmult   twoindexopmult   Hc  couplingcoeff"<<endl;  
+  p2out << *dmrginp.oneelecT<<" "<<*dmrginp.twoelecT<<" "<<*dmrginp.hmultiply<<" "<<*dmrginp.couplingcoeff<<" hmult"<<endl;
+  p2out << *dmrginp.buildsumblock<<" "<<*dmrginp.buildblockops<<" build block"<<endl;
+  p2out << "addnoise  S_0_opxop  S_1_opxop   S_2_opxop"<<endl;
+  p3out << *dmrginp.addnoise<<" "<<*dmrginp.s0time<<" "<<*dmrginp.s1time<<" "<<*dmrginp.s2time<<endl;
+}
+
+/*
 
 void SpinAdapted::SweepResponse::StartUp (SweepParams &sweepParams, StackSpinBlock& system, StackSpinBlock& newSystem, const bool& dot_with_sys, int targetState, int correctionVector, vector<int>& projectors, vector<int>& baseStates)
 {
@@ -914,7 +1416,7 @@ void SpinAdapted::SweepResponse::WavefunctionCanonicalize (SweepParams &sweepPar
   StackWavefunction targetWave; targetWave.initialise(dmrginp.effective_molecule_quantum_vec(), big.get_leftBlock()->get_stateInfo(), big.get_rightBlock()->get_stateInfo(), sweepParams.get_onedot()); targetWave.Clear();
   pout << "transform previous"<<endl;
 
-  //**************************
+
   //if (!mpigetrank())
   //GuessWave::transform_previous_twodot_to_onedot_wavefunction(targetWave, big, targetState);
 
@@ -982,7 +1484,7 @@ void SpinAdapted::SweepResponse::WavefunctionCanonicalize (SweepParams &sweepPar
     
     pout << "transform iwave"<<endl;
     StackWavefunction iwave; iwave.initialise(dmrginp.effective_molecule_quantum_vec(), overlapBig.get_leftBlock()->get_stateInfo(), overlapBig.get_rightBlock()->get_stateInfo(), sweepParams.get_onedot()); iwave.Clear();
-    //****************************
+
     //if (!mpigetrank())
     //GuessWave::transform_previous_twodot_to_onedot_wavefunction(iwave, overlapBig, baseStates[l]);
     iwave.set_onedot(true);
@@ -1043,7 +1545,7 @@ void SpinAdapted::SweepResponse::WavefunctionCanonicalize (SweepParams &sweepPar
     
     pout << "transform iwave"<<endl;
     StackWavefunction iwave; iwave.initialise(dmrginp.effective_molecule_quantum_vec(), overlapBig.get_leftBlock()->get_stateInfo(), overlapBig.get_rightBlock()->get_stateInfo(), sweepParams.get_onedot()); iwave.Clear();
-    //******************************
+
     //if (!mpigetrank())
     //GuessWave::transform_previous_twodot_to_onedot_wavefunction(iwave, overlapBig, projectors[l]);
     iwave.set_onedot(true);
@@ -1093,3 +1595,4 @@ void SpinAdapted::SweepResponse::WavefunctionCanonicalize (SweepParams &sweepPar
   p2out << "addnoise  S_0_opxop  S_1_opxop   S_2_opxop"<<endl;
   p3out << *dmrginp.addnoise<<" "<<*dmrginp.s0time<<" "<<*dmrginp.s1time<<" "<<*dmrginp.s2time<<endl;
 }
+*/

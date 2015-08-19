@@ -103,7 +103,7 @@ void SpinAdapted::SweepCompress::BlockDecimateAndCompress (SweepParams &sweepPar
   outputState[0].Clear();
 
   //*************
-  //davidson_f(solution[0], outputState[0]);
+  davidson_f(solution[0], outputState[0]);
   double overlap = 1.0;
 
   SpinQuantum hq(0, SpinSpace(0), IrrepSpace(0));
@@ -118,12 +118,14 @@ void SpinAdapted::SweepCompress::BlockDecimateAndCompress (SweepParams &sweepPar
 
     StackWavefunction tempwave; tempwave.initialise(solution[0]); tempwave.Clear();
     GuessWave::onedot_shufflesysdot(big.get_ketStateInfo(), newbig.get_ketStateInfo(), solution[0], tempwave);  
-    DCOPY(solution[0].memoryUsed(), tempwave.get_data(), 1, solution[0].get_data(), 1);
+    copy(tempwave.get_operatorMatrix(), solution[0].get_operatorMatrix());
+    //DCOPY(solution[0].memoryUsed(), tempwave.get_data(), 1, solution[0].get_data(), 1);
     tempwave.deallocate();
 
     tempwave.initialise(outputState[0]); tempwave.Clear();
     GuessWave::onedot_shufflesysdot(big.get_braStateInfo(), newbig.get_braStateInfo(), outputState[0], tempwave);  
-    DCOPY(outputState[0].memoryUsed(), tempwave.get_data(), 1, outputState[0].get_data(), 1);
+    copy(tempwave.get_operatorMatrix(), outputState[0].get_operatorMatrix());
+    //DCOPY(outputState[0].memoryUsed(), tempwave.get_data(), 1, outputState[0].get_data(), 1);
     tempwave.deallocate();
 
     big.get_rightBlock()->clear();
@@ -140,7 +142,7 @@ void SpinAdapted::SweepCompress::BlockDecimateAndCompress (SweepParams &sweepPar
   //bratracedMatrix.allocate(newSystem.get_braStateInfo()); kettracedMatrix.allocate(newSystem.get_ketStateInfo());
 
 //**********************
-  //bratracedMatrix.makedensitymatrix(outputState, newbig, dmrginp.weights(sweepiter), 0.0, 0.0, true);
+  bratracedMatrix.makedensitymatrix(outputState, newbig, dmrginp.weights(sweepiter), 0.0, 0.0, true);
   if (sweepParams.get_noise() > NUMERICAL_ZERO) {
     pout << "adding noise  "<<trace(bratracedMatrix)<<"  "<<sweepiter<<"  "<<dmrginp.weights(sweepiter)[0]<<endl;
 
@@ -151,7 +153,7 @@ void SpinAdapted::SweepCompress::BlockDecimateAndCompress (SweepParams &sweepPar
     }
     bratracedMatrix.Clear();
     //************************
-    //bratracedMatrix.add_onedot_noise(solution[0], newbig);
+    bratracedMatrix.add_onedot_noise(solution[0], newbig);
 
     if (mpigetrank() == 0) {
       double norm = trace(bratracedMatrix);
@@ -167,11 +169,9 @@ void SpinAdapted::SweepCompress::BlockDecimateAndCompress (SweepParams &sweepPar
       Stackmem[omprank].deallocate(backupData, bratracedMatrix.memoryUsed());
     }
   }
-  environment.clear();
-  newEnvironment.clear();
 
   //****************************
-  //kettracedMatrix.makedensitymatrix(solution, newbig, dmrginp.weights(sweepiter), 0.0, 0.0, true);
+  kettracedMatrix.makedensitymatrix(solution, newbig, dmrginp.weights(sweepiter), 0.0, 0.0, true);
   double braerror, keterror;
   if (!mpigetrank()) {
     keterror = makeRotateMatrix(kettracedMatrix, ketrotateMatrix, newbig.get_rightBlock()->get_ketStateInfo().totalStates, 0);
@@ -199,10 +199,25 @@ void SpinAdapted::SweepCompress::BlockDecimateAndCompress (SweepParams &sweepPar
   outputState[0].deallocate();
   solution[0].deallocate();
 
+  environment.clear();
+  newEnvironment.deallocate();
+  newEnvironment.clear();
+  environment.removeAdditionalOps();
+  environment.clear();
+  environment.deallocate();
+
+
   p1out <<"\t\t\t Performing Renormalization "<<endl;
-  newSystem.transform_operators(brarotateMatrix, ketrotateMatrix);
+  newSystem.transform_operators(brarotateMatrix, ketrotateMatrix, false, false);
 
-
+  //if (system.get_sites().size() != 1) {
+  if (system.get_sites().size() != 1 || (dmrginp.add_noninteracting_orbs() && dmrginp.molecule_quantum().get_s().getirrep() != 0 && dmrginp.spinAdapted())) {
+    long memoryToFree = newSystem.getdata() - system.getdata();
+    long newsysmem = newSystem.memoryUsed();
+    newSystem.moveToNewMemory(system.getdata());
+    Stackmem[omprank].deallocate(newSystem.getdata()+newsysmem, memoryToFree);
+    system.clear();
+  }
 
 
   if (dmrginp.outputlevel() > 0)
@@ -334,6 +349,7 @@ double SpinAdapted::SweepCompress::do_one(SweepParams &sweepParams, const bool &
     sweepParams.set_env_add() = 1;
   }
 
+  //system.deallocate();
 
   pout << "\t\t\t Largest Error for Sweep with " << sweepParams.get_keep_states() << " states is " << finalError << endl;
   pout << "\t\t\t Largest overlap for Sweep with " << sweepParams.get_keep_states() << " states is " << finalEnergy[0] << endl;
@@ -435,27 +451,19 @@ void SpinAdapted::SweepCompress::Startup (SweepParams &sweepParams, StackSpinBlo
   StackSpinBlock big;  // new_sys = sys+sys_dot; new_env = env+env_dot; big = new_sys + new_env then renormalize to find new_sys(new)
   if (dot_with_sys) {
     newSystem.set_loopblock(true);
-    system.set_loopblock(false);
+    system.set_loopblock(true);
     newEnvironment.set_loopblock(false);
-    if (!sweepParams.get_onedot())
-      environment.set_loopblock(false);
+    environment.set_loopblock(false);
     InitBlocks::InitBigBlock(newSystem, newEnvironment, big); 
   }
   else{
-    if (sweepParams.get_onedot()) {
-      system.set_loopblock(false);
-      newEnvironment.set_loopblock(true);
-      environment.set_loopblock(true);
-      InitBlocks::InitBigBlock(system, newEnvironment, big); 
-    }
-    else {
-      newSystem.set_loopblock(false);
-      system.set_loopblock(false);
-      newEnvironment.set_loopblock(true);
-      environment.set_loopblock(false);
-      InitBlocks::InitBigBlock(newSystem, newEnvironment, big); 
-    }
+    system.set_loopblock(false);
+    newSystem.set_loopblock(false);
+    newEnvironment.set_loopblock(true);
+    environment.set_loopblock(true);
+    InitBlocks::InitBigBlock(system, newEnvironment, big); 
   }
+  
   //analyse_operator_distribution(big);
   dmrginp.guessgenT -> stop();
   dmrginp.multiplierT -> start();
@@ -482,7 +490,7 @@ void SpinAdapted::SweepCompress::Startup (SweepParams &sweepParams, StackSpinBlo
   //read the 0th wavefunction which we keep on the ket side because by default the ket stateinfo is used to initialize wavefunction
   //also when you use spinblock operators to multiply a state, it does so from the ket side i.e.  H|ket>
   //**********************
-  //GuessWave::guess_wavefunctions(solution, e, big, sweepParams.set_guesstype(), sweepParams.get_onedot(), dot_with_sys, 1, 0.0, baseState); 
+  GuessWave::guess_wavefunctions(solution, e, big, sweepParams.set_guesstype(), sweepParams.get_onedot(), dot_with_sys, 1, 0.0, baseState); 
 
   StackSpinBlock newbig;
 
@@ -517,15 +525,13 @@ void SpinAdapted::SweepCompress::Startup (SweepParams &sweepParams, StackSpinBlo
 
 
   //************************
-  //bratracedMatrix.makedensitymatrix(solution, newbig, dmrginp.weights(0), 0.0, 
-  //0.0, true);
+  bratracedMatrix.makedensitymatrix(solution, newbig, dmrginp.weights(0), 0.0, 
+				    0.0, true);
 
-  environment.clear();
-  newEnvironment.clear();
 
   //******************************
-  //kettracedMatrix.makedensitymatrix(solution, newbig, dmrginp.weights(0), 0.0, 
-  //0.0, true);
+  kettracedMatrix.makedensitymatrix(solution, newbig, dmrginp.weights(0), 0.0, 
+				    0.0, true);
 
   double keterror, braerror;
   if (!mpigetrank()) {
@@ -553,8 +559,23 @@ void SpinAdapted::SweepCompress::Startup (SweepParams &sweepParams, StackSpinBlo
 
   solution[0].deallocate();
 
-  newSystem.transform_operators(brarotateMatrix, ketrotateMatrix);
+  environment.clear();
+  newEnvironment.deallocate();
+  newEnvironment.clear();
+  environment.removeAdditionalOps();
+  environment.clear();
+  environment.deallocate();
 
+  newSystem.transform_operators(brarotateMatrix, ketrotateMatrix, false, false);
+
+  //if (system.get_sites().size() != 1) {
+  if (system.get_sites().size() != 1 || (dmrginp.add_noninteracting_orbs() && dmrginp.molecule_quantum().get_s().getirrep() != 0 && dmrginp.spinAdapted())) {
+    long memoryToFree = newSystem.getdata() - system.getdata();
+    long newsysmem = newSystem.memoryUsed();
+    newSystem.moveToNewMemory(system.getdata());
+    Stackmem[omprank].deallocate(newSystem.getdata()+newsysmem, memoryToFree);
+    system.clear();
+  }
 
 
   if (dmrginp.outputlevel() > 0)
@@ -603,7 +624,8 @@ void SpinAdapted::SweepCompress::WavefunctionCanonicalize (SweepParams &sweepPar
       environmentDotStart = systemDotEnd - 1;
       environmentDotEnd = environmentDotStart - environmentDotSize;
     }
-  systemDot = StackSpinBlock(systemDotStart, systemDotEnd, system.get_integralIndex(), true);
+  systemDot = singleSiteBlocks[system.get_integralIndex()][systemDotStart];
+  //StackSpinBlock(systemDotStart, systemDotEnd, system.get_integralIndex(), true);
   vector<int> sitesenvdot(environmentDotSize+1, 0);
   int index = 0;
   for (int i=min(environmentDotStart, environmentDotEnd); i<max(environmentDotStart, environmentDotEnd)+1; i++) {
@@ -611,7 +633,8 @@ void SpinAdapted::SweepCompress::WavefunctionCanonicalize (SweepParams &sweepPar
     index++;
   }
 
-  StackSpinBlock::restore(!forward, sitesenvdot, environmentDot, correctionVector, baseState); 
+  environmentDot = singleSiteBlocks[system.get_integralIndex()][environmentDotStart];
+  //StackSpinBlock::restore(!forward, sitesenvdot, environmentDot, correctionVector, baseState); 
 
   StackSpinBlock environment, newEnvironment;
   
@@ -650,8 +673,8 @@ void SpinAdapted::SweepCompress::WavefunctionCanonicalize (SweepParams &sweepPar
   solution[0].initialise(dmrginp.effective_molecule_quantum_vec(), big.get_leftBlock()->get_stateInfo(), big.get_rightBlock()->get_stateInfo(), sweepParams.get_onedot()); solution[0].Clear();
 
   //**************************
-  //if (!mpigetrank())
-  //GuessWave::transform_previous_twodot_to_onedot_wavefunction(solution[0], big, baseState);
+  if (!mpigetrank())
+    GuessWave::transform_previous_twodot_to_onedot_wavefunction(solution[0], big, baseState);
   solution[0].set_onedot(true);
 
 #ifndef SERIAL
@@ -660,14 +683,14 @@ void SpinAdapted::SweepCompress::WavefunctionCanonicalize (SweepParams &sweepPar
 #endif
 
   //****************
-  //multiply_h davidson_f(big, sweepParams.get_onedot());
+  multiply_h davidson_f(big, sweepParams.get_onedot());
   vector<StackWavefunction> outputState; outputState.resize(1);
   outputState[0].initialise(dmrginp.effective_molecule_quantum_vec(), big.get_leftBlock()->get_braStateInfo(), big.get_rightBlock()->get_braStateInfo(), true);
   outputState[0].set_onedot(true);
   outputState[0].Clear();
 
   //***********
-  //davidson_f(solution[0], outputState[0]);
+  davidson_f(solution[0], outputState[0]);
 
   
   std::vector<Matrix> ketrotateMatrix, brarotateMatrix;
@@ -675,11 +698,8 @@ void SpinAdapted::SweepCompress::WavefunctionCanonicalize (SweepParams &sweepPar
   bratracedMatrix.allocate(newSystem.get_braStateInfo());
   kettracedMatrix.allocate(newSystem.get_ketStateInfo());
 
-  //StackDensityMatrix bratracedMatrix, kettracedMatrix;
-  //bratracedMatrix.allocate(newSystem.get_braStateInfo());
-  //kettracedMatrix.allocate(newSystem.get_ketStateInfo());
-  //bratracedMatrix.makedensitymatrix(outputState, big, dmrginp.weights(0), 0.0, 0.0, true);
-  //kettracedMatrix.makedensitymatrix(solution, big, dmrginp.weights(0), 0.0, 0.0, true);
+  bratracedMatrix.makedensitymatrix(outputState, big, dmrginp.weights(0), 0.0, 0.0, true);
+  kettracedMatrix.makedensitymatrix(solution, big, dmrginp.weights(0), 0.0, 0.0, true);
   double braerror, keterror;
   int largeNumber = 1000000;
   if (!mpigetrank()) {
@@ -708,8 +728,9 @@ void SpinAdapted::SweepCompress::WavefunctionCanonicalize (SweepParams &sweepPar
   outputState[0].Clear();
   solution[0].Clear();
 
+  //environmentDot.deallocate();
   p1out <<"\t\t\t Performing Renormalization "<<endl;
-  newSystem.transform_operators(brarotateMatrix, ketrotateMatrix);
+  newSystem.transform_operators(brarotateMatrix, ketrotateMatrix, false, false);
 
 
   
