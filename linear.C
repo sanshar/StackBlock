@@ -328,7 +328,6 @@ double SpinAdapted::Linear::MinResMethod(StackWavefunction& xi, double normtol, 
 #ifndef SERIAL
   mpi::communicator world;
   MPI::COMM_WORLD.Bcast(xi.get_data(), xi.memoryUsed(), MPI_DOUBLE, 0);
-  //mpi::broadcast(world, xi, 0);
 #endif
 
   StackWavefunction pi, ri; 
@@ -367,7 +366,7 @@ double SpinAdapted::Linear::MinResMethod(StackWavefunction& xi, double normtol, 
     
     makeOrthogonalToLowerStates(ri, lowerStates);
     pi.initialise(ri);
-    
+
     DCOPY(ri.memoryUsed(), ri.get_data(), 1, pi.get_data(), 1); 
     //pi = ri;
 

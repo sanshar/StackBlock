@@ -40,7 +40,7 @@ void SpinAdapted::Sweep::makeSystemEnvironmentBigOverlapBlocks(const std::vector
   
   if (systemSites.size() == 1) {
     int restartSize = 0; bool restart=false, warmUp = false;
-    InitBlocks::InitStartingBlock(system, forward, braState, ketState, 
+    InitBlocks::InitStartingBlock(system, forward, braState, braState, 
 				  sweepParams.get_forward_starting_size(), 
 				  sweepParams.get_backward_starting_size(), restartSize, 
 				  restart, warmUp, integralIndex);
@@ -194,7 +194,9 @@ void SpinAdapted::Sweep::BlockAndDecimate (SweepParams &sweepParams, StackSpinBl
   StackSpinBlock environment, newEnvironment;
   StackSpinBlock big;  // new_sys = sys+sys_dot; new_env = env+env_dot; big = new_sys + new_env then renormalize to find new_sys(new)
 
-  makeSystemEnvironmentBigBlocks(system, systemDot, newSystem, environment, environmentDot, newEnvironment, big, sweepParams, dot_with_sys, useSlater, system.get_integralIndex(), sweepParams.current_root(), sweepParams.current_root());
+  makeSystemEnvironmentBigBlocks(system, systemDot, newSystem, environment, environmentDot, newEnvironment, 
+				 big, sweepParams, dot_with_sys, useSlater, system.get_integralIndex(), 
+				 sweepParams.current_root(), sweepParams.current_root());
 
   //analyse_operator_distribution(big);
   dmrginp.guessgenT -> stop();
@@ -216,12 +218,17 @@ void SpinAdapted::Sweep::BlockAndDecimate (SweepParams &sweepParams, StackSpinBl
 
   p1out << "\t\t\t Solving wavefunction "<<endl;
 
-  std::vector<StackWavefunction> lowerStates;
+  std::vector<StackWavefunction> lowerStates; 
 
   if(sweepParams.current_root() >= 0 ) {
+    if (mpigetrank() == 0) {
+      lowerStates.resize(sweepParams.current_root());
+      for (int istate=0; istate<sweepParams.current_root(); istate++)
+	lowerStates[istate].initialise(dmrginp.effective_molecule_quantum_vec(), big.get_leftBlock()->get_stateInfo(), big.get_rightBlock()->get_stateInfo(), sweepParams.get_onedot());
+    }
+
     int originalOutputlevel = dmrginp.outputlevel();
     dmrginp.setOutputlevel() = -1;
-    lowerStates.resize(sweepParams.current_root());
 
     DiagonalMatrix e;
     for (int istate = 0; istate<sweepParams.current_root(); istate++) {
@@ -237,7 +244,6 @@ void SpinAdapted::Sweep::BlockAndDecimate (SweepParams &sweepParams, StackSpinBl
 
 
       if (mpigetrank() == 0) {
-	lowerStates[istate].initialise(dmrginp.effective_molecule_quantum_vec(), big.get_leftBlock()->get_stateInfo(), big.get_rightBlock()->get_stateInfo(), sweepParams.get_onedot());
 	lowerStates[istate].Clear();
 
 	StackWavefunction temp; temp.initialise(dmrginp.effective_molecule_quantum_vec(), overlapBig.get_leftBlock()->get_stateInfo(), overlapBig.get_rightBlock()->get_stateInfo(), true);
@@ -248,7 +254,15 @@ void SpinAdapted::Sweep::BlockAndDecimate (SweepParams &sweepParams, StackSpinBl
 	overlapBig.multiplyOverlap(temp, &lowerStates[istate], MAX_THRD);
 	temp.deallocate();
       }
-      overlapsystem.clear(); overlapenvironment.clear(); overlapnewsystem.clear(); overlapnewenvironment.clear();
+      //overlapsystem.clear(); overlapenvironment.clear(); overlapnewsystem.clear(); overlapnewenvironment.clear();
+      overlapnewenvironment.deallocate();
+      overlapenvironment.deallocate();
+      overlapnewsystem.deallocate();
+      //if(overlapsystem.get_sites().size() != 1) 
+      if (overlapsystem.get_sites().size() != 1 || (dmrginp.add_noninteracting_orbs() && dmrginp.molecule_quantum().get_s().getirrep() != 0 && dmrginp.spinAdapted())) 
+	overlapsystem.deallocate();
+      
+
     }
     dmrginp.setOutputlevel() = originalOutputlevel;
   }
@@ -259,11 +273,15 @@ void SpinAdapted::Sweep::BlockAndDecimate (SweepParams &sweepParams, StackSpinBl
                              sweepParams.get_additional_noise(), sweepParams.get_onedot(), system, systemDot, environment, 
 			     dot_with_sys, useSlater, sweepParams.get_sweep_iter(), sweepParams.current_root(), lowerStates);
 
-  //newEnvironment.deallocate_coreops();
-  newEnvironment.clear();
+  if (mpigetrank() == 0 && sweepParams.current_root() >= 0 ) 
+    for (int istate = sweepParams.current_root()-1; istate>-1; istate--) 
+      lowerStates[istate].deallocate();
+
+
+  //newEnvironment.clear();
   newEnvironment.deallocate();
   environment.removeAdditionalOps();
-  environment.clear();
+  //environment.clear();
   environment.deallocate();
 
 
@@ -275,19 +293,16 @@ void SpinAdapted::Sweep::BlockAndDecimate (SweepParams &sweepParams, StackSpinBl
   dmrginp.operrotT -> start();
   newSystem.transform_operators(rotatematrix);
 
-  if (system.get_sites().size() != 1) {
+  if (system.get_sites().size() != 1 || (dmrginp.add_noninteracting_orbs() && dmrginp.molecule_quantum().get_s().getirrep() != 0 && dmrginp.spinAdapted())) {
     long memoryToFree = newSystem.getdata() - system.getdata();
     long newsysmem = newSystem.memoryUsed();
     newSystem.moveToNewMemory(system.getdata());
     Stackmem[omprank].deallocate(newSystem.getdata()+newsysmem, memoryToFree);
-    system.clear();
+    //system.clear();
   }
 
 
 
-  if (mpigetrank() == 0) 
-    for (int istate = sweepParams.current_root()-1; istate>-1; istate--) 
-      lowerStates[istate].deallocate();
 
   //save the updated overlap spinblock
   if( sweepParams.current_root() >= 0 ) {
@@ -296,8 +311,8 @@ void SpinAdapted::Sweep::BlockAndDecimate (SweepParams &sweepParams, StackSpinBl
     for (int istate = 0; istate<sweepParams.current_root(); istate++) {
       StackSpinBlock overlapBig;
       StackSpinBlock overlapsystem, overlapenvironment, overlapnewsystem, overlapnewenvironment;
-      StackSpinBlock overlapsystemDot(systemDotStart, systemDotEnd, newSystem.get_integralIndex(), true);
-      StackSpinBlock overlapenvironmentDot(environmentDotStart, environmentDotEnd, newSystem.get_integralIndex(), true);
+      StackSpinBlock overlapsystemDot= singleSiteBlocks[system.get_integralIndex()][systemDotStart];
+      StackSpinBlock overlapenvironmentDot=singleSiteBlocks[system.get_integralIndex()][environmentDotStart];
       guessWaveTypes guesstype = sweepParams.get_block_iter() == 0 ? TRANSPOSE : TRANSFORM;
       
       DiagonalMatrix e;
@@ -329,9 +344,19 @@ void SpinAdapted::Sweep::BlockAndDecimate (SweepParams &sweepParams, StackSpinBl
       iwave.SaveWavefunctionInfo (overlapBig.get_ketStateInfo(), overlapBig.get_leftBlock()->get_sites(), istate);
       SaveRotationMatrix (overlapnewsystem.get_sites(), ketrotatematrix, istate);
       iwave.deallocate();
-      overlapnewsystem.transform_operators(rotatematrix, ketrotatematrix);
+
+      overlapnewenvironment.deallocate();
+      overlapenvironment.deallocate();
+
+      overlapnewsystem.transform_operators(rotatematrix, ketrotatematrix, false, false);
       StackSpinBlock::store(forward, overlapnewsystem.get_sites(), overlapnewsystem, sweepParams.current_root(), istate);
-      overlapsystem.clear(); overlapenvironment.clear(); overlapnewsystem.clear(); overlapnewenvironment.clear();
+
+      if(overlapsystem.get_sites().size() != 1) 
+	Stackmem[omprank].deallocate(overlapsystem.getdata(), (overlapnewsystem.getdata()-overlapsystem.getdata())+overlapnewsystem.memoryUsed());
+      //overlapnewsystem.deallocate();
+      //overlapsystem.deallocate();
+      
+      //overlapsystem.clear(); overlapenvironment.clear(); overlapnewsystem.clear(); overlapnewenvironment.clear();
       
     }
     dmrginp.setOutputlevel() = originalOutputlevel;
@@ -392,7 +417,7 @@ double SpinAdapted::Sweep::do_one(SweepParams &sweepParams, const bool &warmUp, 
   if(!restart)
     sweepParams.set_block_iter() = 0;
 
- 
+
   p2out << "\t\t\t Starting block is :: " << endl << system << endl;
 
   StackSpinBlock::store (forward, system.get_sites(), system, sweepParams.current_root(), sweepParams.current_root()); // if restart, just restoring an existing block --

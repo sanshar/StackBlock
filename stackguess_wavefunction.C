@@ -288,7 +288,14 @@ void GuessWave::basic_guess_wavefunction(DiagonalMatrix& e, StackWavefunction& t
   RowVector trialvector(states);
   trialvector = 0.;
 
-  trialvector(e_sort.begin()->second) = 1.;
+  int index = 0;
+  for (multimap<double, int>::iterator it = e_sort.begin(); it != e_sort.end(); it++) {
+    if (index == state) {
+      trialvector(it->second) = 1.;
+      break;
+    }
+    index++;
+  }
   trial.CollectFrom(trialvector);
 }
 
@@ -317,7 +324,7 @@ void GuessWave::guess_wavefunctions(StackWavefunction& solution, DiagonalMatrix&
     }
 
     double norm = DotProduct(solution, solution);
-    /*
+
     if (guesswavetype == BASIC) {
       StackWavefunction noiseMatrix; noiseMatrix.initialise( solution);
       noiseMatrix.Randomise();
@@ -328,7 +335,7 @@ void GuessWave::guess_wavefunctions(StackWavefunction& solution, DiagonalMatrix&
       Normalise(solution);
       noiseMatrix.deallocate();
     }
-    */
+
     norm = DotProduct(solution, solution);
     p2out << "\t\t\t Norm of wavefunction :: "<<norm<<endl;
     
@@ -358,7 +365,7 @@ void GuessWave::guess_wavefunctions(StackWavefunction& solution, DiagonalMatrix&
     }
 
     double norm = DotProduct(solution, solution);
-    /*
+
     if (guesswavetype == BASIC) {
       StackWavefunction noiseMatrix; noiseMatrix.initialise( solution);
       noiseMatrix.Randomise();
@@ -368,7 +375,7 @@ void GuessWave::guess_wavefunctions(StackWavefunction& solution, DiagonalMatrix&
       }
       noiseMatrix.deallocate();
     }
-    */
+
     Normalise(solution);
     norm = DotProduct(solution, solution);
     p2out << "\t\t\t Norm of wavefunction :: "<<norm<<endl;

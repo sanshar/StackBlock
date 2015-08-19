@@ -226,7 +226,8 @@ void Sweep::InitializeOverlapSpinBlocks(SweepParams &sweepParams, const bool &fo
   pout << "\t\t\t ============================================================================ " << endl;
 
   int restartSize = 0; bool restart = false, warmUp = false;
-  InitBlocks::InitStartingBlock (system,forward, stateA, stateB, sweepParams.get_forward_starting_size(), sweepParams.get_backward_starting_size(), restartSize, restart, warmUp, integralIndex);
+  //InitBlocks::InitStartingBlock (system,forward, stateA, stateB, sweepParams.get_forward_starting_size(), sweepParams.get_backward_starting_size(), restartSize, restart, warmUp, integralIndex);
+  InitBlocks::InitStartingBlock (system,forward, stateA, stateA, sweepParams.get_forward_starting_size(), sweepParams.get_backward_starting_size(), restartSize, restart, warmUp, integralIndex);
 
   sweepParams.set_block_iter() = 0;
 

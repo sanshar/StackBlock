@@ -47,7 +47,6 @@ void SpinAdapted::InitBlocks::InitStartingBlock (StackSpinBlock& startingBlock, 
       newstartingBlock.default_op_components(false, startingBlock, dummyblock, true, true, leftState==rightState);
       newstartingBlock.setstoragetype(LOCAL_STORAGE);
       newstartingBlock.BuildSumBlock(NO_PARTICLE_SPIN_NUMBER_CONSTRAINT, startingBlock, dummyblock);
-      startingBlock.clear();
       startingBlock = newstartingBlock;
     }
   }
@@ -63,6 +62,7 @@ void SpinAdapted::InitBlocks::InitStartingBlock (StackSpinBlock& startingBlock, 
 	backwardSites.push_back (dmrginp.last_site()/2 - i - 1);
     }
     sort (backwardSites.begin (), backwardSites.end ());
+    //startingBlock = singleSiteBlocks[integralIndex][backwardSites[0]];
     startingBlock.set_integralIndex() = integralIndex;
     startingBlock.default_op_components(false, leftState==rightState);
     startingBlock.BuildTensorProductBlock (backwardSites);

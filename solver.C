@@ -110,8 +110,8 @@ void SpinAdapted::Solver::solve_wavefunction(vector<StackWavefunction>& solution
 	e.ReSize(0);
 
       //**************************
-      //GuessWave::guess_wavefunctions(solution[0], e, big, guesswavetype, onedot, currentRoot, 
-      //dot_with_sys, 0.0); 
+      GuessWave::guess_wavefunctions(solution[0], e, big, guesswavetype, onedot, currentRoot, 
+				     dot_with_sys, 0.0); 
 
       if (guesswavetype == BASIC)
 	solution[0].Clear();
