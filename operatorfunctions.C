@@ -572,9 +572,21 @@ void SpinAdapted::operatorfunctions::TensorMultiply(const StackSpinBlock *ablock
 
   const std::vector< std::pair<std::pair<int, int>, StackMatrix> >& nonZeroBlocks = v[0].get_nonZeroBlocks();
 
+  long maxlen = 0;
+  for (int lQ=0; lQ <leftBraOpSz; lQ++)
+    for (int rQPrime=0; rQPrime <rightKetOpSz; rQPrime++)
+      if (maxlen < lbraS->getquantastates(lQ)* rketS->getquantastates(rQPrime))
+	maxlen = lbraS->getquantastates(lQ)* rketS->getquantastates(rQPrime);
+
   int OMPRANK = omprank;
 
   int quanta_thrds = dmrginp.quanta_thrds();
+
+  double* dataArray[quanta_thrds];
+  for (int q = 0; q < quanta_thrds; q++) {
+    dataArray[q] = Stackmem[OMPRANK].allocate(maxlen);
+  }
+
 #pragma omp parallel for schedule(dynamic) num_threads(quanta_thrds)
   for (int index = 0; index<nonZeroBlocks.size(); index++) {
     int lQ = nonZeroBlocks[index].first.first, rQ = nonZeroBlocks[index].first.second;
@@ -587,9 +599,7 @@ void SpinAdapted::operatorfunctions::TensorMultiply(const StackSpinBlock *ablock
 	  int lQPrime = rowinds[l];
 	  if (leftOp.allowed(lQ, lQPrime) ) {
 
-	    long sum = 0;
-	    double data[lbraS->getquantastates(lQ)* rketS->getquantastates(rQPrime)];
-	    StackMatrix m(data, lbraS->getquantastates(lQ), rketS->getquantastates(rQPrime));
+	    StackMatrix m(dataArray[omprank], lbraS->getquantastates(lQ), rketS->getquantastates(rQPrime));
 	    
 	    double factor = leftOp.get_scaling(lbraS->quanta[lQ], lketS->quanta[lQPrime]);
 	    MatrixMultiply (leftOp.operator_element(lQ, lQPrime), leftConj, c.operator_element(lQPrime, rQPrime), 'n',
@@ -614,6 +624,9 @@ void SpinAdapted::operatorfunctions::TensorMultiply(const StackSpinBlock *ablock
     }
   }
 
+  for (int q = quanta_thrds-1; q > -1 ; q--) {
+   Stackmem[OMPRANK].deallocate(dataArray[q], maxlen);
+  }
 
   
 
