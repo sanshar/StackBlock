@@ -110,12 +110,17 @@ class StackSpinBlock
 
   //these will be tricky to implement
   void addAdditionalOps() ;
+  void addAllCompOps() ;
+  void addOneIndexOps() ;
+  void messagePassTwoIndexOps() ;
+  void formTwoIndexOps() ;
   void removeAdditionalOps() ;
   void sendcompOps(StackOp_component_base& opcomp, int I, int J, int optype, int compsite) ;
   void recvcompOps(StackOp_component_base& opcomp, int I, int J, int optype) ;
 
   //simple functions
   const boost::shared_ptr<TwoElectronArray> get_twoInt() const {return twoInt;}
+  void set_twoInt(int integralIndex);
   int get_integralIndex() const {return integralIndex;}
   int& set_integralIndex() {return integralIndex;}
   const StateInfo& get_stateInfo() const {return ketStateInfo;}

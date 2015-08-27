@@ -33,8 +33,10 @@ class StackMatrix
   void allocate(double* pData, int pnrows, int pncols) {data=pData; nrows=pnrows; ncols=pncols;}
   double* Store() const {return data;}
   int Storage() const {return ncols*nrows;}
-  int Ncols() const {return ncols;}
-  int Nrows() const {return nrows;}
+  const int& Ncols() const {return ncols;}
+  const int& Nrows() const {return nrows;}
+  int& Ncols() {return ncols;}
+  int& Nrows() {return nrows;}
   double& operator()(int i, int j) { return data[(i-1)*ncols + j-1];}  //numbering starts from 1,1
   const double& operator()(int i, int j) const { return data[(i-1)*ncols + j-1];} //numbering starts from 1,1
 

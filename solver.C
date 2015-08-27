@@ -20,6 +20,35 @@ Sandeep Sharma and Garnet K.-L. Chan
 #include "Stackspinblock.h"
 #include "Stackwavefunction.h"
 
+
+void memorySummary(StackSpinBlock& big, vector<StackWavefunction>& solution) {
+
+  long sysmem, envmem, sysop=0, envop=0;
+  StackSpinBlock* sys = big.get_leftBlock()->get_leftBlock() == 0 ? big.get_leftBlock() : big.get_leftBlock()->get_leftBlock();
+  StackSpinBlock* env = big.get_rightBlock()->get_leftBlock() == 0 ? big.get_rightBlock() : big.get_rightBlock()->get_leftBlock();
+  if (big.get_leftBlock()->has(CRE_DESCOMP)) {
+    if (big.get_leftBlock()->get_op_array(CRE_DESCOMP).get_size()!=0)
+      sysop = big.get_leftBlock()->get_op_array(CRE_DESCOMP).get_local_element(0)[1]->memoryUsed();
+    if (big.get_rightBlock()->get_op_array(CRE_DES).get_size()!=0)
+      envop = big.get_rightBlock()->get_op_array(CRE_DES).get_local_element(0)[1]->memoryUsed();
+  }
+  else {
+    if (big.get_leftBlock()->get_op_array(CRE_DES).get_size()!=0)
+      sysop = big.get_leftBlock()->get_op_array(CRE_DES).get_local_element(0)[1]->memoryUsed();
+    if (big.get_rightBlock()->get_op_array(CRE_DESCOMP).get_size()!=0)
+      envop = big.get_rightBlock()->get_op_array(CRE_DESCOMP).get_local_element(0)[1]->memoryUsed();
+  }
+  p2out << str(boost::format("%-40s - %-10.4f\n") % "Total memory" % (Stackmem[0].size*8/1.e9));
+  p2out << str(boost::format("%-40s - %-10.4f\n") % "  |-->Memory used" % (Stackmem[0].memused*8/1.e9));
+  p2out << str(boost::format("%-40s - %-10.4f\n") % "      |-->System" % ((sys->memoryUsed()+sys->additionalMemoryUsed())*8/1.e9));
+  p2out << str(boost::format("%-40s - %-10.4f\n") % "      |-->Envrionment" % ((env->memoryUsed()+env->additionalMemoryUsed())*8/1.e9));
+  p2out << str(boost::format("%-40s - %-10.4f\n") % "  |-->Memory left" % ((Stackmem[0].size-Stackmem[0].memused)*8/1.e9));
+  p2out << str(boost::format("%-40s - %3i x %-10.4f = %-10.4f\n") % "      |-->wavefunction" %(3*solution.size()+2*numthrds) %((solution[0].memoryUsed())*8/1.e9) %(((3*solution.size()+2*numthrds)*solution[0].memoryUsed())*8/1.e9));
+  p2out << str(boost::format("%-40s - %3i x %-10.4f = %-10.4f\n") % "      |-->sys op" %(numthrds) %((sysop)*8/1.e9) %(numthrds*sysop*8/1.e9));
+  p2out << str(boost::format("%-40s - %3i x %-10.4f = %-10.4f\n") % "      |-->env op" %(numthrds) %((envop)*8/1.e9) %(numthrds*envop*8/1.e9));
+
+}
+
 void SpinAdapted::Solver::solve_wavefunction(vector<StackWavefunction>& solution, vector<double>& energies, StackSpinBlock& big, const double tol, 
 					     const guessWaveTypes& guesswavetype, const bool &onedot, const bool& dot_with_sys, const bool& warmUp,
 					     double additional_noise, int currentRoot, std::vector<StackWavefunction>& lowerStates)
@@ -76,6 +105,7 @@ void SpinAdapted::Solver::solve_wavefunction(vector<StackWavefunction>& solution
       dmrginp.guesswf->start();
       //mcheck ("before guess wavefunction");
       solution.resize(dmrginp.deflation_max_size());
+      if (mpigetrank()==0) memorySummary(big, solution);
       for (int i=nroots; i<solution.size(); i++)
 	if (mpigetrank() == 0)
 	  solution[i].initialise(dmrginp.effective_molecule_quantum_vec(), big.get_leftBlock()->get_stateInfo(), big.get_rightBlock()->get_stateInfo(), onedot);

@@ -20,14 +20,6 @@ Sandeep Sharma and Garnet K.-L. Chan
 #include <fstream>
 #include "blas_calls.h"
 #include "ObjectMatrix.h"
-#ifdef USING_DOUBLE
-#define GAXPY DAXPY
-#define GEMM DGEMM
-#endif
-#ifdef USING_FLOAT
-#define GAXPY SAXPY
-#define GEMM SGEMM
-#endif
 
 using namespace std;
 
@@ -149,7 +141,7 @@ namespace SpinAdapted{
 		{
 		  Real scale = scaleA * scaleB * a (i+1,j+1);
 		  for (int k = 0; k < bRows; ++k)
-		    GAXPY (bCols, scale, &b (k+1,1), 1, &c (i * bRows + k+1 +rowstride,j * bCols+1+colstride), 1);
+		    DAXPY (bCols, scale, &b (k+1,1), 1, &c (i * bRows + k+1 +rowstride,j * bCols+1+colstride), 1);
 		}
 	    return;
 #else
@@ -170,7 +162,7 @@ namespace SpinAdapted{
 		{
 		  Real scale = scaleA * scaleB * a (j+1,i+1);
 		  for (int k = 0; k < bRows; ++k)
-		    GAXPY (bCols, scale, &b (k+1,1), 1, &c (i * bRows + k+1+rowstride,j * bCols+1+colstride), 1);
+		    DAXPY (bCols, scale, &b (k+1,1), 1, &c (i * bRows + k+1+rowstride,j * bCols+1+colstride), 1);
 		}
 	    return;
 #else	  
@@ -191,7 +183,7 @@ namespace SpinAdapted{
 		{
 		  Real scale = scaleA * scaleB * a (i+1,j+1);
 		  for (int k = 0; k < bRows; ++k)
-		    GAXPY (bCols, scale, &b (1,k+1), bRows, &c (i * bRows + k+1+rowstride,j * bCols+1+colstride), 1);
+		    DAXPY (bCols, scale, &b (1,k+1), bRows, &c (i * bRows + k+1+rowstride,j * bCols+1+colstride), 1);
 		}
 	    return;
 #else
@@ -212,7 +204,7 @@ namespace SpinAdapted{
 		{
 		  Real scale = scaleA * scaleB * a (j+1,i+1);
 		  for (int k = 0; k < bRows; ++k)
-		    GAXPY (bCols, scaleA * scaleB * a (j+1,i+1), &b (1,k+1), bRows, &c (i * bRows + k+1+rowstride,j * bCols+1+colstride), 1);
+		    DAXPY (bCols, scaleA * scaleB * a (j+1,i+1), &b (1,k+1), bRows, &c (i * bRows + k+1+rowstride,j * bCols+1+colstride), 1);
 		}
 	    return;
 #else
@@ -243,7 +235,7 @@ namespace SpinAdapted{
 #ifdef BLAS 
       assert ((a.Nrows () == b.Nrows ()) && (a.Ncols () == b.Ncols ()));
       int n = a.Nrows () * a.Ncols ();
-      GAXPY (n, d, a.Store (), 1, b.Store (), 1);
+      DAXPY (n, d, a.Store (), 1, b.Store (), 1);
 #else
       b += d * a;
 #endif
@@ -267,7 +259,7 @@ namespace SpinAdapted{
 	  {	  
 	    assert ((aCols == bRows) && (cRows == aRows) && (cCols == bCols));
 #ifdef BLAS
-	    GEMM ('n', 'n', bCols, aRows, bRows, scale, b.Store (), bCols, a.Store (), aCols, cfactor, c.Store (), bCols);
+	    dgemm_ (&conjA, &conjB, &bCols, &aRows, &bRows, &scale, b.Store (), &bCols, a.Store (), &aCols, &cfactor, c.Store (), &bCols);
 #else
 	    c += (scale * a) * b;
 #endif
@@ -276,7 +268,7 @@ namespace SpinAdapted{
 	  {
 	    assert ((aCols == bCols) && (cRows == aRows) && (cCols == bRows));
 #ifdef BLAS
-	    GEMM ('t', 'n', bRows, aRows, bCols, scale, b.Store (), bCols, a.Store (), aCols, cfactor, c.Store (), bRows);
+	    dgemm_ (&conjB, &conjA, &bRows, &aRows, &bCols, &scale, b.Store (), &bCols, a.Store (), &aCols, &cfactor, c.Store (), &bRows);
 #else
 	    c += (scale * a) * b.t ();
 #endif
@@ -285,7 +277,7 @@ namespace SpinAdapted{
 	  {
 	    assert ((aRows == bRows) && (cRows == aCols) && (cCols == bCols));
 #ifdef BLAS
-	    GEMM ('n', 't', bCols, aCols, bRows, scale, b.Store (), bCols, a.Store (), aCols, cfactor, c.Store (), bCols);
+	    dgemm_ (&conjB, &conjA, &bCols, &aCols, &bRows, &scale, b.Store (), &bCols, a.Store (), &aCols, &cfactor, c.Store (), &bCols);
 #else
 	    c += (scale * a.t ()) * b;
 #endif
@@ -294,7 +286,7 @@ namespace SpinAdapted{
 	  {
 	    assert ((aRows == bCols) && (cRows == aCols) && (cCols == bRows));
 #ifdef BLAS
-	    GEMM ('t', 't', bRows, aCols, bCols, scale, b.Store (), bCols, a.Store (), aCols, cfactor, c.Store (), bRows);
+	    dgemm_ (&conjB, &conjA, &bRows, &aCols, &bCols, &scale, b.Store (), &bCols, a.Store (), &aCols, &cfactor, c.Store (), &bRows);
 #else
 	    c += (scale * a.t ()) * b.t ();
 #endif

@@ -31,6 +31,7 @@ void SpinAdapted::InitBlocks::InitStartingBlock (StackSpinBlock& startingBlock, 
       StackSpinBlock::restore (forward, sites, startingBlock, leftState, rightState);
     else
       StackSpinBlock::restore (true, sites, startingBlock, leftState, rightState);
+    startingBlock.set_twoInt(integralIndex);
   }
   else if (forward)
   {
@@ -262,15 +263,19 @@ void SpinAdapted::InitBlocks::InitNewEnvironmentBlock(StackSpinBlock &environmen
     if(dot_with_sys && onedot) {
       newEnvironment.set_integralIndex() = integralIndex;
       StackSpinBlock::restore (!forward, environmentSites, newEnvironment, leftState, rightState);
+      newEnvironment.set_twoInt(integralIndex);
     } else {
       environment.set_integralIndex() = integralIndex;
       StackSpinBlock::restore (!forward, environmentSites, environment, leftState, rightState);
+      environment.set_twoInt(integralIndex);
     }
     if (dmrginp.outputlevel() > 0)
       mcheck("");
   }
   // now initialise newEnvironment
   if (!dot_with_sys || !onedot) {
+    if (haveCompops && !environment.has(CRE_DESCOMP))
+      environment.addAllCompOps();
     environment.addAdditionalOps();
 
     newEnvironment.set_integralIndex() = integralIndex;

@@ -383,11 +383,6 @@ void SpinAdapted::StackCreCre::build(const StackSpinBlock& b)
   if (b.get_rightBlock() == 0) return; //cannot build
   dmrginp.makeopsT -> start();
 
-  //check if we have enough memory
-  //assert(totalMemory == getRequiredMemory(b, deltaQuantum));
-
-  //check if the operatorMatrix has been initialized appropriately
-  //assert(operatorMatrix.nrows() == b.get_braStateInfo().quanta.size() && operatorMatrix.ncols() == b.get_ketStateInfo().quanta.size());
   Sign = 1;
 
   const int i = get_orbs()[0];
@@ -564,17 +559,74 @@ double SpinAdapted::StackDesDes::redMatrixElement(Csf c1, vector<Csf>& ladder, c
 //******************CREDESCOMP*****************
 
 
+void SpinAdapted::StackCreDesComp::buildfromCreDes(StackSpinBlock& b) 
+{
+  IrrepSpace sym = deltaQuantum[0].get_symm();
+  int spin = deltaQuantum[0].get_s().getirrep();
+
+  const int i = get_orbs()[0];
+  const int j = get_orbs()[1];
+
+  memset(data, 0, totalMemory * sizeof(double));
+
+  StackCreDesComp* op_array; 
+  initiateMultiThread(this, op_array, numthrds);
+
+
+  TensorOp C(i,1), D(j,-1);
+  TensorOp CD1 = C.product(D, (-deltaQuantum[0].get_s()).getirrep(), (-sym).getirrep()); // the operator to be complimentaried
+
+  std::vector<boost::shared_ptr<StackSparseMatrix> >  allops;
+  for (int ii=0; ii<b.get_op_array(CRE_DES).get_size(); ii++)
+    for (int ji=0; ji<b.get_op_array(CRE_DES).get_local_element(ii).size(); ji++) 
+      if (b.get_op_array(CRE_DES).get_local_element(ii)[ji]->get_deltaQuantum(0) == deltaQuantum[0])
+	allops.push_back(b.get_op_array(CRE_DES).get_local_element(ii)[ji]);
+
+
+#pragma omp parallel for schedule(dynamic)
+  for (int ii = 0; ii<allops.size(); ii++) {
+    const int k = allops[ii]->get_orbs()[0];
+    const int l = allops[ii]->get_orbs()[1];
+
+    TensorOp CK(k,1), DL(l,-1);      
+    TensorOp CD2 = CK.product(DL, spin, sym.getirrep());
+    if (!CD2.empty) {
+      double scaleV = calcCompfactor(CD1, CD2, CD,*(b.get_twoInt()), b.get_integralIndex());      
+      ScaleAdd(scaleV, *allops[ii], op_array[omprank]);
+    }
+
+    CK=TensorOp(l,1); DL=TensorOp(k,-1);      
+    CD2 = CK.product(DL, spin, sym.getirrep());
+    if (l!=k && !CD2.empty) {
+      double scaleV = calcCompfactor(CD1, CD2, CD,*(b.get_twoInt()), b.get_integralIndex());
+      double parity = getCommuteParity(getSpinQuantum(l), getSpinQuantum(k), get_deltaQuantum()[0]);
+
+      allops[ii]->set_conjugacy('t');
+      for (int lQ = 0; lQ<nrows(); lQ++)
+	for (int rQ = 0; rQ<ncols(); rQ++) 
+	  if (allowed(lQ, rQ) && allops[ii]->allowed(lQ, rQ)) {
+	    double scaling = allops[ii]->get_scaling(b.get_braStateInfo().quanta[lQ], b.get_ketStateInfo().quanta[rQ]);
+	    int nrows = operator_element(lQ, rQ).Nrows();
+	    int ncols = operator_element(lQ, rQ).Ncols();
+	    for (int row=0; row<nrows; row++)
+	      DAXPY(ncols, scaling*parity*scaleV, &(allops[ii]->operator_element(lQ, rQ)(1, row+1)), nrows, &(op_array[omprank].operator_element(lQ, rQ)(row+1, 1)), 1); 
+	  }
+      allops[ii]->set_conjugacy('n');
+
+
+    }
+  }
+
+  accumulateMultiThread(this, op_array, numthrds);
+}
+
+
 void SpinAdapted::StackCreDesComp::build(const StackSpinBlock& b)
 {
   if (b.get_rightBlock() == 0) return; //cannot build
   dmrginp.makeopsT -> start();
 
-  //check if we have enough memory
-  //assert(totalMemory == getRequiredMemory(b, deltaQuantum));
-
-  //check if the operatorMatrix has been initialized appropriately
-  //assert(operatorMatrix.nrows() == b.get_braStateInfo().quanta.size() && operatorMatrix.ncols() == b.get_ketStateInfo().quanta.size());
-
+ 
   IrrepSpace sym = deltaQuantum[0].get_symm();
   int spin = deltaQuantum[0].get_s().getirrep();
 
@@ -596,7 +648,6 @@ void SpinAdapted::StackCreDesComp::build(const StackSpinBlock& b)
     if (rightBlock->get_sites().size() == 0) 
       SpinAdapted::operatorfunctions::TensorTrace(leftBlock, *op, &b, &(b.get_stateInfo()), *this);
     else {
-      //const boost::shared_ptr<StackSparseMatrix> Overlap = rightBlock->getOverlap();
       SpinQuantum hq(0, SpinSpace(0), IrrepSpace(0));
       const boost::shared_ptr<StackSparseMatrix> Overlap = rightBlock->get_op_rep(OVERLAP, hq);
       SpinAdapted::operatorfunctions::TensorProduct(leftBlock, *op, *Overlap, &b, &(b.get_stateInfo()), *this, 1.0);
@@ -610,11 +661,11 @@ void SpinAdapted::StackCreDesComp::build(const StackSpinBlock& b)
   if (rightBlock->get_op_array(CRE_DESCOMP).has(i, j))
   {
     const boost::shared_ptr<StackSparseMatrix> op = rightBlock->get_op_rep(CRE_DESCOMP, deltaQuantum, i,j);
-    //const boost::shared_ptr<StackSparseMatrix> Overlap = leftBlock->getOverlap();
     SpinQuantum hq(0, SpinSpace(0), IrrepSpace(0));
     const boost::shared_ptr<StackSparseMatrix> Overlap = leftBlock->get_op_rep(OVERLAP, hq);
     SpinAdapted::operatorfunctions::TensorProduct(leftBlock, *Overlap, *op, &b, &(b.get_stateInfo()), *this, 1.0);
   }  
+
   // build CDcomp explicitely
   for (int kx = 0; kx < leftBlock->get_sites().size(); ++kx)
     for (int lx = 0; lx < rightBlock->get_sites().size(); ++lx) {
@@ -623,7 +674,6 @@ void SpinAdapted::StackCreDesComp::build(const StackSpinBlock& b)
 
       TensorOp CK(k,1), DL(l,-1);      
       TensorOp CD2 = CK.product(DL, spin, sym.getirrep());
-
       if (!CD2.empty) {
 	double scaleV = calcCompfactor(CD1, CD2, CD,*(b.get_twoInt()), b.get_integralIndex());
 	if (leftBlock->get_op_array(CRE).has(k) && rightBlock->get_op_array(CRE).has(l) && fabs(scaleV) > dmrginp.twoindex_screen_tol()) {
@@ -633,12 +683,8 @@ void SpinAdapted::StackCreDesComp::build(const StackSpinBlock& b)
 	    SpinAdapted::operatorfunctions::TensorProduct(leftBlock, *op1, *op2, &b, &(b.get_stateInfo()), *this, scaleV);
 	  } 
 	  else {
-	    //StackTransposeview top2 = StackTransposeview(rightBlock->get_op_rep(CRE, getSpinQuantum(l), l));
 	    boost::shared_ptr<StackSparseMatrix> op2 = rightBlock->get_op_rep(CRE, getSpinQuantum(l), l);
-	    //op2->set_conjugacy('t');
-	    //SpinAdapted::operatorfunctions::TensorProduct(leftBlock, *op1, *op2, &b, &(b.get_stateInfo()), *this, scaleV);
 	    SpinAdapted::operatorfunctions::TensorProduct(leftBlock, *op1, Transpose(*op2), &b, &(b.get_stateInfo()), *this, scaleV);
-	    //op2->set_conjugacy('n');
 	  }
 	}
       }
@@ -972,6 +1018,65 @@ double SpinAdapted::StackDesCreComp::redMatrixElement(Csf c1, vector<Csf>& ladde
 
 
 //******************DESDESCOMP*****************
+
+void SpinAdapted::StackDesDesComp::buildfromDesDes(StackSpinBlock& b) 
+{
+ int spin = deltaQuantum[0].get_s().getirrep();
+ IrrepSpace sym = deltaQuantum[0].get_symm();
+ 
+ const int i = get_orbs()[0];
+ const int j = get_orbs()[1];
+ memset(data, 0, totalMemory * sizeof(double));
+
+ StackDesDesComp* op_array; 
+ initiateMultiThread(this, op_array, numthrds);
+ 
+ TensorOp C(i,1), C2(j,1);
+ TensorOp CC1 = C.product(C2, (-deltaQuantum[0].get_s()).getirrep(), (-sym).getirrep(), i==j);
+ 
+ std::vector<boost::shared_ptr<StackSparseMatrix> >  allops;
+ for (int ii=0; ii<b.get_op_array(CRE_CRE).get_size(); ii++)
+   for (int ji=0; ji<b.get_op_array(CRE_CRE).get_local_element(ii).size(); ji++) 
+     if (b.get_op_array(CRE_CRE).get_local_element(ii)[ji]->get_deltaQuantum(0) == -deltaQuantum[0])
+       allops.push_back(b.get_op_array(CRE_CRE).get_local_element(ii)[ji]);
+ 
+#pragma omp parallel for schedule(dynamic)
+ for (int ii = 0; ii<allops.size(); ii++) {
+   const int k = allops[ii]->get_orbs()[0];
+   const int l = allops[ii]->get_orbs()[1];
+   
+   TensorOp DK(k,-1), DL(l,-1);      
+   TensorOp DD2 = DK.product(DL, spin, sym.getirrep(), k==l);
+   if (!DD2.empty) {
+     double scaleV = calcCompfactor(CC1, DD2, DD,*(b.get_twoInt()), b.get_integralIndex());      
+     
+     DK=TensorOp(k,-1); DL=TensorOp(l,-1);
+     DD2 = DL.product(DK, spin, sym.getirrep(), k==l);
+     double scaleV2 = calcCompfactor(CC1, DD2, DD, *(b.get_twoInt()), b.get_integralIndex());
+     
+     double parity = getCommuteParity(-getSpinQuantum(k), -getSpinQuantum(l), get_deltaQuantum()[0]);
+     if (k != l)
+       scaleV += parity*scaleV2;
+
+     allops[ii]->set_conjugacy('t');
+     for (int lQ = 0; lQ<nrows(); lQ++)
+       for (int rQ = 0; rQ<ncols(); rQ++) 
+	 if (allowed(lQ, rQ) && allops[ii]->allowed(lQ, rQ)) {
+	   double scaling = allops[ii]->get_scaling(b.get_braStateInfo().quanta[lQ], b.get_ketStateInfo().quanta[rQ]);
+	   int nrows = operator_element(lQ, rQ).Nrows();
+	   int ncols = operator_element(lQ, rQ).Ncols();
+	   for (int row=0; row<nrows; row++) {
+	     DAXPY(ncols, -scaleV*scaling, &(allops[ii]->operator_element(lQ, rQ)(1, row+1)), nrows, &(op_array[omprank].operator_element(lQ, rQ)(row+1, 1)), 1); 
+	   }
+	 }
+     allops[ii]->set_conjugacy('n');
+   }
+ }
+
+ accumulateMultiThread(this, op_array, numthrds);
+
+}
+
 
 void SpinAdapted::StackDesDesComp::build(const StackSpinBlock& b)
 {

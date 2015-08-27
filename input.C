@@ -89,6 +89,7 @@ void SpinAdapted::Input::initialize_defaults()
   m_targetState = -1;
   m_guessState = 1;
   m_permSymm = 2;
+  m_lowMemoryAlgorithm = true;
 
   m_memory = 2e9/sizeof(double); //about 2GB of memory by default
 
@@ -493,6 +494,8 @@ SpinAdapted::Input::Input(const string& config_name) {
       }
       else if (boost::iequals(keyword, "davidson")) 
 	m_solve_type = DAVIDSON;
+      else if (boost::iequals(keyword, "lowMemoryAlgorithm"))
+	m_lowMemoryAlgorithm = true;
       else if (boost::iequals(keyword, "lanczos")) 
 	m_solve_type = LANCZOS;
       else if (boost::iequals(keyword, "mkl_thrds") || boost::iequals(keyword, "threads_mkl")) 

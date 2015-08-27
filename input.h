@@ -43,6 +43,7 @@ class Input {
   bool m_spinAdapted;
   bool m_Bogoliubov;
   int m_permSymm;
+  bool m_lowMemoryAlgorithm;
   std::size_t m_memory;
 
   IrrepSpace m_total_symmetry_number;
@@ -170,7 +171,7 @@ class Input {
   template<class Archive>
   void serialize(Archive & ar, const unsigned int version)
   {
-    ar & m_memory & m_mkl_thrds & m_quanta_thrds & m_thrds_per_node & m_spinAdapted & m_Bogoliubov & m_stateSpecific & m_implicitTranspose & m_num_Integrals;
+    ar & m_lowMemoryAlgorithm & m_memory & m_mkl_thrds & m_quanta_thrds & m_thrds_per_node & m_spinAdapted & m_Bogoliubov & m_stateSpecific & m_implicitTranspose & m_num_Integrals;
     ar & m_norbs & m_alpha & m_beta & m_solve_type & m_Sz & m_set_Sz & m_baseState& m_projectorState& m_targetState;
     ar & m_spin_vector & m_spin_orbs_symmetry & m_guess_permutations & m_nroots & m_weights & m_hf_occ_user & m_hf_occupancy;
     ar & m_sweep_iter_schedule & m_sweep_state_schedule & m_sweep_qstate_schedule & m_sweep_tol_schedule & m_sweep_noise_schedule &m_sweep_additional_noise_schedule & m_reorder;
@@ -355,7 +356,7 @@ class Input {
   const double& diis_error() const {return m_diis_error;}
   const int& start_diis_iter() const {return m_start_diis_iter;}
   const int& diis_keep_states() const {return m_diis_keep_states;}
-
+  bool get_lowMemoryAlgorithm() { return m_lowMemoryAlgorithm;}
   bool use_partial_two_integrals() const {return (m_norbs/2 >= m_integral_disk_storage_thresh);}
   bool& set_fullrestart() {return m_fullrestart;}
   const bool& get_fullrestart() const {return m_fullrestart;}

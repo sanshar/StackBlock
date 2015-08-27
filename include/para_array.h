@@ -66,6 +66,9 @@ public:
   virtual T& operator()(const std::vector<int>& orbs) {return get_local_element(orbs[0]);}
   virtual const T& operator()(const std::vector<int>& orbs) const {return get_local_element(orbs[0]);}
 
+  void remove_local_index(int i, int j, int k=-1, int l=-1) {}; 
+  void set_length(int length) {};
+
   /// expose local storage
   virtual bool is_local() const {return is_local();}
   virtual bool is_distributed() const {return is_distributed();}
@@ -236,9 +239,24 @@ public:
     store.resize(length);    
   }
 
+  void remove_local_index(int i, int j=-1, int k=-1, int l=-1) 
+  {
+    std::vector<int>::iterator it;
+    it = find(local_indices.begin(), local_indices.end(), i);
+    if (it == local_indices.end()) {
+      cout << "Could not find operator of index "<<i <<endl;
+      cout << "Cannot remove the operator"<<endl;
+      exit(0);
+    }
+    local_indices.erase(it);
+    local_indices_map[i] = -1;
+  }
+
   void add_local_index(int i)
   {
     local_indices.push_back(i);
+    if (local_indices_map.size() <i+1)
+      local_indices_map.resize(i+1);
     local_indices_map[i] = i;
   }
 
@@ -546,10 +564,28 @@ public:
 
   para_array_triang_2d<T>* clone() const { return new para_array_triang_2d<T>(*this); }
 
+  void set_length(int plength) {length = plength;}
+  void remove_local_index(int i, int j, int k=-1, int l=-1) 
+  {
+    std::vector<int>::iterator it;
+    int index = trimap_2d(i, j);
+    it = find(local_indices.begin(), local_indices.end(), index);
+    if (it == local_indices.end()) {
+      cout << "Could not find operator of index "<<i<<"  "<<j <<endl;
+      cout << "Cannot remove the operator"<<endl;
+      exit(0);
+    }
+    local_indices.erase(it);
+    local_indices_map[index] = -1;
+  }
+
+
   void add_local_indices(int i, int j)
   {
     int index = trimap_2d(i, j);
     local_indices.push_back(index);
+    if (local_indices_map.size() <index+1)
+      local_indices_map.resize(index+1);
     local_indices_map[index]= index;
     // I am not updating local_index_pair because it seems to do nothing
     //local_index_pair.push_back(global_index_pair[index]);
@@ -797,10 +833,27 @@ public:
 
   para_array_2d<T>* clone() const { return new para_array_2d<T>(*this); }
 
+  void remove_local_index(int i, int j, int k=-1, int l=-1) 
+  {
+    std::vector<int>::iterator it;
+    int index = squaremap(i, j);
+    it = find(local_indices.begin(), local_indices.end(), index);
+    if (it == local_indices.end()) {
+      cout << "Could not find operator of index "<<i<<"  "<<j <<endl;
+      cout << "Cannot remove the operator"<<endl;
+      exit(0);
+    }
+    local_indices.erase(it);
+    local_indices_map[index] = -1;
+  }
+
+
   void add_local_indices(int i, int j)
   {
     int index = squaremap(i, j);
     local_indices.push_back(index);
+    if (local_indices_map.size() <index+1)
+      local_indices_map.resize(index+1);
     local_indices_map[index]= index;
     // I am not updating local_index_pair because it seems to do nothing
     //local_index_pair.push_back(global_index_pair[index]);

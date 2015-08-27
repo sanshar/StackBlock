@@ -99,8 +99,14 @@ void SpinAdapted::Sweep::makeSystemEnvironmentBigBlocks(StackSpinBlock& system, 
 							int integralIndex, int braState, int ketState)
 {
   bool forward = (system.get_sites() [0] == 0);
-  bool haveNormOps = dot_with_sys, haveCompOps = true;
+  bool haveNormOps = dot_with_sys, haveCompOps = dmrginp.get_lowMemoryAlgorithm() ? !dot_with_sys : true;
+
+  bool envnormops = !haveNormOps, envcompops = dmrginp.get_lowMemoryAlgorithm() ? !haveCompOps : true;
+
+  if (haveCompOps && !system.has(CRE_DESCOMP))
+    system.addAllCompOps();
   system.addAdditionalOps();
+
 
   const int nexact = forward ? sweepParams.get_forward_starting_size() : sweepParams.get_backward_starting_size();
   if (!sweepParams.get_onedot() || dot_with_sys) {
@@ -122,7 +128,7 @@ void SpinAdapted::Sweep::makeSystemEnvironmentBigBlocks(StackSpinBlock& system, 
     InitBlocks::InitNewEnvironmentBlock(environment, systemDot, newEnvironment, system, systemDot, braState, ketState,
 					sweepParams.get_sys_add(), sweepParams.get_env_add(), forward, dmrginp.direct(),
 					sweepParams.get_onedot(), nexact, useSlater, integralIndex, 
-					!haveNormOps, haveCompOps, dot_with_sys);
+					envnormops, envcompops, dot_with_sys);
   else {
     SpinQuantum moleculeQ = dmrginp.molecule_quantum();
     if (dmrginp.calc_type() == RESPONSE && system.get_sites() [0] == 0 && *system.get_sites().rbegin()  >= dmrginp.num_occupied_orbitals()) {//response and forward and after active sites
@@ -131,13 +137,13 @@ void SpinAdapted::Sweep::makeSystemEnvironmentBigBlocks(StackSpinBlock& system, 
       InitBlocks::InitNewEnvironmentBlock(environment, environmentDot, newEnvironment, system, systemDot, braState, ketState,
 					  sweepParams.get_sys_add(), sweepParams.get_env_add(), forward, dmrginp.direct(),
 					  sweepParams.get_onedot(), nexact, useSlater, integralIndex, 
-					  !haveNormOps, haveCompOps, dot_with_sys, PARTICLE_NUMBER_CONSTRAINT);
+					  envnormops, envcompops, dot_with_sys, PARTICLE_NUMBER_CONSTRAINT);
     }
     else
       InitBlocks::InitNewEnvironmentBlock(environment, environmentDot, newEnvironment, system, systemDot, braState, ketState,
 					  sweepParams.get_sys_add(), sweepParams.get_env_add(), forward, dmrginp.direct(),
 					  sweepParams.get_onedot(), nexact, useSlater, integralIndex, 
-					  !haveNormOps, haveCompOps, dot_with_sys);
+					  envnormops, envcompops, dot_with_sys);
     
     dmrginp.set_molecule_quantum() = moleculeQ;
   }

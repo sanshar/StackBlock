@@ -40,6 +40,10 @@ template<class T> class Baseoperator  // The abstract class of an operator
   virtual SpinSpace get_spin(int i=0) const = 0;
   virtual IrrepSpace get_symm(int i=0) const = 0;
   virtual double get_scaling(SpinQuantum leftq, SpinQuantum rightq) const = 0;
+  virtual const std::vector<int>& getActiveRows(int i) const =0;
+  virtual const std::vector<int>& getActiveCols(int i) const =0;
+  virtual std::vector<int>& getActiveRows(int i)  =0;
+  virtual std::vector<int>& getActiveCols(int i) =0;
   Baseoperator() {};
 };
 
@@ -276,6 +280,10 @@ public:
     }
     return q;
   }
+  const std::vector<int>& getActiveRows(int i) const {return opdata->getActiveCols(i);}
+  const std::vector<int>& getActiveCols(int i) const {return opdata->getActiveRows(i);}
+  std::vector<int>& getActiveRows(int i)  {return opdata->getActiveCols(i);}
+  std::vector<int>& getActiveCols(int i) {return opdata->getActiveRows(i);}
   bool get_fermion() const { return opdata->get_fermion(); }
   bool get_initialised() const { return opdata->get_initialised(); }
   int nrows() const { return opdata->ncols(); }

@@ -118,8 +118,10 @@ class StackOp_component_base
   const bool &is_deriv() const {return m_deriv;}
   void set_core(bool is_core) {m_core = is_core;}
   virtual void add_local_indices(int i, int j=-1, int k=-1) {};
+  virtual void remove_local_indices(int i, int j=-1, int k=-1, int l=-1) = 0;
   virtual bool is_local() const = 0;
   virtual bool& set_local() = 0; 
+  virtual void set_length(int length) {};
   virtual std::vector< std::vector<int> > get_array() const =0;
   virtual std::vector< int > get_global_array() const =0;
   virtual const std::vector<boost::shared_ptr<StackSparseMatrix> > get_element(int i, int j=-1, int k=-1, int l=-1) const = 0;
@@ -170,6 +172,8 @@ template <class Op> class StackOp_component : public StackOp_component_base
   bool has(int i, int j=-1, int k=-1, int l=-1) const {return m_op.has(i, j, k, l);}
   bool has_local_index(int i, int j=-1, int k=-1, int l=-1) const {return m_op.has_local_index(i, j, k, l);}
   virtual void add_local_indices(int i, int j=-1, int k=-1){};
+  virtual void set_length(int length) {m_op.set_length(length);}
+  void remove_local_indices(int i, int j=-1, int k=-1, int l=-1) {m_op.remove_local_index(i,j,k,l);}
   void clear(){m_op.clear();}
 
   long build_iterators(StackSpinBlock& b, bool calcMemory);

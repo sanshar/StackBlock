@@ -56,10 +56,16 @@ void SweepGenblock::BlockAndDecimate (SweepParams &sweepParams, StackSpinBlock& 
   const int nexact = forward ? sweepParams.get_forward_starting_size() : sweepParams.get_backward_starting_size();
 
   dmrginp.guessgenT -> stop();
-  system.addAdditionalOps();
 
   bool doNorms = (dot_with_sys || dmrginp.new_npdm_code() == true);
-  InitBlocks::InitNewSystemBlock(system, systemDot, newSystem, stateA, stateB, sweepParams.get_sys_add(), dmrginp.direct(), system.get_integralIndex(), DISTRIBUTED_STORAGE, doNorms, true);
+  bool doComp = dmrginp.get_lowMemoryAlgorithm() ? !dot_with_sys : true;
+  //bool doComp = true;
+  if (doComp && !system.has(CRE_DESCOMP))
+    system.addAllCompOps();
+  system.addAdditionalOps();
+
+  //bool doComp = true;
+  InitBlocks::InitNewSystemBlock(system, systemDot, newSystem, stateA, stateB, sweepParams.get_sys_add(), dmrginp.direct(), system.get_integralIndex(), DISTRIBUTED_STORAGE, doNorms, doComp);
 
 
   pout << "\t\t\t System  Block"<<newSystem;
