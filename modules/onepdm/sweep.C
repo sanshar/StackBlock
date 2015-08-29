@@ -12,16 +12,16 @@ Sandeep Sharma and Garnet K.-L. Chan
 #include "rotationmat.h"
 #include "davidson.h"
 #include "linear.h"
-#include "guess_wavefunction.h"
 #include "onepdm.h"
 
 #ifndef SERIAL
 #include <boost/mpi/communicator.hpp>
 #include <boost/mpi.hpp>
 #endif
+#include "Stackspinblock.h"
+#include "Stackwavefunction.h"
 #include "stackguess_wavefunction.h"
 #include "Stackdensity.h"
-#include "density.h"
 #include "sweeponepdm.h"
 #include "pario.h"
 #include "onepdm.h"
@@ -59,14 +59,19 @@ void SweepOnepdm::BlockAndDecimate (SweepParams &sweepParams, StackSpinBlock& sy
   const int nexact = forward ? sweepParams.get_forward_starting_size() : sweepParams.get_backward_starting_size();
   
   newSystem.set_integralIndex() = system.get_integralIndex();
-  newSystem.default_op_components(dmrginp.direct(), system, systemDot, false, false, true);
+  newSystem.default_op_components(dmrginp.direct(), false, false, true);
   if (newSystem.has(CRE_CRE_DESCOMP)) newSystem.erase(CRE_CRE_DESCOMP);
+  if (newSystem.has(CRE_DES_DESCOMP)) newSystem.erase(CRE_DES_DESCOMP);
   if (sweepParams.get_block_iter() != 0) {
     if (newSystem.has(CRE_CRE)) newSystem.erase(CRE_CRE);
     if (newSystem.has(CRE_DES)) newSystem.erase(CRE_DES);
+    if (newSystem.has(DES_DES)) newSystem.erase(DES_DES);
+    if (newSystem.has(DES_CRE)) newSystem.erase(DES_CRE);
   }
   if (newSystem.has(CRE_CRECOMP)) newSystem.erase(CRE_CRECOMP);
   if (newSystem.has(CRE_DESCOMP)) newSystem.erase(CRE_DESCOMP);
+  if (newSystem.has(DES_DESCOMP)) newSystem.erase(DES_DESCOMP);
+  if (newSystem.has(DES_CRECOMP)) newSystem.erase(DES_CRECOMP);
   if (newSystem.has(HAM)) newSystem.erase(HAM);
 
   newSystem.setstoragetype(DISTRIBUTED_STORAGE_FOR_ONEPDM);
@@ -90,11 +95,11 @@ void SweepOnepdm::BlockAndDecimate (SweepParams &sweepParams, StackSpinBlock& sy
   std::vector<StackWavefunction> solution(1);
 
   DiagonalMatrix e;
-  solution[0].initialise(dmrginp.effective_molecule_quantum_vec(), &big, true);
+  solution[0].initialise(dmrginp.effective_molecule_quantum_vec(), big.get_leftBlock()->get_stateInfo(), big.get_rightBlock()->get_stateInfo(), true);
   solution[0].Clear();
 
   //********************
-  //GuessWave::guess_wavefunctions(solution[0], e, big, sweepParams.get_guesstype(), true, state, true, 0.0); 
+  GuessWave::guess_wavefunctions(solution[0], e, big, sweepParams.get_guesstype(), true, state, true, 0.0); 
 
 #ifndef SERIAL
   mpi::communicator world;
@@ -105,7 +110,7 @@ void SweepOnepdm::BlockAndDecimate (SweepParams &sweepParams, StackSpinBlock& sy
   StackDensityMatrix tracedMatrix(newSystem.get_stateInfo());
   tracedMatrix.allocate(newSystem.get_stateInfo());
   //********************
-  //tracedMatrix.makedensitymatrix(solution, big, std::vector<double>(1,1.0), 0.0, 0.0, false);
+  tracedMatrix.makedensitymatrix(solution, big, std::vector<double>(1,1.0), 0.0, 0.0, false);
   rotateMatrix.clear();
   if (!mpigetrank())
     double error = makeRotateMatrix(tracedMatrix, rotateMatrix, sweepParams.get_keep_states(), sweepParams.get_keep_qstates());
@@ -124,50 +129,60 @@ void SweepOnepdm::BlockAndDecimate (SweepParams &sweepParams, StackSpinBlock& sy
   Matrix onepdm;
   load_onepdm_binary(onepdm, state ,state);
   Matrix pairmat;
-  if (dmrginp.hamiltonian() == BCS)
-    load_pairmat_binary(pairmat, state ,state);
+  //if (dmrginp.hamiltonian() == BCS)
+  //load_pairmat_binary(pairmat, state ,state);
 
   if (sweepParams.get_block_iter() == 0) {
     //this is inface a combination of  2_0_0, 1_1_0 and 0_2_0
     p2out << "\t\t\t compute 2_0_0"<<endl;
     compute_one_pdm_2_0_0(solution[0], solution[0], big, onepdm);
-    if (dmrginp.hamiltonian() == BCS)
-      compute_pair_2_0_0(solution[0], solution[0], big, pairmat);
+    //if (dmrginp.hamiltonian() == BCS)
+    //compute_pair_2_0_0(solution[0], solution[0], big, pairmat);
     p2out << "\t\t\t compute 1_1_0"<<endl;
     compute_one_pdm_1_1_0(solution[0], solution[0], big, onepdm);
-    if (dmrginp.hamiltonian() == BCS)    
-      compute_pair_1_1_0(solution[0], solution[0], big, pairmat);
+    //if (dmrginp.hamiltonian() == BCS)    
+    //compute_pair_1_1_0(solution[0], solution[0], big, pairmat);
   }
 
   p2out << "\t\t\t compute 0_2_0"<<endl;
   compute_one_pdm_0_2_0(solution[0], solution[0], big, onepdm);
-  if (dmrginp.hamiltonian() == BCS)  
-    compute_pair_0_2_0(solution[0], solution[0], big, pairmat);  
+  //if (dmrginp.hamiltonian() == BCS)  
+  //compute_pair_0_2_0(solution[0], solution[0], big, pairmat);  
   p2out << "\t\t\t compute 1_1"<<endl;
   compute_one_pdm_1_1(solution[0], solution[0], big, onepdm);
-  if (dmrginp.hamiltonian() == BCS)  
-    compute_pair_1_1(solution[0], solution[0], big, pairmat);
+  //if (dmrginp.hamiltonian() == BCS)  
+  //compute_pair_1_1(solution[0], solution[0], big, pairmat);
 
   if (sweepParams.get_block_iter()  == sweepParams.get_n_iters() - 1) {
     p2out << "\t\t\t compute 0_2"<<endl;
     compute_one_pdm_0_2(solution[0], solution[0], big, onepdm);
-    if (dmrginp.hamiltonian() == BCS)    
-      compute_pair_0_2(solution[0], solution[0], big, pairmat);    
+    //if (dmrginp.hamiltonian() == BCS)    
+    //compute_pair_0_2(solution[0], solution[0], big, pairmat);    
   }
 
   accumulate_onepdm(onepdm);
   save_onepdm_binary(onepdm, state, state);
 
-  if (dmrginp.hamiltonian() == BCS) {
-    accumulate_onepdm(pairmat);
-    save_pairmat_binary(pairmat, state, state);
-  }
+  //if (dmrginp.hamiltonian() == BCS) {
+  //accumulate_onepdm(pairmat);
+  //save_pairmat_binary(pairmat, state, state);
+  //}
 
   SaveRotationMatrix (newSystem.get_sites(), rotateMatrix, state);
 
   solution[0].SaveWavefunctionInfo (big.get_stateInfo(), big.get_leftBlock()->get_sites(), state);
   solution[0].deallocate();
+
+  newEnvironment.deallocate();
   newSystem.transform_operators(rotateMatrix);
+
+  {
+    long memoryToFree = newSystem.getdata() - system.getdata();
+    long newsysmem = newSystem.memoryUsed();
+    newSystem.moveToNewMemory(system.getdata());
+    Stackmem[omprank].deallocate(newSystem.getdata()+newsysmem, memoryToFree);
+    system.clear();
+  }
 
 }
 
@@ -256,8 +271,9 @@ double SweepOnepdm::do_one(SweepParams &sweepParams, const bool &warmUp, const b
     save_pairmat_text(pairmat , state, state);
   }
 
-  pout << "\t\t\t Elapsed Sweep CPU  Time (seconds): " << setprecision(3) << sweeptimer.elapsedcputime() << endl;
-  pout << "\t\t\t Elapsed Sweep Wall Time (seconds): " << setprecision(3) << sweeptimer.elapsedwalltime() << endl;
+  double walltime = sweeptimer.elapsedwalltime(), cputime = sweeptimer.elapsedcputime();
+  pout << "\t\t\t Elapsed Sweep CPU  Time (seconds): " << setprecision(3) << cputime << endl;
+  pout << "\t\t\t Elapsed Sweep Wall Time (seconds): " << setprecision(3) << walltime << endl;
 
   return sweepParams.get_lowest_energy()[0];
 }

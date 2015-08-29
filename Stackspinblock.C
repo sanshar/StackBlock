@@ -306,23 +306,29 @@ long StackSpinBlock::build_iterators()
 void StackSpinBlock::build_operators(std::vector< Csf >& dets, std::vector< std::vector<Csf> >& ladders)
 {
   dmrginp.buildcsfops->start();
+  std::vector<boost::shared_ptr<StackSparseMatrix> >  allopsUsingCre;
   std::vector<boost::shared_ptr<StackSparseMatrix> >  allops;
   
   double* localdata = data; 
+  //first make cre
+
   for (std::map<opTypes, boost::shared_ptr< StackOp_component_base> >::iterator it = ops.begin(); it != ops.end(); ++it) {
     opTypes ot = it->first;
     if(it->second->is_core()) {
       localdata = it->second->allocateOperators(braStateInfo, ketStateInfo, localdata);
       for (int i=0; i<it->second->get_size(); i++)
-	for (int j=0; j<it->second->get_local_element(i).size(); j++) 
+	for (int j=0; j<it->second->get_local_element(i).size(); j++) {
 	  allops.push_back(it->second->get_local_element(i)[j]);
+	}
     }
   }
-  
+
+  std::vector<vector<vector<Csf> > > ompladders(numthrds, ladders);
+  vector<vector<Csf> > ompdets(numthrds, dets);
 #pragma omp parallel for schedule(dynamic)
-  for (int i=0; i<allops.size(); i++)
-    allops[i]->buildUsingCsf(*this, ladders, dets);
-  
+  for (int i=0; i<allops.size(); i++) {
+    allops[i]->buildUsingCsf(*this, ompladders[omprank], ompdets[omprank]);
+  }
   dmrginp.buildcsfops->stop();
 }
   
@@ -848,7 +854,7 @@ void StackSpinBlock::diagonalH(DiagonalMatrix& e) const
 
 }
 
-void StackSpinBlock::BuildSlaterBlock (std::vector<int> sts, std::vector<SpinQuantum> qnumbers, std::vector<int> distribution, bool random, const bool haveNormops)
+void StackSpinBlock::BuildSlaterBlock (std::vector<int> sts, std::vector<SpinQuantum> qnumbers, std::vector<int> distribution, bool haveCompops, const bool haveNormops)
 {
   name = get_name();
 
@@ -868,7 +874,7 @@ void StackSpinBlock::BuildSlaterBlock (std::vector<int> sts, std::vector<SpinQua
   sort (sites.begin (), sites.end ());
 
   //always have implicit transpose in this case
-  default_op_components(!haveNormops, true);
+  default_op_components(false, haveNormops, haveCompops, true);
   
   setstoragetype(DISTRIBUTED_STORAGE);
 
@@ -1250,6 +1256,8 @@ void StackSpinBlock::messagePassTwoIndexOps()
     if (has(CRE_DESCOMP)) {
       if (!ops[CRE_DESCOMP]->is_local() ) {
 	int fromproc = processorindex(trimap_2d(I, I, length));
+
+	//take the CDComp(I,I) where I=dot index and broadcast it
 	if( ops[CRE_DESCOMP]->has(I,I) ) {
 	  if (fromproc != mpigetrank()) ops[CRE_DESCOMP]->add_local_indices(I,I);
 	  
@@ -1275,6 +1283,7 @@ void StackSpinBlock::messagePassTwoIndexOps()
 	  }
 	}
 	
+	//take the DDComp(I,I) where I=dot index and broadcast it
 	if( ops[DES_DESCOMP]->has(I,I) ) {
 	  if (fromproc != mpigetrank()) ops[DES_DESCOMP]->add_local_indices(I,I);
 	  
@@ -1299,7 +1308,8 @@ void StackSpinBlock::messagePassTwoIndexOps()
 	  }
 	}
 	
-	if (has(DES)) {
+	//take the DCComp(I,I) and CCComp(I,I) where I=dot index and broadcast it
+	if (has(DES) ) {
 	  if( ops[CRE_CRECOMP]->has(I,I) ) {
 	    if (fromproc != mpigetrank()) ops[CRE_CRECOMP]->add_local_indices(I,I);
 	    
@@ -1442,6 +1452,13 @@ void StackSpinBlock::formTwoIndexOps() {
   ops[CRE_DESCOMP]->set_local()=false;
   ops[DES_DESCOMP]->set_local()=false;
 
+  if (has(DES)) {
+    ops[DES_CRECOMP] = make_new_stackop(DES_CRECOMP, true);
+    ops[CRE_CRECOMP] = make_new_stackop(CRE_CRECOMP, true);
+    ops[DES_CRECOMP]->set_local()=false;
+    ops[CRE_CRECOMP]->set_local()=false;
+  }
+
   vector<int> dotindice;
   dotindice.push_back((sites[0] == 0) ? complementary_sites[0] : complementary_sites[complementary_sites.size()-1]);
   if (!dmrginp.spinAdapted()) { // when non-spinadapted, sites are spin orbitals
@@ -1466,7 +1483,10 @@ void StackSpinBlock::formTwoIndexOps() {
   }
   ops[CRE_DESCOMP]->build_iterators(*this, cinds, cdpair);
   ops[DES_DESCOMP]->build_iterators(*this, cinds, ddpair);
-
+  if (has(DES)) {
+    ops[DES_CRECOMP]->build_iterators(*this, cinds, cdpair);
+    ops[CRE_CRECOMP]->build_iterators(*this, cinds, ddpair);
+  }
 
 
   //IJ operator where atleast I or J is on the dot site
@@ -1490,7 +1510,7 @@ void StackSpinBlock::formTwoIndexOps() {
       StackCreDesComp& op = dynamic_cast<StackCreDesComp&>(*(opvec[opindex]));
       op.allocate(braStateInfo, ketStateInfo);
       op.buildfromCreDes(*this);
-      
+
       if (I == J) { //all proces should have it
 	MPI::COMM_WORLD.Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM);
 	if (additionalMemory == 0)
@@ -1526,7 +1546,6 @@ void StackSpinBlock::formTwoIndexOps() {
 
     if (!ops[DES_DESCOMP]->has(I, J)) continue;
 
-    //add local index
     //add local index if not already present
     if (processorindex(trimap_2d(I, J, length)) != mpigetrank())
       ops[DES_DESCOMP]->add_local_indices(I,J);
@@ -1567,6 +1586,107 @@ void StackSpinBlock::formTwoIndexOps() {
 
 
   }
+
+  if (has(DES)) {
+    for (int idx = 0; idx < dotindice.size(); ++idx) 
+    for (int i=0; i<complementary_sites.size(); i++) {
+    int dotopindex = dotindice[idx];
+    int compsite = complementary_sites[i];
+    int I = (compsite > dotopindex) ? compsite : dotopindex;
+    int J = (compsite > dotopindex) ? dotopindex : compsite;
+
+    if (!ops[CRE_CRECOMP]->has(I, J)) continue;
+
+    //add local index if not already present
+    if (processorindex(trimap_2d(I, J, length)) != mpigetrank())
+      ops[CRE_CRECOMP]->add_local_indices(I,J);
+
+    //get the vector of operators
+    std::vector<boost::shared_ptr<StackSparseMatrix> > opvec = ops[CRE_CRECOMP]->get_element(I, J);
+
+    for (int opindex=0; opindex<opvec.size(); opindex++) {
+      mpi::broadcast(world, *(opvec[opindex]), processorindex(trimap_2d(I, J, length)));
+      StackCreCreComp& op = dynamic_cast<StackCreCreComp&>(*(opvec[opindex]));
+      op.allocate(braStateInfo, ketStateInfo);
+      op.buildfromCreCre(*this);
+      
+      if (I == J) { //all proces should have it
+	MPI::COMM_WORLD.Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM);
+	if (additionalMemory == 0)
+	  additionaldata = op.get_data();
+	additionalMemory += op.memoryUsed();
+      }
+      else {
+	//this process should have the operator
+	int toproc = processorindex(compsite);
+	MPI::COMM_WORLD.Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM);
+
+	if (mpigetrank() != toproc) {
+	  op.deallocate();
+	  if (ops[DES_DESCOMP]->has_local_index(I,J))
+	    ops[DES_DESCOMP]->remove_local_indices(I,J);
+	}
+	else {
+	  if (additionalMemory == 0)
+	    additionaldata = op.get_data();
+	  additionalMemory += op.memoryUsed();
+	}
+      }
+    }
+
+
+  }
+    
+    
+    for (int idx = 0; idx < dotindice.size(); ++idx) 
+    for (int i=0; i<complementary_sites.size(); i++) {
+    int dotopindex = dotindice[idx];
+    int compsite = complementary_sites[i];
+    int I = (compsite > dotopindex) ? compsite : dotopindex;
+    int J = (compsite > dotopindex) ? dotopindex : compsite;
+
+    if (!ops[DES_CRECOMP]->has(I, J)) continue;
+
+    //add local index if not already present
+    if (processorindex(trimap_2d(I, J, length)) != mpigetrank())
+      ops[DES_CRECOMP]->add_local_indices(I,J);
+
+    //get the vector of operators
+    std::vector<boost::shared_ptr<StackSparseMatrix> > opvec = ops[DES_CRECOMP]->get_element(I, J);
+
+    for (int opindex=0; opindex<opvec.size(); opindex++) {
+      mpi::broadcast(world, *(opvec[opindex]), processorindex(trimap_2d(I, J, length)));
+      StackDesCreComp& op = dynamic_cast<StackDesCreComp&>(*(opvec[opindex]));
+      op.allocate(braStateInfo, ketStateInfo);
+      op.buildfromDesCre(*this);
+      
+      if (I == J) { //all proces should have it
+	MPI::COMM_WORLD.Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM);
+	if (additionalMemory == 0)
+	  additionaldata = op.get_data();
+	additionalMemory += op.memoryUsed();
+      }
+      else {
+	//this process should have the operator
+	int toproc = processorindex(compsite);
+	MPI::COMM_WORLD.Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM);
+
+	if (mpigetrank() != toproc) {
+	  op.deallocate();
+	  if (ops[DES_CRECOMP]->has_local_index(I,J))
+	    ops[DES_CRECOMP]->remove_local_indices(I,J);
+	}
+	else {
+	  if (additionalMemory == 0)
+	    additionaldata = op.get_data();
+	  additionalMemory += op.memoryUsed();
+	}
+      }
+    }
+
+
+  }
+  }
 }
 
 void StackSpinBlock::addAdditionalOps()
@@ -1601,6 +1721,16 @@ void StackSpinBlock::addAllCompOps() {
 
   ops[CRE_DESCOMP]->build_iterators(*this, false);
   ops[DES_DESCOMP]->build_iterators(*this, false);
+
+  if( has(DES)) {
+    ops[DES_CRECOMP] = make_new_stackop(DES_CRECOMP, true);
+    ops[CRE_CRECOMP] = make_new_stackop(CRE_CRECOMP, true);
+    ops[DES_CRECOMP]->set_local()=false;
+    ops[CRE_CRECOMP]->set_local() = false;
+    
+    ops[DES_CRECOMP]->build_iterators(*this, false);
+    ops[CRE_CRECOMP]->build_iterators(*this, false);
+  }
 
   //IJ operator where atleast I or J is on the dot site
   for (int idx=0; idx<complementary_sites.size(); idx++) {
@@ -1673,6 +1803,74 @@ void StackSpinBlock::addAllCompOps() {
 	  additionalMemory += op.memoryUsed();
 	}
       }
+    }
+
+    if (has(DES)) {
+      if (ops[DES_CRECOMP]->has(I,J)) {
+	//add local index
+	//add local index if not already present
+	if (processorindex(trimap_2d(I, J, length)) != mpigetrank())
+	  ops[DES_CRECOMP]->add_local_indices(I,J);
+
+	
+	//get the vector of operators
+	std::vector<boost::shared_ptr<StackSparseMatrix> > opvec = ops[DES_CRECOMP]->get_element(I, J);
+	
+	for (int opindex=0; opindex<opvec.size(); opindex++) {
+	  mpi::broadcast(world, *(opvec[opindex]), processorindex(trimap_2d(I, J, length)));
+	  StackDesCreComp& op = dynamic_cast<StackDesCreComp&>(*(opvec[opindex]));
+	  op.allocate(braStateInfo, ketStateInfo);
+	  op.buildfromDesCre(*this);
+	  
+	  //this process should have the operator
+	  int toproc = processorindex( trimap_2d(I, J, length) );
+	  MPI::COMM_WORLD.Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM);
+	  
+	  if (mpigetrank() != toproc) {
+	    op.deallocate();
+	    if (ops[DES_CRECOMP]->has_local_index(I,J))
+	      ops[DES_CRECOMP]->remove_local_indices(I,J);
+	  }
+	  else {
+	    if (additionalMemory == 0)
+	      additionaldata = op.get_data();
+	    additionalMemory += op.memoryUsed();
+	  }
+	}
+      }
+      
+      if (ops[CRE_CRECOMP]->has(I,J)) {
+	//add local index
+	//add local index if not already present
+	if (processorindex(trimap_2d(I, J, length)) != mpigetrank())
+	  ops[CRE_CRECOMP]->add_local_indices(I,J);
+	
+	//get the vector of operators
+	std::vector<boost::shared_ptr<StackSparseMatrix> > opvec = ops[CRE_CRECOMP]->get_element(I, J);
+	
+	for (int opindex=0; opindex<opvec.size(); opindex++) {
+	  mpi::broadcast(world, *(opvec[opindex]), processorindex(trimap_2d(I, J, length)));
+	  StackCreCreComp& op = dynamic_cast<StackCreCreComp&>(*(opvec[opindex]));
+	  op.allocate(braStateInfo, ketStateInfo);
+	  op.buildfromCreCre(*this);
+	  
+	  //this process should have the operator
+	  int toproc = processorindex( trimap_2d(I, J, length) );
+	  MPI::COMM_WORLD.Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM);
+	  
+	  if (mpigetrank() != toproc) {
+	    op.deallocate();
+	    if (ops[CRE_CRECOMP]->has_local_index(I,J))
+	      ops[CRE_CRECOMP]->remove_local_indices(I,J);
+	  }
+	  else {
+	    if (additionalMemory == 0)
+	      additionaldata = op.get_data();
+	    additionalMemory += op.memoryUsed();
+	  }
+	}
+      }
+      
     }
   }
   }

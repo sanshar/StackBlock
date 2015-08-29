@@ -76,8 +76,10 @@ public:
   Slater (const Orbstring& a);
   Slater (const vector<bool>& occ_rep, int sign);
   Slater (const Slater& s) : alpha (s.alpha), n (s.n), Sz (s.Sz) {}
-  void operator= (const Slater& s) { if (this != &s) {alpha = s.alpha; n = s.n; Sz = s.Sz;} }
+  void operator= (const Slater& s) { if (this != &s) {alpha = s.alpha; n = s.n; Sz = s.Sz;}}
 
+    Orbstring& get_orbstring() {return alpha;}
+  const Orbstring& get_orbstring() const {return alpha;}
   // accessors
   inline int size () const { return alpha.size (); }
   inline int n_is () const { return n; }
@@ -105,6 +107,11 @@ public:
   {
     return alpha.isempty();
   }
+  bool setempty(bool empty)
+  {
+    return alpha.setempty(empty);
+  }
+
   inline int parity(int i)
   {
     return alpha.parity(i);

@@ -35,7 +35,8 @@ void SpinAdapted::InitBlocks::InitStartingBlock (StackSpinBlock& startingBlock, 
   }
   else if (forward)
   {
-    startingBlock = singleSiteBlocks[integralIndex][0];//StackSpinBlock(0, forward_starting_size - 1, integralIndex, leftState==rightState, true);
+    //startingBlock = singleSiteBlocks[integralIndex][0];//StackSpinBlock(0, forward_starting_size - 1, integralIndex, leftState==rightState, true);
+    startingBlock = StackSpinBlock(0, forward_starting_size - 1, integralIndex, leftState==rightState, true);
     if (dmrginp.add_noninteracting_orbs() && dmrginp.molecule_quantum().get_s().getirrep() != 0 && dmrginp.spinAdapted())
     {
       SpinQuantum s = dmrginp.molecule_quantum();
@@ -45,7 +46,7 @@ void SpinAdapted::InitBlocks::InitStartingBlock (StackSpinBlock& startingBlock, 
       StackSpinBlock dummyblock(addstate, integralIndex);
       StackSpinBlock newstartingBlock;
       newstartingBlock.set_integralIndex() = integralIndex;
-      newstartingBlock.default_op_components(false, startingBlock, dummyblock, true, true, leftState==rightState);
+      newstartingBlock.default_op_components(false, true, true, leftState==rightState);
       newstartingBlock.setstoragetype(LOCAL_STORAGE);
       newstartingBlock.BuildSumBlock(NO_PARTICLE_SPIN_NUMBER_CONSTRAINT, startingBlock, dummyblock);
       startingBlock = newstartingBlock;
@@ -74,7 +75,7 @@ void SpinAdapted::InitBlocks::InitStartingBlock (StackSpinBlock& startingBlock, 
 void SpinAdapted::InitBlocks::InitNewSystemBlock(StackSpinBlock &system, StackSpinBlock &systemDot, StackSpinBlock &newSystem, int leftState, int rightState, const int& sys_add, const bool &direct, int integralIndex, const Storagetype &storage, bool haveNormops, bool haveCompops, int constraint)
 {
   newSystem.set_integralIndex() = integralIndex;
-  newSystem.default_op_components(direct, system, systemDot, haveNormops, haveCompops, leftState==rightState);
+  newSystem.default_op_components(direct, haveNormops, haveCompops, leftState==rightState);
   newSystem.setstoragetype(storage);
   newSystem.BuildSumBlock (constraint, system, systemDot);
 
@@ -188,7 +189,7 @@ void SpinAdapted::InitBlocks::InitNewEnvironmentBlock(StackSpinBlock &environmen
           environment.BuildSumBlock(constraint, environmentCore, environmentActive);
         } else {
 	  newEnvironment.set_integralIndex() = integralIndex;
-          newEnvironment.default_op_components(direct, environmentCore, environmentActive, haveNormops, haveCompops, leftState == rightState);
+          newEnvironment.default_op_components(direct, haveNormops, haveCompops, leftState == rightState);
           newEnvironment.setstoragetype(DISTRIBUTED_STORAGE);
           newEnvironment.BuildSumBlock(constraint, environmentCore, environmentActive);
 	  //p2out << "\t\t\t NewEnvironment block " << endl << newEnvironment << endl;
@@ -251,35 +252,40 @@ void SpinAdapted::InitBlocks::InitNewEnvironmentBlock(StackSpinBlock &environmen
 
       if(dot_with_sys && onedot) {
 	newEnvironment.set_integralIndex() = integralIndex;
-        newEnvironment.BuildSlaterBlock (environmentSites, quantumNumbers, distribution, false, false);
+        newEnvironment.BuildSlaterBlock (environmentSites, quantumNumbers, distribution, haveCompops, haveNormops);
       } else {
 	environment.set_integralIndex() = integralIndex;
-        environment.BuildSlaterBlock (environmentSites, quantumNumbers, distribution, false, haveNormops);
+        environment.BuildSlaterBlock (environmentSites, quantumNumbers, distribution, haveCompops, haveNormops);
       }
     }
-  } else {
+  } 
+  else {
     p2out << "\t\t\t Restoring block of size " << environmentSites.size () << " from previous iteration" << endl;
     
     if(dot_with_sys && onedot) {
       newEnvironment.set_integralIndex() = integralIndex;
       StackSpinBlock::restore (!forward, environmentSites, newEnvironment, leftState, rightState);
       newEnvironment.set_twoInt(integralIndex);
+      if (haveCompops && !newEnvironment.has(CRE_DESCOMP))
+	newEnvironment.addAllCompOps();
     } else {
       environment.set_integralIndex() = integralIndex;
       StackSpinBlock::restore (!forward, environmentSites, environment, leftState, rightState);
       environment.set_twoInt(integralIndex);
+      if (haveCompops && !environment.has(CRE_DESCOMP))
+	environment.addAllCompOps();
     }
     if (dmrginp.outputlevel() > 0)
       mcheck("");
   }
-  // now initialise newEnvironment
+
+  
+ // now initialise newEnvironment
   if (!dot_with_sys || !onedot) {
-    if (haveCompops && !environment.has(CRE_DESCOMP))
-      environment.addAllCompOps();
     environment.addAdditionalOps();
 
     newEnvironment.set_integralIndex() = integralIndex;
-    newEnvironment.default_op_components(direct, environment, environmentDot, haveNormops, haveCompops, leftState==rightState);
+    newEnvironment.default_op_components(direct, haveNormops, haveCompops, leftState==rightState);
     newEnvironment.setstoragetype(DISTRIBUTED_STORAGE);
     newEnvironment.BuildSumBlock (constraint, environment, environmentDot);
     //p2out << "\t\t\t Environment block " << endl << environment << endl;

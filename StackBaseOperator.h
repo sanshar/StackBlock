@@ -252,6 +252,7 @@ class StackSparseMatrix : public Baseoperator<StackMatrix>  // the sparse matrix
   void build_and_renormalise_transform(StackSpinBlock *big, const std::vector<Matrix>& leftrotate_matrix, const StateInfo *leftstateinfo, 
 				       const std::vector<Matrix>& rightrotate_matrix,  const StateInfo *newStateInfo);
   void buildUsingCsf(const StackSpinBlock& b, vector< vector<Csf> >& ladders, std::vector< Csf >& s) ;
+  virtual void buildUsingCre(const StackSpinBlock* b) {};
   virtual double redMatrixElement(Csf c1, vector<Csf>& ladder, const StackSpinBlock* b=0) {return 0;}
   double calcCompfactor(TensorOp& Top1, TensorOp& op2, CompType comp, const TwoElectronArray& v_2, int integralIndex);
   double calcCompfactor(TensorOp& Top1, TensorOp& op2, CompType comp, const CCCCArray& vcccc);
@@ -260,7 +261,8 @@ class StackSparseMatrix : public Baseoperator<StackMatrix>  // the sparse matrix
   double calcCompfactor(TensorOp& Top1, TensorOp& op2, CompType comp, int op2index, const CCCCArray& vcccc);
   double calcCompfactor(TensorOp& Top1, TensorOp& op2, CompType comp, int op2index, const CCCDArray& vcccd);
   bool nonZeroTensorComponent(Csf& c1, SpinQuantum& opsym, Csf& ladder, int& nonzeroindex, double& cleb);
-  std::vector<double> calcMatrixElements(Csf& c1, TensorOp& Top, Csf& c2);
+  std::vector<double> calcMatrixElements(Csf& c1, TensorOp& Top, Csf& c2, std::vector<bool>& backup1, std::vector<bool>& backup2);
+  double calcMatrixElements(Csf& c1, TensorOp& Top, Csf& c2, std::vector<bool>& backup1, std::vector<bool>& backup2, int index);
 };
 
 

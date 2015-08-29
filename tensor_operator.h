@@ -23,7 +23,7 @@ Sandeep Sharma and Garnet K.-L. Chan
 
 using namespace std;
 using namespace SpinAdapted;
-
+extern array_2d<int> groupTable;
 class TensorOp {
 
  public:
@@ -230,7 +230,9 @@ class TensorOp {
       empty= true;
       return *this;
     }
-    
+
+    //for (int i=0; i<optypes.size(); i++)
+    //op1.optypes.push_back(optypes[i]);
     copy(op1.optypes.begin(), op1.optypes.end(), back_inserter(optypes));
 
     int newrows = Symmetry::sizeofIrrep(pirrep);
@@ -242,7 +244,9 @@ class TensorOp {
       for (int j=0; j<op1.opindices.size(); j++) { 
 	if (identical && i>j) continue;
 	tempopindices[index] = opindices[i];
-	copy(op1.opindices[j].begin(), op1.opindices[j].end(), back_inserter(tempopindices[index]) );
+	for (int jj=0; jj<op1.opindices[j].size(); jj++)
+	  tempopindices[index].push_back(op1.opindices[j][jj]);
+	//copy(op1.opindices[j].begin(), op1.opindices[j].end(), back_inserter(tempopindices[index]) );
 	index++;
       }
     opindices = tempopindices;
@@ -264,7 +268,11 @@ class TensorOp {
 
 	//double cleb = cleb_(Spin, sz1, op1.Spin, sz2, pspin, sz);
 	double cleb = clebsch(Spin, sz1, op1.Spin, sz2, pspin, sz);
-	double clebdinfh = Symmetry::spatial_cg(irrep, op1.irrep, pirrep, ilz1, ilz2, ilz);
+	double clebdinfh = 1.0;
+	if (NonabelianSym || sym == "dinfh" || sym == "dinfh_abelian" || sym=="lzsym" || sym=="trans")
+	  clebdinfh = Symmetry::spatial_cg(irrep, op1.irrep, pirrep, ilz1, ilz2, ilz);
+	else
+	  clebdinfh = pirrep == groupTable(irrep, op1.irrep) ? 1.0 : 0.0; 
 	if (fabs(cleb) <= 1.0e-14 || fabs(clebdinfh) <= 1.0e-14)
 	  continue;
 

@@ -162,6 +162,10 @@ void StackSpinBlock::default_op_components(bool complementary_, bool implicitTra
   if ( dmrginp.new_npdm_code() ) implicitTranspose = false;
   if ( !dmrginp.doimplicitTranspose() ) implicitTranspose = false; //this is usually used for testing
 
+  //************
+  //implicitTranspose = false;
+  //*******
+
   complementary = complementary_;
   normal = !complementary_;
 
@@ -207,20 +211,17 @@ void StackSpinBlock::set_big_components()
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
 
-void StackSpinBlock::default_op_components(bool direct, StackSpinBlock& lBlock, StackSpinBlock& rBlock, bool haveNormops, bool haveCompops, bool implicitTranspose)
+void StackSpinBlock::default_op_components(bool direct, bool haveNormops, bool haveCompops, bool implicitTranspose)
 {
   // New version of NPDM code not yet working with implicit transposes
   if ( dmrginp.new_npdm_code() ) implicitTranspose = false;
   if ( !dmrginp.doimplicitTranspose() ) implicitTranspose = false; //this is usually used for testing
 
   this->direct = direct;
-  if (lBlock.is_complementary() || rBlock.is_complementary()) {
-    this->complementary = true;
-    this->normal = false;
-  } else {
-    this->complementary = false;
-    this->normal = true;
-  }
+
+  //************
+  //implicitTranspose = false;
+  //*******
 
   // Not direct
   //------------------

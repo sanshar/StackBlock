@@ -494,8 +494,8 @@ SpinAdapted::Input::Input(const string& config_name) {
       }
       else if (boost::iequals(keyword, "davidson")) 
 	m_solve_type = DAVIDSON;
-      else if (boost::iequals(keyword, "lowMemoryAlgorithm"))
-	m_lowMemoryAlgorithm = true;
+      else if (boost::iequals(keyword, "notlowMemoryAlgorithm"))
+	m_lowMemoryAlgorithm = false;
       else if (boost::iequals(keyword, "lanczos")) 
 	m_solve_type = LANCZOS;
       else if (boost::iequals(keyword, "mkl_thrds") || boost::iequals(keyword, "threads_mkl")) 

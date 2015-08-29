@@ -113,7 +113,7 @@ void SpinAdapted::stackopxop::cxcddcomp(const StackSpinBlock* otherblock, std::v
 
     //pout << "building ham ccd "<<i<<endl;
     //If we have all the operators we dont have to take transposes, useful for <bra|H|ket> evaluation
-    if (loopblock->has(DES)) {
+    if (loopblock->has(DES) && otherblock->has(CRE_DES_DESCOMP)) {
       boost::shared_ptr<StackSparseMatrix> op2 = otherblock->get_op_array(CRE_DES_DESCOMP).get_element(i).at(opind);
       double scale = 1.0;
       double parity = 1.0;
@@ -596,7 +596,7 @@ void SpinAdapted::stackopxop::dxcccomp(const StackSpinBlock* otherBlock, std::ve
   for (int opind=0; opind<opvec1.size(); opind++) {
 
     //If we have all the operators we dont have to take transposes, useful for <bra|H|ket> evaluation
-    if (loopblock->has(DES) ) {
+    if (loopblock->has(DES) && otherBlock->has(CRE_CRECOMP)) {
       boost::shared_ptr<StackSparseMatrix> op1 = loopblock->get_op_array(DES).get_element(opvec1.at(opind)->get_orbs(0)).at(opind); // DES_j
       
       bool transpose = false;

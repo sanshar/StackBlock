@@ -50,35 +50,99 @@ bool SpinAdapted::StackSparseMatrix::nonZeroTensorComponent(Csf& c1, SpinQuantum
   return found;
 }
 
-std::vector<double> SpinAdapted::StackSparseMatrix::calcMatrixElements(Csf& c1, TensorOp& Top, Csf& c2)
+std::vector<double> SpinAdapted::StackSparseMatrix::calcMatrixElements(Csf& c1, TensorOp& Top, Csf& c2, vector<bool>& backupSlater1, vector<bool>& backupSlater2)
 {
   vector< vector<double> >& szops = Top.Szops; 
   vector<int>& optypes = Top.optypes;
   std::vector<double> elements(szops.size(), 0.0);
-
+  
+  int slatersize = backupSlater1.size();
   for (int isz=0; isz<szops.size(); isz++) 
-    for (map<Slater, double>::iterator it1 = c1.det_rep.begin(); it1!= c1.det_rep.end(); it1++) 
-      for (map<Slater, double>::iterator it2 = c2.det_rep.begin(); it2!= c2.det_rep.end(); it2++) {
-        vector<double>& sz = szops[isz];
+  for (map<Slater, double>::iterator it1 = c1.det_rep.begin(); it1!= c1.det_rep.end(); it1++) 
+  for (map<Slater, double>::iterator it2 = c2.det_rep.begin(); it2!= c2.det_rep.end(); it2++) {
+    vector<double>& sz = szops[isz];
     
-        for (int j=0; j<sz.size(); j++) {
-          if (fabs(sz[j]) < 1.0e-14)
-	      continue;
-          vector<int>& Ind = Top.opindices[j]; //Indices of c and d operators
-          Slater s1 = (*it1).first, s2 = (*it2).first;
-          double d1 = (*it1).second, d2 = (*it2).second;
+    for (int j=0; j<sz.size(); j++) {
 
-          for (int k=Ind.size()-1; k>=0; k--) { //go from high to low
-	        if (optypes[k] == 1) s2.c(Ind[k]);
-	        else s2.d(Ind[k]);
-	        if (s2.isempty())
-	          break;
-          }
-          elements[isz] += sz[j]*d1*d2*(s1.trace(s2));
-        }
+      if (fabs(sz[j]) < 1.0e-14)
+	continue;
+      vector<int>& Ind = Top.opindices[j]; //Indices of c and d operators
+      
+      Slater &s1 = const_cast<Slater&>((*it1).first); 
+      Slater &s2 = const_cast<Slater&>((*it2).first);
+      const double &d1 = (*it1).second, &d2 = (*it2).second;
+      
+      int sign1 = s1.getSign(), sign2 = s2.getSign();
+      
+      for (int i=0; i<slatersize; i++) {
+	//backupSlater1[i] = s1.get_orbstring().get_occ_rep()[i];
+	backupSlater2[i] = s2.get_orbstring().get_occ_rep()[i];
       }
-
+      
+      for (int k=Ind.size()-1; k>=0; k--) { //go from high to low
+	if (optypes[k] == 1) s2.c(Ind[k]);
+	else s2.d(Ind[k]);
+	if (s2.isempty())
+	  break;
+      }
+      elements[isz] += sz[j]*d1*d2*(s1.trace(s2));
+      
+      for (int i=0; i<slatersize; i++) {
+	//s1.get_orbstring().get_occ_rep()[i] = backupSlater1[i];
+	s2.get_orbstring().get_occ_rep()[i] = backupSlater2[i];
+      }
+      s1.setSign(sign1); s2.setSign(sign2);
+      s1.setempty(false); s2.setempty(false);
+    }
+  }
+  
   return elements;
+}
+
+double SpinAdapted::StackSparseMatrix::calcMatrixElements(Csf& c1, TensorOp& Top, Csf& c2, vector<bool>& backupSlater1, vector<bool>& backupSlater2, int isz)
+{
+  vector< vector<double> >& szops = Top.Szops; 
+  vector<int>& optypes = Top.optypes;
+  double element = 0.0;
+  
+  int slatersize = backupSlater1.size();
+
+  for (map<Slater, double>::iterator it1 = c1.det_rep.begin(); it1!= c1.det_rep.end(); it1++) 
+  for (map<Slater, double>::iterator it2 = c2.det_rep.begin(); it2!= c2.det_rep.end(); it2++){
+    vector<double>& sz = szops[isz];
+    
+    for (int j=0; j<sz.size(); j++) {
+
+      if (fabs(sz[j]) < 1.0e-14)
+	continue;
+      vector<int>& Ind = Top.opindices[j]; //Indices of c and d operators
+      
+      Slater &s1 = const_cast<Slater&>((*it1).first); 
+      Slater &s2 = const_cast<Slater&>((*it2).first);
+      const double &d1 = (*it1).second, &d2 = (*it2).second;
+      
+      int sign1 = s1.getSign(), sign2 = s2.getSign();
+      
+      for (int i=0; i<slatersize; i++)
+	backupSlater2[i] = s2.get_orbstring().get_occ_rep()[i];
+      
+      for (int k=Ind.size()-1; k>=0; k--) { //go from high to low
+	if (optypes[k] == 1) s2.c(Ind[k]);
+	else s2.d(Ind[k]);
+	if (s2.isempty())
+	  break;
+      }
+      element += sz[j]*d1*d2*(s1.trace(s2));
+      
+      for (int i=0; i<slatersize; i++) 
+	s2.get_orbstring().get_occ_rep()[i] = backupSlater2[i];
+      
+      s1.setSign(sign1); s2.setSign(sign2);
+      s1.setempty(false); s2.setempty(false);
+    }
+  }
+  
+  return element;
 }
 
 
@@ -107,7 +171,7 @@ double SpinAdapted::StackSparseMatrix::calcCompfactor(TensorOp& op1, TensorOp& o
 
     for (i1=0; i1<iSz1.size(); i1++)
       for (i2 =0; i2<iSz2.size(); i2++) {
-	vector<int>& Ind1 = op1.opindices[i1], Ind2 = op2.opindices[i2]; 
+	vector<int>& Ind1 = op1.opindices[i1], &Ind2 = op2.opindices[i2]; 
 	if (comp == CD) {
 	  factor += 0.5*(-v_2(Ind1[0], Ind2[0], Ind2[1], Ind1[1]) - v_2(Ind2[0], Ind1[0], Ind1[1], Ind2[1]) 
 	    		 + v_2(Ind2[0], Ind1[0], Ind2[1], Ind1[1]) + v_2(Ind1[0], Ind2[0], Ind1[1], Ind2[1]))*iSz1.at(i1)*iSz2.at(i2)/cleb;
@@ -160,7 +224,7 @@ double SpinAdapted::StackSparseMatrix::calcCompfactor(TensorOp& op1, TensorOp& o
 
     for (i1=0; i1<iSz1.size(); ++i1)
       for (i2 =0; i2<iSz2.size(); ++i2) {
-	vector<int>& Ind1 = op1.opindices[i1], Ind2 = op2.opindices[i2]; 
+	vector<int>& Ind1 = op1.opindices[i1], &Ind2 = op2.opindices[i2]; 
 	if (comp == CD) {
 	  factor += (-v_2(Ind1[0], Ind2[0], Ind2[1], Ind1[1]) + 
 	    	     v_2(Ind2[0], Ind1[0], Ind2[1], Ind1[1]))*iSz1.at(i1)*iSz2.at(i2)/cleb;
@@ -214,7 +278,7 @@ double SpinAdapted::StackSparseMatrix::calcCompfactor(TensorOp& op1, TensorOp& o
 
       for (i1=0; i1<iSz1.size(); ++i1)
         for (i2 =0; i2<iSz2.size(); ++i2) {
-          vector<int>& Ind1 = op1.opindices[i1], Ind2 = op2.opindices[i2]; 
+          vector<int>& Ind1 = op1.opindices[i1], &Ind2 = op2.opindices[i2]; 
 	  
           if (comp == CD) {
             if (op2.dn() == 2) {

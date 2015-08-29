@@ -591,39 +591,38 @@ void SpinAdapted::operatorfunctions::TensorMultiply(const StackSpinBlock *ablock
   for (int index = 0; index<nonZeroBlocks.size(); index++) {
     int lQ = nonZeroBlocks[index].first.first, rQ = nonZeroBlocks[index].first.second;
 
-    for (int rQPrime=0; rQPrime <rightKetOpSz; rQPrime ++) {
-      if (rightOp.allowed(rQ, rQPrime)) {
-
+    const std::vector<int>& colinds = rightOp.getActiveCols(rQ);
+    for (int rrop=0; rrop <colinds.size(); rrop ++) {
+      int rQPrime = colinds[rrop];
+      
 	const std::vector<int>& rowinds = c.getActiveRows(rQPrime);
 	for (int l = 0; l < rowinds.size(); l++) {
 	  int lQPrime = rowinds[l];
 	  if (leftOp.allowed(lQ, lQPrime) ) {
 
-	    StackMatrix m(dataArray[omprank], lbraS->getquantastates(lQ), rketS->getquantastates(rQPrime));
+	    StackMatrix m(dataArray[omprank], lketS->getquantastates(lQPrime), rbraS->getquantastates(rQ));
 	    
-	    double factor = leftOp.get_scaling(lbraS->quanta[lQ], lketS->quanta[lQPrime]);
-	    MatrixMultiply (leftOp.operator_element(lQ, lQPrime), leftConj, c.operator_element(lQPrime, rQPrime), 'n',
-			    m, factor, 0.);	      
+	    double factor = scale*leftOp.get_scaling(lbraS->quanta[lQ], lketS->quanta[lQPrime]);	      
+	    factor *= dmrginp.get_ninej()(lketS->quanta[lQPrime].get_s().getirrep(), rketS->quanta[rQPrime].get_s().getirrep() , c.get_deltaQuantum(0).get_s().getirrep(), 
+					  leftOp.get_spin().getirrep(), rightOp.get_spin().getirrep(), opQ.get_s().getirrep(),
+					  lbraS->quanta[lQ].get_s().getirrep(), rbraS->quanta[rQ].get_s().getirrep() , v[OMPRANK].get_deltaQuantum(0).get_s().getirrep());
+	    factor *= Symmetry::spatial_ninej(lketS->quanta[lQPrime].get_symm().getirrep() , rketS->quanta[rQPrime].get_symm().getirrep(), c.get_symm().getirrep(), 
+					      leftOp.get_symm().getirrep(), rightOp.get_symm().getirrep(), opQ.get_symm().getirrep(),
+					      lbraS->quanta[lQ].get_symm().getirrep() , rbraS->quanta[rQ].get_symm().getirrep(), v[OMPRANK].get_symm().getirrep());
+	    int parity = rightOp.get_fermion() && IsFermion(lketS->quanta[lQPrime]) ? -1 : 1;
+	    factor *=  rightOp.get_scaling(rbraS->quanta[rQ], rketS->quanta[rQPrime]);
 
-	    {
-	      double factor = scale;
-	      
-	      factor *= dmrginp.get_ninej()(lketS->quanta[lQPrime].get_s().getirrep(), rketS->quanta[rQPrime].get_s().getirrep() , c.get_deltaQuantum(0).get_s().getirrep(), 
-					    leftOp.get_spin().getirrep(), rightOp.get_spin().getirrep(), opQ.get_s().getirrep(),
-					    lbraS->quanta[lQ].get_s().getirrep(), rbraS->quanta[rQ].get_s().getirrep() , v[OMPRANK].get_deltaQuantum(0).get_s().getirrep());
-	      factor *= Symmetry::spatial_ninej(lketS->quanta[lQPrime].get_symm().getirrep() , rketS->quanta[rQPrime].get_symm().getirrep(), c.get_symm().getirrep(), 
-						leftOp.get_symm().getirrep(), rightOp.get_symm().getirrep(), opQ.get_symm().getirrep(),
-						lbraS->quanta[lQ].get_symm().getirrep() , rbraS->quanta[rQ].get_symm().getirrep(), v[OMPRANK].get_symm().getirrep());
-	      int parity = rightOp.get_fermion() && IsFermion(lketS->quanta[lQPrime]) ? -1 : 1;
-	      factor *=  rightOp.get_scaling(rbraS->quanta[rQ], rketS->quanta[rQPrime]);
-	      MatrixMultiply (m, 'n', rightOp.operator()(rQ, rQPrime), TransposeOf(rightOp.conjugacy()), v[OMPRANK].operator_element(lQ, rQ), factor*parity);
-	    }
+
+	    MatrixMultiply (c.operator_element(lQPrime, rQPrime), 'n', rightOp.operator_element(rQ, rQPrime), TransposeOf(rightOp.conjugacy()), 
+			    m, 1.0, 0.);	      
+	    MatrixMultiply (leftOp.operator()(lQ, lQPrime), leftConj, m, 'n',  v[OMPRANK].operator_element(lQ, rQ), factor*parity);
+
 	  }
 	}
-      }
     }
   }
-
+  
+  
   for (int q = quanta_thrds-1; q > -1 ; q--) {
    Stackmem[OMPRANK].deallocate(dataArray[q], maxlen);
   }
@@ -631,8 +630,6 @@ void SpinAdapted::operatorfunctions::TensorMultiply(const StackSpinBlock *ablock
   
 
 }
-
-
 
 
 void SpinAdapted::operatorfunctions::MultiplyWithOwnTranspose(const StackSparseMatrix& a, StackSparseMatrix& c, Real scale)
@@ -672,14 +669,14 @@ void SpinAdapted::operatorfunctions::Product (const StackSpinBlock *ablock, cons
 	    int apj = astate->quanta[aprime].get_s().getirrep(), cqj = astate->quanta[cq].get_s().getirrep(), cqpj = astate->quanta[cqprime].get_s().getirrep();
 	    double factor = a.get_scaling(astate->quanta[cq], astate->quanta[aprime]);
 	    factor *= b.get_scaling(astate->quanta[aprime], astate->quanta[cqprime]);
-      if(dmrginp.spinAdapted()){
-
-	    factor *= racah(cqpj, b.get_spin().getirrep(), cqj, a.get_spin().getirrep(), apj, c.get_spin().getirrep()) * pow( (1.0*c.get_spin().getirrep()+1.0)*(1.0*apj+1.0), 0.5 )
-	            *pow(-1.0, static_cast<int>((b.get_spin().getirrep()+a.get_spin().getirrep()-c.get_spin().getirrep())/2.0));
-      }
+	    if(dmrginp.spinAdapted()){
+	      
+	      factor *= racah(cqpj, b.get_spin().getirrep(), cqj, a.get_spin().getirrep(), apj, c.get_spin().getirrep()) * pow( (1.0*c.get_spin().getirrep()+1.0)*(1.0*apj+1.0), 0.5 )
+		*pow(-1.0, static_cast<int>((b.get_spin().getirrep()+a.get_spin().getirrep()-c.get_spin().getirrep())/2.0));
+	    }
 	    MatrixMultiply(a.operator_element(cq, aprime), a.conjugacy(), b.operator_element(aprime, cqprime), b.conjugacy(),
 			   c.operator_element(cq, cqprime), scale*factor, 1.0);
-
+	    
 	  }
 }
 

@@ -32,6 +32,7 @@ class StackCreDes: public SpinAdapted::StackSparseMatrix
  public:
   StackCreDes() { conj='n'; fermion = false;}
   void build(const StackSpinBlock& block);
+  void buildUsingCre(const StackSpinBlock* b);
   double redMatrixElement(Csf c1, vector<Csf>& ladder, const StackSpinBlock* b);
 };
 
@@ -48,6 +49,7 @@ class StackCreCre: public SpinAdapted::StackSparseMatrix
  public:
   StackCreCre() { conj='n'; fermion = false;}
   void build(const StackSpinBlock& block);
+  void buildUsingCre(const StackSpinBlock* b);
   double redMatrixElement(Csf c1, vector<Csf>& ladder, const StackSpinBlock* b);
 };
 
@@ -65,6 +67,7 @@ class StackCreDesComp: public SpinAdapted::StackSparseMatrix
   StackCreDesComp() { conj='n'; fermion = false;}
   void build(const StackSpinBlock& block);
   void buildfromCreDes(StackSpinBlock& block);
+  void buildUsingCre(const StackSpinBlock* b);
   double redMatrixElement(Csf c1, vector<Csf>& ladder, const StackSpinBlock* b);
 };
 
@@ -83,6 +86,7 @@ class StackDesDesComp: public SpinAdapted::StackSparseMatrix
   StackDesDesComp() { conj='n'; fermion = false;}
   void build(const StackSpinBlock& block);
   void buildfromDesDes(StackSpinBlock& block);
+  //void buildUsingCre(const StackSpinBlock* b);
   double redMatrixElement(Csf c1, vector<Csf>& ladder, const StackSpinBlock* b);
 };
 

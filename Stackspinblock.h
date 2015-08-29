@@ -102,7 +102,7 @@ class StackSpinBlock
   //These functions need to be called before the required memory can be calculated
   //These functions decide what operators are to be built and stored in memory
   void default_op_components(bool complementary_, bool implicitTranspose);
-  void default_op_components(bool direct, StackSpinBlock& lBlock, StackSpinBlock& rBlock, bool haveNormops, bool haveCompops, bool implicitTranspose);
+  void default_op_components(bool direct, bool haveNormops, bool haveCompops, bool implicitTranspose);
   void setstoragetype(Storagetype st);
   void set_big_components();
   void initialise_op_array(opTypes optype, bool is_core);

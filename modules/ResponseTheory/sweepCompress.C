@@ -118,14 +118,21 @@ void SpinAdapted::SweepCompress::BlockDecimateAndCompress (SweepParams &sweepPar
 
     StackWavefunction tempwave; tempwave.initialise(solution[0]); tempwave.Clear();
     GuessWave::onedot_shufflesysdot(big.get_ketStateInfo(), newbig.get_ketStateInfo(), solution[0], tempwave);  
-    copy(tempwave.get_operatorMatrix(), solution[0].get_operatorMatrix());
-    //DCOPY(solution[0].memoryUsed(), tempwave.get_data(), 1, solution[0].get_data(), 1);
+    //copy(tempwave.get_operatorMatrix(), solution[0].get_operatorMatrix());
+    double* backup = solution[0].get_data();
+    solution[0] = tempwave;
+    solution[0].set_data(backup);
+    DCOPY(solution[0].memoryUsed(), tempwave.get_data(), 1, solution[0].get_data(), 1);
+    solution[0].allocateOperatorMatrix();
     tempwave.deallocate();
 
     tempwave.initialise(outputState[0]); tempwave.Clear();
     GuessWave::onedot_shufflesysdot(big.get_braStateInfo(), newbig.get_braStateInfo(), outputState[0], tempwave);  
-    copy(tempwave.get_operatorMatrix(), outputState[0].get_operatorMatrix());
-    //DCOPY(outputState[0].memoryUsed(), tempwave.get_data(), 1, outputState[0].get_data(), 1);
+    backup = outputState[0].get_data();
+    outputState[0] = tempwave;
+    outputState[0].set_data(backup);
+    DCOPY(outputState[0].memoryUsed(), tempwave.get_data(), 1, outputState[0].get_data(), 1);
+    outputState[0].allocateOperatorMatrix();
     tempwave.deallocate();
 
     big.get_rightBlock()->clear();
@@ -200,6 +207,7 @@ void SpinAdapted::SweepCompress::BlockDecimateAndCompress (SweepParams &sweepPar
   solution[0].deallocate();
 
   environment.clear();
+  newEnvironment.removeAdditionalOps();
   newEnvironment.deallocate();
   newEnvironment.clear();
   environment.removeAdditionalOps();
@@ -211,7 +219,8 @@ void SpinAdapted::SweepCompress::BlockDecimateAndCompress (SweepParams &sweepPar
   newSystem.transform_operators(brarotateMatrix, ketrotateMatrix, false, false);
 
   //if (system.get_sites().size() != 1) {
-  if (system.get_sites().size() != 1 || (dmrginp.add_noninteracting_orbs() && dmrginp.molecule_quantum().get_s().getirrep() != 0 && dmrginp.spinAdapted())) {
+  //if (system.get_sites().size() != 1 || (dmrginp.add_noninteracting_orbs() && dmrginp.molecule_quantum().get_s().getirrep() != 0 && dmrginp.spinAdapted())) {
+  {
     long memoryToFree = newSystem.getdata() - system.getdata();
     long newsysmem = newSystem.memoryUsed();
     newSystem.moveToNewMemory(system.getdata());
@@ -270,6 +279,15 @@ double SpinAdapted::SweepCompress::do_one(SweepParams &sweepParams, const bool &
   bool dot_with_sys = true;
   vector<int> syssites = system.get_sites();
 
+  if (restart)
+  {
+    if (forward && system.get_complementary_sites()[0] >= dmrginp.last_site()/2)
+      dot_with_sys = false;
+    if (!forward &&
+	(!sweepParams.get_onedot() && system.get_sites()[0]-1 < dmrginp.last_site()/2)
+	&& (sweepParams.get_onedot() && system.get_sites()[0]-1 <= dmrginp.last_site()/2))
+      dot_with_sys = false;
+  }
   if (dmrginp.outputlevel() > 0)
     mcheck("at the very start of sweep");  // just timer
 
@@ -315,7 +333,14 @@ double SpinAdapted::SweepCompress::do_one(SweepParams &sweepParams, const bool &
       p2out << system.get_braStateInfo()<<endl;
       system.printOperatorSummary();
       
-
+      //system size is going to be less than environment size
+      if (forward && system.get_complementary_sites()[0] >= dmrginp.last_site()/2)
+	dot_with_sys = false;
+      if (!forward &&
+	  (!sweepParams.get_onedot() && system.get_sites()[0]-1 < dmrginp.last_site()/2)
+	  && (sweepParams.get_onedot() && system.get_sites()[0]-1 <= dmrginp.last_site()/2))
+	dot_with_sys = false;
+      
       StackSpinBlock::store (forward, system.get_sites(), system, targetState, baseState);	 	
       syssites = system.get_sites();
       p1out << "\t\t\t saving state " << syssites.size() << endl;
@@ -373,96 +398,32 @@ void SpinAdapted::SweepCompress::Startup (SweepParams &sweepParams, StackSpinBlo
   // figure out if we are going forward or backwards
   dmrginp.guessgenT -> start();
   bool forward = (system.get_sites() [0] == 0);
+
   StackSpinBlock systemDot;
-  StackSpinBlock envDot;
+  StackSpinBlock environment, environmentDot, newEnvironment;
+  StackSpinBlock envDot, big;
   int systemDotStart, systemDotEnd;
+  int environmentDotStart, environmentDotEnd, environmentStart, environmentEnd;
   int systemDotSize = sweepParams.get_sys_add() - 1;
+  int environmentDotSize = sweepParams.get_env_add() -1;
   if (forward)
   {
     systemDotStart = dmrginp.spinAdapted() ? *system.get_sites().rbegin () + 1 : (*system.get_sites().rbegin ())/2 + 1 ;
     systemDotEnd = systemDotStart + systemDotSize;
-  }
-  else
-  {
-    systemDotStart = dmrginp.spinAdapted() ? system.get_sites()[0] - 1 : (system.get_sites()[0])/2 - 1 ;
-    systemDotEnd = systemDotStart - systemDotSize;
-  }
-  vector<int> spindotsites(2); 
-  spindotsites[0] = systemDotStart;
-  spindotsites[1] = systemDotEnd;
-  systemDot = StackSpinBlock(systemDotStart, systemDotEnd, system.get_integralIndex(), false);
-  StackSpinBlock environment, environmentDot, newEnvironment;
-
-
-  int environmentDotStart, environmentDotEnd, environmentStart, environmentEnd;
-  int environmentDotSize = sweepParams.get_env_add() -1;
-  if (environmentDotSize <0) environmentDotSize = 0 ; 
-  if (forward)
-  {
     environmentDotStart = systemDotEnd + 1;
     environmentDotEnd = environmentDotStart + environmentDotSize;
   }
   else
   {
+    systemDotStart = dmrginp.spinAdapted() ? system.get_sites()[0] - 1 : (system.get_sites()[0])/2 - 1 ;
+    systemDotEnd = systemDotStart - systemDotSize;
     environmentDotStart = systemDotEnd - 1;
     environmentDotEnd = environmentDotStart - environmentDotSize;
   }
-  vector<int> envdotsites(2); 
-  envdotsites[0] = environmentDotStart;
-  envdotsites[1] = environmentDotEnd;
+  systemDot = singleSiteBlocks[system.get_integralIndex()][systemDotStart];
+  environmentDot = singleSiteBlocks[system.get_integralIndex()][environmentDotStart];
 
-  if (!sweepParams.get_onedot())
-    environmentDot = StackSpinBlock(environmentDotStart, environmentDotEnd, system.get_integralIndex(), false);
-
-  const int nexact = forward ? sweepParams.get_forward_starting_size() : sweepParams.get_backward_starting_size();
-
-  //before halfway put the sysdot with system otherwise with environment
-  if (!sweepParams.get_onedot()) {
-      dmrginp.datatransfer -> start();
-      system.addAdditionalOps();
-      dmrginp.datatransfer -> stop();
-
-      bool haveNormOps = dot_with_sys, haveCompOps = true;
-      InitBlocks::InitNewSystemBlock(system, systemDot, newSystem, baseState, targetState, sweepParams.get_sys_add(), dmrginp.direct(), 
-				     system.get_integralIndex(), DISTRIBUTED_STORAGE, haveNormOps, haveCompOps);
-      if (dmrginp.outputlevel() > 0)
-         mcheck("");
-
-      InitBlocks::InitNewEnvironmentBlock(environment, environmentDot, newEnvironment, system, systemDot, baseState, baseState,
-					  sweepParams.get_sys_add(), sweepParams.get_env_add(), forward, dmrginp.direct(),
-					  sweepParams.get_onedot(), nexact, useSlater, system.get_integralIndex(), !haveNormOps, haveCompOps, dot_with_sys);
-      if (dmrginp.outputlevel() > 0)
-         mcheck("");
-  }
-  else {
-    dmrginp.datatransfer -> start();
-    system.addAdditionalOps();
-    dmrginp.datatransfer -> stop();
-
-    bool haveNormOps = dot_with_sys, haveCompOps = true;
-    if (dot_with_sys) {
-      InitBlocks::InitNewSystemBlock(system, systemDot, newSystem, targetState, baseState, sweepParams.get_sys_add(), dmrginp.direct(), system.get_integralIndex(), DISTRIBUTED_STORAGE, haveNormOps, haveCompOps);
-
-    }
-    InitBlocks::InitNewEnvironmentBlock(environment, systemDot, newEnvironment, system, systemDot, baseState, baseState,
-					sweepParams.get_sys_add(), sweepParams.get_env_add(), forward, dmrginp.direct(),
-					sweepParams.get_onedot(), nexact, useSlater, system.get_integralIndex(), !haveNormOps, haveCompOps, dot_with_sys);
-  }
-  StackSpinBlock big;  // new_sys = sys+sys_dot; new_env = env+env_dot; big = new_sys + new_env then renormalize to find new_sys(new)
-  if (dot_with_sys) {
-    newSystem.set_loopblock(true);
-    system.set_loopblock(true);
-    newEnvironment.set_loopblock(false);
-    environment.set_loopblock(false);
-    InitBlocks::InitBigBlock(newSystem, newEnvironment, big); 
-  }
-  else{
-    system.set_loopblock(false);
-    newSystem.set_loopblock(false);
-    newEnvironment.set_loopblock(true);
-    environment.set_loopblock(true);
-    InitBlocks::InitBigBlock(system, newEnvironment, big); 
-  }
+  Sweep::makeSystemEnvironmentBigBlocks(system, systemDot, newSystem, environment, environmentDot, newEnvironment, big, sweepParams, dot_with_sys, useSlater, system.get_integralIndex(), baseState, baseState);
   
   //analyse_operator_distribution(big);
   dmrginp.guessgenT -> stop();
@@ -568,14 +529,11 @@ void SpinAdapted::SweepCompress::Startup (SweepParams &sweepParams, StackSpinBlo
 
   newSystem.transform_operators(brarotateMatrix, ketrotateMatrix, false, false);
 
-  //if (system.get_sites().size() != 1) {
-  if (system.get_sites().size() != 1 || (dmrginp.add_noninteracting_orbs() && dmrginp.molecule_quantum().get_s().getirrep() != 0 && dmrginp.spinAdapted())) {
-    long memoryToFree = newSystem.getdata() - system.getdata();
-    long newsysmem = newSystem.memoryUsed();
-    newSystem.moveToNewMemory(system.getdata());
-    Stackmem[omprank].deallocate(newSystem.getdata()+newsysmem, memoryToFree);
-    system.clear();
-  }
+  long memoryToFree = newSystem.getdata() - system.getdata();
+  long newsysmem = newSystem.memoryUsed();
+  newSystem.moveToNewMemory(system.getdata());
+  Stackmem[omprank].deallocate(newSystem.getdata()+newsysmem, memoryToFree);
+  system.clear();
 
 
   if (dmrginp.outputlevel() > 0)

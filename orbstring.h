@@ -57,11 +57,11 @@ public:
       }
   }
 
+  bool setempty(bool& pempty) {empty=pempty;}
   bool isempty() const {return empty;}
   int getSign() const {return sign;}
   void setSign(int i) {sign = i;} 
   
-  const std::vector<bool>& get_odd_rep()const {return occ_rep;}
   
   inline Orbstring (const int sz, const int sn = 1)
     : sign (sn), empty (false)
@@ -70,6 +70,7 @@ public:
   }
 
   const std::vector<bool> &get_occ_rep() const { return occ_rep; }
+  std::vector<bool> &get_occ_rep() { return occ_rep; }
 
   Orbstring (const Orbstring& o) : sign (o.sign), empty (o.empty), occ_rep (o.occ_rep) {}
   void operator= (const Orbstring& o) { if (this != &o) {sign = o.sign; empty = o.empty; occ_rep = o.occ_rep;} }

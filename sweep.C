@@ -123,7 +123,6 @@ void SpinAdapted::Sweep::makeSystemEnvironmentBigBlocks(StackSpinBlock& system, 
     
     dmrginp.set_molecule_quantum() = moleculeQ;
   }
-
   if (!dot_with_sys && sweepParams.get_onedot()) 
     InitBlocks::InitNewEnvironmentBlock(environment, systemDot, newEnvironment, system, systemDot, braState, ketState,
 					sweepParams.get_sys_add(), sweepParams.get_env_add(), forward, dmrginp.direct(),
@@ -264,9 +263,7 @@ void SpinAdapted::Sweep::BlockAndDecimate (SweepParams &sweepParams, StackSpinBl
       overlapnewenvironment.deallocate();
       overlapenvironment.deallocate();
       overlapnewsystem.deallocate();
-      //if(overlapsystem.get_sites().size() != 1) 
-      if (overlapsystem.get_sites().size() != 1 || (dmrginp.add_noninteracting_orbs() && dmrginp.molecule_quantum().get_s().getirrep() != 0 && dmrginp.spinAdapted())) 
-	overlapsystem.deallocate();
+      overlapsystem.deallocate();
       
 
     }
@@ -285,6 +282,7 @@ void SpinAdapted::Sweep::BlockAndDecimate (SweepParams &sweepParams, StackSpinBl
 
 
   //newEnvironment.clear();
+  newEnvironment.removeAdditionalOps();
   newEnvironment.deallocate();
   environment.removeAdditionalOps();
   //environment.clear();
@@ -299,7 +297,8 @@ void SpinAdapted::Sweep::BlockAndDecimate (SweepParams &sweepParams, StackSpinBl
   dmrginp.operrotT -> start();
   newSystem.transform_operators(rotatematrix);
 
-  if (system.get_sites().size() != 1 || (dmrginp.add_noninteracting_orbs() && dmrginp.molecule_quantum().get_s().getirrep() != 0 && dmrginp.spinAdapted())) {
+  //if (system.get_sites().size() != 1 || (dmrginp.add_noninteracting_orbs() && dmrginp.molecule_quantum().get_s().getirrep() != 0 && dmrginp.spinAdapted())) {
+  {
     long memoryToFree = newSystem.getdata() - system.getdata();
     long newsysmem = newSystem.memoryUsed();
     newSystem.moveToNewMemory(system.getdata());
@@ -357,12 +356,7 @@ void SpinAdapted::Sweep::BlockAndDecimate (SweepParams &sweepParams, StackSpinBl
       overlapnewsystem.transform_operators(rotatematrix, ketrotatematrix, false, false);
       StackSpinBlock::store(forward, overlapnewsystem.get_sites(), overlapnewsystem, sweepParams.current_root(), istate);
 
-      if(overlapsystem.get_sites().size() != 1) 
-	Stackmem[omprank].deallocate(overlapsystem.getdata(), (overlapnewsystem.getdata()-overlapsystem.getdata())+overlapnewsystem.memoryUsed());
-      //overlapnewsystem.deallocate();
-      //overlapsystem.deallocate();
-      
-      //overlapsystem.clear(); overlapenvironment.clear(); overlapnewsystem.clear(); overlapnewenvironment.clear();
+      Stackmem[omprank].deallocate(overlapsystem.getdata(), (overlapnewsystem.getdata()-overlapsystem.getdata())+overlapnewsystem.memoryUsed());
       
     }
     dmrginp.setOutputlevel() = originalOutputlevel;
@@ -433,10 +427,12 @@ double SpinAdapted::Sweep::do_one(SweepParams &sweepParams, const bool &warmUp, 
 
   if (restart)
   {
-    if (forward && system.get_complementary_sites()[0] >= dmrginp.last_site()/2)
-      dot_with_sys = false;
-    if (!forward && system.get_sites()[0]-1 < dmrginp.last_site()/2)
-      dot_with_sys = false;
+      if (forward && system.get_complementary_sites()[0] >= dmrginp.last_site()/2)
+	    dot_with_sys = false;
+      if (!forward &&
+	  (!sweepParams.get_onedot() && system.get_sites()[0]-1 < dmrginp.last_site()/2)
+	  && (sweepParams.get_onedot() && system.get_sites()[0]-1 <= dmrginp.last_site()/2))
+	    dot_with_sys = false;
   }
   if (dmrginp.outputlevel() > 0)
     mcheck("at the very start of sweep");  // just timer
@@ -510,12 +506,14 @@ double SpinAdapted::Sweep::do_one(SweepParams &sweepParams, const bool &warmUp, 
       }
       
       system = newSystem;
-      //system.printOperatorSummary();
-      
+      system.printOperatorSummary();
+
       //system size is going to be less than environment size
       if (forward && system.get_complementary_sites()[0] >= dmrginp.last_site()/2)
 	    dot_with_sys = false;
-      if (!forward && system.get_sites()[0]-1 < dmrginp.last_site()/2)
+      if (!forward &&
+	  (!sweepParams.get_onedot() && system.get_sites()[0]-1 < dmrginp.last_site()/2)
+	  && (sweepParams.get_onedot() && system.get_sites()[0]-1 <= dmrginp.last_site()/2))
 	    dot_with_sys = false;
 
       StackSpinBlock::store (forward, system.get_sites(), system, sweepParams.current_root(), sweepParams.current_root());	 	

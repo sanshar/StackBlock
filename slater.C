@@ -94,8 +94,10 @@ boost::shared_ptr<SpinAdapted::Slater> SpinAdapted::Slater::getLeftSlater (int i
 boost::shared_ptr<SpinAdapted::Slater> SpinAdapted::Slater::getRightSlater (int index)
 {
   std::vector<bool>::const_iterator it = alpha.get_occ_rep().begin();
+  std::vector<bool>::const_iterator it2 = alpha.get_occ_rep().end();
   std::vector<bool> occ_rep_left;
-  occ_rep_left.insert(occ_rep_left.begin(), it+index, alpha.get_occ_rep().end());
+  occ_rep_left.insert(occ_rep_left.begin(), it+index, it2);
+  //occ_rep_left.insert(occ_rep_left.begin(), it+index, alpha.get_occ_rep().end());
   Orbstring o(occ_rep_left);
   boost::shared_ptr<Slater> rightSlater(new Slater(o));
   return rightSlater;

@@ -129,10 +129,11 @@ void SpinAdapted::SweepResponse::BlockAndDecimate (SweepParams &sweepParams, Sta
     int perturbationIntegral = l+1;
     StackSpinBlock perturbationBig, perturbationsystemdot, perturbationenvironmentdot;
     StackSpinBlock perturbationsystem, perturbationenvironment, perturbationnewsystem, perturbationnewenvironment;
-    perturbationsystemdot = StackSpinBlock(systemDotStart, systemDotEnd, perturbationIntegral, true);
-    perturbationenvironmentdot = StackSpinBlock(environmentDotStart, environmentDotEnd, perturbationIntegral, true);
+    perturbationsystemdot = StackSpinBlock(systemDotStart, systemDotEnd, perturbationIntegral, false);
+    perturbationenvironmentdot = StackSpinBlock(environmentDotStart, environmentDotEnd, perturbationIntegral, false);
     perturbationsystem.set_integralIndex() = perturbationIntegral;
     StackSpinBlock::restore(forward, systemsites, perturbationsystem, targetState, firstOrderState);
+    perturbationsystem.set_twoInt(perturbationIntegral);
 
     Sweep::makeSystemEnvironmentBigBlocks(perturbationsystem, perturbationsystemdot, 
 					  perturbationnewsystem, perturbationenvironment, 
@@ -180,6 +181,7 @@ void SpinAdapted::SweepResponse::BlockAndDecimate (SweepParams &sweepParams, Sta
     perturbationnewenvironment.deallocate();
     perturbationenvironment.removeAdditionalOps();
     perturbationenvironment.deallocate();
+
     perturbationnewsystem.deallocate(); 
     perturbationsystem.removeAdditionalOps();
     perturbationsystem.deallocate(); 
@@ -200,11 +202,11 @@ void SpinAdapted::SweepResponse::BlockAndDecimate (SweepParams &sweepParams, Sta
     int perturbationIntegral = 0;
     StackSpinBlock overlapBig, overlapsystemdot, overlapenvironmentdot;
     StackSpinBlock overlapsystem, overlapenvironment, overlapnewsystem, overlapnewenvironment;
-    overlapsystemdot = StackSpinBlock(systemDotStart, systemDotEnd, perturbationIntegral, true);
-    overlapenvironmentdot = StackSpinBlock(environmentDotStart, environmentDotEnd, perturbationIntegral, true);
+    overlapsystemdot = StackSpinBlock(systemDotStart, systemDotEnd, perturbationIntegral, false);
+    overlapenvironmentdot = StackSpinBlock(environmentDotStart, environmentDotEnd, perturbationIntegral, false);
     overlapsystem.set_integralIndex() = perturbationIntegral;
-    //StackSpinBlock::restore(forward, systemsites, overlapsystem, targetState, projectors[l]);
-    
+    overlapsystem.set_sites() = systemsites; 
+
     Sweep::makeSystemEnvironmentBigOverlapBlocks(systemsites, overlapsystemdot, overlapenvironmentdot, 
 						 overlapsystem, overlapnewsystem, overlapenvironment, 
 						 overlapnewenvironment, overlapBig, sweepParams, dot_with_sys, useSlater,
@@ -236,13 +238,15 @@ void SpinAdapted::SweepResponse::BlockAndDecimate (SweepParams &sweepParams, Sta
     }
     iwave.deallocate();
 
+    overlapnewenvironment.removeAdditionalOps();
     overlapnewenvironment.deallocate();
     overlapenvironment.removeAdditionalOps();
     overlapenvironment.deallocate();
+
     overlapnewsystem.deallocate(); 
     overlapsystem.removeAdditionalOps();
-    if (overlapsystem.get_sites().size() != 1 || (dmrginp.add_noninteracting_orbs() && dmrginp.molecule_quantum().get_s().getirrep() != 0 && dmrginp.spinAdapted()))     
-      overlapsystem.deallocate(); 
+    overlapsystem.deallocate(); 
+
     overlapenvironmentdot.deallocate();
     overlapsystemdot.deallocate();
 
@@ -310,10 +314,11 @@ void SpinAdapted::SweepResponse::BlockAndDecimate (SweepParams &sweepParams, Sta
     int perturbationIntegral = l+1;
     StackSpinBlock perturbationBig, perturbationsystemdot, perturbationenvironmentdot;
     StackSpinBlock perturbationsystem, perturbationenvironment, perturbationnewsystem, perturbationnewenvironment;
-    perturbationsystemdot = StackSpinBlock(systemDotStart, systemDotEnd, perturbationIntegral, true);
-    perturbationenvironmentdot = StackSpinBlock(environmentDotStart, environmentDotEnd, perturbationIntegral, true);
+    perturbationsystemdot = StackSpinBlock(systemDotStart, systemDotEnd, perturbationIntegral, false);
+    perturbationenvironmentdot = StackSpinBlock(environmentDotStart, environmentDotEnd, perturbationIntegral, false);
     perturbationsystem.set_integralIndex() = perturbationIntegral;
     StackSpinBlock::restore(forward, systemsites, perturbationsystem, targetState, firstOrderState);
+    perturbationsystem.set_twoInt(perturbationIntegral);
 
     Sweep::makeSystemEnvironmentBigBlocks(perturbationsystem, perturbationsystemdot, 
 					  perturbationnewsystem, perturbationenvironment, 
@@ -391,10 +396,11 @@ void SpinAdapted::SweepResponse::BlockAndDecimate (SweepParams &sweepParams, Sta
     int perturbationIntegral = 0;
     StackSpinBlock perturbationBig, perturbationsystemdot, perturbationenvironmentdot;
     StackSpinBlock perturbationsystem, perturbationenvironment, perturbationnewsystem, perturbationnewenvironment;
-    perturbationsystemdot = StackSpinBlock(systemDotStart, systemDotEnd, perturbationIntegral, true);
-    perturbationenvironmentdot = StackSpinBlock(environmentDotStart, environmentDotEnd, perturbationIntegral, true);
+    perturbationsystemdot = StackSpinBlock(systemDotStart, systemDotEnd, perturbationIntegral, false);
+    perturbationenvironmentdot = StackSpinBlock(environmentDotStart, environmentDotEnd, perturbationIntegral, false);
     perturbationsystem.set_integralIndex() = perturbationIntegral;
     //StackSpinBlock::restore(forward, systemsites, perturbationsystem, targetState, projectors[l]);
+    perturbationsystem.set_sites() = systemsites; 
 
     Sweep::makeSystemEnvironmentBigOverlapBlocks(systemsites, perturbationsystemdot, perturbationenvironmentdot, 
 						 perturbationsystem, perturbationnewsystem, perturbationenvironment, perturbationnewenvironment, 
@@ -452,10 +458,7 @@ void SpinAdapted::SweepResponse::BlockAndDecimate (SweepParams &sweepParams, Sta
 
     StackSpinBlock::store(forward, perturbationnewsystem.get_sites(), perturbationnewsystem, targetState, projectors[l]);
 
-    if (perturbationsystem.get_sites().size() != 1 || (dmrginp.add_noninteracting_orbs() && dmrginp.molecule_quantum().get_s().getirrep() != 0 && dmrginp.spinAdapted()))     
-      Stackmem[omprank].deallocate(perturbationsystem.getdata(), (perturbationnewsystem.getdata()-perturbationsystem.getdata())+perturbationnewsystem.memoryUsed());
-    else
-      perturbationnewsystem.deallocate();
+    Stackmem[omprank].deallocate(perturbationsystem.getdata(), (perturbationnewsystem.getdata()-perturbationsystem.getdata())+perturbationnewsystem.memoryUsed());
     perturbationenvironmentdot.deallocate();
     perturbationsystemdot.deallocate();
 
@@ -743,16 +746,20 @@ void SpinAdapted::SweepResponse::StartUp (SweepParams &sweepParams, StackSpinBlo
   StackSpinBlock environment, newEnvironment;
 
   StackSpinBlock big;  // new_sys = sys+sys_dot; new_env = env+env_dot; big = new_sys + new_env then renormalize to find new_sys(new)
-  bool haveNormOps = dot_with_sys, haveCompOps = true;
+  bool haveNormOps = dot_with_sys, haveCompOps = !dot_with_sys;
 
   std::vector<Matrix> brarotateMatrix, ketrotateMatrix;
   //<target| H |target>
   {
     system.addAdditionalOps();
+    //pout <<system<<endl;
+    //system.printOperatorSummary();
     InitBlocks::InitNewSystemBlock(system, systemDot, newSystem, correctionVector, correctionVector, 
 				   sweepParams.get_sys_add(), dmrginp.direct(), system.get_integralIndex(), 
 				   DISTRIBUTED_STORAGE, haveNormOps, haveCompOps);
-    
+
+    //pout << newSystem<<endl;
+    //newSystem.printOperatorSummary();
     dmrginp.guessgenT -> stop();
     LoadRotationMatrix (newSystem.get_sites(), brarotateMatrix, correctionVector);
     StackWavefunction targetWave;
@@ -772,7 +779,8 @@ void SpinAdapted::SweepResponse::StartUp (SweepParams &sweepParams, StackSpinBlo
     newSystem.transform_operators(brarotateMatrix);
     dmrginp.operrotT -> stop();
 
-    if (system.get_sites().size() != 1 || (dmrginp.add_noninteracting_orbs() && dmrginp.molecule_quantum().get_s().getirrep() != 0 && dmrginp.spinAdapted())) {
+    //if (system.get_sites().size() != 1 || (dmrginp.add_noninteracting_orbs() && dmrginp.molecule_quantum().get_s().getirrep() != 0 && dmrginp.spinAdapted())) {
+    {
       long memoryToFree = newSystem.getdata() - system.getdata();
       long newsysmem = newSystem.memoryUsed();
       newSystem.moveToNewMemory(system.getdata());
@@ -801,6 +809,7 @@ void SpinAdapted::SweepResponse::StartUp (SweepParams &sweepParams, StackSpinBlo
     StackSpinBlock perturbationSystemDot, perturbationSystem, perturbationNewSystem;
     perturbationSystem.set_integralIndex() = perturbationIntegral;
     StackSpinBlock::restore(forward, systemsites, perturbationSystem, targetState, baseStates[l]);
+    perturbationSystem.set_twoInt(perturbationIntegral);
     perturbationSystemDot= singleSiteBlocks[perturbationIntegral][systemDotStart];
 
     perturbationSystem.addAdditionalOps();
@@ -1016,7 +1025,7 @@ void SpinAdapted::SweepResponse::WavefunctionCanonicalize (SweepParams &sweepPar
     
     StackSpinBlock overlapBig;
     StackSpinBlock overlapsystem, overlapenvironment, overlapnewsystem, overlapnewenvironment, overlapenvironmentDot;
-    StackSpinBlock overlapsystemDot(systemDotStart, systemDotEnd, perturbationIntegral, true);
+    StackSpinBlock overlapsystemDot(systemDotStart, systemDotEnd, perturbationIntegral, false);
 
     overlapenvironmentDot.set_integralIndex() = perturbationIntegral;
     overlapenvironmentDot = singleSiteBlocks[perturbationIntegral][sitesenvdot[0]];
@@ -1028,6 +1037,7 @@ void SpinAdapted::SweepResponse::WavefunctionCanonicalize (SweepParams &sweepPar
 
     overlapsystem.set_integralIndex() = perturbationIntegral;
     StackSpinBlock::restore(forward, systemsites, overlapsystem, targetState, baseStates[l]);
+    overlapsystem.set_twoInt(perturbationIntegral);
     overlapsystem.addAdditionalOps();
     InitBlocks::InitNewSystemBlock(overlapsystem, overlapsystemDot, 
 				   overlapnewsystem, targetState, baseStates[l], 

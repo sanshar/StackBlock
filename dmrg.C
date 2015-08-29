@@ -15,7 +15,6 @@ Sandeep Sharma and Garnet K.-L. Chan
 #include "least_squares.h"
 #include <include/communicate.h>
 #include "sweepgenblock.h"
-#include "npdm.h"
 #include "stdlib.h"
 
 #ifdef _OPENMP
@@ -43,6 +42,7 @@ Sandeep Sharma and Garnet K.-L. Chan
 #include "sweepCompress.h"
 #include "sweepResponse.h"
 #include "dmrg_wrapper.h"
+#include "sweeponepdm.h"
 
 #ifndef SERIAL
 #include <boost/mpi/environment.hpp>
@@ -62,6 +62,8 @@ void restart(double sweep_tol, bool reset_iter);
 void dmrg_stateSpecific(double sweep_tol, int targetState);
 void ReadInput(char* conf);
 void fullrestartGenblock();
+void Npdm(int pdm, bool restartpdm, bool transitionpdm);
+
 void license() {
 #ifndef MOLPRO
   pout << "Block  Copyright (C) 2012  Garnet K.-L. Chan"<<endl;
@@ -152,9 +154,9 @@ int calldmrg(char* input, char* output)
   bool direction_copy; int restartsize_copy;
   Matrix O, H;
   
-  switch(dmrginp.calc_type()) {
-
-  case (COMPRESS):
+  //switch(dmrginp.calc_type()) {
+    
+  if (dmrginp.calc_type() == COMPRESS)
   {
     bool direction; int restartsize;
     //sweepParams.restorestate(direction, restartsize);
@@ -193,15 +195,14 @@ int calldmrg(char* input, char* output)
 
 
     compress(sweep_tol, targetState, baseState);
-
-    break;
   }
-  case (RESPONSEBW):
+  else if (dmrginp.calc_type() == RESPONSEBW)
   {
     //compressing the V|\Psi_0>, here \Psi_0 is the basestate and 
     //its product with V will have a larger bond dimension and is being compressed
     //it is called the target state
-    dmrginp.setimplicitTranspose() = false;
+
+    //dmrginp.setimplicitTranspose() = false;
 
 
     sweepParams.restorestate(direction, restartsize);
@@ -231,14 +232,13 @@ int calldmrg(char* input, char* output)
     //finally now calculate the response state
     responseSweep(sweep_tol, dmrginp.targetState(), dmrginp.projectorStates(), dmrginp.baseStates());
 
-    break;
   }
-  case (RESPONSE):
+  else if (dmrginp.calc_type() == RESPONSE)
   {
     //compressing the V|\Psi_0>, here \Psi_0 is the basestate and 
     //its product with V will have a larger bond dimension and is being compressed
     //it is called the target state
-    dmrginp.setimplicitTranspose() = false;
+    //dmrginp.setimplicitTranspose() = false;
 
 
     sweepParams.restorestate(direction, restartsize);
@@ -268,9 +268,8 @@ int calldmrg(char* input, char* output)
     //finally now calculate the response state
     responseSweep(sweep_tol, dmrginp.targetState(), dmrginp.projectorStates(), dmrginp.baseStates());
 
-    break;
   }
-  case (CALCOVERLAP):
+  else if (dmrginp.calc_type() == CALCOVERLAP)
   {
     pout.precision(12);
     if (mpigetrank() == 0) {
@@ -292,9 +291,8 @@ int calldmrg(char* input, char* output)
 	}
       //Sweep::calculateAllOverlap(O);
     }
-    break;
   }
-  case (CALCHAMILTONIAN):
+  else if (dmrginp.calc_type() == CALCHAMILTONIAN)
   {
     pout.precision(12);
 
@@ -315,9 +313,9 @@ int calldmrg(char* input, char* output)
     //Sweep::calculateHMatrixElements(H);
     pout << "overlap "<<endl<<O<<endl;
     pout << "hamiltonian "<<endl<<H<<endl;
-    break;
   }
-  case (DMRG):
+  else if (dmrginp.calc_type() == DMRG ||
+	   dmrginp.calc_type() == ONEPDM)
   {
     if (RESTART && !FULLRESTART)
       restart(sweep_tol, reset_iter);
@@ -340,24 +338,21 @@ int calldmrg(char* input, char* output)
     else {
       dmrg(sweep_tol);
     }
-    break;
+
+    if (dmrginp.calc_type() == ONEPDM) 
+      Npdm(1, false, false);
+
   }
-  case (FCI):
+  else if (dmrginp.calc_type() ==FCI) {
     Sweep::fullci(sweep_tol);
-    break;
-    
-  case (TINYCALC):
+  }    
+  else if (dmrginp.calc_type() == TINYCALC) {
     Sweep::tiny(sweep_tol);
-    break;
-
+  }
+  else {
+    pout << "Invalid calculation types" << endl; abort();
+  }
     /*
-  case (ONEPDM):
-    Npdm::npdm(NPDM_ONEPDM);
-    if (dmrginp.hamiltonian() == BCS) {
-      Npdm::npdm(NPDM_PAIRMATRIX,true);
-    }
-    break;
-
   case (TWOPDM):
     Npdm::npdm(NPDM_TWOPDM);
     break;
@@ -419,10 +414,6 @@ int calldmrg(char* input, char* output)
     nevpt2::nevpt2_restart();
     break;
     */
-  default:
-    pout << "Invalid calculation types" << endl; abort();
-    
-  }
 
   cout.rdbuf(backup);
   double cputime = globaltimer.totalcputime();
@@ -762,48 +753,6 @@ void responseSweep(double sweep_tol, int targetState, vector<int>& projectors, v
   
 }
 
-/*
-void restartResponseSweep(double sweep_tol, int targetState, int correctionVector, int baseState)
-{
-  double last_fe = 10.e6;
-  double last_be = 10.e6;
-  double old_fe = 0.;
-  double old_be = 0.;
-  SweepParams sweepParams;
-  bool direction, warmUp=false, restart=true;
-  int restartSize=0;
-
-  sweepParams.restorestate(direction, restartSize);
-
-  sweepParams.current_root() = -1;
-
-  last_fe = SweepResponse::do_one(sweepParams, warmUp, direction, restart, restartSize, targetState, correctionVector, baseState);
-
-  warmUp = false;
-  restart = false;
-  while ( true)
-    {
-      old_fe = last_fe;
-      old_be = last_be;
-      if(dmrginp.max_iter() <= sweepParams.get_sweep_iter())
-	break;
-      last_be = SweepResponse::do_one(sweepParams, warmUp, !direction, restart, restartSize, targetState, correctionVector, baseState);
-      p1out << "\t\t\t Finished Sweep Iteration "<<sweepParams.get_sweep_iter()<<endl;
-      
-      if(dmrginp.max_iter() <= sweepParams.get_sweep_iter())
-	break;
-      
-      direction = true;
-      last_fe = SweepResponse::do_one(sweepParams, warmUp, direction, restart, restartSize, targetState, correctionVector, baseState);
-
-      
-      p1out << "\t\t\t Finished Sweep Iteration "<<sweepParams.get_sweep_iter()<<endl;
-      
-    }
-  
-}
-*/
-
 
 void compress(double sweep_tol, int targetState, int baseState)
 {
@@ -922,4 +871,94 @@ void dmrg_stateSpecific(double sweep_tol, int targetState)
 
 }
 
+
+void Npdm(int pdm, bool restartpdm, bool transitionpdm)
+{
+  double sweep_tol = 1e-7;
+  sweep_tol = dmrginp.get_sweep_tol();
+  bool direction;
+  int restartsize;
+  bool direction_copy; int restartsize_copy;
+  SweepParams sweepParams;
+  SweepParams sweep_copy;
+  
+  if(sym == "dinfh") {
+    pout << "Npdm not implemented with dinfh symmetry"<<endl;
+    abort();
+  }
+  
+  if (dmrginp.algorithm_method() == TWODOT ) {
+    pout << "Npdm not allowed with twodot algorithm" << endl;
+    abort();
+  }
+  
+  dmrginp.do_pdm() = true;
+  
+  // Screening can break things for NPDM (e.g. smaller operators won't be available from which to build larger ones etc...?)
+  dmrginp.oneindex_screen_tol() = 0.0; //need to turn screening off for one index ops
+  dmrginp.twoindex_screen_tol() = 0.0; //need to turn screening off for two index ops
+  dmrginp.Sz() = dmrginp.total_spin_number().getirrep();
+  sweep_copy.restorestate(direction_copy, restartsize_copy);
+
+
+  {
+    Timer timer;
+    sweepParams = sweep_copy; direction = direction_copy; restartsize = restartsize_copy;
+    
+    for (int state=0; state<dmrginp.nroots(); state++) {
+      sweepParams = sweep_copy; direction = direction_copy; restartsize = restartsize_copy;
+      SweepGenblock::do_one(sweepParams, false, !direction, false, 0, state, state); //this will generate the cd operators                               
+      if (pdm == 1) SweepOnepdm::do_one(sweepParams, false, direction, false, 0, state);     
+      //else if (npdm_order == NPDM_TWOPDM) SweepTwopdm::do_one(sweepParams, false, direction, false, 0, state, state);
+      else abort();
+    }
+    
+  }
+  
+  sweep_copy.savestate(direction_copy, restartsize_copy);
+  
+}
+
+
+/*
+void restartResponseSweep(double sweep_tol, int targetState, int correctionVector, int baseState)
+{
+  double last_fe = 10.e6;
+  double last_be = 10.e6;
+  double old_fe = 0.;
+  double old_be = 0.;
+  SweepParams sweepParams;
+  bool direction, warmUp=false, restart=true;
+  int restartSize=0;
+
+  sweepParams.restorestate(direction, restartSize);
+
+  sweepParams.current_root() = -1;
+
+  last_fe = SweepResponse::do_one(sweepParams, warmUp, direction, restart, restartSize, targetState, correctionVector, baseState);
+
+  warmUp = false;
+  restart = false;
+  while ( true)
+    {
+      old_fe = last_fe;
+      old_be = last_be;
+      if(dmrginp.max_iter() <= sweepParams.get_sweep_iter())
+	break;
+      last_be = SweepResponse::do_one(sweepParams, warmUp, !direction, restart, restartSize, targetState, correctionVector, baseState);
+      p1out << "\t\t\t Finished Sweep Iteration "<<sweepParams.get_sweep_iter()<<endl;
+      
+      if(dmrginp.max_iter() <= sweepParams.get_sweep_iter())
+	break;
+      
+      direction = true;
+      last_fe = SweepResponse::do_one(sweepParams, warmUp, direction, restart, restartSize, targetState, correctionVector, baseState);
+
+      
+      p1out << "\t\t\t Finished Sweep Iteration "<<sweepParams.get_sweep_iter()<<endl;
+      
+    }
+  
+}
+*/
 

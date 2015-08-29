@@ -26,7 +26,7 @@ void memorySummary(StackSpinBlock& big, vector<StackWavefunction>& solution) {
   long sysmem, envmem, sysop=0, envop=0;
   StackSpinBlock* sys = big.get_leftBlock()->get_leftBlock() == 0 ? big.get_leftBlock() : big.get_leftBlock()->get_leftBlock();
   StackSpinBlock* env = big.get_rightBlock()->get_leftBlock() == 0 ? big.get_rightBlock() : big.get_rightBlock()->get_leftBlock();
-  if (big.get_leftBlock()->has(CRE_DESCOMP)) {
+  if (!big.get_leftBlock()->has(CRE_DES)) {
     if (big.get_leftBlock()->get_op_array(CRE_DESCOMP).get_size()!=0)
       sysop = big.get_leftBlock()->get_op_array(CRE_DESCOMP).get_local_element(0)[1]->memoryUsed();
     if (big.get_rightBlock()->get_op_array(CRE_DES).get_size()!=0)
@@ -35,8 +35,10 @@ void memorySummary(StackSpinBlock& big, vector<StackWavefunction>& solution) {
   else {
     if (big.get_leftBlock()->get_op_array(CRE_DES).get_size()!=0)
       sysop = big.get_leftBlock()->get_op_array(CRE_DES).get_local_element(0)[1]->memoryUsed();
-    if (big.get_rightBlock()->get_op_array(CRE_DESCOMP).get_size()!=0)
-      envop = big.get_rightBlock()->get_op_array(CRE_DESCOMP).get_local_element(0)[1]->memoryUsed();
+    if (big.get_rightBlock()->has(CRE_DESCOMP)) {
+      if (big.get_rightBlock()->get_op_array(CRE_DESCOMP).get_size()!=0)
+	envop = big.get_rightBlock()->get_op_array(CRE_DESCOMP).get_local_element(0)[1]->memoryUsed();
+    }
   }
   p2out << str(boost::format("%-40s - %-10.4f\n") % "Total memory" % (Stackmem[0].size*8/1.e9));
   p2out << str(boost::format("%-40s - %-10.4f\n") % "  |-->Memory used" % (Stackmem[0].memused*8/1.e9));

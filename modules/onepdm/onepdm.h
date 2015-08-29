@@ -16,20 +16,21 @@ namespace SpinAdapted{
   class StackWavefunction;
   class StackSpinBlock;
 
-void compute_onepdm(std::vector<StackWavefunction>& solutions, const SpinBlock& system, const SpinBlock& systemDot, const SpinBlock& newSystem, const SpinBlock& newEnvironment, const SpinBlock& big, const int numprocs);
+void compute_onepdm(std::vector<StackWavefunction>& solutions, const StackSpinBlock& system, const StackSpinBlock& systemDot, const StackSpinBlock& newSystem, const StackSpinBlock& newEnvironment, const StackSpinBlock& big, const int numprocs);
 
-void compute_one_pdm_0_2(StackWavefunction& wave1, StackWavefunction& wave2, const SpinBlock& big, Matrix& onepdm);
-void compute_one_pdm_2_0_0(StackWavefunction& wave1, StackWavefunction& wave2, const SpinBlock& big, Matrix& onepdm);
-void compute_one_pdm_0_2_0(StackWavefunction& wave1, StackWavefunction& wave2, const SpinBlock& big, Matrix& onepdm);
-void compute_one_pdm_1_1_0(StackWavefunction& wave1, StackWavefunction& wave2, const SpinBlock& big, Matrix& onepdm);
-void compute_one_pdm_1_1(StackWavefunction& wave1, StackWavefunction& wave2, const SpinBlock& big, Matrix& onepdm);
+void compute_one_pdm_0_2(StackWavefunction& wave1, StackWavefunction& wave2, const StackSpinBlock& big, Matrix& onepdm);
+void compute_one_pdm_2_0_0(StackWavefunction& wave1, StackWavefunction& wave2, const StackSpinBlock& big, Matrix& onepdm);
+void compute_one_pdm_0_2_0(StackWavefunction& wave1, StackWavefunction& wave2, const StackSpinBlock& big, Matrix& onepdm);
+void compute_one_pdm_1_1_0(StackWavefunction& wave1, StackWavefunction& wave2, const StackSpinBlock& big, Matrix& onepdm);
+void compute_one_pdm_1_1(StackWavefunction& wave1, StackWavefunction& wave2, const StackSpinBlock& big, Matrix& onepdm);
 
-void compute_pair_0_2(StackWavefunction& wave1, StackWavefunction& wave2, const SpinBlock& big, Matrix& onepdm);
-void compute_pair_2_0_0(StackWavefunction& wave1, StackWavefunction& wave2, const SpinBlock& big, Matrix& onepdm);
-void compute_pair_0_2_0(StackWavefunction& wave1, StackWavefunction& wave2, const SpinBlock& big, Matrix& onepdm);
-void compute_pair_1_1_0(StackWavefunction& wave1, StackWavefunction& wave2, const SpinBlock& big, Matrix& onepdm);
-void compute_pair_1_1(StackWavefunction& wave1, StackWavefunction& wave2, const SpinBlock& big, Matrix& onepdm);
-
+/*
+void compute_pair_0_2(StackWavefunction& wave1, StackWavefunction& wave2, const StackSpinBlock& big, Matrix& onepdm);
+void compute_pair_2_0_0(StackWavefunction& wave1, StackWavefunction& wave2, const StackSpinBlock& big, Matrix& onepdm);
+void compute_pair_0_2_0(StackWavefunction& wave1, StackWavefunction& wave2, const StackSpinBlock& big, Matrix& onepdm);
+void compute_pair_1_1_0(StackWavefunction& wave1, StackWavefunction& wave2, const StackSpinBlock& big, Matrix& onepdm);
+void compute_pair_1_1(StackWavefunction& wave1, StackWavefunction& wave2, const StackSpinBlock& big, Matrix& onepdm);
+*/
 void save_onepdm_spatial_text(const Matrix& onepdm, const int &i, const int &j);
 void save_onepdm_spatial_binary(const Matrix& onepdm, const int &i, const int &j);
 void save_onepdm_binary(const Matrix& onepdm, const int &i, const int &j);
