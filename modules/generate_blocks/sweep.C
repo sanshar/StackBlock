@@ -51,7 +51,7 @@ void SweepGenblock::BlockAndDecimate (SweepParams &sweepParams, StackSpinBlock& 
   spindotsites[0] = systemDotStart;
   spindotsites[1] = systemDotEnd;
 
-  systemDot = singleSiteBlocks[system.get_integralIndex()][systemDotStart];
+  systemDot = StackSpinBlock(systemDotStart, systemDotEnd, system.get_integralIndex(), true);//singleSiteBlocks[system.get_integralIndex()][systemDotStart];
 
   const int nexact = forward ? sweepParams.get_forward_starting_size() : sweepParams.get_backward_starting_size();
 
@@ -141,7 +141,7 @@ double SweepGenblock::do_one(SweepParams &sweepParams, const bool &warmUp, const
   {
     if (forward && system.get_complementary_sites()[0] >= dmrginp.last_site()/2)
       dot_with_sys = false;
-    if (!forward && system.get_sites()[0]-1 < dmrginp.last_site()/2)
+    if (!forward && !(system.get_sites()[0] >=dmrginp.last_site()/2))
       dot_with_sys = false;
   }
 
@@ -177,7 +177,7 @@ double SweepGenblock::do_one(SweepParams &sweepParams, const bool &warmUp, const
       //system size is going to be less than environment size
       if (forward && system.get_complementary_sites()[0] >= dmrginp.last_site()/2)
 	dot_with_sys = false;
-      if (!forward && system.get_sites()[0]-1 < dmrginp.last_site()/2)
+      if (!forward && !(system.get_sites()[0] >=dmrginp.last_site()/2))
 	dot_with_sys = false;
 
       StackSpinBlock::store (forward, system.get_sites(), system, stateA, stateB);	 	

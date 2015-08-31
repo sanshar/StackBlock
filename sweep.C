@@ -194,8 +194,8 @@ void SpinAdapted::Sweep::BlockAndDecimate (SweepParams &sweepParams, StackSpinBl
     environmentDotStart = systemDotEnd - 1;
     environmentDotEnd = environmentDotStart - environmentDotSize;
   }
-  systemDot = singleSiteBlocks[system.get_integralIndex()][systemDotStart];
-  environmentDot = singleSiteBlocks[system.get_integralIndex()][environmentDotStart];
+  systemDot = StackSpinBlock(systemDotStart, systemDotEnd, system.get_integralIndex(), true);//singleSiteBlocks[system.get_integralIndex()][systemDotStart];
+  environmentDot = StackSpinBlock(environmentDotStart, environmentDotEnd, system.get_integralIndex(), true);//singleSiteBlocks[system.get_integralIndex()][environmentDotStart];
   StackSpinBlock environment, newEnvironment;
   StackSpinBlock big;  // new_sys = sys+sys_dot; new_env = env+env_dot; big = new_sys + new_env then renormalize to find new_sys(new)
 
@@ -316,8 +316,8 @@ void SpinAdapted::Sweep::BlockAndDecimate (SweepParams &sweepParams, StackSpinBl
     for (int istate = 0; istate<sweepParams.current_root(); istate++) {
       StackSpinBlock overlapBig;
       StackSpinBlock overlapsystem, overlapenvironment, overlapnewsystem, overlapnewenvironment;
-      StackSpinBlock overlapsystemDot= singleSiteBlocks[system.get_integralIndex()][systemDotStart];
-      StackSpinBlock overlapenvironmentDot=singleSiteBlocks[system.get_integralIndex()][environmentDotStart];
+      StackSpinBlock overlapsystemDot= StackSpinBlock(systemDotStart, systemDotEnd, system.get_integralIndex(), true);//singleSiteBlocks[system.get_integralIndex()][systemDotStart];
+      StackSpinBlock overlapenvironmentDot=StackSpinBlock(environmentDotStart, environmentDotEnd, system.get_integralIndex(), true);//singleSiteBlocks[system.get_integralIndex()][environmentDotStart];
       guessWaveTypes guesstype = sweepParams.get_block_iter() == 0 ? TRANSPOSE : TRANSFORM;
       
       DiagonalMatrix e;
@@ -427,12 +427,10 @@ double SpinAdapted::Sweep::do_one(SweepParams &sweepParams, const bool &warmUp, 
 
   if (restart)
   {
-      if (forward && system.get_complementary_sites()[0] >= dmrginp.last_site()/2)
-	    dot_with_sys = false;
-      if (!forward &&
-	  (!sweepParams.get_onedot() && system.get_sites()[0]-1 < dmrginp.last_site()/2)
-	  && (sweepParams.get_onedot() && system.get_sites()[0]-1 <= dmrginp.last_site()/2))
-	    dot_with_sys = false;
+    if (forward && system.get_complementary_sites()[0] >= dmrginp.last_site()/2)
+      dot_with_sys = false;
+    if (!forward && !(system.get_sites()[0] >=dmrginp.last_site()/2))
+      dot_with_sys = false;
   }
   if (dmrginp.outputlevel() > 0)
     mcheck("at the very start of sweep");  // just timer
@@ -510,11 +508,10 @@ double SpinAdapted::Sweep::do_one(SweepParams &sweepParams, const bool &warmUp, 
 
       //system size is going to be less than environment size
       if (forward && system.get_complementary_sites()[0] >= dmrginp.last_site()/2)
-	    dot_with_sys = false;
-      if (!forward &&
-	  (!sweepParams.get_onedot() && system.get_sites()[0]-1 < dmrginp.last_site()/2)
-	  && (sweepParams.get_onedot() && system.get_sites()[0]-1 <= dmrginp.last_site()/2))
-	    dot_with_sys = false;
+	dot_with_sys = false;
+      if (!forward && !(system.get_sites()[0] >=dmrginp.last_site()/2))
+	dot_with_sys = false;
+      
 
       StackSpinBlock::store (forward, system.get_sites(), system, sweepParams.current_root(), sweepParams.current_root());	 	
       pout << system<<endl;

@@ -43,7 +43,7 @@ Sandeep Sharma and Garnet K.-L. Chan
 #include "sweepResponse.h"
 #include "dmrg_wrapper.h"
 #include "sweeponepdm.h"
-
+#include "screen.h"
 #ifndef SERIAL
 #include <boost/mpi/environment.hpp>
 #include <boost/mpi/communicator.hpp>
@@ -85,6 +85,13 @@ namespace SpinAdapted{
   std::vector<TwoElectronArray> v_2;
   std::vector<std::vector<StackSpinBlock> > singleSiteBlocks;
   std::vector<double> coreEnergy;
+  std::vector<std::vector<std::vector<int> > > screened_cre;
+  std::vector<std::vector<std::vector<int> > > screened_credesdes;
+  std::vector< std::vector<std::vector<pair<int,int> > > > screened_credes;
+  std::vector< std::vector<std::vector<pair<int,int> > > > screened_credescomp;
+  std::vector< std::vector<std::vector<pair<int,int> > > > screened_desdes;
+  std::vector< std::vector<std::vector<pair<int,int> > > > screened_desdescomp;
+
   PairArray v_cc;
   CCCCArray v_cccc;
   CCCDArray v_cccd;
@@ -134,14 +141,17 @@ int calldmrg(char* input, char* output)
   Stackmem.resize(numthrds);
   Stackmem[0].data = stackmemory;
   Stackmem[0].size = dmrginp.getMemory();
+  //************
   memset(stackmemory, 0, dmrginp.getMemory()*sizeof(double));
 
    //Initializing timer calls
   dmrginp.initCumulTimer();
 
-  singleSiteBlocks.resize(v_2.size(), std::vector<StackSpinBlock>());
-  for (int i=0; i<v_2.size(); i++)
-    initialiseSingleSiteBlocks(singleSiteBlocks[i], i);
+
+  //singleSiteBlocks.resize(v_2.size(), std::vector<StackSpinBlock>());
+  //for (int i=0; i<v_2.size(); i++)
+  //initialiseSingleSiteBlocks(singleSiteBlocks[i], i);
+
 
   pout << "**** STACK MEMORY REMAINING ***** "<<1.0*(Stackmem[0].size-Stackmem[0].memused)*sizeof(double)/1.e9<<" GB"<<endl;
   double sweep_tol = 1e-7;

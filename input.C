@@ -2118,10 +2118,12 @@ void SpinAdapted::Input::performSanityTest()
     pout << "DMRG cannot be run with fewer than 4 orbitals"<<endl;
     abort();
   }
+  /*
   if (m_norbs/2 > 200) {
     pout << "Number of orbitals cannot be greater than 130"<<endl;
     abort();
   }
+  */
   if (m_alpha+m_beta < 0 || (m_alpha+m_beta == 0 && !m_Bogoliubov)) {
     pout << "Total number of electrons cannot be negative"<<endl;
     abort();

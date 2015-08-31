@@ -60,8 +60,8 @@ void SpinAdapted::SweepCompress::BlockDecimateAndCompress (SweepParams &sweepPar
     environmentDotStart = systemDotEnd - 1;
     environmentDotEnd = environmentDotStart - environmentDotSize;
   }
-  systemDot = singleSiteBlocks[system.get_integralIndex()][systemDotStart];
-  environmentDot = singleSiteBlocks[system.get_integralIndex()][environmentDotStart];
+  systemDot = StackSpinBlock(systemDotStart, systemDotEnd, system.get_integralIndex(), false);//singleSiteBlocks[system.get_integralIndex()][systemDotStart];
+  environmentDot = StackSpinBlock(environmentDotStart, environmentDotEnd, system.get_integralIndex(), false);//singleSiteBlocks[system.get_integralIndex()][environmentDotStart];
 
   Sweep::makeSystemEnvironmentBigBlocks(system, systemDot, newSystem, environment, environmentDot, newEnvironment, big, sweepParams, dot_with_sys, useSlater, system.get_integralIndex(), targetState, baseState);
 
@@ -283,9 +283,7 @@ double SpinAdapted::SweepCompress::do_one(SweepParams &sweepParams, const bool &
   {
     if (forward && system.get_complementary_sites()[0] >= dmrginp.last_site()/2)
       dot_with_sys = false;
-    if (!forward &&
-	(!sweepParams.get_onedot() && system.get_sites()[0]-1 < dmrginp.last_site()/2)
-	&& (sweepParams.get_onedot() && system.get_sites()[0]-1 <= dmrginp.last_site()/2))
+    if (!forward && !(system.get_sites()[0] >=dmrginp.last_site()/2))
       dot_with_sys = false;
   }
   if (dmrginp.outputlevel() > 0)
@@ -336,9 +334,7 @@ double SpinAdapted::SweepCompress::do_one(SweepParams &sweepParams, const bool &
       //system size is going to be less than environment size
       if (forward && system.get_complementary_sites()[0] >= dmrginp.last_site()/2)
 	dot_with_sys = false;
-      if (!forward &&
-	  (!sweepParams.get_onedot() && system.get_sites()[0]-1 < dmrginp.last_site()/2)
-	  && (sweepParams.get_onedot() && system.get_sites()[0]-1 <= dmrginp.last_site()/2))
+      if (!forward && !(system.get_sites()[0] >=dmrginp.last_site()/2))
 	dot_with_sys = false;
       
       StackSpinBlock::store (forward, system.get_sites(), system, targetState, baseState);	 	
@@ -420,8 +416,8 @@ void SpinAdapted::SweepCompress::Startup (SweepParams &sweepParams, StackSpinBlo
     environmentDotStart = systemDotEnd - 1;
     environmentDotEnd = environmentDotStart - environmentDotSize;
   }
-  systemDot = singleSiteBlocks[system.get_integralIndex()][systemDotStart];
-  environmentDot = singleSiteBlocks[system.get_integralIndex()][environmentDotStart];
+  systemDot = StackSpinBlock(systemDotStart, systemDotEnd, system.get_integralIndex(), false);//singleSiteBlocks[system.get_integralIndex()][systemDotStart];
+  environmentDot = StackSpinBlock(environmentDotStart, environmentDotEnd, system.get_integralIndex(), false);//singleSiteBlocks[system.get_integralIndex()][environmentDotStart];
 
   Sweep::makeSystemEnvironmentBigBlocks(system, systemDot, newSystem, environment, environmentDot, newEnvironment, big, sweepParams, dot_with_sys, useSlater, system.get_integralIndex(), baseState, baseState);
   
@@ -582,7 +578,7 @@ void SpinAdapted::SweepCompress::WavefunctionCanonicalize (SweepParams &sweepPar
       environmentDotStart = systemDotEnd - 1;
       environmentDotEnd = environmentDotStart - environmentDotSize;
     }
-  systemDot = singleSiteBlocks[system.get_integralIndex()][systemDotStart];
+  systemDot = StackSpinBlock(systemDotStart, systemDotEnd, system.get_integralIndex(), false);//singleSiteBlocks[system.get_integralIndex()][systemDotStart];
   //StackSpinBlock(systemDotStart, systemDotEnd, system.get_integralIndex(), true);
   vector<int> sitesenvdot(environmentDotSize+1, 0);
   int index = 0;
@@ -591,7 +587,7 @@ void SpinAdapted::SweepCompress::WavefunctionCanonicalize (SweepParams &sweepPar
     index++;
   }
 
-  environmentDot = singleSiteBlocks[system.get_integralIndex()][environmentDotStart];
+  environmentDot = StackSpinBlock(environmentDotStart, environmentDotEnd, system.get_integralIndex(), false);//singleSiteBlocks[system.get_integralIndex()][environmentDotStart];
   //StackSpinBlock::restore(!forward, sitesenvdot, environmentDot, correctionVector, baseState); 
 
   StackSpinBlock environment, newEnvironment;

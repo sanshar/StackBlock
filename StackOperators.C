@@ -789,7 +789,7 @@ void SpinAdapted::StackCreDesComp::build(const StackSpinBlock& b)
 	
       	if (leftBlock->get_op_array(CRE).has(k) && rightBlock->get_op_array(CRE).has(l) && fabs(scaleV) > dmrginp.twoindex_screen_tol()) {
 	  boost::shared_ptr<StackSparseMatrix> op1 = rightBlock->get_op_rep(CRE, getSpinQuantum(l), l);
-	  if (rightBlock->has(DES)) {
+	  if (rightBlock->has(DES) && leftBlock->has(DES)) {
 	    boost::shared_ptr<StackSparseMatrix> op2 = leftBlock->get_op_rep(DES, -getSpinQuantum(k), k);
 	    double parity = getCommuteParity(op1->get_deltaQuantum()[0], op2->get_deltaQuantum()[0], get_deltaQuantum()[0]);
 	    SpinAdapted::operatorfunctions::TensorProduct(rightBlock, *op1, *op2, &b, &(b.get_stateInfo()), *this, scaleV*parity);
