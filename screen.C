@@ -20,10 +20,29 @@ vector<int, std::allocator<int> > screened_d_indices(const vector<int, std::allo
 			       const OneElectronArray& onee, const TwoElectronArray& twoe, double thresh) {
   dmrginp.dscreen->start();
   vector<int, std::allocator<int> > screened_indices;
+  long** indsPerthrd = new long* [numthrds];
+  for (int i=0; i<numthrds; i++) {
+    indsPerthrd[i] = reinterpret_cast<long*>(Stackmem[0].allocate(indices.size()));
+    memset(indsPerthrd[i], 0, indices.size()*sizeof(long));
+  }
+
+#pragma omp parallel for
   for (int i = 0; i < indices.size(); ++i)
     if (dmrginp.use_partial_two_integrals() || screen_d_interaction(indices[i], interactingix, onee, twoe, thresh))
-      screened_indices.push_back(indices[i]);
-  //pout << "\t\t\tnumber of significant d and d_comp indices: " << screened_indices.size() << endl;
+      indsPerthrd[omprank][i] = 1;
+
+  for (int i = 0; i < indices.size(); ++i) {
+    for (int thrd=0; thrd<numthrds; thrd++)
+      if (indsPerthrd[thrd][i] > 0) {
+	screened_indices.push_back(indices[i]);
+	break;
+      }
+  }
+
+  for (int i=numthrds-1; i>-1; i--)
+    Stackmem[0].deallocate(reinterpret_cast<double*>(indsPerthrd[i]), indices.size());
+  delete[] indsPerthrd;
+
   dmrginp.dscreen->stop();
   return screened_indices;
 }
@@ -113,10 +132,32 @@ vector<int, std::allocator<int> > screened_cddcomp_indices(const vector<int, std
 							   const TwoElectronArray& twoe, double thresh)
 {
   dmrginp.dscreen->start();
- vector<int, std::allocator<int> > screened_indices;
+  vector<int, std::allocator<int> > screened_indices;
+
+  long** indsPerthrd = new long* [numthrds];
+  for (int i=0; i<numthrds; i++) {
+    indsPerthrd[i] = reinterpret_cast<long*>(Stackmem[0].allocate(otherindices.size()));
+    memset(indsPerthrd[i], 0, otherindices.size()*sizeof(long));
+  }
+
+
+#pragma omp parallel for
   for (int i = 0; i < otherindices.size(); ++i)
     if (dmrginp.use_partial_two_integrals() || screen_cddcomp_interaction(otherindices[i], selfindices, onee, twoe, thresh))
-      screened_indices.push_back(otherindices[i]);
+      indsPerthrd[omprank][i] = 1;
+
+  for (int i=0; i<otherindices.size(); i++) {
+    for (int thrd=0; thrd<numthrds; thrd++)
+      if (indsPerthrd[thrd][i] > 0) {
+	screened_indices.push_back(otherindices[i]);
+	break;
+      }
+  }
+
+  for (int i=numthrds-1; i>-1; i--)
+    Stackmem[0].deallocate(reinterpret_cast<double*>(indsPerthrd[i]), otherindices.size());
+  delete[] indsPerthrd;
+
   //pout << "\t\t\tnumber of significant cdd and cdd_comp indices: " << screened_indices.size() << endl;
   dmrginp.dscreen->stop();
   return screened_indices;
@@ -221,10 +262,31 @@ vector<pair<int, int> > screened_cd_indices(const vector<int, std::allocator<int
 {
   dmrginp.cdscreen->start();
   vector<pair<int, int> > screened_indices;
+
+  long** indsPerthrd = new long* [numthrds];
+  for (int i=0; i<numthrds; i++) {
+    indsPerthrd[i] = reinterpret_cast<long*>(Stackmem[0].allocate(indices.size()*indices.size()));
+    memset(indsPerthrd[i], 0, indices.size()*indices.size()*sizeof(long));
+  }
+
+#pragma omp parallel for
   for (int i = 0; i < indices.size(); ++i)
     for (int j = 0; j <= i; ++j)
       if (dmrginp.use_partial_two_integrals() || screen_cd_interaction(indices[i], indices[j], interactingix, twoe, thresh))
-	screened_indices.push_back(make_pair(indices[i], indices[j]));
+	indsPerthrd[omprank][i*indices.size()+j] = 1;
+
+  for (int i = 0; i < indices.size(); ++i)
+    for (int j = 0; j <= i; ++j)
+      for (int thrd=0; thrd<numthrds; thrd++)
+	if (indsPerthrd[thrd][i*indices.size()+j] > 0) {
+	  screened_indices.push_back(make_pair(indices[i], indices[j]));
+	  break;
+	}
+
+  for (int i=numthrds-1; i>-1; i--)
+    Stackmem[0].deallocate(reinterpret_cast<double*>(indsPerthrd[i]), indices.size()*indices.size());
+  delete[] indsPerthrd;
+
   dmrginp.cdscreen->stop();
   return screened_indices;
 }
@@ -242,10 +304,31 @@ vector<pair<int, int> > screened_dd_indices(const vector<int, std::allocator<int
 {
   dmrginp.ddscreen->start();
   vector<pair<int, int> > screened_indices;
+
+  long** indsPerthrd = new long* [numthrds];
+  for (int i=0; i<numthrds; i++) {
+    indsPerthrd[i] = reinterpret_cast<long*>(Stackmem[0].allocate(indices.size()*indices.size()));
+    memset(indsPerthrd[i], 0, indices.size()*indices.size()*sizeof(long));
+  }
+
+#pragma omp parallel for
   for (int i = 0; i < indices.size(); ++i)
-  for (int j = 0; j <= i; ++j)
-    if (dmrginp.use_partial_two_integrals() || screen_dd_interaction(indices[i], indices[j], interactingix, twoe, thresh))
-	screened_indices.push_back(make_pair(indices[i], indices[j]));
+    for (int j = 0; j <= i; ++j)
+      if (dmrginp.use_partial_two_integrals() || screen_dd_interaction(indices[i], indices[j], interactingix, twoe, thresh))
+	indsPerthrd[omprank][i*indices.size()+j] = 1;
+
+  for (int i = 0; i < indices.size(); ++i)
+    for (int j = 0; j <= i; ++j)
+      for (int thrd=0; thrd<numthrds; thrd++)
+	if (indsPerthrd[thrd][i*indices.size()+j] > 0) {
+	  screened_indices.push_back(make_pair(indices[i], indices[j]));
+	  break;
+	}
+
+  for (int i=numthrds-1; i>-1; i--)
+    Stackmem[0].deallocate(reinterpret_cast<double*>(indsPerthrd[i]), indices.size()*indices.size());
+  delete[] indsPerthrd;
+
   dmrginp.ddscreen->stop();
   return screened_indices;
 }
