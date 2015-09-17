@@ -1,7 +1,7 @@
 #include "fciqmchelper.h"
 #include "rotationmat.h"
 #include "operatorfunctions.h"
-#include "spinblock.h"
+#include "Stackspinblock.h"
 #include "initblocks.h"
 #ifndef SERIAL
 #include <boost/mpi.hpp>
@@ -12,292 +12,7 @@ namespace SpinAdapted{
   //initializing the static variables
   int MPS::sweepIters ;
   bool MPS::spinAdapted ;
-  std::vector<SpinBlock> MPS::siteBlocks;
-
-void QSTensor::remove_empty() {
-  for (int i = 0; i < nl; ++i) {
-    for (int j = 0; j < nr; ++j) {
-      if (allowed(i,j) && (data(i,j).Nrows() * data(i,j).Ncols() == 0)) {
-        data(i,j).ReSize(0,0);
-        allowedQuanta(i,j) = false;
-      }
-    }
-  }
-  int count = 0;
-  std::vector<int> ltemp;
-  for (int i = 0; i < nl; ++i) {
-    bool empty = true;
-    for (int j = 0; j < nr; ++j) {
-      if (allowed(i,j)) empty = false;
-    }
-    if (empty) {
-      ltemp.push_back(-1);
-    } else {
-      ltemp.push_back(count);
-      ++count;
-    }
-  }
-  int nl_new = count;
-  count = 0;
-  std::vector<int> rtemp;
-  for (int i = 0; i < nr; ++i) {
-    bool empty = true;
-    for (int j = 0; j < nl; ++j) {
-      if (allowed(j,i)) empty = false;
-    }
-    if (empty) {
-      rtemp.push_back(-1);
-    } else {
-      rtemp.push_back(count);
-      ++count;
-    }
-  }
-  int nr_new = count;
-
-  if (nl_new < nl || nr_new < nr) {
-    auto allowedQuantaOld = allowedQuanta;
-    auto dataOld = data;
-    auto leftQuantaOld = leftQuanta;
-    auto rightQuantaOld = rightQuanta;
-    allowedQuanta.ReSize(nl_new, nr_new);
-    data.ReSize(nl_new, nr_new);
-    for (int i = 0; i < nl; ++i) {
-      for (int j = 0; j < nr; ++j) {
-        if (ltemp[i] >= 0 && rtemp[j] >= 0) {
-          allowedQuanta(ltemp[i],rtemp[j]) = allowedQuantaOld(i,j);
-          data(ltemp[i],rtemp[j]) = dataOld(i,j);
-        }
-      }
-    }
-    leftQuanta.clear();
-    for (int i = 0; i < nl; ++i) {
-     if (ltemp[i] >= 0) {
-      leftQuanta.push_back(leftQuantaOld[i]);
-     }
-    }
-    rightQuanta.clear();
-    for (int i = 0; i < nr; ++i) {
-     if (rtemp[i] >= 0) {
-      rightQuanta.push_back(rightQuantaOld[i]);
-     }
-    }
-    nl = nl_new; nr = nr_new;
-  }
-}
-
-QSTensor TensorProduct(const QSTensor& A, const QSTensor& B) {
-  QSTensor C(A.lQuanta(), B.rQuanta());
-  for (int i = 0; i < C.lsize(); ++i) {
-    for (int j = 0; j < C.rsize(); ++j) {
-      for (int k = 0; k < A.rsize(); ++k) {
-        if (A.allowed(i,k)) {
-          for (int l = 0; l < B.lsize(); ++l) {
-            if (B.allowed(l,j) && A.rQuanta()[k] == B.lQuanta()[l]) {
-              if (C.allowed(i,j)) {
-                C(i,j) += A(i,k) * B(l,j);
-              } else {
-                C.allowedMatrix()(i,j) = true;
-                C(i,j) = A(i,k) * B(l,j);
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-  C.remove_empty();
-  return C;
-}
-
-ostream& operator<< (ostream& os, const QSTensor& q) {
-  os << "Left SpinQuantums" << endl;
-  for (int i = 0; i < q.nl; ++i) {
-    os << q.leftQuanta[i] << "  ";
-  }
-  os << endl;
-  os << "Right SpinQuantums" << endl;
-  for (int i = 0; i < q.nr; ++i) {
-    os << q.rightQuanta[i] << "  ";
-  }
-  os << endl;
-  os << "Matrix Elements" << endl;
-  for (int i = 0; i < q.nl; ++i) {
-    for (int j = 0; j < q.nr; ++j) {
-      if (q.allowed(i,j)) {
-        os << i << " " << j << endl;
-        os << q.data(i,j);
-      } 
-    }
-  }
-  return os;
-}
-
-void SaveQSTensor(const int& site, const QSTensor& m, int state) {
-  Timer disktimer;
-  int rank = mpigetrank();
-  if (rank == 0) {
-    char file [5000];
-    if (state == -1)
-      sprintf(file, "%s%s%d%s%d%s", dmrginp.save_prefix().c_str(), "/MPS-", site, ".", mpigetrank(), ".state_average.tmp");
-    else
-      sprintf(file, "%s%s%d%s%d%s%d%s", dmrginp.save_prefix().c_str(), "/MPS-", site, ".", mpigetrank(), ".state", state, ".tmp");
-    std::ofstream ofs(file, std::ios::binary);
-    boost::archive::binary_oarchive save_mat(ofs);
-    save_mat << m;
-    ofs.close();
-  }
-}
-
-void LoadQSTensor(const int& site, QSTensor& m, int state) {
-  Timer disktimer;
-  int rank = mpigetrank();
-  if (rank == 0) {
-    char file [5000];
-    if (state == -1)
-      sprintf(file, "%s%s%d%s%d%s", dmrginp.save_prefix().c_str(), "/MPS-", site, ".", mpigetrank(), ".state_average.tmp");
-    else
-      sprintf(file, "%s%s%d%s%d%s%d%s", dmrginp.save_prefix().c_str(), "/MPS-", site, ".", mpigetrank(), ".state", state, ".tmp");
-    std::ifstream ifs(file, std::ios::binary);
-    boost::archive::binary_iarchive load_mat(ifs);
-    load_mat >> m;
-    ifs.close();
-  }
-}
-  void MPS::buildMPSrep() {
-    // the first site
-    SpinQuantum sq[] = {SpinQuantum(0, SpinSpace(0), IrrepSpace(0))};
-    int qs[] = {1};
-    StateInfo statel(1, sq, qs);
-
-    for (int i = 0; i < MPS::sweepIters; ++i) {
-      //cout << "----------------- Site " << i << " ---------------" << endl;      
-      StateInfo statep = MPS::siteBlocks[i].get_stateInfo();
-      StateInfo stater;
-      TensorProduct(statel, statep, stater, NO_PARTICLE_SPIN_NUMBER_CONSTRAINT);
-      stater.CollectQuanta();
-      vector<QSTensor> A(statep.quanta.size(), QSTensor(statel.quanta, stater.quanta));
-      for (int r_idx = 0; r_idx < stater.oldToNewState.size(); ++r_idx) { // index of qr
-        auto OldtoNew = stater.oldToNewState[r_idx];
-        int temp = 0;
-        for (int k = 0; k < OldtoNew.size(); ++k) {
-          int l_idx = stater.leftUnMapQuanta[OldtoNew[k]];
-          int p_idx = stater.rightUnMapQuanta[OldtoNew[k]];
-          A[p_idx].allowedMatrix()(l_idx, r_idx) = true;
-          A[p_idx](l_idx, r_idx).ReSize(statel.quantaStates[l_idx], stater.quantaStates[r_idx]);
-          A[p_idx](l_idx, r_idx) = 0.;
-          IdentityMatrix I(statel.quantaStates[l_idx]);
-          int temp_new = temp + statel.quantaStates[l_idx];
-          A[p_idx](l_idx, r_idx).Columns(temp+1, temp_new) = I;
-          temp = temp_new;
-        }
-      }
-      for (int j = 0; j < A.size(); ++j) {
-        A[j].remove_empty();
-      }
-
-      auto RotMat = getSiteTensors(i);
-      
-      QSTensor QSRotMat(stater.quanta, stater.quanta);
-      for (int j = 0; j < stater.quanta.size(); ++j) {
-        if (RotMat[j].Ncols() > 0) {
-          QSRotMat.allowedMatrix()(j,j) = true;
-          QSRotMat(j,j) = RotMat[j];
-        }
-      }
-      QSRotMat.remove_empty();
-      //cout << "Rotation Matrix" << endl;
-      //cout << QSRotMat << endl;
-      
-      vector<QSTensor> B;
-      for (int j = 0; j < A.size(); ++j) {
-        B.push_back(TensorProduct(A[j], QSRotMat));
-        //cout << "renormalised: Physical Index " << j << endl;
-        //cout << B[j] << endl;
-      }
-      MPSrep.push_back(B);
-      StateInfo renorm_stater;
-      SpinAdapted::StateInfo::transform_state(RotMat, stater, renorm_stater);
-      statel = renorm_stater;
-    }
-    // Second last site
-    //cout << "----------------- Site " << MPS::sweepIters << " ---------------" << endl;
-    StateInfo statep = MPS::siteBlocks[MPS::sweepIters].get_stateInfo();
-    StateInfo stater;
-    TensorProduct(statel, statep, stater, NO_PARTICLE_SPIN_NUMBER_CONSTRAINT);
-    stater.CollectQuanta();
-    vector<QSTensor> A(statep.quanta.size(), QSTensor(statel.quanta, stater.quanta));
-    for (int r_idx = 0; r_idx < stater.oldToNewState.size(); ++r_idx) { // index of qr
-      auto OldtoNew = stater.oldToNewState[r_idx];
-      int temp = 0;
-      for (int k = 0; k < OldtoNew.size(); ++k) {
-        int l_idx = stater.leftUnMapQuanta[OldtoNew[k]];
-        int p_idx = stater.rightUnMapQuanta[OldtoNew[k]];
-        A[p_idx].allowedMatrix()(l_idx, r_idx) = true;
-        A[p_idx](l_idx, r_idx).ReSize(statel.quantaStates[l_idx], stater.quantaStates[r_idx]);
-        A[p_idx](l_idx, r_idx) = 0.;
-        IdentityMatrix I(statel.quantaStates[l_idx]);
-        int temp_new = temp + statel.quantaStates[l_idx];
-        A[p_idx](l_idx, r_idx).Columns(temp+1, temp_new) = I;
-        temp = temp_new;
-      }
-    }
-    for (int j = 0; j < A.size(); ++j) {
-      A[j].remove_empty();
-    }
-    statep = MPS::siteBlocks[MPS::sweepIters+1].get_stateInfo();
-    auto wfn = getw();
-    QSTensor QSWfn(stater.quanta, statep.quanta);
-    for (int i = 0; i < QSWfn.lsize(); ++i) {
-      for (int j = 0; j < QSWfn.rsize(); ++j) {
-        if (wfn.allowed(i,j)) {
-          QSWfn.allowedMatrix()(i,j) = true;
-          QSWfn(i,j) = wfn(i,j);
-        }
-      }
-    }
-    QSWfn.remove_empty();
-    vector<QSTensor> B;
-    for (int j = 0; j < A.size(); ++j) {
-      B.push_back(TensorProduct(A[j], QSWfn));
-      //cout << "renormalised: Physical Index " << j << endl;
-      //cout << B[j] << endl;
-    }
-    MPSrep.push_back(B);
-    // last site
-    //cout << "----------------- Site " << MPS::sweepIters+1 << " ---------------" << endl;
-    vector<SpinQuantum> qt(1, SpinQuantum(0, SpinSpace(0), IrrepSpace(0)));
-    Matrix m(1,1);
-    m = 1;
-    B.clear();
-    B.resize(statep.quanta.size(), QSTensor(QSWfn.rQuanta(), qt));
-    for (int j = 0; j < B.size(); ++j) {
-      B[j].allowedMatrix()(j, 0) = true;
-      B[j](j,0) = m;
-      B[j].remove_empty();
-      //cout << "renormalised: Physical Index " << j << endl;
-      //cout << B[j] << endl;
-    }
-    MPSrep.push_back(B);    
-  }
-
-  double MPS::get_coefficient(const vector<bool>& occ_strings) {
-    if (MPSrep.size() == 0) {
-      buildMPSrep();
-    }
-    assert(occ_strings.size() == MPSrep.size()*2);
-    int idx = occ_strings[0]*2 + occ_strings[1];
-    QSTensor temp = MPSrep[0][idx];
-    for (int i = 1; i < MPSrep.size(); ++i) {
-      idx = occ_strings[i*2]*2 + occ_strings[i*2+1];
-      temp = TensorProduct(temp, MPSrep[i][idx]);
-    }
-    if (temp.lsize() == 0 || temp.rsize() == 0 || !temp.allowed(0,0) || temp(0,0).Nrows() == 0 || temp(0,0).Ncols() == 0) {
-      return 0.;
-    } else {
-      return temp(0,0)(1,1);
-    }
-  }
-
+  std::vector<StackSpinBlock> MPS::siteBlocks;
 
 
   //assumes that the state has been canonicalized in the left canonical form already and stored on disk
@@ -348,12 +63,15 @@ void LoadQSTensor(const int& site, QSTensor& m, int state) {
 	rotSites[1] -=1;
       
       StateInfo s;
-      w.LoadWavefunctionInfo(s, rotSites, stateindex);
+      w.LoadWavefunctionInfo(s, rotSites, stateindex, true);
     }
 
 #ifndef SERIAL
     mpi::communicator world;
     mpi::broadcast(world, w, 0);
+    if (mpigetrank() != 0)
+      w.allocateOperatorMatrix();
+    MPI::COMM_WORLD.Bcast(w.get_data(), w.memoryUsed(), MPI_DOUBLE, 0);
 #endif
   }
 
@@ -440,13 +158,14 @@ void LoadQSTensor(const int& site, QSTensor& m, int state) {
 
 
     //now make wavefunction with the big state A
-    w.AllowQuantaFor(secondLastState, MPS::siteBlocks[MPS::sweepIters+1].get_stateInfo(), 
-		     dmrginp.effective_molecule_quantum_vec());
+    w.initialise(dmrginp.effective_molecule_quantum_vec(), secondLastState, MPS::siteBlocks[MPS::sweepIters+1].get_stateInfo(), 
+		 true);
 
     int index2 = occnum[2*MPS::sweepIters+2]*2+occnum[2*MPS::sweepIters+3];
     if (dmrginp.spinAdapted() && index2 > 1) index2--;
 
-    w(index1, index2) = m;
+    copy(m, w(index1, index2));
+    //w(index1, index2) = m;
   }
 
 
@@ -593,10 +312,11 @@ void LoadQSTensor(const int& site, QSTensor& m, int state) {
     
   }
 
+  /*
   double calculateOverlap(const MPS& statea, const MPS& stateb) {
 
     Overlap siteOverlap;
-    SpinBlock system, siteblock;
+    StackSpinBlock system, siteblock;
     bool forward = true, restart=false, warmUp = false;
     int leftState=0, rightState=1, forward_starting_size=1, backward_starting_size=0, restartSize =0;
     InitBlocks::InitStartingBlock(system, forward, leftState, rightState, forward_starting_size, backward_starting_size, restartSize, restart, warmUp, 0); 
@@ -625,7 +345,7 @@ void LoadQSTensor(const int& site, QSTensor& m, int state) {
       SpinAdapted::StateInfo::transform_state(Rotationb, stateB, renormB);
       o.renormalise_transform(Rotationa, &renormA, Rotationb, &renormB);
 
-      SpinBlock dotsite(i+1, i+1, 0, false);
+      StackSpinBlock dotsite(i+1, i+1, 0, false);
       //make overlap and state info for the current site
       siteOverlap.makeIdentity(dotsite.get_stateInfo());
       
@@ -646,10 +366,10 @@ void LoadQSTensor(const int& site, QSTensor& m, int state) {
       SpinAdapted::operatorfunctions::TensorProduct(o, siteOverlap, &stateA, &stateB, onew, 1.0, true);
       o = onew;
     }
-    Wavefunction temp = statea.getw();
+    StackWavefunction temp;temp.initialise(statea.getw());
     temp.Clear();
 
-    SpinBlock dotsite(MPS::sweepIters+1, MPS::sweepIters+1, 0, false);
+    StackSpinBlock dotsite(MPS::sweepIters+1, MPS::sweepIters+1, 0, false);
     siteOverlap.makeIdentity(dotsite.get_stateInfo());
 
     StateInfo braStateInfo, ketStateInfo;
@@ -662,11 +382,11 @@ void LoadQSTensor(const int& site, QSTensor& m, int state) {
     double overlap = DotProduct(statea.getw(), temp);
     return overlap;
   }
-
+  */
 
   void calcHamiltonianAndOverlap(const MPS& statea, const MPS& stateb, double& h, double& o, bool sameStates) {
 
-    SpinBlock system, siteblock;
+    StackSpinBlock system, siteblock;
     bool forward = true, restart=false, warmUp = false;
     int leftState=0, rightState=1, forward_starting_size=1, backward_starting_size=0, restartSize =0;
     int statebindex = sameStates ? 0 : 1;
@@ -675,8 +395,9 @@ void LoadQSTensor(const int& site, QSTensor& m, int state) {
 
     p2out << system<<endl;
 
-    int sysquanta = system.get_stateInfo().quanta.size();
     std::vector<Matrix> Rotationa, Rotationb;
+    /*
+    int sysquanta = system.get_stateInfo().quanta.size();
     if (mpigetrank() == 0) {
       Rotationa = statea.getSiteTensors(0);
       Rotationb = stateb.getSiteTensors(0);
@@ -691,21 +412,22 @@ void LoadQSTensor(const int& site, QSTensor& m, int state) {
 #endif
 
     system.transform_operators(const_cast<std::vector<Matrix>&>(Rotationa), 
-			       const_cast<std::vector<Matrix>&>(Rotationb), false, false );
-
+			       const_cast<std::vector<Matrix>&>(Rotationb));
+    */
     int sys_add = true; bool direct = true; 
 
     for (int i=0; i<MPS::sweepIters-1; i++) {
-      SpinBlock newSystem;
-      system.addAdditionalCompOps();
+      StackSpinBlock newSystem;
+      system.addAdditionalOps();
 
-      SpinBlock dotsite(i+1, i+1, 0, false);
+      StackSpinBlock dotsite(i+1, i+1, 0, false);
       if (mpigetrank() == 0) {
 	Rotationa = statea.getSiteTensors(i+1);
 	Rotationb = stateb.getSiteTensors(i+1);
       }
 
 #ifndef SERIAL
+      mpi::communicator world;
       mpi::broadcast(world, Rotationa, 0);
       mpi::broadcast(world, Rotationb, 0);
 #endif
@@ -713,35 +435,41 @@ void LoadQSTensor(const int& site, QSTensor& m, int state) {
 
       newSystem.transform_operators(const_cast<std::vector<Matrix>&>(Rotationa), 
 				    const_cast<std::vector<Matrix>&>(Rotationb));
-
+      {
+	long memoryToFree = newSystem.getdata() - system.getdata();
+	long newsysmem = newSystem.memoryUsed();
+	newSystem.moveToNewMemory(system.getdata());
+	Stackmem[omprank].deallocate(newSystem.getdata()+newsysmem, memoryToFree);
+      }
       system = newSystem;
     }
 
-    SpinBlock newSystem, big;
-    SpinBlock dotsite1(MPS::sweepIters, MPS::sweepIters, 0, false);
-    SpinBlock dotsite2(MPS::sweepIters+1, MPS::sweepIters+1, 0, false);
+    StackSpinBlock newSystem, big;
+    StackSpinBlock dotsite1(MPS::sweepIters, MPS::sweepIters, 0, false);
+    StackSpinBlock dotsite2(MPS::sweepIters+1, MPS::sweepIters+1, 0, false);
 
 
-    system.addAdditionalCompOps();
+    system.addAdditionalOps();
     InitBlocks::InitNewSystemBlock(system, dotsite1, newSystem, 0, statebindex, sys_add, direct, 0, DISTRIBUTED_STORAGE, false, true);
     
     newSystem.set_loopblock(false); system.set_loopblock(false);
     InitBlocks::InitBigBlock(newSystem, dotsite2, big); 
     
-    Wavefunction temp = statea.getw();
+    StackWavefunction temp; temp.initialise(statea.getw());
     temp.Clear();
 
-    big.multiplyH(const_cast<Wavefunction&>(stateb.getw()), &temp, 1);
+    big.multiplyH(const_cast<StackWavefunction&>(stateb.getw()), &temp, 1);
 
     if (mpigetrank() == 0)
       h = DotProduct(statea.getw(), temp);
 
     temp.Clear();
-    big.multiplyOverlap(const_cast<Wavefunction&>(stateb.getw()), &temp, 1);
+    big.multiplyOverlap(const_cast<StackWavefunction&>(stateb.getw()), &temp, 1);
     if (mpigetrank() == 0)
       o = DotProduct(statea.getw(), temp);
 
 #ifndef SERIAL
+      mpi::communicator world;
     mpi::broadcast(world, h, 0);
     mpi::broadcast(world, o, 0);
 #endif

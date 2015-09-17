@@ -1,19 +1,17 @@
+#include "global.h"
+#include "wrapper.h"
 #ifndef SERIAL
 #include "mpi.h"
 #endif
-#include "wrapper.h"
 #include "stdio.h"
 #include "stdlib.h"
 #include <string>
-#include "fciqmchelper.h"
-#include <iostream>
-#include <boost/algorithm/string.hpp>
-#include "global.h"
 
 using namespace std;
 
+
 int main(int argc, char* argv []) {
-  //sleep(20);
+
   int rank=0, size=1;
 #ifndef SERIAL
   MPI_Init(&argc, &argv);
@@ -22,11 +20,17 @@ int main(int argc, char* argv []) {
 #endif
   initBoostMPI(argc, argv);
   ReadInputFromC(argv[1], -1);
+  double* stackmemory = new double[dmrginp.getMemory()];
+  Stackmem.resize(numthrds);
+  Stackmem[0].data = stackmemory;
+  Stackmem[0].size = dmrginp.getMemory();
+  //************
+  memset(stackmemory, 0, dmrginp.getMemory()*sizeof(double));
 
   int mpsstate=0;
   
-  readMPSFromDiskAndInitializeStaticVariables(false);
-  //initializeGlobalMPS(mpsstate);
+  readMPSFromDiskAndInitializeStaticVariables();
+  initializeGlobalMPS(mpsstate);
 
   if (rank =0) 
     printf("Reading file %s\n", argv[2]);
