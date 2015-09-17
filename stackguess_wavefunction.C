@@ -115,7 +115,7 @@ void GuessWave::transpose_previous_wavefunction(StackWavefunction& trial, const 
     else 
       copy(temptrial.get_operatorMatrix(), trial.get_operatorMatrix());
 
-      
+    oldStateInfo.Free();
     temptrial.deallocate();
     oldWave.deallocate();
   }
@@ -129,6 +129,7 @@ void GuessWave::transpose_previous_wavefunction(StackWavefunction& trial, const 
       onedot_transpose_wavefunction(oldStateInfo, big.get_stateInfo(), oldWave, trial);
     else
       onedot_transpose_wavefunction(oldStateInfo, big.get_braStateInfo(), oldWave, trial);
+    oldStateInfo.Free();
     oldWave.deallocate();
   }
 
@@ -149,6 +150,7 @@ void GuessWave::transpose_previous_wavefunction(StackWavefunction& trial, const 
   sort(wfsites.begin(), wfsites.end());
   oldWave.LoadWavefunctionInfo(oldStateInfo, wfsites, state, true);
   onedot_transpose_wavefunction(oldStateInfo, stateInfo, oldWave, trial);
+  oldStateInfo.Free();
   oldWave.deallocate();
 }
 
@@ -531,6 +533,7 @@ void GuessWave::transform_previous_wavefunction(StackWavefunction& trial, const 
   onedot_transform_wavefunction(oldStateInfo, stateInfo, oldWave, leftRotationMatrix, rightRotationMatrix, trial, transpose_guess_wave);
 
   double norm = DotProduct(trial, trial);
+  oldStateInfo.Free();
   oldWave.deallocate();
 }
 
@@ -623,7 +626,7 @@ void GuessWave::transform_previous_wavefunction(StackWavefunction& trial, const 
     onedot_transform_wavefunction(oldStateInfo, big.get_stateInfo(), oldWave, leftRotationMatrix, rightRotationMatrix, trial, transpose_guess_wave);
   }
 
-
+  oldStateInfo.Free();
   oldWave.deallocate();
   double norm = DotProduct(trial, trial);
 }
@@ -685,6 +688,7 @@ void GuessWave::transform_previous_twodot_to_onedot_wavefunction(StackWavefuncti
 
   tmpwavefunction.deallocate();
   oldWave.deallocate();
+  oldStateInfo.Free();
 
   double norm = DotProduct(trial, trial);
 }
@@ -781,7 +785,7 @@ void GuessWave::transform_previous_wavefunction(StackWavefunction& trial, const 
       onedot_transform_wavefunction(oldStateInfo, big.get_braStateInfo(), oldWave, leftRotationMatrix, rightRotationMatrix, trial, transpose_guess_wave,ket);
   }
 
-
+  oldStateInfo.Free();
   oldWave.deallocate();
 
   double norm = DotProduct(trial, trial);

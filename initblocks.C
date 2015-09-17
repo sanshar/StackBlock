@@ -49,6 +49,13 @@ void SpinAdapted::InitBlocks::InitStartingBlock (StackSpinBlock& startingBlock, 
       newstartingBlock.default_op_components(false, true, true, leftState==rightState);
       newstartingBlock.setstoragetype(LOCAL_STORAGE);
       newstartingBlock.BuildSumBlock(NO_PARTICLE_SPIN_NUMBER_CONSTRAINT, startingBlock, dummyblock);
+
+      {
+	long memoryToFree = newstartingBlock.getdata() - startingBlock.getdata();
+	long newsysmem = newstartingBlock.memoryUsed();
+	newstartingBlock.moveToNewMemory(startingBlock.getdata());
+	Stackmem[omprank].deallocate(newstartingBlock.getdata()+newsysmem, memoryToFree);
+      }
       startingBlock = newstartingBlock;
     }
   }

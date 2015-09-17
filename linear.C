@@ -316,7 +316,7 @@ void makeOrthogonalToLowerStates(StackWavefunction& targetState, std::vector<Sta
 double SpinAdapted::Linear::MinResMethod(StackWavefunction& xi, double normtol, Davidson_functor& h_multiply, std::vector<StackWavefunction>& lowerStates)
 {
   setbuf(stdout, NULL);
-  int iter = 0, maxIter = 100;
+  int iter = 0, maxIter = 20;
   double levelshift = 0.0, overlap2 = 0.0, oldError=0.0, functional=0.0, Error=0.0;
 
   StackWavefunction& targetState = lowerStates[0];

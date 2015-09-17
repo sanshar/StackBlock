@@ -243,7 +243,7 @@ int calldmrg(char* input, char* output)
     responseSweep(sweep_tol, dmrginp.targetState(), dmrginp.projectorStates(), dmrginp.baseStates());
 
   }
-  else if (dmrginp.calc_type() == RESPONSE)
+  else if (dmrginp.calc_type() == RESPONSE || dmrginp.calc_type() == RESPONSELCC)
   {
     //compressing the V|\Psi_0>, here \Psi_0 is the basestate and 
     //its product with V will have a larger bond dimension and is being compressed
@@ -802,6 +802,9 @@ void compress(double sweep_tol, int targetState, int baseState)
   //we finally canonicalize the targetState
   //one has to canonicalize the wavefunction with atleast 3 sweeps, this is a quirk of the way 
   //we transform wavefunction
+  algorithmTypes atype;
+  atype = dmrginp.algorithm_method();
+  dmrginp.set_algorithm_method() = ONEDOT;
   if (mpigetrank()==0) {
     Sweep::InitializeStateInfo(sweepParams, !direction, targetState);
     Sweep::InitializeStateInfo(sweepParams, direction, targetState);
@@ -809,9 +812,9 @@ void compress(double sweep_tol, int targetState, int baseState)
     Sweep::CanonicalizeWavefunction(sweepParams, direction, targetState);
     Sweep::CanonicalizeWavefunction(sweepParams, !direction, targetState);
     Sweep::InitializeStateInfo(sweepParams, !direction, targetState);
-    Sweep::InitializeStateInfo(sweepParams, direction, targetState);
-    
+    Sweep::InitializeStateInfo(sweepParams, direction, targetState);  
   }
+  dmrginp.set_algorithm_method() = atype;
   
 }
 

@@ -628,6 +628,17 @@ SpinAdapted::Input::Input(const string& config_name) {
 	  m_targetState = 2;
 	
       }
+      else if (boost::iequals(keyword,  "responselcc")) {
+	if (tok.size() != 1) {
+	  pout << "The keyword response should not be followed by anything!"<<endl;
+	  abort();
+	}
+	m_calc_type = RESPONSELCC;
+	m_solve_type = CONJUGATE_GRADIENT;
+	if(m_targetState == -1)
+	  m_targetState = 2;
+	
+      }
       else if (boost::iequals(keyword,  "responsebw")) {
 	if (tok.size() != 1) {
 	  pout << "The keyword response should not be followed by anything!"<<endl;
@@ -1157,7 +1168,21 @@ SpinAdapted::Input::Input(const string& config_name) {
        m_twodot_gamma = 0.0;
      }
     }
+
+    if (m_calc_type == RESPONSELCC) {
+      if (m_num_Integrals != 1) {
+	pout <<"LCC calculations should be performed with only one integral file."<<endl;
+	exit(0);
+      }
+      m_num_Integrals = 2;
+      if (m_openorbs.size() == 0 && m_closedorbs.size() == 0) {
+	pout <<"LCC calculations should be performed with open and closed orbitals specified."<<endl;
+	exit(0);
+      }
+
+    }
   }
+
 
 #ifndef SERIAL
   boost::mpi::communicator world;
@@ -1167,6 +1192,7 @@ SpinAdapted::Input::Input(const string& config_name) {
   mpi::broadcast(world, orbitalfile, 0);
   mpi::broadcast(world, m_load_prefix, 0);
   mpi::broadcast(world, m_save_prefix, 0);
+  mpi::broadcast(world, m_calc_type, 0);
 #endif
 
   //make the scratch files
@@ -1175,9 +1201,19 @@ SpinAdapted::Input::Input(const string& config_name) {
   boost::filesystem::path p(m_load_prefix);
   bool success = boost::filesystem::create_directory(p);
 
-  v_2.resize(m_num_Integrals, TwoElectronArray(TwoElectronArray::restrictedNonPermSymm));
-  v_1.resize(m_num_Integrals);
-  coreEnergy.resize(m_num_Integrals);
+  if (m_calc_type != RESPONSELCC) {
+    v_2.resize(m_num_Integrals, TwoElectronArray(TwoElectronArray::restrictedNonPermSymm));
+    v_1.resize(m_num_Integrals);
+    coreEnergy.resize(m_num_Integrals);
+  }
+  else {
+    v_2.resize(m_num_Integrals, TwoElectronArray(true, true));
+    v_1.resize(m_num_Integrals, OneElectronArray(true, true));
+    v_1[1].set_isH0() = false; 
+    v_2[1].isH0 = false;
+    coreEnergy.resize(m_num_Integrals);
+  }
+
   if ( (m_calc_type==RESPONSE || m_calc_type==RESPONSEBW) && m_num_Integrals != m_baseState.size() + 1) {
     pout << "number of integrals should be 1 more than the number of base states"<<endl;
     pout << "about to exit"<<endl;
@@ -1229,7 +1265,50 @@ SpinAdapted::Input::Input(const string& config_name) {
       assert(!m_add_noninteracting_orbs);
     } 
     else {
-      readorbitalsfile(orbitalfile[integral], v_1[integral], v_2[integral], coreEnergy[integral], integral);
+      if (m_calc_type == RESPONSELCC) {
+	if (integral == 0) {
+	  m_num_Integrals = 1;
+	  v_1[integral].isCalcLCC = false; 
+	  v_2[integral].isCalcLCC = false; 
+	  readorbitalsfile(orbitalfile[integral], v_1[integral], v_2[integral], coreEnergy[integral], integral);
+	  v_1[integral].isCalcLCC = true; 
+	  v_2[integral].isCalcLCC = true; 
+	  m_num_Integrals = 2;
+#ifndef SERIAL
+	  mpi::broadcast(world, m_reorder, 0);
+	  mpi::broadcast(world, m_openorbs, 0);
+	  mpi::broadcast(world, m_closedorbs, 0);
+#endif
+	}
+	else {
+	  v_2[integral].ReSize(m_norbs);
+	  v_1[integral].ReSize(m_norbs);
+	  v_2[integral].set_data() = v_2[0].set_data();
+	  v_1[integral].set_data() = v_1[0].set_data();
+	  coreEnergy[integral] = 0.0;
+	  std::vector<int> reorder;
+	  reorder.resize(m_norbs/2);
+	  for (int i=0; i<m_norbs/2; i++) 
+	    reorder.at(m_reorder[i]) = i;
+
+	  m_excitation.resize(m_norbs/2, -1);
+	  for (int orb=0; orb<m_norbs/2; orb++) {
+	    if (std::find(m_openorbs.begin(), m_openorbs.end(), orb) == m_openorbs.end() &&
+		std::find(m_closedorbs.begin(), m_closedorbs.end(), orb) == m_closedorbs.end() )
+	      m_activeorbs.push_back(orb);
+	    
+	    if (std::find(m_openorbs.begin(), m_openorbs.end(), orb) != m_openorbs.end())
+	      m_excitation[reorder.at(orb)] = 12;
+	    else if (std::find(m_closedorbs.begin(), m_closedorbs.end(), orb) != m_closedorbs.end())
+	      m_excitation[reorder.at(orb)] = 1;
+	    else if (std::find(m_activeorbs.begin(), m_activeorbs.end(), orb) != m_activeorbs.end())
+	      m_excitation[reorder.at(orb)] = 6;
+	  }
+	  
+	}
+      }
+      else
+	readorbitalsfile(orbitalfile[integral], v_1[integral], v_2[integral], coreEnergy[integral], integral);
     }
   }
   
@@ -1237,7 +1316,8 @@ SpinAdapted::Input::Input(const string& config_name) {
 
   if (mpigetrank() == 0) {
     reorderOpenAndClosed();
-    makeInitialHFGuess();
+    if (m_calc_type != RESPONSELCC)
+      makeInitialHFGuess();
 
     pout << "Checking input for errors"<<endl;
     performSanityTest();
@@ -1635,8 +1715,16 @@ void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray&
 
 #ifndef SERIAL
   MPI::COMM_WORLD.Barrier();
-  MPI::COMM_WORLD.Bcast(v1.set_data(), oneIntegralMem+twoIntegralMem, MPI_DOUBLE, 0);
+  long intdim = oneIntegralMem+twoIntegralMem;
+  long  maxint = 26843540; //mpi cannot transfer more than these number of doubles
+  long maxIter = intdim/maxint; 
+  for (int i=0; i<maxIter; i++) {
+    MPI::COMM_WORLD.Bcast(v1.set_data()+i*maxint, maxint, MPI_DOUBLE, 0);
+    MPI::COMM_WORLD.Barrier();
+  }
+  MPI::COMM_WORLD.Bcast(v1.set_data()+(maxIter)*maxint, oneIntegralMem+twoIntegralMem - maxIter*maxint, MPI_DOUBLE, 0);
   MPI::COMM_WORLD.Barrier();
+
 #endif
 }
 

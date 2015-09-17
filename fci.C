@@ -47,9 +47,9 @@ void SpinAdapted::Sweep::fullci(double sweep_tol)
     system.printOperatorSummary();
     newSystem.set_integralIndex() = integralIndex;
     if (i == forwardsites-2)
-      newSystem.default_op_components(true, system, sysdot, false, true, true);
+      newSystem.default_op_components(true, false, true, true);
     else
-      newSystem.default_op_components(false, system, sysdot, false, true, true);
+      newSystem.default_op_components(false, false, true, true);
 
     newSystem.setstoragetype(DISTRIBUTED_STORAGE);
     newSystem.BuildSumBlock (NO_PARTICLE_SPIN_NUMBER_CONSTRAINT, system, sysdot);
@@ -74,9 +74,9 @@ void SpinAdapted::Sweep::fullci(double sweep_tol)
     environment.addAdditionalOps();
     newEnvironment.set_integralIndex() = integralIndex;
     if (i == backwardsites-2)
-      newEnvironment.default_op_components(true, environment, envdot, true, true, true);
+      newEnvironment.default_op_components(true, true, true, true);
     else
-      newEnvironment.default_op_components(false, environment, envdot, true, true, true);
+      newEnvironment.default_op_components(false, true, true, true);
     newEnvironment.setstoragetype(DISTRIBUTED_STORAGE);
     newEnvironment.BuildSumBlock (NO_PARTICLE_SPIN_NUMBER_CONSTRAINT, environment, envdot);
 

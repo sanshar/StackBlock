@@ -59,6 +59,8 @@ class Input {
 
   vector<int> m_openorbs;
   vector<int> m_closedorbs;
+  vector<int> m_activeorbs;
+  vector<int> m_excitation;
   vector<int> m_baseState;
   vector<int> m_projectorState;
   int m_targetState;
@@ -176,7 +178,7 @@ class Input {
     ar & m_spin_vector & m_spin_orbs_symmetry & m_guess_permutations & m_nroots & m_weights & m_hf_occ_user & m_hf_occupancy;
     ar & m_sweep_iter_schedule & m_sweep_state_schedule & m_sweep_qstate_schedule & m_sweep_tol_schedule & m_sweep_noise_schedule &m_sweep_additional_noise_schedule & m_reorder;
     ar & m_molecule_quantum & m_total_symmetry_number & m_total_spin & m_orbenergies & m_add_noninteracting_orbs;
-    ar & m_bra_symmetry_number & m_permSymm & m_openorbs & m_closedorbs;
+    ar & m_bra_symmetry_number & m_permSymm & m_activeorbs & m_excitation & m_openorbs & m_closedorbs;
     ar & m_save_prefix & m_load_prefix & m_direct & m_max_lanczos_dimension;
     ar & m_deflation_min_size & m_deflation_max_size & m_outputlevel & m_reorderfile;
     ar & m_algorithm_type & m_twodot_to_onedot_iter & m_orbformat ;
@@ -340,6 +342,7 @@ class Input {
   std::vector<int>& projectorStates() {return m_projectorState;}
 
   void reorderOpenAndClosed();
+  const std::vector<int>& excitation() const {return m_excitation;}
   const int& num_occupied_orbitals() const {return m_occupied_orbitals;}
   const bool& doimplicitTranspose() const {return m_implicitTranspose;}
   bool& setimplicitTranspose() {return m_implicitTranspose;}

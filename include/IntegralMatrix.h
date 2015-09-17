@@ -40,19 +40,22 @@ class OneElectronArray
     friend class boost::serialization::access;
     template<class Archive> void serialize(Archive & ar, const unsigned int version)
     {
-      ar & dim & rhf & dummyZero & bin & Occnum;
+      ar & dim & rhf & dummyZero & bin & Occnum & isCalcLCC & isH0;
     }
     //shared_mem_vector rep;
     double* rep;
-
     double dummyZero; /* this variable holds the value 0, for use with rhf integrals */
   public:
-    int dim;
+    bool isCalcLCC; //if the calculation is of LCC type then we dont need separate integrals for H0 and V
+    bool isH0; //if this is H0 then make sure that all integrals are zero if dn = 0
+    long dim;
     bool rhf;
     bool bin; //if the file is binary
     vector<double> Occnum;
     
-  OneElectronArray() : dim(0), dummyZero(0.0), rhf(false), bin(false), rep(0)
+  OneElectronArray() : isCalcLCC(false), dim(0), dummyZero(0.0), rhf(false), bin(false), rep(0)
+    {}
+  OneElectronArray(bool pLCC, bool pisH0) : isCalcLCC(pLCC), isH0(pisH0), dim(0), dummyZero(0.0), rhf(false), bin(false), rep(0)
     {}
     /*
   OneElectronArray(int n, bool rhf_=false, bool bin_=false):dummyZero(0.0), rhf(rhf_), bin(bin_), rep(0)
@@ -60,11 +63,12 @@ class OneElectronArray
       ReSize(n);
     }
     */
+    bool& set_isH0() {return isH0;}
     double*& set_data() {return rep;}
     double& operator()(int i, int j);
     double operator()(int i, int j) const;
     void ReSize(int n);
-    int NOrbs() const {
+    long NOrbs() const {
       return dim;
     }
 
@@ -114,13 +118,17 @@ class TwoElectronArray // 2e integral, notation (12|12), symmetric matrix
       ar & bin;
       ar & permSymm;
       ar & matDim;
+      ar & isCalcLCC;
+      ar & isH0;
     }
 
 
   public:
-    int dim;  //!< #spinorbs
+    long dim;  //!< #spinorbs
     array_2d<int> indexMap;
     double dummyZero; // dummy variable to hold zero for RHF integrals
+    bool isCalcLCC; //if the calculation is of LCC type then we dont need separate integrals for H0 and V
+    bool isH0; //if this is H0 then make sure that all integrals are zero if dn = 0
 
     // default is unrestrictedPermSymm
     enum TwoEType { unrestrictedPermSymm, restrictedPermSymm,
@@ -128,15 +136,18 @@ class TwoElectronArray // 2e integral, notation (12|12), symmetric matrix
     bool rhf; //!< reduced storage for restricted quantities.
     bool permSymm; //!< enforce additional 2e- permutational symmetry.
     bool bin; //if binary file is to be read
-    int matDim; 
+    long matDim; 
   public:
 
-    TwoElectronArray() : dim(0), rhf(false), permSymm(true), bin(false), dummyZero(0.0)
+  TwoElectronArray() : isCalcLCC(false), dim(0), rhf(false), permSymm(true), bin(false), dummyZero(0.0)
+    {}
+
+    TwoElectronArray(bool pLCC, bool pisH0) : isCalcLCC(pLCC), isH0(pisH0), dim(0), rhf(false), permSymm(true), bin(false), dummyZero(0.0)
     {}
 
     TwoElectronArray(TwoEType twoetype);
     
-    explicit TwoElectronArray(int n, TwoEType twoetype)
+    explicit TwoElectronArray(long n, TwoEType twoetype)
     {
       *this = TwoElectronArray(twoetype);
       ReSize(n);

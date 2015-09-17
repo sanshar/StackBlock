@@ -1,7 +1,7 @@
 #include "global.h"
 #include "fciqmchelper.h"
 #include "input.h"
-#include "spinblock.h"
+#include "Stackspinblock.h"
 #include "wrapper.h"
 #include "rotationmat.h"
 #include <sstream>
@@ -10,10 +10,7 @@
 #include <boost/mpi/communicator.hpp>
 #include <boost/mpi.hpp>
 #endif
-#include "npdm.h"
-#include "npdm_driver.h"
 #include "sweepgenblock.h"
-#include "sweeptwopdm.h"
 #include "sweep.h"
 
 void ReadInput(char* conf);
@@ -42,15 +39,15 @@ void readMPSFromDiskAndInitializeStaticVariables(bool initializeDotBlocks) {
 
   if (dmrginp.spinAdapted() && dmrginp.add_noninteracting_orbs() && dmrginp.molecule_quantum().get_s().getirrep() != 0 ) {
     int i=0;
-    SpinBlock s(i, i, 0, false);
+    StackSpinBlock s(i, i, 0, false);
     SpinQuantum sq = dmrginp.molecule_quantum();
     sq = SpinQuantum(sq.get_s().getirrep(), sq.get_s(), IrrepSpace(0));
     int qs = 1, ns = 1;
     StateInfo addstate(ns, &sq, &qs); 
-    SpinBlock dummyblock(addstate, 0);
-    SpinBlock newstartingBlock;
+    StackSpinBlock dummyblock(addstate, 0);
+    StackSpinBlock newstartingBlock;
     newstartingBlock.set_integralIndex() = 0;
-    newstartingBlock.default_op_components(false, s, dummyblock, true, true, false);
+    newstartingBlock.default_op_components(false, true, true, false);
     newstartingBlock.setstoragetype(LOCAL_STORAGE);
     newstartingBlock.BuildSumBlock(NO_PARTICLE_SPIN_NUMBER_CONSTRAINT, s, dummyblock);
     if (mpigetrank() == 0)
@@ -59,7 +56,7 @@ void readMPSFromDiskAndInitializeStaticVariables(bool initializeDotBlocks) {
   else {
     int i = 0;
     if (mpigetrank() == 0)
-      MPS::siteBlocks.push_back(SpinBlock(i, i, 0, false)); //alway make transpose operators as well
+      MPS::siteBlocks.push_back(StackSpinBlock(i, i, 0, false)); //alway make transpose operators as well
   }
 
   if (mpigetrank() == 0) {
@@ -70,7 +67,7 @@ void readMPSFromDiskAndInitializeStaticVariables(bool initializeDotBlocks) {
     MPS::spinAdapted = false;
     if (initializeDotBlocks) {
       for (int i=1; i<MPS::sweepIters+2; i++) {
-	  MPS::siteBlocks.push_back(SpinBlock(i, i, 0, false)); //alway make transpose operators as well
+	  MPS::siteBlocks.push_back(StackSpinBlock(i, i, 0, false)); //alway make transpose operators as well
       }
     }
   }
@@ -137,6 +134,7 @@ void writeFullMPS()
 
 }
 
+/*
 void RDM(char* infile)
 {
   setbuf(stdout, NULL);
@@ -217,7 +215,7 @@ void RDM(char* infile)
 
 
 }
-
+*/
 
 void test(char* infile)
 {

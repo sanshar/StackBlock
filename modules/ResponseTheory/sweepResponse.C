@@ -63,6 +63,7 @@ void SpinAdapted::SweepResponse::BlockAndDecimate (SweepParams &sweepParams, Sta
     environmentDotStart = systemDotEnd - 1;
     environmentDotEnd = environmentDotStart - environmentDotSize;
   }
+  pout << "**** STACK MEMORY REMAINING before block***** "<<1.0*(Stackmem[0].size-Stackmem[0].memused)*sizeof(double)/1.e9<<" GB"<<endl;
   systemDot = StackSpinBlock(systemDotStart, systemDotEnd, system.get_integralIndex(), true);
   environmentDot = StackSpinBlock(environmentDotStart, environmentDotEnd, system.get_integralIndex(), true);
   StackSpinBlock environment, newEnvironment;
@@ -72,6 +73,7 @@ void SpinAdapted::SweepResponse::BlockAndDecimate (SweepParams &sweepParams, Sta
 					newEnvironment, big, sweepParams, dot_with_sys, useSlater, system.get_integralIndex(),  
 					targetState, targetState);
 
+  pout << "**** STACK MEMORY REMAINING after block***** "<<1.0*(Stackmem[0].size-Stackmem[0].memused)*sizeof(double)/1.e9<<" GB"<<endl;
 
   //analyse_operator_distribution(big);
   dmrginp.guessgenT -> stop();
@@ -79,7 +81,7 @@ void SpinAdapted::SweepResponse::BlockAndDecimate (SweepParams &sweepParams, Sta
   std::vector<Matrix> rotatematrix;
 
   if (dmrginp.outputlevel() > 0)
-    mcheck(""); 
+   mcheck(""); 
   if (!dot_with_sys && sweepParams.get_onedot()) pout << "\t\t\t System  Block"<<system;    
   else pout << "\t\t\t System  Block"<<newSystem;
   pout << "\t\t\t Environment Block"<<newEnvironment<<endl;
@@ -193,6 +195,7 @@ void SpinAdapted::SweepResponse::BlockAndDecimate (SweepParams &sweepParams, Sta
     mpi::communicator world;
     MPI::COMM_WORLD.Bcast(lowerStates[0].get_data(), lowerStates[0].memoryUsed(), MPI_DOUBLE, 0);
 #endif
+  pout << "**** STACK MEMORY REMAINING before projector***** "<<1.0*(Stackmem[0].size-Stackmem[0].memused)*sizeof(double)/1.e9<<" GB"<<endl;
 
   //<target|O|projectors>
   for (int l=0; l<projectors.size(); l++)
@@ -238,13 +241,10 @@ void SpinAdapted::SweepResponse::BlockAndDecimate (SweepParams &sweepParams, Sta
     }
     iwave.deallocate();
 
-    overlapnewenvironment.removeAdditionalOps();
     overlapnewenvironment.deallocate();
-    overlapenvironment.removeAdditionalOps();
     overlapenvironment.deallocate();
 
     overlapnewsystem.deallocate(); 
-    overlapsystem.removeAdditionalOps();
     overlapsystem.deallocate(); 
 
     overlapenvironmentdot.deallocate();
@@ -259,6 +259,7 @@ void SpinAdapted::SweepResponse::BlockAndDecimate (SweepParams &sweepParams, Sta
     bratracedMatrix.allocate(newSystem.get_braStateInfo());
     bratracedMatrix.Clear();
   }
+  pout << "**** STACK MEMORY REMAINING before renormalization***** "<<1.0*(Stackmem[0].size-Stackmem[0].memused)*sizeof(double)/1.e9<<" GB"<<endl;
 
   newSystem.RenormaliseFrom (sweepParams.set_lowest_energy(), sweepParams.set_lowest_energy_spins(),
 			     sweepParams.set_lowest_error(), rotatematrix, 
@@ -274,6 +275,7 @@ void SpinAdapted::SweepResponse::BlockAndDecimate (SweepParams &sweepParams, Sta
   p1out <<"\t\t\t Performing Renormalization "<<endl;
 
   rotatematrix.resize(0);
+  pout << "**** STACK MEMORY REMAINING before renormalization***** "<<1.0*(Stackmem[0].size-Stackmem[0].memused)*sizeof(double)/1.e9<<" GB"<<endl;
 
   if(mpigetrank() == 0) {
     ScaleAdd(sweepParams.get_noise()*(max(1.e-5, trace(branoiseMatrix))), branoiseMatrix, bratracedMatrix);
@@ -472,6 +474,7 @@ void SpinAdapted::SweepResponse::BlockAndDecimate (SweepParams &sweepParams, Sta
 
   dmrginp.setOutputlevel() = originalOutputlevel;
 
+  pout << "**** STACK MEMORY REMAINING before block renorm***** "<<1.0*(Stackmem[0].size-Stackmem[0].memused)*sizeof(double)/1.e9<<" GB"<<endl;
   dmrginp.operrotT -> start();
   newSystem.transform_operators(rotatematrix);
   SaveRotationMatrix (newSystem.get_sites(), rotatematrix, targetState);
@@ -487,6 +490,8 @@ void SpinAdapted::SweepResponse::BlockAndDecimate (SweepParams &sweepParams, Sta
 
   if (dmrginp.outputlevel() > 0)
     mcheck("after rotation and transformation of block");
+
+  pout << "**** STACK MEMORY REMAINING after block renorm***** "<<1.0*(Stackmem[0].size-Stackmem[0].memused)*sizeof(double)/1.e9<<" GB"<<endl;
 
   p2out << *dmrginp.guessgenT<<" "<<*dmrginp.multiplierT<<" "<<*dmrginp.operrotT<< "  "<<globaltimer.totalwalltime()<<" timer "<<endl;
   p2out << *dmrginp.makeopsT<<" makeops "<<endl;
@@ -773,7 +778,8 @@ void SpinAdapted::SweepResponse::StartUp (SweepParams &sweepParams, StackSpinBlo
     mpi::communicator world;
     broadcast(world, brarotateMatrix, 0);
 #endif
-    
+
+
     dmrginp.operrotT -> start();
     newSystem.transform_operators(brarotateMatrix);
     dmrginp.operrotT -> stop();
@@ -928,8 +934,8 @@ void SpinAdapted::SweepResponse::WavefunctionCanonicalize (SweepParams &sweepPar
     index++;
   }
 
-  environmentDot = StackSpinBlock(environmentDotStart, environmentDotEnd, system.get_integralIndex(), false);//singleSiteBlocks[system.get_integralIndex()][sitesenvdot[0]];
-  //StackSpinBlock::restore(!forward, sitesenvdot, environmentDot, targetState, targetState); 
+  //environmentDot = StackSpinBlock(environmentDotStart, environmentDotEnd, system.get_integralIndex(), false);//singleSiteBlocks[system.get_integralIndex()][sitesenvdot[0]];
+  StackSpinBlock::restore(!forward, sitesenvdot, environmentDot, targetState, targetState); 
 
   StackSpinBlock environment, newEnvironment;
   

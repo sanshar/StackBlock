@@ -27,6 +27,12 @@ double& SpinAdapted::OneElectronArray::operator()(int i, int j) {
       i=i/2;
       j=j/2;
   }
+  if (isCalcLCC) {
+    if (isH0 && dmrginp.excitation()[i] != dmrginp.excitation()[j])
+      return dummyZero;
+    if (!isH0 && dmrginp.excitation()[i] == dmrginp.excitation()[j])
+      return dummyZero;
+  }
   //i should be greater than j
   if (i>= j)
     return rep[ i*(i+1)/2 + j];
@@ -48,6 +54,12 @@ double SpinAdapted::OneElectronArray::operator()(int i, int j) const {
       j=j/2;
   }
   //i should be greater than j
+  if (isCalcLCC) {
+    if (isH0 && dmrginp.excitation()[i] != dmrginp.excitation()[j])
+      return dummyZero;
+    if (!isH0 && dmrginp.excitation()[i] == dmrginp.excitation()[j])
+      return dummyZero;
+  }
   if (i>= j)
     return rep[ i*(i+1)/2 + j];
   else
@@ -209,7 +221,7 @@ void SpinAdapted::OneElectronArray::DumpToFile(ofstream& dumpFile) const {
     }
 }
 
-SpinAdapted::TwoElectronArray::TwoElectronArray(TwoEType twoetype) : dummyZero(0.0) {
+SpinAdapted::TwoElectronArray::TwoElectronArray(TwoEType twoetype) : isCalcLCC(false), dummyZero(0.0) {
   switch (twoetype)
     {
     case unrestrictedPermSymm:
@@ -297,12 +309,22 @@ double& SpinAdapted::TwoElectronArray::operator()(int i, int j, int k, int l) {
       k=k/2;
       l=l/2;
     }
-  int n = indexMap(i, k);
-  int m = indexMap(j, l);
-  if (n >= m)
-    return rep[ n*(n+1)/2 + m];
-  else
-    return rep[ m*(m+1)/2 + n];
+  long n = indexMap(i, k);
+  long m = indexMap(j, l);
+  if (isCalcLCC) {
+    if (isH0 && dmrginp.excitation()[i]+dmrginp.excitation()[j] != dmrginp.excitation()[k]+dmrginp.excitation()[l])
+      return dummyZero;
+    if (!isH0 && dmrginp.excitation()[i]+dmrginp.excitation()[j] == dmrginp.excitation()[k]+dmrginp.excitation()[l])
+      return dummyZero;
+  }
+  if (n >= m) {
+    long index = n*(n+1)/2+m;
+    return rep[ index];
+  }
+  else {
+    long index = m*(m+1)/2 + n;
+    return rep[index];
+  }
   //return rep(n + 1, m + 1);
 }
 
@@ -324,13 +346,23 @@ double SpinAdapted::TwoElectronArray::operator()(int i, int j, int k, int l) con
       k=k/2;
       l=l/2;
     }
-  int n = indexMap(i, k);
-  int m = indexMap(j, l);
+  long n = indexMap(i, k);
+  long m = indexMap(j, l);
+  if (isCalcLCC) {
+    if (isH0 && dmrginp.excitation()[i]+dmrginp.excitation()[j] != dmrginp.excitation()[k]+dmrginp.excitation()[l])
+      return dummyZero;
+    if (!isH0 && dmrginp.excitation()[i]+dmrginp.excitation()[j] == dmrginp.excitation()[k]+dmrginp.excitation()[l])
+      return dummyZero;
+  }
 
-  if (n >= m)
-    return rep[ n*(n+1)/2 + m];
-  else
-    return rep[ m*(m+1)/2 + n];
+  if (n >= m) {
+    long index = n*(n+1)/2+m;
+    return rep[ index];
+  }
+  else {
+    long index = m*(m+1)/2 + n;
+    return rep[index];
+  }
   //return rep(n + 1, m + 1);
 }
 
