@@ -123,7 +123,6 @@ void SpinAdapted::Sweep::CanonicalizeWavefunction(SweepParams &sweepParams, cons
     else 
       GuessWave::transform_previous_wavefunction(w, bigstate, oldsites, oldcomplement, currentstate, true, true);
 
-    pout << w <<endl;
     
     w.SaveWavefunctionInfo(bigstate, sites, currentstate);
       
@@ -134,25 +133,18 @@ void SpinAdapted::Sweep::CanonicalizeWavefunction(SweepParams &sweepParams, cons
     StackDensityMatrix tracedMatrix(*bigstate.leftStateInfo);
     tracedMatrix.allocate(*bigstate.leftStateInfo);
     operatorfunctions::MultiplyWithOwnTranspose (w, tracedMatrix, 1.0);  
-    pout << newState1<<endl;
 
     int largeNumber = 1000000;
     if (!mpigetrank())
       double error = makeRotateMatrix(tracedMatrix, rotation1, largeNumber, sweepParams.get_keep_qstates());
     SaveRotationMatrix (sites, rotation1, currentstate);
 
-    for (int i=0; i<rotation1.size(); i++)
-      pout <<i<<"  "<< rotation1[i].Ncols()<<endl;
-
-    pout << newState1<<endl;
-    
     StateInfo renormState1;
     SpinAdapted::StateInfo::transform_state(rotation1, newState1, renormState1);
     StateInfo::store(forward, sites, renormState1, currentstate);
     stateInfo1 = renormState1;
     ++sweepParams.set_block_iter();
 
-    pout << stateInfo1<<endl;
 
     tracedMatrix.deallocate();
     w.deallocate();
@@ -184,7 +176,7 @@ void SpinAdapted::Sweep::InitializeStateInfo(SweepParams &sweepParams, const boo
     
   //only need statinfos
   StateInfo stateInfo1; makeStateInfo(stateInfo1, new_site);
-  pout << stateInfo1<<endl;
+
   StateInfo::store(forward, sites, stateInfo1, currentstate);
   
   for (; sweepParams.get_block_iter() < sweepParams.get_n_iters(); ) {
@@ -216,7 +208,7 @@ void SpinAdapted::Sweep::InitializeStateInfo(SweepParams &sweepParams, const boo
     
     StateInfo renormState1;
     SpinAdapted::StateInfo::transform_state(rotation1, newState1, renormState1);
-    pout << renormState1<<endl;
+
     StateInfo::store(forward, sites, renormState1, currentstate);
     stateInfo1 = renormState1;
     ++sweepParams.set_block_iter();

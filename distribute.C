@@ -55,7 +55,7 @@ void distributedaccumulate(StackSparseMatrix& component)
   int rank = world.rank();
   if (size > 1)
   {
-    MPI::COMM_WORLD.Allreduce(MPI_IN_PLACE, component.get_data(), component.memoryUsed(), MPI_DOUBLE, MPI_SUM);
+    MPI_Allreduce(MPI_IN_PLACE, component.get_data(), component.memoryUsed(), MPI_DOUBLE, MPI_SUM, Calc);
     //MPI::COMM_WORLD.Allreduce(component.get_data(), &tempArray[0], component.memoryUsed(), MPI_DOUBLE, MPI_SUM);
   }
   dmrginp.datatransfer->stop();
@@ -70,7 +70,7 @@ void distributedaccumulate(DiagonalMatrix& component)
   int rank = world.rank();
   if (size > 1)
   {
-    MPI::COMM_WORLD.Allreduce(MPI_IN_PLACE, component.Store(), component.Ncols(), MPI_DOUBLE, MPI_SUM);
+    MPI_Allreduce(MPI_IN_PLACE, component.Store(), component.Ncols(), MPI_DOUBLE, MPI_SUM, Calc);
   }
   dmrginp.datatransfer->stop();
 }

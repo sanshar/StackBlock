@@ -92,7 +92,7 @@ void SpinAdapted::SweepCompress::BlockDecimateAndCompress (SweepParams &sweepPar
   GuessWave::guess_wavefunctions(solution, e, big, sweepParams.set_guesstype(), sweepParams.get_onedot(), dot_with_sys, 1, 0.0, baseState); 
 #ifndef SERIAL
   mpi::communicator world;
-  MPI::COMM_WORLD.Bcast(solution[0].get_data(), solution[0].memoryUsed(), MPI_DOUBLE, 0);
+  MPI_Bcast(solution[0].get_data(), solution[0].memoryUsed(), MPI_DOUBLE, 0, Calc);
 #endif
   
   //*********************
@@ -188,8 +188,8 @@ void SpinAdapted::SweepCompress::BlockDecimateAndCompress (SweepParams &sweepPar
   bratracedMatrix.deallocate();
 
 #ifndef SERIAL
-  broadcast(world, ketrotateMatrix, 0);
-  broadcast(world, brarotateMatrix, 0);
+  broadcast(calc, ketrotateMatrix, 0);
+  broadcast(calc, brarotateMatrix, 0);
 #endif
 
   //assert(keterror < NUMERICAL_ZERO);
@@ -238,8 +238,6 @@ void SpinAdapted::SweepCompress::BlockDecimateAndCompress (SweepParams &sweepPar
   p2out <<"oneindexopmult   twoindexopmult   Hc  couplingcoeff"<<endl;  
   p2out << *dmrginp.oneelecT<<" "<<*dmrginp.twoelecT<<" "<<*dmrginp.hmultiply<<" "<<*dmrginp.couplingcoeff<<" hmult"<<endl;
   p2out << *dmrginp.buildsumblock<<" "<<*dmrginp.buildblockops<<" build block"<<endl;
-  p2out << "addnoise  S_0_opxop  S_1_opxop   S_2_opxop"<<endl;
-  p2out << *dmrginp.addnoise<<" "<<*dmrginp.s0time<<" "<<*dmrginp.s1time<<" "<<*dmrginp.s2time<<endl;
 
 }
 
@@ -344,7 +342,7 @@ double SpinAdapted::SweepCompress::do_one(SweepParams &sweepParams, const bool &
       
 #ifndef SERIAL
       mpi::communicator world;
-      world.barrier();
+      calc.barrier();
 #endif
       sweepParams.savestate(forward, syssites.size());
       if (dmrginp.outputlevel() > 0)
@@ -497,8 +495,8 @@ void SpinAdapted::SweepCompress::Startup (SweepParams &sweepParams, StackSpinBlo
   }
 #ifndef SERIAL
   mpi::communicator world;
-  broadcast(world, ketrotateMatrix, 0);
-  broadcast(world, brarotateMatrix, 0);
+  broadcast(calc, ketrotateMatrix, 0);
+  broadcast(calc, brarotateMatrix, 0);
 #endif
   kettracedMatrix.deallocate();
   bratracedMatrix.deallocate();
@@ -541,8 +539,6 @@ void SpinAdapted::SweepCompress::Startup (SweepParams &sweepParams, StackSpinBlo
   p2out <<"oneindexopmult   twoindexopmult   Hc  couplingcoeff"<<endl;  
   p2out << *dmrginp.oneelecT<<" "<<*dmrginp.twoelecT<<" "<<*dmrginp.hmultiply<<" "<<*dmrginp.couplingcoeff<<" hmult"<<endl;
   p2out << *dmrginp.buildsumblock<<" "<<*dmrginp.buildblockops<<" build block"<<endl;
-  p2out << "addnoise  S_0_opxop  S_1_opxop   S_2_opxop"<<endl;
-  p3out << *dmrginp.addnoise<<" "<<*dmrginp.s0time<<" "<<*dmrginp.s1time<<" "<<*dmrginp.s2time<<endl;
 
 }
 
@@ -633,7 +629,7 @@ void SpinAdapted::SweepCompress::WavefunctionCanonicalize (SweepParams &sweepPar
 
 #ifndef SERIAL
   mpi::communicator world;
-  MPI::COMM_WORLD.Bcast(solution[0].get_data(), solution[0].memoryUsed(), MPI_DOUBLE, 0);
+  MPI_Bcast(solution[0].get_data(), solution[0].memoryUsed(), MPI_DOUBLE, 0, Calc);
 #endif
 
   //****************
@@ -666,8 +662,8 @@ void SpinAdapted::SweepCompress::WavefunctionCanonicalize (SweepParams &sweepPar
   bratracedMatrix.deallocate();
 
 #ifndef SERIAL
-  broadcast(world, ketrotateMatrix, 0);
-  broadcast(world, brarotateMatrix, 0);
+  broadcast(calc, ketrotateMatrix, 0);
+  broadcast(calc, brarotateMatrix, 0);
 #endif
 
 
@@ -696,7 +692,5 @@ void SpinAdapted::SweepCompress::WavefunctionCanonicalize (SweepParams &sweepPar
   p2out <<"oneindexopmult   twoindexopmult   Hc  couplingcoeff"<<endl;  
   p2out << *dmrginp.oneelecT<<" "<<*dmrginp.twoelecT<<" "<<*dmrginp.hmultiply<<" "<<*dmrginp.couplingcoeff<<" hmult"<<endl;
   p2out << *dmrginp.buildsumblock<<" "<<*dmrginp.buildblockops<<" build block"<<endl;
-  p2out << "addnoise  S_0_opxop  S_1_opxop   S_2_opxop"<<endl;
-  p3out << *dmrginp.addnoise<<" "<<*dmrginp.s0time<<" "<<*dmrginp.s1time<<" "<<*dmrginp.s2time<<endl;
   
 }

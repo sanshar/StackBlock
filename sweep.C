@@ -55,7 +55,7 @@ void SpinAdapted::Sweep::makeSystemEnvironmentBigOverlapBlocks(const std::vector
     newSystem.initialise_op_array(OVERLAP, false);
     newSystem.setstoragetype(DISTRIBUTED_STORAGE);
     SpinQuantum moleculeQ = dmrginp.molecule_quantum();
-    if (dmrginp.calc_type() == RESPONSE && system.get_sites() [0] != 0 && system.get_sites()[0]  > dmrginp.num_occupied_orbitals()) {//response and forward and after active sites
+    if ((dmrginp.calc_type() == RESPONSE || dmrginp.calc_type() == RESPONSELCC) && system.get_sites() [0] != 0 && system.get_sites()[0]  > dmrginp.num_occupied_orbitals()) {//response and forward and after active sites
       dmrginp.set_molecule_quantum() = SpinQuantum(2, SpinSpace(0), IrrepSpace(0)); 
       newSystem.BuildSumBlock (PARTICLE_NUMBER_CONSTRAINT, system, systemDot);
     }
@@ -71,7 +71,7 @@ void SpinAdapted::Sweep::makeSystemEnvironmentBigOverlapBlocks(const std::vector
 					       forward, integralIndex, sweepParams.get_onedot(), dot_with_sys);
   else {
     SpinQuantum moleculeQ = dmrginp.molecule_quantum();
-    if (dmrginp.calc_type() == RESPONSE && system.get_sites() [0] == 0 && *system.get_sites().rbegin()  >= dmrginp.num_occupied_orbitals()){ //response and forward and after active sites
+    if ((dmrginp.calc_type() == RESPONSE || dmrginp.calc_type() == RESPONSELCC) && system.get_sites() [0] == 0 && *system.get_sites().rbegin()  >= dmrginp.num_occupied_orbitals()){ //response and forward and after active sites
       dmrginp.set_molecule_quantum() = SpinQuantum(2, SpinSpace(0), IrrepSpace(0));
       InitBlocks::InitNewOverlapEnvironmentBlock(environment, environmentDot, newEnvironment, system , systemDot,
 						 braState, ketState, sweepParams.get_sys_add(), sweepParams.get_env_add(), 
@@ -111,7 +111,7 @@ void SpinAdapted::Sweep::makeSystemEnvironmentBigBlocks(StackSpinBlock& system, 
   const int nexact = forward ? sweepParams.get_forward_starting_size() : sweepParams.get_backward_starting_size();
   if (!sweepParams.get_onedot() || dot_with_sys) {
     SpinQuantum moleculeQ = dmrginp.molecule_quantum();
-    if (dmrginp.calc_type() == RESPONSE && system.get_sites() [0] != 0 && system.get_sites()[0] > dmrginp.num_occupied_orbitals()){ //response and reverse and after active sites
+    if ((dmrginp.calc_type() == RESPONSE || dmrginp.calc_type() == RESPONSELCC) && system.get_sites() [0] != 0 && system.get_sites()[0] > dmrginp.num_occupied_orbitals()){ //response and reverse and after active sites
       dmrginp.set_molecule_quantum() = SpinQuantum(2, SpinSpace(0), IrrepSpace(0));
 
       InitBlocks::InitNewSystemBlock(system, systemDot, newSystem, braState, ketState, sweepParams.get_sys_add(), dmrginp.direct(), 
@@ -130,7 +130,7 @@ void SpinAdapted::Sweep::makeSystemEnvironmentBigBlocks(StackSpinBlock& system, 
 					envnormops, envcompops, dot_with_sys);
   else {
     SpinQuantum moleculeQ = dmrginp.molecule_quantum();
-    if (dmrginp.calc_type() == RESPONSE && system.get_sites() [0] == 0 && *system.get_sites().rbegin()  >= dmrginp.num_occupied_orbitals()) {//response and forward and after active sites
+    if ((dmrginp.calc_type() == RESPONSE || dmrginp.calc_type() == RESPONSELCC) && system.get_sites() [0] == 0 && *system.get_sites().rbegin()  >= dmrginp.num_occupied_orbitals()) {//response and forward and after active sites
       dmrginp.set_molecule_quantum() = SpinQuantum(2, SpinSpace(0), IrrepSpace(0));
 
       InitBlocks::InitNewEnvironmentBlock(environment, environmentDot, newEnvironment, system, systemDot, braState, ketState,
@@ -343,7 +343,7 @@ void SpinAdapted::Sweep::BlockAndDecimate (SweepParams &sweepParams, StackSpinBl
 
 #ifndef SERIAL
       mpi::communicator world;
-      broadcast(world, ketrotatematrix, 0);
+      broadcast(calc, ketrotatematrix, 0);
 #endif
       tracedMatrix.deallocate();
       iwave.SaveWavefunctionInfo (overlapBig.get_ketStateInfo(), overlapBig.get_leftBlock()->get_sites(), istate);
@@ -522,8 +522,8 @@ double SpinAdapted::Sweep::do_one(SweepParams &sweepParams, const bool &warmUp, 
       
 #ifndef SERIAL
       mpi::communicator world;
-      mpi::broadcast(world,finalError,0);
-      world.barrier();
+      mpi::broadcast(calc,finalError,0);
+      calc.barrier();
 #endif
       sweepParams.savestate(forward, syssites.size());
       if (dmrginp.outputlevel() > 0)
@@ -682,7 +682,7 @@ void SpinAdapted::Sweep::Startup (SweepParams &sweepParams, StackSpinBlock& syst
 
 #ifndef SERIAL
   mpi::communicator world;
-  broadcast(world, rotateMatrix, 0);
+  broadcast(calc, rotateMatrix, 0);
 #endif
 
 
@@ -702,8 +702,6 @@ void SpinAdapted::Sweep::Startup (SweepParams &sweepParams, StackSpinBlock& syst
   p2out <<"oneindexopmult   twoindexopmult   Hc  couplingcoeff"<<endl;  
   p2out << dmrginp.oneelecT<<" "<<dmrginp.twoelecT<<" "<<dmrginp.hmultiply<<" "<<dmrginp.couplingcoeff<<" hmult"<<endl;
   p2out << dmrginp.buildsumblock<<" "<<dmrginp.buildblockops<<" build block"<<endl;
-  p2out << "addnoise  S_0_opxop  S_1_opxop   S_2_opxop"<<endl;
-  p3out << dmrginp.addnoise<<" "<<dmrginp.s0time<<" "<<dmrginp.s1time<<" "<<dmrginp.s2time<<endl;
   
 
   //mcheck("After renorm transform");

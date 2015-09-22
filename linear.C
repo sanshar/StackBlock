@@ -108,7 +108,7 @@ void SpinAdapted::Linear::block_davidson(vector<StackWavefunction>& b, DiagonalM
   }
 
 #ifndef SERIAL
-    mpi::broadcast(world, orthogonalSpace, 0);
+    mpi::broadcast(calc, orthogonalSpace, 0);
 #endif
   if (!orthogonalSpace) {
     return;
@@ -124,19 +124,20 @@ void SpinAdapted::Linear::block_davidson(vector<StackWavefunction>& b, DiagonalM
   if (mpigetrank() == 0)
     r.initialise(b[0]);
 
+  printf("\t\t %15s  %5s  %15s  %15s\n", "iter", "Root", "Energy", "Error");
   int sigmasize=0, bsize= currentRoot == -1 ? dmrginp.nroots() : 1;
   int converged_roots = 0;
   int maxiter = h_diag.Ncols() - lowerStates.size();
   while(true)
   {
-    p3out << "\t\t\t Davidson Iteration :: " << iter << endl;
+    //p3out << "\t\t\t Davidson Iteration :: " << iter << endl;
     
     ++iter;
     dmrginp.hmultiply -> start();
     
 #ifndef SERIAL
-    mpi::broadcast(world, sigmasize, 0);
-    mpi::broadcast(world, bsize, 0);
+    mpi::broadcast(calc, sigmasize, 0);
+    mpi::broadcast(calc, bsize, 0);
 #endif
     //multiply all guess vectors with hamiltonian c = Hv
 
@@ -149,7 +150,7 @@ void SpinAdapted::Linear::block_davidson(vector<StackWavefunction>& b, DiagonalM
       }
 
 #ifndef SERIAL
-      MPI::COMM_WORLD.Bcast(bptr->get_data(), bptr->memoryUsed(), MPI_DOUBLE, 0);
+      MPI_Bcast(bptr->get_data(), bptr->memoryUsed(), MPI_DOUBLE, 0, Calc);
 #endif
       sigmaptr->Clear();
       
@@ -161,6 +162,7 @@ void SpinAdapted::Linear::block_davidson(vector<StackWavefunction>& b, DiagonalM
 
     DiagonalMatrix subspace_eigenvalues;
 
+    double currentEnergy ;
     if (mpigetrank() == 0) {
       Matrix subspace_h(bsize, bsize);
       for (int i = 0; i < bsize; ++i)
@@ -171,9 +173,10 @@ void SpinAdapted::Linear::block_davidson(vector<StackWavefunction>& b, DiagonalM
 
       Matrix alpha;
       diagonalise(subspace_h, subspace_eigenvalues, alpha);
-	
-      for (int i = 1; i <= subspace_eigenvalues.Ncols (); ++i)
-	p3out << "\t\t\t " << i << " ::  " << subspace_eigenvalues(i,i) << endl;
+
+      currentEnergy = subspace_eigenvalues(converged_roots+1, converged_roots+1);
+      //for (int i = 1; i <= nroots; ++i)
+      //p3out << "\t\t\t " << iter << " ::  " << subspace_eigenvalues(i,i) << endl;
 
       //now calculate the ritz vectors which are approximate eigenvectors
       vector<StackWavefunction> tmp(bsize);
@@ -231,18 +234,20 @@ void SpinAdapted::Linear::block_davidson(vector<StackWavefunction>& b, DiagonalM
 
 
     double rnorm;
-    if (mpigetrank() == 0)
+    if (mpigetrank() == 0) {
       rnorm = DotProduct(r,r);  
+      printf("\t\t %15i  %5i  %15.8f  %15.8e\n", iter, converged_roots, currentEnergy, rnorm);
+    }
 
 #ifndef SERIAL
-    mpi::broadcast(world, converged_roots, 0);
-    mpi::broadcast(world, rnorm, 0);
+    mpi::broadcast(calc, converged_roots, 0);
+    mpi::broadcast(calc, rnorm, 0);
 #endif
 
     if (useprecond && mpigetrank() == 0)
       olsenPrecondition(r, b[converged_roots], subspace_eigenvalues(converged_roots+1), h_diag, levelshift);
 
-    p3out << "\t \t \t residual :: " << rnorm << endl;
+    //p3out << "\t \t \t residual :: " << rnorm << endl;
     if (rnorm < normtol)
     {
       p3out << "\t\t\t Converged root " << converged_roots << endl;
@@ -327,7 +332,7 @@ double SpinAdapted::Linear::MinResMethod(StackWavefunction& xi, double normtol, 
 
 #ifndef SERIAL
   mpi::communicator world;
-  MPI::COMM_WORLD.Bcast(xi.get_data(), xi.memoryUsed(), MPI_DOUBLE, 0);
+  MPI_Bcast(xi.get_data(), xi.memoryUsed(), MPI_DOUBLE, 0, Calc);
 #endif
 
   StackWavefunction pi, ri; 
@@ -349,7 +354,7 @@ double SpinAdapted::Linear::MinResMethod(StackWavefunction& xi, double normtol, 
     ricopy.deallocate();
   }
 #ifndef SERIAL
-    mpi::broadcast(world, doCG, 0);
+    mpi::broadcast(calc, doCG, 0);
 #endif
   if (!doCG) {
     xi.Clear();
@@ -375,7 +380,7 @@ double SpinAdapted::Linear::MinResMethod(StackWavefunction& xi, double normtol, 
   }
 
 #ifndef SERIAL
-  mpi::broadcast(world, oldError, 0);
+  mpi::broadcast(calc, oldError, 0);
 #endif
   
   if (oldError < normtol) {
@@ -384,7 +389,7 @@ double SpinAdapted::Linear::MinResMethod(StackWavefunction& xi, double normtol, 
       printf("\t\t\t %15i  %15.8e  %15.8e\n", 0, functional, oldError);
     }
 #ifndef SERIAL
-    mpi::broadcast(world, functional, 0);
+    mpi::broadcast(calc, functional, 0);
 #endif
     if (mpigetrank() == 0) pi.deallocate();
     ri.deallocate();
@@ -392,7 +397,7 @@ double SpinAdapted::Linear::MinResMethod(StackWavefunction& xi, double normtol, 
   }
 
 #ifndef SERIAL
-    MPI::COMM_WORLD.Bcast(ri.get_data(), ri.memoryUsed(), MPI_DOUBLE, 0);
+  MPI_Bcast(ri.get_data(), ri.memoryUsed(), MPI_DOUBLE, 0, Calc);
     //mpi::broadcast(world, ri, 0);
 #endif
   
@@ -422,9 +427,9 @@ double SpinAdapted::Linear::MinResMethod(StackWavefunction& xi, double normtol, 
     }
 
 #ifndef SERIAL
-    mpi::broadcast(world, Error, 0);
-    mpi::broadcast(world, functional, 0);
-    MPI::COMM_WORLD.Bcast(ri.get_data(), ri.memoryUsed(), MPI_DOUBLE, 0);
+    mpi::broadcast(calc, Error, 0);
+    mpi::broadcast(calc, functional, 0);
+    MPI_Bcast(ri.get_data(), ri.memoryUsed(), MPI_DOUBLE, 0, Calc);
 #endif
 
     if (Error < normtol || iter >maxIter) {

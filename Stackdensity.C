@@ -35,7 +35,7 @@ void StackDensityMatrix::makedensitymatrix(std::vector<StackWavefunction>& wave_
 #ifndef SERIAL
   boost::mpi::communicator world;
   //broadcast the data
-  MPI::COMM_WORLD.Bcast(this->get_data(), this->memoryUsed(), MPI_DOUBLE, 0);
+  MPI_Bcast(this->get_data(), this->memoryUsed(), MPI_DOUBLE, 0, Calc);
 #endif
 
   if(noise > NUMERICAL_ZERO) {
@@ -53,7 +53,7 @@ void StackDensityMatrix::makedensitymatrix(std::vector<StackWavefunction>& wave_
     
 #ifndef SERIAL
     boost::mpi::communicator world;
-    boost::mpi::broadcast(world, nroots, 0);
+    boost::mpi::broadcast(calc, nroots, 0);
 #endif
 
     {
@@ -77,7 +77,7 @@ void StackDensityMatrix::makedensitymatrix(std::vector<StackWavefunction>& wave_
 	  wptr = &wave_solutions[i];
 
 #ifndef SERIAL
-	MPI::COMM_WORLD.Bcast(wptr->get_data(), wptr->memoryUsed(), MPI_DOUBLE, 0);
+	MPI_Bcast(wptr->get_data(), wptr->memoryUsed(), MPI_DOUBLE, 0, Calc);
 #endif
       
 	this->add_onedot_noise(*wptr, big, (1.0*noise)/nroots);

@@ -196,9 +196,9 @@ void SpinAdapted::SweepParams::restorestate(bool &forward, int &size)
 
 #ifndef SERIAL
   mpi::communicator world;
-  mpi::broadcast(world, forward, 0); 
-  mpi::broadcast(world, size, 0);
-  mpi::broadcast(world, *this, 0);
+  mpi::broadcast(calc, forward, 0); 
+  mpi::broadcast(calc, size, 0);
+  mpi::broadcast(calc, *this, 0);
 #endif
 }
 

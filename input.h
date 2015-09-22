@@ -34,6 +34,7 @@ class Input {
 
  private:
   std::vector<int> m_thrds_per_node;
+  std::vector<int> m_calc_procs; //
   int m_quanta_thrds;
   int m_mkl_thrds;
   int m_norbs;
@@ -181,7 +182,7 @@ class Input {
     ar & m_bra_symmetry_number & m_permSymm & m_activeorbs & m_excitation & m_openorbs & m_closedorbs;
     ar & m_save_prefix & m_load_prefix & m_direct & m_max_lanczos_dimension;
     ar & m_deflation_min_size & m_deflation_max_size & m_outputlevel & m_reorderfile;
-    ar & m_algorithm_type & m_twodot_to_onedot_iter & m_orbformat ;
+    ar & m_algorithm_type & m_twodot_to_onedot_iter & m_orbformat & m_calc_procs;
     ar & m_nquanta & m_sys_add & m_env_add & m_do_fci & m_no_transform ;
     ar & m_do_pdm & m_do_npdm_ops & m_do_npdm_in_core & m_npdm_generate & m_new_npdm_code  & m_transition_diff_spatial_irrep & m_occupied_orbitals;
     ar & m_store_spinpdm &m_spatpdm_disk_dump & m_pdm_unsorted & m_npdm_intermediate & m_npdm_multinode;
@@ -242,7 +243,8 @@ class Input {
     addnoise        = boost::shared_ptr<cumulTimer> (new cumulTimer());
     s0time          = boost::shared_ptr<cumulTimer> (new cumulTimer());
     s1time          = boost::shared_ptr<cumulTimer> (new cumulTimer());
-    s2time          = boost::shared_ptr<cumulTimer> (new cumulTimer());
+    cctime          = boost::shared_ptr<cumulTimer> (new cumulTimer());
+    cdtime          = boost::shared_ptr<cumulTimer> (new cumulTimer());
     blockintegrals  = boost::shared_ptr<cumulTimer> (new cumulTimer());
     blocksites      = boost::shared_ptr<cumulTimer> (new cumulTimer());
     statetensorproduct = boost::shared_ptr<cumulTimer> (new cumulTimer());
@@ -265,7 +267,7 @@ class Input {
   void performSanityTest();
   void generateDefaultSchedule();
   void readorbitalsfile(string& dumpFile, OneElectronArray& v1, TwoElectronArray& v2, double& coreEnergy, int integralIndex);
-  void readorbitalsfile(string& dumpFile, OneElectronArray& v1, TwoElectronArray& v2, double& coreEnergy, PairArray& vcc, CCCCArray& vcccc, CCCDArray& vcccd);  
+  void readorbitalsfile(string& dumpFile, OneElectronArray& v1, TwoElectronArray& v2, double& coreEnergy, PairArray& vcc, CCCCArray& vcccc, CCCDArray& vcccd, int integralIndex);  
   int getNumIntegrals() { return m_num_Integrals;}
   void readreorderfile(ifstream& dumpFile, std::vector<int>& reorder);
   std::vector<int> getgaorder(ifstream& gaconfFile, string& orbitalfile, std::vector<int>& fiedlerorder);
@@ -313,7 +315,8 @@ class Input {
   boost::shared_ptr<cumulTimer> addnoise      ;
   boost::shared_ptr<cumulTimer> s0time        ;
   boost::shared_ptr<cumulTimer> s1time         ;
-  boost::shared_ptr<cumulTimer> s2time        ;
+  boost::shared_ptr<cumulTimer> cdtime        ;
+  boost::shared_ptr<cumulTimer> cctime        ;
   boost::shared_ptr<cumulTimer> blockintegrals;
   boost::shared_ptr<cumulTimer> blocksites    ;
   boost::shared_ptr<cumulTimer> statetensorproduct;
@@ -336,6 +339,7 @@ class Input {
   const int& guessState() const {return m_guessState;}
   int& setGuessState()  {return m_guessState;}
   const std::vector<int>& projectorStates() const {return m_projectorState;}
+  std::vector<int>& calc_procs() {return m_calc_procs;}
 
   std::vector<int>& baseStates() {return m_baseState;}
   int& targetState() {return m_targetState;}
@@ -444,6 +448,8 @@ class Input {
   const std::vector<int> &spin_vector() const { return m_spin_vector; }
   const std::string &save_prefix() const { return m_save_prefix; }
   const std::string &load_prefix() const { return m_load_prefix; }
+  std::string &save_prefix()  { return m_save_prefix; }
+  std::string &load_prefix()  { return m_load_prefix; }
   SpinQuantum& set_molecule_quantum() {return m_molecule_quantum;}
   SpinQuantum effective_molecule_quantum() {
     if (!m_add_noninteracting_orbs) 

@@ -80,7 +80,7 @@ void SpinAdapted::Solver::solve_wavefunction(vector<StackWavefunction>& solution
   bool haveEnoughStates = (e.Ncols()< nroots) ? false : true;
 #ifndef SERIAL
   mpi::communicator world;
-  broadcast(world, haveEnoughStates, 0);
+  broadcast(calc, haveEnoughStates, 0);
 #endif
 
   if (!haveEnoughStates) {
@@ -180,7 +180,7 @@ void SpinAdapted::Solver::solve_wavefunction(vector<StackWavefunction>& solution
     }
   }
 #ifndef SERIAL
-  broadcast(world, energies, 0);
+  broadcast(calc, energies, 0);
 #endif
   pout<<endl;
 }

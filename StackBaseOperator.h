@@ -32,6 +32,12 @@ template<class T> class Baseoperator  // The abstract class of an operator
   virtual const T& operator_element(int i, int j) const = 0;
   virtual T& operator()(int i, int j) = 0;
   virtual const T& operator()(int i, int j) const = 0;
+  virtual const char& allowed(int i, int j, char conj) const = 0;
+  virtual char& allowed(int i, int j, char conj) = 0;
+  virtual T& operator_element(int i, int j, char conj) = 0;
+  virtual const T& operator_element(int i, int j, char conj) const = 0;
+  virtual T& operator()(int i, int j, char conj) = 0;
+  virtual const T& operator()(int i, int j, char conj) const = 0;
   virtual int get_deltaQuantum_size() const = 0;
   virtual std::vector<SpinQuantum> get_deltaQuantum() const = 0;
   virtual SpinQuantum get_deltaQuantum(int i) const = 0;  
@@ -138,7 +144,15 @@ class StackSparseMatrix : public Baseoperator<StackMatrix>  // the sparse matrix
     if (conj == 'n') return operatorMatrix(i, j); 
     else return operatorMatrix(j, i);
   }
+  const StackMatrix& operator_element(int i, int j, char conj) const { 
+    if (conj == 'n') return operatorMatrix(i, j); 
+    else return operatorMatrix(j, i);
+  }
   const StackMatrix& operator()(int i, int j) const { 
+    if (conj == 'n') return operatorMatrix(i, j); 
+    else return operatorMatrix(j, i);
+  }
+  const StackMatrix& operator()(int i, int j, char conj) const { 
     if (conj == 'n') return operatorMatrix(i, j); 
     else return operatorMatrix(j, i);
   }
@@ -146,7 +160,15 @@ class StackSparseMatrix : public Baseoperator<StackMatrix>  // the sparse matrix
     if (conj == 'n') return operatorMatrix(i, j); 
     else return operatorMatrix(j, i);
   }
+  StackMatrix& operator_element(int i, int j, char conj) { 
+    if (conj == 'n') return operatorMatrix(i, j); 
+    else return operatorMatrix(j, i);
+  }
   StackMatrix& operator()(int i, int j) { 
+    if (conj == 'n') return operatorMatrix(i, j); 
+    else return operatorMatrix(j, i);
+  }
+  StackMatrix& operator()(int i, int j, char conj) { 
     if (conj == 'n') return operatorMatrix(i, j); 
     else return operatorMatrix(j, i);
   }
@@ -192,6 +214,14 @@ class StackSparseMatrix : public Baseoperator<StackMatrix>  // the sparse matrix
     else return allowedQuantaMatrix(j, i);
   }
   char& allowed(int i, int j) { 
+    if (conj == 'n') return allowedQuantaMatrix(i, j); 
+    else return allowedQuantaMatrix(j, i);
+  }
+  const char& allowed(int i, int j, char conj) const { 
+    if (conj == 'n') return allowedQuantaMatrix(i, j); 
+    else return allowedQuantaMatrix(j, i);
+  }
+  char& allowed(int i, int j, char conj) { 
     if (conj == 'n') return allowedQuantaMatrix(i, j); 
     else return allowedQuantaMatrix(j, i);
   }
@@ -290,17 +320,25 @@ public:
   bool get_initialised() const { return opdata->get_initialised(); }
   int nrows() const { return opdata->ncols(); }
   int ncols() const { return opdata->nrows(); }
+
   const char &allowed(int i, int j) const { return opdata->allowed(j, i); }
   char &allowed(int i, int j) { return opdata->allowed(j, i); }
   const StackMatrix& operator_element(int i, int j) const { return opdata->operator_element(j, i); }
   StackMatrix& operator_element(int i, int j) { return opdata->operator_element(j, i); }
+  const StackMatrix& operator()(int i, int j) const { return opdata->operator()(j, i); }
+  StackMatrix& operator()(int i, int j) { return opdata->operator()(j, i); }
+  const StackMatrix& operator()(int i, int j, char conj) const { if (conj == 'n') return opdata->operator()(j, i); else return opdata->operator()(i,j);}
+  StackMatrix& operator()(int i, int j, char conj) { if (conj == 'n') return opdata->operator()(j, i); else return opdata->operator()(i,j);}
+ const char &allowed(int i, int j, char conj) const { if (conj == 'n') return opdata->allowed(j, i); else return opdata->allowed(i,j); }
+  char &allowed(int i, int j, char conj) { if (conj =='n') return opdata->allowed(j, i); else return opdata->allowed(i,j);}
+  const StackMatrix& operator_element(int i, int j, char conj) const { if (conj == 'n') return opdata->operator_element(j, i); else return opdata->operator_element(i,j);}
+  StackMatrix& operator_element(int i, int j, char conj) { if (conj == 'n') return opdata->operator_element(j, i); else return opdata->operator_element(i,j);}
+
   SpinSpace get_spin(int i=0) const  { return opdata->get_deltaQuantum(i).get_s();}
   IrrepSpace get_symm(int i=0) const  { return -opdata->get_deltaQuantum(i).get_symm();}
   int get_orbs(int i) const {return opdata->get_orbs(i);}
   const std::vector<int>& get_orbs() const { return opdata->get_orbs(); }
-  const StackMatrix& operator()(int i, int j) const { return opdata->operator()(j, i); }
-  StackMatrix& operator()(int i, int j) { return opdata->operator()(j, i); }
-  char conjugacy() const { if (opdata->conjugacy() == 'n') return 't'; else return 'n';}
+   char conjugacy() const { if (opdata->conjugacy() == 'n') return 't'; else return 'n';}
   //double get_scaling(SpinQuantum leftq, SpinQuantum rightq) const ;
   boost::shared_ptr<StackSparseMatrix> getworkingrepresentation(const StackSpinBlock* block) {return opdata;}
   void build(const StackSpinBlock& b){};

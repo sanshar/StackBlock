@@ -428,13 +428,13 @@ void accumulate_onepdm(Matrix& onepdm)
 #ifndef SERIAL
   Matrix tmp_recv;
   mpi::communicator world;
-  if (world.size() == 1)
+  if (calc.size() == 1)
     return;
   if (!mpigetrank())
     {
-      for(int i=1;i<world.size();++i)
+      for(int i=1;i<calc.size();++i)
 	{
-	  world.recv(i, i, tmp_recv);
+	  calc.recv(i, i, tmp_recv);
 	  for(int k=0;k<onepdm.Nrows();++k)
 	    for(int l=0;l<onepdm.Ncols();++l)
 	      if(tmp_recv(k+1,l+1) != 0.) {
@@ -444,7 +444,7 @@ void accumulate_onepdm(Matrix& onepdm)
     }
   else
     {
-      world.send(0, mpigetrank(), onepdm);
+      calc.send(0, mpigetrank(), onepdm);
     }
 #endif
 }
@@ -575,7 +575,7 @@ void load_onepdm_binary(Matrix& onepdm, const int &i, const int &j)
   }
 #ifndef SERIAL
   mpi::communicator world;
-  mpi::broadcast(world,onepdm,0);
+  mpi::broadcast(calc,onepdm,0);
   if(mpigetrank())
     onepdm = 0;
 #endif
@@ -609,7 +609,7 @@ void load_pairmat_binary(Matrix& pairmat, const int &i, const int &j)
   }
 #ifndef SERIAL
   mpi::communicator world;
-  mpi::broadcast(world,pairmat,0);
+  mpi::broadcast(calc,pairmat,0);
   if(mpigetrank())
     pairmat = 0;
 #endif

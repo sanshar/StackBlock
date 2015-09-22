@@ -30,7 +30,7 @@ void SpinAdapted::Sweep::fullci(double sweep_tol)
   sweepParams.set_sweep_parameters();
 
 
-  StackSpinBlock system;
+  StackSpinBlock system, sysdot;
   InitBlocks::InitStartingBlock(system, true, 0, 0, sweepParams.get_forward_starting_size(),  sweepParams.get_backward_starting_size(), 0, false, true, integralIndex);
   int numsites = dmrginp.spinAdapted() ? dmrginp.last_site() : dmrginp.last_site()/2;
   int forwardsites = numsites/2+numsites%2;
@@ -40,11 +40,8 @@ void SpinAdapted::Sweep::fullci(double sweep_tol)
 
   StackSpinBlock newSystem;
   for (int i=0; i<forwardsites-1; i++) {
-    StackSpinBlock& sysdot = singleSiteBlocks[integralIndex][i+1];
-    system.printOperatorSummary();
+    sysdot = StackSpinBlock(i+1, i+1, integralIndex, true);
     system.addAdditionalOps();
-    pout << "after additional ops "<<endl;
-    system.printOperatorSummary();
     newSystem.set_integralIndex() = integralIndex;
     if (i == forwardsites-2)
       newSystem.default_op_components(true, false, true, true);
@@ -54,7 +51,6 @@ void SpinAdapted::Sweep::fullci(double sweep_tol)
     newSystem.setstoragetype(DISTRIBUTED_STORAGE);
     newSystem.BuildSumBlock (NO_PARTICLE_SPIN_NUMBER_CONSTRAINT, system, sysdot);
 
-    pout << newSystem<<endl;
     long memoryToFree = newSystem.getdata() - system.getdata();
     long newsysMemory = newSystem.memoryUsed();
     if (i != forwardsites-2) {
@@ -67,16 +63,16 @@ void SpinAdapted::Sweep::fullci(double sweep_tol)
     }
   }
 
-  StackSpinBlock environment, newEnvironment;
+  StackSpinBlock environment, newEnvironment, envdot;
   InitBlocks::InitStartingBlock(environment, false, 0, 0, sweepParams.get_forward_starting_size(),  sweepParams.get_backward_starting_size(), 0, false, true, integralIndex);
   for (int i=0;i <backwardsites-1; i++) {
-    StackSpinBlock& envdot=singleSiteBlocks[integralIndex][numsites-2-i];
+    envdot = StackSpinBlock(numsites-2-i, numsites-2-i, integralIndex, true);
     environment.addAdditionalOps();
     newEnvironment.set_integralIndex() = integralIndex;
     if (i == backwardsites-2)
-      newEnvironment.default_op_components(true, true, true, true);
+      newEnvironment.default_op_components(true, true, false, true);
     else
-      newEnvironment.default_op_components(false, true, true, true);
+      newEnvironment.default_op_components(false, true, false, true);
     newEnvironment.setstoragetype(DISTRIBUTED_STORAGE);
     newEnvironment.BuildSumBlock (NO_PARTICLE_SPIN_NUMBER_CONSTRAINT, environment, envdot);
 
@@ -94,16 +90,16 @@ void SpinAdapted::Sweep::fullci(double sweep_tol)
 
   pout <<"\t\t\t System Block :: "<< newSystem;
   pout <<"\t\t\t Environment Block :: "<< newEnvironment;
+  newSystem.set_loopblock(false); newEnvironment.set_loopblock(true);
   StackSpinBlock big;
   InitBlocks::InitBigBlock(newSystem, newEnvironment, big); 
 
 
   int nroots = dmrginp.nroots(0);
   std::vector<StackWavefunction> solution(nroots);
-  pout<< dmrginp.effective_molecule_quantum_vec()[0]<<endl;
+
   solution[0].initialise(dmrginp.effective_molecule_quantum_vec(), big.get_leftBlock()->get_stateInfo(), big.get_rightBlock()->get_stateInfo(), false);
   solution[0].Clear();
-  pout << solution[0].memoryUsed()<<endl;
   if (mpigetrank() == 0) {
     for (int i=1; i<nroots; i++) {
       solution[i].initialise(dmrginp.effective_molecule_quantum_vec(), big.get_leftBlock()->get_stateInfo(), big.get_rightBlock()->get_stateInfo(), false);

@@ -151,7 +151,7 @@ void SpinAdapted::SweepResponse::BlockAndDecimate (SweepParams &sweepParams, Sta
 
 #ifndef SERIAL
     mpi::communicator world;
-    MPI::COMM_WORLD.Bcast(iwave.get_data(), iwave.memoryUsed(), MPI_DOUBLE, 0);
+    MPI_Bcast(iwave.get_data(), iwave.memoryUsed(), MPI_DOUBLE, 0, Calc);
 #endif
 
     //dont add noise in the onedot algorithm
@@ -193,7 +193,7 @@ void SpinAdapted::SweepResponse::BlockAndDecimate (SweepParams &sweepParams, Sta
 
 #ifndef SERIAL
     mpi::communicator world;
-    MPI::COMM_WORLD.Bcast(lowerStates[0].get_data(), lowerStates[0].memoryUsed(), MPI_DOUBLE, 0);
+    MPI_Bcast(lowerStates[0].get_data(), lowerStates[0].memoryUsed(), MPI_DOUBLE, 0, Calc);
 #endif
   pout << "**** STACK MEMORY REMAINING before projector***** "<<1.0*(Stackmem[0].size-Stackmem[0].memused)*sizeof(double)/1.e9<<" GB"<<endl;
 
@@ -223,7 +223,7 @@ void SpinAdapted::SweepResponse::BlockAndDecimate (SweepParams &sweepParams, Sta
     
 #ifndef SERIAL
     mpi::communicator world;
-    MPI::COMM_WORLD.Bcast(iwave.get_data(), iwave.memoryUsed(), MPI_DOUBLE, 0);
+    MPI_Bcast(iwave.get_data(), iwave.memoryUsed(), MPI_DOUBLE, 0, Calc);
 #endif
 
     if (mpigetrank() == 0)
@@ -302,7 +302,7 @@ void SpinAdapted::SweepResponse::BlockAndDecimate (SweepParams &sweepParams, Sta
   targetWave.deallocate();
 
 #ifndef SERIAL
-  broadcast(world, rotatematrix, 0);
+  broadcast(calc, rotatematrix, 0);
 #endif
 
   //<target|O|firstOrderState>
@@ -369,7 +369,7 @@ void SpinAdapted::SweepResponse::BlockAndDecimate (SweepParams &sweepParams, Sta
     }
 
 #ifndef SERIAL
-    broadcast(world, ketrotatematrix, 0);
+    broadcast(calc, ketrotatematrix, 0);
 #endif
         
     perturbationnewenvironment.deallocate();
@@ -449,7 +449,7 @@ void SpinAdapted::SweepResponse::BlockAndDecimate (SweepParams &sweepParams, Sta
     }
     
 #ifndef SERIAL
-    broadcast(world, ketrotatematrix, 0);
+    broadcast(calc, ketrotatematrix, 0);
 #endif
     
     perturbationnewenvironment.deallocate();
@@ -468,7 +468,7 @@ void SpinAdapted::SweepResponse::BlockAndDecimate (SweepParams &sweepParams, Sta
   }
 
 #ifndef SERIAL
-    broadcast(world, rotatematrix, 0);
+    broadcast(calc, rotatematrix, 0);
 #endif
 
 
@@ -500,8 +500,6 @@ void SpinAdapted::SweepResponse::BlockAndDecimate (SweepParams &sweepParams, Sta
   p2out << *dmrginp.oneelecT<<" "<<*dmrginp.twoelecT<<" "<<*dmrginp.hmultiply<<" "<<*dmrginp.couplingcoeff<<" hmult"<<endl;
   p2out << *dmrginp.buildsumblock<<" "<<*dmrginp.buildblockops<<" build block"<<endl;
   p2out << *dmrginp.blockintegrals<<"  "<<*dmrginp.blocksites<<"  "<<*dmrginp.statetensorproduct<<"  "<<*dmrginp.statecollectquanta<<"  "<<*dmrginp.buildsumblock<<" "<<*dmrginp.buildblockops<<" build sum block"<<endl;
-  p2out << "addnoise  S_0_opxop  S_1_opxop   S_2_opxop"<<endl;
-  p3out << *dmrginp.addnoise<<" "<<*dmrginp.s0time<<" "<<*dmrginp.s1time<<" "<<*dmrginp.s2time<<endl;
   
 
 }
@@ -656,7 +654,7 @@ double SpinAdapted::SweepResponse::do_one(SweepParams &sweepParams, const bool &
       
 #ifndef SERIAL
       mpi::communicator world;
-      world.barrier();
+      calc.barrier();
 #endif
       sweepParams.savestate(forward, syssites.size());
       if (dmrginp.outputlevel() > 0)
@@ -776,7 +774,7 @@ void SpinAdapted::SweepResponse::StartUp (SweepParams &sweepParams, StackSpinBlo
     }
 #ifndef SERIAL
     mpi::communicator world;
-    broadcast(world, brarotateMatrix, 0);
+    broadcast(calc, brarotateMatrix, 0);
 #endif
 
 
@@ -830,7 +828,7 @@ void SpinAdapted::SweepResponse::StartUp (SweepParams &sweepParams, StackSpinBlo
     
 #ifndef SERIAL
     mpi::communicator world;
-    broadcast(world, ketrotateMatrix, 0);
+    broadcast(calc, ketrotateMatrix, 0);
 #endif
 
     dmrginp.operrotT -> start();
@@ -863,7 +861,7 @@ void SpinAdapted::SweepResponse::StartUp (SweepParams &sweepParams, StackSpinBlo
     
 #ifndef SERIAL
     mpi::communicator world;
-    broadcast(world, ketrotateMatrix, 0);
+    broadcast(calc, ketrotateMatrix, 0);
 #endif
 
     dmrginp.operrotT -> start();
@@ -887,8 +885,6 @@ void SpinAdapted::SweepResponse::StartUp (SweepParams &sweepParams, StackSpinBlo
   p2out << *dmrginp.oneelecT<<" "<<*dmrginp.twoelecT<<" "<<*dmrginp.hmultiply<<" "<<*dmrginp.couplingcoeff<<" hmult"<<endl;
   p2out << *dmrginp.buildsumblock<<" "<<*dmrginp.buildblockops<<" build block"<<endl;
   p2out << *dmrginp.blockintegrals<<"  "<<*dmrginp.blocksites<<"  "<<*dmrginp.statetensorproduct<<"  "<<*dmrginp.statecollectquanta<<"  "<<*dmrginp.buildsumblock<<" "<<*dmrginp.buildblockops<<" build sum block"<<endl;
-  p2out << "addnoise  S_0_opxop  S_1_opxop   S_2_opxop"<<endl;
-  p3out << *dmrginp.addnoise<<" "<<*dmrginp.s0time<<" "<<*dmrginp.s1time<<" "<<*dmrginp.s2time<<endl;
 
 }
 
@@ -999,7 +995,7 @@ void SpinAdapted::SweepResponse::WavefunctionCanonicalize (SweepParams &sweepPar
   pout << "broadcast rotate"<<endl;
 #ifndef SERIAL
   mpi::communicator world;
-  broadcast(world, rotatematrix, 0);
+  broadcast(calc, rotatematrix, 0);
 #endif
 
   
@@ -1072,7 +1068,7 @@ void SpinAdapted::SweepResponse::WavefunctionCanonicalize (SweepParams &sweepPar
     tracedMatrix.deallocate();
 
 #ifndef SERIAL
-    broadcast(world, ketrotatematrix, 0);
+    broadcast(calc, ketrotatematrix, 0);
 #endif
     
     iwave.SaveWavefunctionInfo (overlapBig.get_ketStateInfo(), overlapBig.get_leftBlock()->get_sites(), baseStates[l]);
@@ -1144,7 +1140,7 @@ void SpinAdapted::SweepResponse::WavefunctionCanonicalize (SweepParams &sweepPar
     tracedMatrix.deallocate();
 
 #ifndef SERIAL
-    broadcast(world, ketrotatematrix, 0);
+    broadcast(calc, ketrotatematrix, 0);
 #endif
     
     iwave.SaveWavefunctionInfo (overlapBig.get_ketStateInfo(), overlapBig.get_leftBlock()->get_sites(), projectors[l]);
@@ -1176,8 +1172,6 @@ void SpinAdapted::SweepResponse::WavefunctionCanonicalize (SweepParams &sweepPar
   p2out <<"oneindexopmult   twoindexopmult   Hc  couplingcoeff"<<endl;  
   p2out << *dmrginp.oneelecT<<" "<<*dmrginp.twoelecT<<" "<<*dmrginp.hmultiply<<" "<<*dmrginp.couplingcoeff<<" hmult"<<endl;
   p2out << *dmrginp.buildsumblock<<" "<<*dmrginp.buildblockops<<" build block"<<endl;
-  p2out << "addnoise  S_0_opxop  S_1_opxop   S_2_opxop"<<endl;
-  p3out << *dmrginp.addnoise<<" "<<*dmrginp.s0time<<" "<<*dmrginp.s1time<<" "<<*dmrginp.s2time<<endl;
 }
 
 /*
@@ -1239,7 +1233,7 @@ void SpinAdapted::SweepResponse::StartUp (SweepParams &sweepParams, StackSpinBlo
     }
 #ifndef SERIAL
     mpi::communicator world;
-    broadcast(world, brarotateMatrix, 0);
+    broadcast(calc, brarotateMatrix, 0);
 #endif
     
     dmrginp.operrotT -> start();
@@ -1282,7 +1276,7 @@ void SpinAdapted::SweepResponse::StartUp (SweepParams &sweepParams, StackSpinBlo
     
 #ifndef SERIAL
     mpi::communicator world;
-    broadcast(world, ketrotateMatrix, 0);
+    broadcast(calc, ketrotateMatrix, 0);
 #endif
 
     dmrginp.operrotT -> start();
@@ -1312,7 +1306,7 @@ void SpinAdapted::SweepResponse::StartUp (SweepParams &sweepParams, StackSpinBlo
     
 #ifndef SERIAL
     mpi::communicator world;
-    broadcast(world, ketrotateMatrix, 0);
+    broadcast(calc, ketrotateMatrix, 0);
 #endif
 
     dmrginp.operrotT -> start();
@@ -1450,7 +1444,7 @@ void SpinAdapted::SweepResponse::WavefunctionCanonicalize (SweepParams &sweepPar
   pout << "broadcast rotate"<<endl;
 #ifndef SERIAL
   mpi::communicator world;
-  broadcast(world, rotatematrix, 0);
+  broadcast(calc, rotatematrix, 0);
 #endif
 
   
@@ -1516,7 +1510,7 @@ void SpinAdapted::SweepResponse::WavefunctionCanonicalize (SweepParams &sweepPar
     tracedMatrix.deallocate();
 
 #ifndef SERIAL
-    broadcast(world, ketrotatematrix, 0);
+    broadcast(calc, ketrotatematrix, 0);
 #endif
     
     iwave.SaveWavefunctionInfo (overlapBig.get_ketStateInfo(), overlapBig.get_leftBlock()->get_sites(), baseStates[l]);
@@ -1579,7 +1573,7 @@ void SpinAdapted::SweepResponse::WavefunctionCanonicalize (SweepParams &sweepPar
     tracedMatrix.deallocate();
 
 #ifndef SERIAL
-    broadcast(world, ketrotatematrix, 0);
+    broadcast(calc, ketrotatematrix, 0);
 #endif
     
     iwave.SaveWavefunctionInfo (overlapBig.get_ketStateInfo(), overlapBig.get_leftBlock()->get_sites(), projectors[l]);

@@ -82,5 +82,8 @@ extern std::vector<int> NPROP;
 extern int PROPBITLEN;
 extern double NUMERICAL_ZERO;
 extern std::vector<StackAllocator<double> > Stackmem; 
+
+extern boost::mpi::communicator calc;
+extern MPI_Comm Calc;
 }
 #endif

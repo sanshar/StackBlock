@@ -68,10 +68,10 @@ namespace SpinAdapted{
 
 #ifndef SERIAL
     mpi::communicator world;
-    mpi::broadcast(world, w, 0);
+    mpi::broadcast(calc, w, 0);
     if (mpigetrank() != 0)
       w.allocateOperatorMatrix();
-    MPI::COMM_WORLD.Bcast(w.get_data(), w.memoryUsed(), MPI_DOUBLE, 0);
+    MPI_Bcast(w.get_data(), w.memoryUsed(), MPI_DOUBLE, 0, Calc);
 #endif
   }
 
@@ -428,8 +428,8 @@ namespace SpinAdapted{
 
 #ifndef SERIAL
       mpi::communicator world;
-      mpi::broadcast(world, Rotationa, 0);
-      mpi::broadcast(world, Rotationb, 0);
+      mpi::broadcast(calc, Rotationa, 0);
+      mpi::broadcast(calc, Rotationb, 0);
 #endif
       InitBlocks::InitNewSystemBlock(system, dotsite, newSystem, 0, statebindex, sys_add, direct, 0, DISTRIBUTED_STORAGE, false, true);
 
@@ -470,8 +470,8 @@ namespace SpinAdapted{
 
 #ifndef SERIAL
       mpi::communicator world;
-    mpi::broadcast(world, h, 0);
-    mpi::broadcast(world, o, 0);
+    mpi::broadcast(calc, h, 0);
+    mpi::broadcast(calc, o, 0);
 #endif
 
     return;

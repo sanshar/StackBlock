@@ -70,6 +70,10 @@ void SpinAdapted::Input::initialize_defaults()
 #else
   m_thrds_per_node = vector<int>(1,1);
 #endif
+  m_calc_procs = vector<int>(world.size(), 0);
+  for (int i=0; i<world.size(); i++) 
+    m_calc_procs[i] = i;
+
   m_quanta_thrds = 1;
   m_mkl_thrds = 1;
   m_ham_type = QUANTUM_CHEMISTRY;
@@ -206,8 +210,12 @@ SpinAdapted::Input::Input(const string& config_name) {
   NonabelianSym = false;
   std::vector<string> orbitalfile;
 
-
-  if(mpigetrank() == 0)
+  int rank = 0;
+#ifndef SERIAL
+  boost::mpi::communicator world;
+  rank = world.rank();
+#endif
+  if(rank == 0)
   {
     pout << "Reading input file"<<endl;
     bool PROVIDED_WEIGHTS = false;
@@ -367,6 +375,15 @@ SpinAdapted::Input::Input(const string& config_name) {
 	}	
 	m_lastM = atoi(tok[1].c_str());
       }
+      else if (boost::iequals(keyword,  "calcprocs")) {
+	if (tok.size() < 2) {
+	  pout <<"calcprocs should be followed by a list of processor ids"<<endl;
+	}
+	m_calc_procs.resize(tok.size()-1, 0);
+	for (int i=0; i<tok.size()-1; i++)
+	  m_calc_procs[i] = atoi(tok[i+1].c_str());
+
+      }
       else if (boost::iequals(keyword,  "reorder")) {
 	if(usedkey[REORDER] == 0) 
 	  usedkey_error(keyword, msg);
@@ -503,11 +520,6 @@ SpinAdapted::Input::Input(const string& config_name) {
       else if (boost::iequals(keyword, "quanta_thrds") || boost::iequals(keyword, "threads_quanta")) 
 	m_quanta_thrds = atoi(tok[1].c_str());
       else if (boost::iequals(keyword, "num_thrds")) {
-	int nprocs = 1;
-#ifndef SERIAL       
-	mpi::communicator world;
-	nprocs = world.size();
-#endif
 	if (tok.size() !=  2) {
 	  pout << "keyword num_thrds should be followed by a single integer!"<<endl;
 	  pout << "error found in the following line "<<endl;
@@ -515,23 +527,7 @@ SpinAdapted::Input::Input(const string& config_name) {
 	  abort();
 	}	
 	m_thrds_per_node.clear();
-	m_thrds_per_node.resize(nprocs, atoi(tok[1].c_str()));
-      }
-      else if (boost::iequals(keyword, "thrds_per_node") || boost::iequals(keyword, "threads_per_node")) {
-
-	int nprocs = 1;
-#ifndef SERIAL       
-	mpi::communicator world;
-	nprocs = world.size();
-#endif
-	if (tok.size() !=  nprocs+1) {
-	  pout << "keyword number of threads for each of the "<<nprocs<<" processes should be specified!"<<endl;
-	  pout << "error found in the following line "<<endl;
-	  pout << msg<<endl;
-	  abort();
-	}	
-	for (int i=1; i<tok.size(); i++)
-	  m_thrds_per_node[i-1] = atoi(tok[i].c_str());
+	m_thrds_per_node.resize(m_calc_procs.size(), atoi(tok[1].c_str()));
       }
       else if (boost::iequals(keyword, "memory") || boost::iequals(keyword, "mem")) {
 	if (tok.size() != 3) {
@@ -1185,7 +1181,6 @@ SpinAdapted::Input::Input(const string& config_name) {
 
 
 #ifndef SERIAL
-  boost::mpi::communicator world;
   mpi::broadcast(world, m_num_Integrals, 0);
   mpi::broadcast(world, sym, 0);
   mpi::broadcast(world, m_Bogoliubov, 0);
@@ -1193,6 +1188,8 @@ SpinAdapted::Input::Input(const string& config_name) {
   mpi::broadcast(world, m_load_prefix, 0);
   mpi::broadcast(world, m_save_prefix, 0);
   mpi::broadcast(world, m_calc_type, 0);
+  mpi::broadcast(world, m_calc_procs, 0);
+
 #endif
 
   //make the scratch files
@@ -1261,7 +1258,7 @@ SpinAdapted::Input::Input(const string& config_name) {
       v_cc.rhf=true;
       v_cccc.rhf=true;
       v_cccd.rhf=true;
-      readorbitalsfile(orbitalfile[integral], v_1[integral], v_2[integral], coreEnergy[integral], v_cc, v_cccc, v_cccd);
+      readorbitalsfile(orbitalfile[integral], v_1[integral], v_2[integral], coreEnergy[integral], v_cc, v_cccc, v_cccd, integral);
       assert(!m_add_noninteracting_orbs);
     } 
     else {
@@ -1314,7 +1311,7 @@ SpinAdapted::Input::Input(const string& config_name) {
   
   m_molecule_quantum = SpinQuantum(m_alpha + m_beta, SpinSpace(m_alpha - m_beta), m_total_symmetry_number);
 
-  if (mpigetrank() == 0) {
+  if (rank == 0) {
     reorderOpenAndClosed();
     if (m_calc_type != RESPONSELCC)
       makeInitialHFGuess();
@@ -1415,7 +1412,11 @@ void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray&
   char ReorderFileName[5000];
   std::vector<int> reorder;
 
-  if (mpigetrank() == 0) {
+#ifndef SERIAL
+  boost::mpi::communicator world;
+  int rank = world.rank();
+#endif
+  if (rank == 0) {
     ReadMeaningfulLine(dumpFile, msg, msgsize);
     boost::split(tok, msg, is_any_of("=, \t"), token_compress_on);
     
@@ -1434,7 +1435,6 @@ void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray&
   boost::filesystem::path p(ReorderFileName);
 
 #ifndef SERIAL
-  boost::mpi::communicator world;
   mpi::broadcast(world,m_norbs,0);
   mpi::broadcast(world,m_restart,0);
   mpi::broadcast(world,m_fullrestart,0);
@@ -1444,7 +1444,7 @@ void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray&
   //if it is then just read the reorder.dat from the scratch space
   if (integralIndex == 0) {
     if(get_restart() || get_fullrestart() || m_calc_type == COMPRESS || m_calc_type == RESPONSE || m_calc_type == RESPONSEBW) {
-      if (mpigetrank() == 0) {
+      if (rank == 0) {
 	ReorderFileInput.open(ReorderFileName);
 	boost::filesystem::path ReorderFilePath(ReorderFileName);
 	
@@ -1466,7 +1466,7 @@ void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray&
       }
     }
     else {
-      if (mpigetrank() == 0) {
+      if (rank == 0) {
 	ReorderFileOutput.open(ReorderFileName);
       }
       
@@ -1474,7 +1474,7 @@ void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray&
       // read the reorder file or calculate the reordering using one of the many options  
       if (m_reorderType == FIEDLER) {
 	
-	if (mpigetrank() == 0){
+	if (rank == 0){
 	  m_reorder=get_fiedler(orbitalfile);
 	  pout << "Fiedler-vector orbital ordering: ";     
 	}
@@ -1483,7 +1483,7 @@ void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray&
 	
 	ifstream gaconfFile;
 	
-	if (mpigetrank() == 0) {
+	if (rank == 0) {
 	  if(m_gaconffile != "default") 
 	    gaconfFile.open(m_gaconffile.c_str(), ios::in);
 	  m_reorder = get_fiedler(orbitalfile);      
@@ -1494,7 +1494,7 @@ void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray&
       }
       
       else if (m_reorderType == MANUAL) {
-	if (mpigetrank() == 0) {
+	if (rank == 0) {
 	  ifstream reorderFile(m_reorderfile.c_str());
 	  CheckFileExistence(m_reorderfile, "Reorder file ");
 	  readreorderfile(reorderFile, m_reorder);
@@ -1502,7 +1502,7 @@ void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray&
 	}
       }
       else { //this is the no-reorder case 
-	if (mpigetrank() == 0) {
+	if (rank == 0) {
 	  m_reorder.resize(m_norbs/2);
 	  for (int i=0; i<m_reorder.size(); i++)
 	    m_reorder.at(i) = i;
@@ -1510,7 +1510,7 @@ void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray&
 	}
       }
       
-      if (mpigetrank() == 0) {
+      if (rank == 0) {
 	for (int i=0; i<m_reorder.size(); i++){
 	  ReorderFileOutput << m_reorder[i]<<"  ";
 	}
@@ -1528,7 +1528,7 @@ void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray&
   bool RHF = true;
   int AOrbOffset = 0, BOrbOffset = 0;
 
-  if (mpigetrank() == 0) {
+  if (rank == 0) {
     reorder.resize(m_norbs/2);
     for (int i=0; i<m_norbs/2; i++) {
       reorder.at(m_reorder[i]) = i;
@@ -1657,7 +1657,7 @@ void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray&
   v2.set_data() = static_cast<double*>(region.get_address()) + oneIntegralMem + (oneIntegralMem+twoIntegralMem)*integralIndex;
 
     
-  if (mpigetrank() == 0) {
+  if (rank == 0) {
     msg.resize(0);
     ReadMeaningfulLine(dumpFile, msg, msgsize); //this if the first line with integrals
     
@@ -1728,7 +1728,7 @@ void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray&
 #endif
 }
 
-void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray& v1, TwoElectronArray& v2, double& coreEnergy, PairArray& vcc, CCCCArray& vcccc, CCCDArray& vcccd) {
+void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray& v1, TwoElectronArray& v2, double& coreEnergy, PairArray& vcc, CCCCArray& vcccc, CCCDArray& vcccd, int integralIndex) {
 
   ifstream dumpFile;
   dumpFile.open(orbitalfile.c_str(), ios::in);
@@ -1742,7 +1742,11 @@ void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray&
 
   int offset = m_orbformat == DMRGFORM ? 0 : 1;
 
-  if (mpigetrank() == 0) {
+#ifndef SERIAL
+  boost::mpi::communicator world; 
+  int rank = world.rank();
+#endif
+  if (rank == 0) {
     ReadMeaningfulLine(dumpFile, msg, msgsize);
     boost::split(tok, msg, is_any_of("=, \t"), token_compress_on);
 
@@ -1760,7 +1764,6 @@ void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray&
   boost::filesystem::path p(ReorderFileName);
 
 #ifndef SERIAL
-  boost::mpi::communicator world;
   mpi::broadcast(world,m_restart,0);
   mpi::broadcast(world,m_fullrestart,0);
 #endif
@@ -1768,7 +1771,7 @@ void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray&
   //do the reordering only if it is not a restart calculation
   //if it is then just read the reorder.dat from the scratch space
   if(get_restart() || get_fullrestart()) {
-    if (mpigetrank() == 0) {
+    if (rank == 0) {
     ReorderFileInput.open(ReorderFileName);
     if(!boost::filesystem::exists(p)) {
       pout << "==============="<<endl;
@@ -1787,37 +1790,37 @@ void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray&
     }
   } 
   else {
-    if (mpigetrank() == 0) {
+    if (rank == 0) {
       ReorderFileOutput.open(ReorderFileName);
     }
     
     // read the reorder file or calculate the reordering using one of the many options  
     if (m_reorderType == FIEDLER) {
-      if (mpigetrank() == 0) {
+      if (rank == 0) {
         m_reorder=get_fiedler_bcs(orbitalfile);
         pout << "Fiedler-vector orbital ordering: ";
       }
     } else if (m_reorderType == GAOPT) {
-      if (mpigetrank() == 0) {
+      if (rank == 0) {
         pout << "GAOPT orbital ordering for BCS calculation not implemented";
       }
       abort();      
     } else if (m_reorderType == MANUAL) {
-      if (mpigetrank() == 0) {
+      if (rank == 0) {
         ifstream reorderFile(m_reorderfile.c_str());
         CheckFileExistence(m_reorderfile, "Reorder file ");
         readreorderfile(reorderFile, m_reorder);
         pout << "Manually provided orbital ordering: ";
       }
     } else { //this is the no-reorder case
-      if (mpigetrank() == 0) {
+      if (rank == 0) {
         m_reorder.resize(m_norbs/2);
         for (int i=0; i<m_reorder.size(); i++)
 	      m_reorder.at(i) = i;
         pout << "No orbital reorder: ";
       }
     }
-    if (mpigetrank() == 0) {
+    if (rank == 0) {
       // write the reorder file
       for (int i=0; i<m_reorder.size(); i++)
         ReorderFileOutput << m_reorder[i]<<"  ";
@@ -1825,202 +1828,234 @@ void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray&
     }
   }
 
+  bool RHF = true;
+
   //the name reorder is confusing because it clases the with the m_reorder member of the input class and these two are inverse of each other.
   //the reorder here helps one to go from the unreordered matrices to the reordered matrices
   //and the m_reorder member of input helps one to go in the opposite direction
   //e.g. the user defined orbital order (m_reorder) could be
   // 2 3 1 4   which implies that O_reorder(1,2) -> O_unreordered(2,3)  (the former is stored internally and the latter is what is given during input)
   // but for this m_reorder the reorder vector below would be 3 1 2 4 and O_unreordered(1,2) -> O_reorder(3, 1)
-  if (mpigetrank() == 0) {
-  reorder.resize(m_norbs/2);
-  for (int i=0; i<m_norbs/2; i++) {
-    reorder.at(m_reorder[i]) = i;
-    pout << m_reorder[i]+1 << " ";
-  }
-  pout << endl;
-  pout << endl;
-  
-  // orbital symmetry
-  int orbindex = 0;
-  msg.resize(0);
-  ReadMeaningfulLine(dumpFile, msg, msgsize);
-  boost::split(tok, msg, is_any_of("=, \t"), token_compress_on);
-  
-  int readLine = 1, numRead = 1;
-  bool RHF = true;
-  while (!(boost::iequals(tok[0], "ISYM") || boost::iequals(tok[0], "&END"))) {
-    for (int i=0; i<tok.size(); i++) {
-      if (boost::iequals(tok[i], "ORBSYM") || tok[i].size() == 0) continue;
-
-      int reorderOrbInd =  reorder.at(orbindex/2);
-      int ir;
-      if (atoi(tok[i].c_str()) >= 0 ) 
-	    ir = atoi(tok[i].c_str()) - offset;
-      else if (atoi(tok[i].c_str()) < -1)
-	    ir = atoi(tok[i].c_str()) + offset;
-
-      if (sym == "trans") ir += 1; //for translational symmetry the lowest irrep is 0
-      if (sym == "lzsym") ir = atoi(tok[i].c_str());
-      
-      m_spin_orbs_symmetry[2*reorderOrbInd] = ir;
-      m_spin_orbs_symmetry[2*reorderOrbInd+1] = ir;
-      
-      if (readLine == numRead) {
-    	m_num_spatial_orbs++;
-    	m_spatial_to_spin.push_back(orbindex);
-    	numRead = Symmetry::sizeofIrrep(ir);
-    	readLine = 0;
-      }
-      m_spin_to_spatial[orbindex] = m_num_spatial_orbs-1;
-      m_spin_to_spatial[orbindex+1] = m_num_spatial_orbs-1;
-      orbindex +=2;
-      readLine++;
+  if (rank == 0) {
+    reorder.resize(m_norbs/2);
+    for (int i=0; i<m_norbs/2; i++) {
+      reorder.at(m_reorder[i]) = i;
+      pout << m_reorder[i]+1 << " ";
     }
+    pout << endl;
+    pout << endl;
+    
+    // orbital symmetry
+    int orbindex = 0;
     msg.resize(0);
     ReadMeaningfulLine(dumpFile, msg, msgsize);
     boost::split(tok, msg, is_any_of("=, \t"), token_compress_on);
-    if(boost::iequals(tok[0], "IUHF"))
-      RHF=false;
-  }
-
-  if(sym == "dinfh" ) {
-    m_spatial_to_spin.clear();
-    for (int i=0; i<m_spin_orbs_symmetry.size(); i+=2) {
-      int ir = m_spin_orbs_symmetry[i];
-      if (ir < -1 || ir == 0 || ir == 1) 
-	    m_spatial_to_spin.push_back(i);
-    }
-  }
-
-  m_spatial_to_spin.push_back(m_norbs);
-  m_spin_to_spatial.push_back(m_norbs);
-
-  while (!((boost::iequals(tok[0], "&END")) || (boost::iequals(tok[0], "/")))) {
-    int temp;
-    if (boost::iequals(tok[0], "NPROP") ) {
-      NPROP.push_back( atoi(tok[1].c_str()));
-      NPROP.push_back( atoi(tok[2].c_str()));
-      NPROP.push_back( atoi(tok[3].c_str()));
-    } else if (boost::iequals(tok[0], "PROPBITLEN") ) {
-      temp = atoi(tok[1].c_str());
-      PROPBITLEN=1;
-      for (int i=0; i<temp; i++)
-        PROPBITLEN *= 2;
-    }
-    msg.resize(0);
-    ReadMeaningfulLine(dumpFile, msg, msgsize);
-    boost::split(tok, msg, is_any_of("=, \t"), token_compress_on);
-    if(boost::iequals(tok[0], "IUHF")) RHF=false;
-  }
-
-  int section = 0;
-  if(!RHF) {
-    v1.rhf = false;
-    v2.rhf = false; 
-    vcc.rhf=false;
-    vcccc.rhf=false;
-    vcccd.rhf=false;
-  }
-  v2.ReSize(m_norbs);
-  v1.ReSize(m_norbs);
-  vcc.ReSize(m_norbs);
-  vcccc.ReSize(m_norbs);
-  vcccd.ReSize(m_norbs);
-  
-  msg.resize(0);
-  ReadMeaningfulLine(dumpFile, msg, msgsize); //this if the first line with integrals
-  
-  int i, j, k, l;
-  double value;
-  while(msg.size() != 0) {
-    boost::split(tok, msg, is_any_of(" \t"), token_compress_on);
-    if (tok.size() != 5) {
-      pout << "error in reading orbital file"<<endl;
-      pout << "error encountered at line "<<endl;
-      pout << msg<<endl;
-      abort();
-    }
-    value = atof(tok[0].c_str());
-    i = atoi(tok[1].c_str())-offset;j = atoi(tok[2].c_str())-offset;k = atoi(tok[3].c_str())-offset;l = atoi(tok[4].c_str())-offset;
-    if (i==-1 && j==-1 && k==-1 && l==-1) {
-      coreEnergy = value;
-      section += 1;
-    } else if (RHF) {
-      if (section == 0) { // ccdd
-        v2(2*reorder.at(i), 2*reorder.at(k), 2*reorder.at(j),2*reorder.at(l)) = value;
-      } else if (section == 1) { // cccd
-        vcccd.set(2*reorder.at(i), 2*reorder.at(j), 2*reorder.at(k)+1, 2*reorder.at(l), value);
-      } else if (section == 2) { // cccc
-        vcccc.set(2*reorder.at(i), 2*reorder.at(j), 2*reorder.at(l)+1, 2*reorder.at(k)+1, value);
-      } else if (section == 3) { // cd
-        if (!(k==-1 && l==-1)) {
-          pout << "Orbital file error" << endl;
-          abort();
-        }
-        v1(2*reorder.at(i), 2*reorder.at(j)) = value;
-      } else if (section == 4) { // cc
-        if (!(k==-1 && l==-1)) {
-          pout << "Orbital file error" << endl;
-          abort();
-        }
-        vcc(2*reorder.at(i), 2*reorder.at(j)+1) = value;
-      } else {
-        pout << "read orbital file error" << endl;
-        abort();
+    
+    int readLine = 1, numRead = 1;
+    while (!(boost::iequals(tok[0], "ISYM") || boost::iequals(tok[0], "&END"))) {
+      for (int i=0; i<tok.size(); i++) {
+	if (boost::iequals(tok[i], "ORBSYM") || tok[i].size() == 0) continue;
+	
+	int reorderOrbInd =  reorder.at(orbindex/2);
+	int ir;
+	if (atoi(tok[i].c_str()) >= 0 ) 
+	  ir = atoi(tok[i].c_str()) - offset;
+	else if (atoi(tok[i].c_str()) < -1)
+	  ir = atoi(tok[i].c_str()) + offset;
+	
+	if (sym == "trans") ir += 1; //for translational symmetry the lowest irrep is 0
+	if (sym == "lzsym") ir = atoi(tok[i].c_str());
+	
+	m_spin_orbs_symmetry[2*reorderOrbInd] = ir;
+	m_spin_orbs_symmetry[2*reorderOrbInd+1] = ir;
+	
+	if (readLine == numRead) {
+	  m_num_spatial_orbs++;
+	  m_spatial_to_spin.push_back(orbindex);
+	  numRead = Symmetry::sizeofIrrep(ir);
+	  readLine = 0;
+	}
+	m_spin_to_spatial[orbindex] = m_num_spatial_orbs-1;
+	m_spin_to_spatial[orbindex+1] = m_num_spatial_orbs-1;
+	orbindex +=2;
+	readLine++;
       }
-    } else {
-      if (section == 0) { // ccdd_aa
-        v2(2*reorder.at(i), 2*reorder.at(k), 2*reorder.at(j),2*reorder.at(l)) = value;
-      } else if (section == 1) { // ccdd_bb
-        v2(2*reorder.at(i)+1, 2*reorder.at(k)+1, 2*reorder.at(j)+1,2*reorder.at(l)+1) = value;
-      } else if (section == 2) { // ccdd_ab
-        v2(2*reorder.at(i), 2*reorder.at(k)+1, 2*reorder.at(j),2*reorder.at(l)+1) = value;
-      } else if (section == 3) { // cccd_a
-        vcccd.set(2*reorder.at(i), 2*reorder.at(j), 2*reorder.at(k)+1, 2*reorder.at(l), value);
-      } else if (section == 4) { // cccd_b
-        vcccd.set(2*reorder.at(i)+1, 2*reorder.at(j)+1, 2*reorder.at(k), 2*reorder.at(l)+1, value);
-      } else if (section == 5) { // cccc  w_{ijkl}C_ia C_ja C_kb C_lb
-        vcccc.set(2*reorder.at(i), 2*reorder.at(j), 2*reorder.at(l)+1, 2*reorder.at(k)+1, value);
-      } else if (section == 6) { // cd_a
-        if (!(k==-1 && l==-1)) {
-          pout << "Orbital file error" << endl;
-          abort();
-        }
-        v1(2*reorder.at(i), 2*reorder.at(j)) = value;
-      } else if (section == 7) { // cd_b
-        if (!(k==-1 && l==-1)) {
-          pout << "Orbital file error" << endl;
-          abort();
-        }
-        v1(2*reorder.at(i)+1, 2*reorder.at(j)+1) = value;
-      } else if (section == 8) { // cc
-        if (!(k==-1 && l==-1)) {
-          pout << "Orbital file error" << endl;
-          abort();
-        }
-        vcc(2*reorder.at(i), 2*reorder.at(j)+1) = value;
-      } else {
-        pout << "read orbital file error" << endl;
-        abort();
+      msg.resize(0);
+      ReadMeaningfulLine(dumpFile, msg, msgsize);
+      boost::split(tok, msg, is_any_of("=, \t"), token_compress_on);
+      if(boost::iequals(tok[0], "IUHF"))
+	RHF=false;
+    }
+    
+    if(sym == "dinfh" ) {
+      m_spatial_to_spin.clear();
+      for (int i=0; i<m_spin_orbs_symmetry.size(); i+=2) {
+	int ir = m_spin_orbs_symmetry[i];
+	if (ir < -1 || ir == 0 || ir == 1) 
+	  m_spatial_to_spin.push_back(i);
       }
     }
+    
+    m_spatial_to_spin.push_back(m_norbs);
+    m_spin_to_spatial.push_back(m_norbs);
+    
+    while (!((boost::iequals(tok[0], "&END")) || (boost::iequals(tok[0], "/")))) {
+      int temp;
+      if (boost::iequals(tok[0], "NPROP") ) {
+	NPROP.push_back( atoi(tok[1].c_str()));
+	NPROP.push_back( atoi(tok[2].c_str()));
+	NPROP.push_back( atoi(tok[3].c_str()));
+      } else if (boost::iequals(tok[0], "PROPBITLEN") ) {
+	temp = atoi(tok[1].c_str());
+	PROPBITLEN=1;
+	for (int i=0; i<temp; i++)
+	  PROPBITLEN *= 2;
+      }
+      msg.resize(0);
+      ReadMeaningfulLine(dumpFile, msg, msgsize);
+      boost::split(tok, msg, is_any_of("=, \t"), token_compress_on);
+      if(boost::iequals(tok[0], "IUHF")) RHF=false;
+    }
+    
+    if(!RHF) {
+      v1.rhf = false;
+      v2.rhf = false; 
+      vcc.rhf=false;
+      vcccc.rhf=false;
+      vcccd.rhf=false;
+    }
+    v2.ReSize(m_norbs);
+    v1.ReSize(m_norbs);
+    vcc.ReSize(m_norbs);
+    vcccc.ReSize(m_norbs);
+    vcccd.ReSize(m_norbs);
+  }
+
+#ifndef SERIAL
+  mpi::broadcast(world,RHF,0);
+  mpi::broadcast(world,v1,0);
+  mpi::broadcast(world,v2,0);
+#endif
+
+  long oneIntegralMem, twoIntegralMem;
+  long twoedim = v2.matDim;
+
+  if (RHF) { oneIntegralMem = (m_norbs/2*(m_norbs/2+1))/2; twoIntegralMem = twoedim*(twoedim+1)/2;}
+  else { oneIntegralMem = (m_norbs*(m_norbs+1))/2; twoIntegralMem = twoedim*(twoedim+1)/2;}
+
+#ifndef SERIAL
+  mpi::broadcast(world,oneIntegralMem,0);
+  mpi::broadcast(world,twoIntegralMem,0);
+#endif
+  if (integralIndex == 0) {
+    segment.truncate((oneIntegralMem+twoIntegralMem)*m_num_Integrals*sizeof(double)); 
+    region = boost::interprocess::mapped_region{segment, boost::interprocess::read_write};
+    memset(region.get_address(), 0., (oneIntegralMem+twoIntegralMem)*m_num_Integrals*sizeof(double));
+  }
+#ifndef SERIAL
+  //wait for all procs to zero out the memory
+  MPI::COMM_WORLD.Barrier();
+#endif
+
+  v1.set_data() = static_cast<double*>(region.get_address()) + (oneIntegralMem+twoIntegralMem)*integralIndex;
+  v2.set_data() = static_cast<double*>(region.get_address()) + oneIntegralMem + (oneIntegralMem+twoIntegralMem)*integralIndex;
+
+
+  if (rank == 0) {
+    int section = 0;
     msg.resize(0);
     ReadMeaningfulLine(dumpFile, msg, msgsize); //this if the first line with integrals
-  }
-  if (m_norbs/2 >= m_integral_disk_storage_thresh) //
-  {
-    for (int i=0; i<m_spatial_to_spin.size()-1; i++) {
-      std::vector<int> orb;
-      for (int j=m_spatial_to_spin[i]; j<m_spatial_to_spin[i+1]; j+=2) {
-	orb.push_back(j/2);
+    
+    int i, j, k, l;
+    double value;
+    while(msg.size() != 0) {
+      boost::split(tok, msg, is_any_of(" \t"), token_compress_on);
+      if (tok.size() != 5) {
+	pout << "error in reading orbital file"<<endl;
+	pout << "error encountered at line "<<endl;
+	pout << msg<<endl;
+	abort();
       }
-      PartialTwoElectronArray vpart(orb);
-      vpart.populate(v2);
-      vpart.Save(m_save_prefix);
+      value = atof(tok[0].c_str());
+      i = atoi(tok[1].c_str())-offset;j = atoi(tok[2].c_str())-offset;k = atoi(tok[3].c_str())-offset;l = atoi(tok[4].c_str())-offset;
+      if (i==-1 && j==-1 && k==-1 && l==-1) {
+	coreEnergy = value;
+	section += 1;
+      } else if (RHF) {
+	if (section == 0) { // ccdd
+	  v2(2*reorder.at(i), 2*reorder.at(k), 2*reorder.at(j),2*reorder.at(l)) = value;
+	} else if (section == 1) { // cccd
+	  vcccd.set(2*reorder.at(i), 2*reorder.at(j), 2*reorder.at(k)+1, 2*reorder.at(l), value);
+	} else if (section == 2) { // cccc
+	  vcccc.set(2*reorder.at(i), 2*reorder.at(j), 2*reorder.at(l)+1, 2*reorder.at(k)+1, value);
+	} else if (section == 3) { // cd
+	  if (!(k==-1 && l==-1)) {
+	    pout << "Orbital file error" << endl;
+	    abort();
+	  }
+	  v1(2*reorder.at(i), 2*reorder.at(j)) = value;
+	} else if (section == 4) { // cc
+	  if (!(k==-1 && l==-1)) {
+	    pout << "Orbital file error" << endl;
+	    abort();
+	  }
+	  vcc(2*reorder.at(i), 2*reorder.at(j)+1) = value;
+	} else {
+	  pout << "read orbital file error" << endl;
+	  abort();
+	}
+      } else {
+	if (section == 0) { // ccdd_aa
+	  v2(2*reorder.at(i), 2*reorder.at(k), 2*reorder.at(j),2*reorder.at(l)) = value;
+	} else if (section == 1) { // ccdd_bb
+	  v2(2*reorder.at(i)+1, 2*reorder.at(k)+1, 2*reorder.at(j)+1,2*reorder.at(l)+1) = value;
+	} else if (section == 2) { // ccdd_ab
+	  v2(2*reorder.at(i), 2*reorder.at(k)+1, 2*reorder.at(j),2*reorder.at(l)+1) = value;
+	} else if (section == 3) { // cccd_a
+	  vcccd.set(2*reorder.at(i), 2*reorder.at(j), 2*reorder.at(k)+1, 2*reorder.at(l), value);
+	} else if (section == 4) { // cccd_b
+	  vcccd.set(2*reorder.at(i)+1, 2*reorder.at(j)+1, 2*reorder.at(k), 2*reorder.at(l)+1, value);
+	} else if (section == 5) { // cccc  w_{ijkl}C_ia C_ja C_kb C_lb
+	  vcccc.set(2*reorder.at(i), 2*reorder.at(j), 2*reorder.at(l)+1, 2*reorder.at(k)+1, value);
+	} else if (section == 6) { // cd_a
+	  if (!(k==-1 && l==-1)) {
+	    pout << "Orbital file error" << endl;
+	    abort();
+	  }
+	  v1(2*reorder.at(i), 2*reorder.at(j)) = value;
+	} else if (section == 7) { // cd_b
+	  if (!(k==-1 && l==-1)) {
+	    pout << "Orbital file error" << endl;
+	    abort();
+	  }
+	  v1(2*reorder.at(i)+1, 2*reorder.at(j)+1) = value;
+	} else if (section == 8) { // cc
+	  if (!(k==-1 && l==-1)) {
+	    pout << "Orbital file error" << endl;
+	    abort();
+	  }
+	  vcc(2*reorder.at(i), 2*reorder.at(j)+1) = value;
+	} else {
+	  pout << "read orbital file error" << endl;
+	  abort();
+	}
+      }
+      msg.resize(0);
+      ReadMeaningfulLine(dumpFile, msg, msgsize); //this if the first line with integrals
     }
-    v2.ReSize(0);
-  }
-  dumpFile.close();
+    if (m_norbs/2 >= m_integral_disk_storage_thresh) {
+      for (int i=0; i<m_spatial_to_spin.size()-1; i++) {
+	std::vector<int> orb;
+	for (int j=m_spatial_to_spin[i]; j<m_spatial_to_spin[i+1]; j+=2) {
+	  orb.push_back(j/2);
+	}
+	PartialTwoElectronArray vpart(orb);
+	vpart.populate(v2);
+	vpart.Save(m_save_prefix);
+      }
+      v2.ReSize(0);
+    }
+    dumpFile.close();
   }
 }
 
@@ -2101,7 +2136,9 @@ void SpinAdapted::Input::writeSummaryForMolpro()
 void SpinAdapted::Input::writeSummary()
 {
 #ifndef SERIAL
-  if (mpigetrank() == 0) {
+  boost::mpi::communicator world; 
+  int rank = world.rank();
+  if (rank == 0) {
 #endif
 //printf("%-50s :   %-i\n", "Total number of orbitals", m_norbs/2);
 //if (m_Bogoliubov)
@@ -2196,7 +2233,9 @@ void SpinAdapted::Input::writeSummary()
 void SpinAdapted::Input::performSanityTest()
 {
 #ifndef SERIAL
-  if (mpigetrank() == 0) {
+  boost::mpi::communicator world; 
+  int rank = world.rank();
+  if (rank == 0) {
 #endif
   if (m_norbs <= 0) {
     pout << "total number of orbitals has to be a positive number"<<endl;

@@ -45,7 +45,7 @@ void SpinAdapted::operatorfunctions::TensorTraceElement(const StackSpinBlock *ab
     
     const StateInfo* rS = cstateinfo->rightStateInfo, *lS = cstateinfo->leftStateInfo;
     int rowstride =0, colstride = 0;
-    
+
     for (int oldi =0; oldi < oldToNewI.size(); oldi++) {
       colstride = 0;
       for (int oldj = 0; oldj < oldToNewJ.size(); oldj++)
@@ -96,6 +96,7 @@ void SpinAdapted::operatorfunctions::TensorTraceElement(const StackSpinBlock *ab
 						  0, a.get_symm().getirrep(), c.get_symm().getirrep(),
 						  lS->quanta[bq].get_symm().getirrep() , rS->quanta[aq].get_symm().getirrep(), cstateinfo->quanta[cq].get_symm().getirrep());
 		if (a.get_fermion() && IsFermion (cstateinfo->leftStateInfo->quanta[bqprime]) ) scaleb *= -1.;
+
 		MatrixTensorProduct (unity, 'n', scaleb, a.operator_element(aq, aqprime), a.conjugacy(), scale, 
 				     cel, rowstride, colstride);
 	      }
@@ -612,10 +613,240 @@ void SpinAdapted::operatorfunctions::TensorMultiply(const StackSpinBlock *ablock
 	    int parity = rightOp.get_fermion() && IsFermion(lketS->quanta[lQPrime]) ? -1 : 1;
 	    factor *=  rightOp.get_scaling(rbraS->quanta[rQ], rketS->quanta[rQPrime]);
 
-
 	    MatrixMultiply (c.operator_element(lQPrime, rQPrime), 'n', rightOp.operator_element(rQ, rQPrime), TransposeOf(rightOp.conjugacy()), 
 			    m, 1.0, 0.);	      
 	    MatrixMultiply (leftOp.operator()(lQ, lQPrime), leftConj, m, 'n',  v[OMPRANK].operator_element(lQ, rQ), factor*parity);
+
+	  }
+	}
+    }
+  }
+  
+  
+  for (int q = quanta_thrds-1; q > -1 ; q--) {
+   Stackmem[OMPRANK].deallocate(dataArray[q], maxlen);
+  }
+
+  
+
+}
+
+
+void SpinAdapted::operatorfunctions::TensorMultiplysplitLeft(const StackSparseMatrix& rightOp, const StackSparseMatrix& leftOp, const StackSparseMatrix& dotOp, const StackSparseMatrix& LEFTOP, const StackSpinBlock *cblock, StackWavefunction& c, StackWavefunction* v, const SpinQuantum opQ, double scale)
+{
+  long starttime = globaltimer.totalwalltime();
+
+    // can be used for situation with different bra and ket
+  const int unCollectedleftBraOpSz = cblock->get_leftBlock()->get_braStateInfo().unCollectedStateInfo->quanta.size ();
+  const int unCollectedleftKetOpSz = cblock->get_leftBlock()->get_ketStateInfo().unCollectedStateInfo->quanta.size ();
+  const int leftBraOpSz = cblock->get_leftBlock()->get_leftBlock()->get_braStateInfo().quanta.size ();
+  const int leftKetOpSz = cblock->get_leftBlock()->get_leftBlock()->get_ketStateInfo().quanta.size ();
+  const int dotBraOpSz = cblock->get_leftBlock()->get_rightBlock()->get_braStateInfo().quanta.size ();
+  const int dotKetOpSz = cblock->get_leftBlock()->get_rightBlock()->get_ketStateInfo().quanta.size ();
+  const int rightBraOpSz = cblock->get_rightBlock()->get_braStateInfo().quanta.size ();
+  const int rightKetOpSz = cblock->get_rightBlock()->get_ketStateInfo().quanta.size ();
+
+  const boost::shared_ptr<StateInfo> unCollectedlbraS = cblock->get_braStateInfo().leftStateInfo->unCollectedStateInfo;
+  const boost::shared_ptr<StateInfo> unCollectedlketS = cblock->get_ketStateInfo().leftStateInfo->unCollectedStateInfo;
+  const StateInfo* lbraS = cblock->get_leftBlock()->get_braStateInfo().leftStateInfo; 
+  const StateInfo* lketS = cblock->get_leftBlock()->get_ketStateInfo().leftStateInfo;
+  const StateInfo* dotbraS = cblock->get_leftBlock()->get_braStateInfo().rightStateInfo;
+  const StateInfo* dotketS = cblock->get_leftBlock()->get_ketStateInfo().rightStateInfo;
+  const StateInfo* rbraS = cblock->get_braStateInfo().rightStateInfo, *rketS = cblock->get_ketStateInfo().rightStateInfo;
+
+
+  const std::vector< std::pair<std::pair<int, int>, StackMatrix> >& nonZeroBlocks = v[0].get_nonZeroBlocks();
+
+  long maxlen = 0;
+  for (int lQ=0; lQ <leftBraOpSz; lQ++)
+    for (int rQPrime=0; rQPrime <rightKetOpSz; rQPrime++)
+      if (maxlen < lbraS->getquantastates(lQ)* rketS->getquantastates(rQPrime))
+	maxlen = lbraS->getquantastates(lQ)* rketS->getquantastates(rQPrime);
+
+  int OMPRANK = omprank;
+
+  int quanta_thrds = dmrginp.quanta_thrds();
+
+  double* dataArray[quanta_thrds];
+  for (int q = 0; q < quanta_thrds; q++) {
+    dataArray[q] = Stackmem[OMPRANK].allocate(maxlen);
+  }
+
+  //#pragma omp parallel for schedule(dynamic) num_threads(quanta_thrds)
+  for (int index = 0; index<nonZeroBlocks.size(); index++) {
+    int luncollectedQ = nonZeroBlocks[index].first.first, rQ = nonZeroBlocks[index].first.second;
+    int lQ = unCollectedlbraS->leftUnMapQuanta[luncollectedQ], dotQ = unCollectedlbraS->rightUnMapQuanta[luncollectedQ];
+
+    const std::vector<int>& colinds = rightOp.getActiveCols(rQ);
+    for (int rrop=0; rrop <colinds.size(); rrop ++) {
+      int rQPrime = colinds[rrop];
+      
+	const std::vector<int>& rowinds = c.getActiveRows(rQPrime);
+	for (int l = 0; l < rowinds.size(); l++) {
+	  int luncollectedQPrime = rowinds[l];
+	  int lQPrime = unCollectedlketS->leftUnMapQuanta[luncollectedQPrime], dotQPrime = unCollectedlketS->rightUnMapQuanta[luncollectedQPrime];
+	  if (dotOp.allowed(dotQ, dotQPrime, LEFTOP.conjugacy()) && leftOp.allowed(lQ, lQPrime, LEFTOP.conjugacy())) {
+
+	    StackMatrix m(dataArray[omprank], unCollectedlketS->getquantastates(luncollectedQPrime), rbraS->getquantastates(rQ));
+	    
+	    double factor = scale*LEFTOP.get_scaling(unCollectedlbraS->quanta[luncollectedQ], unCollectedlketS->quanta[luncollectedQPrime]);	      
+	    factor *= dmrginp.get_ninej()(unCollectedlketS->quanta[luncollectedQPrime].get_s().getirrep(), rketS->quanta[rQPrime].get_s().getirrep() , c.get_deltaQuantum(0).get_s().getirrep(), 
+					  LEFTOP.get_spin().getirrep(), rightOp.get_spin().getirrep(), opQ.get_s().getirrep(),
+					  unCollectedlbraS->quanta[luncollectedQ].get_s().getirrep(), rbraS->quanta[rQ].get_s().getirrep() , v[OMPRANK].get_deltaQuantum(0).get_s().getirrep());
+	    factor *= Symmetry::spatial_ninej(unCollectedlketS->quanta[luncollectedQPrime].get_symm().getirrep() , rketS->quanta[rQPrime].get_symm().getirrep(), c.get_symm().getirrep(), 
+					      LEFTOP.get_symm().getirrep(), rightOp.get_symm().getirrep(), opQ.get_symm().getirrep(),
+					      unCollectedlbraS->quanta[luncollectedQ].get_symm().getirrep() , rbraS->quanta[rQ].get_symm().getirrep(), v[OMPRANK].get_symm().getirrep());
+
+	    double scaleB = 1.0;
+	    if (LEFTOP.conjugacy() == 'n') {
+	      scaleB = dmrginp.get_ninej()(lketS->quanta[lQPrime].get_s().getirrep() , dotketS->quanta[dotQPrime].get_s().getirrep(), unCollectedlketS->quanta[luncollectedQPrime].get_s().getirrep(), 
+					   leftOp.get_spin().getirrep(), dotOp.get_spin().getirrep(), LEFTOP.get_spin().getirrep(),
+					   lbraS->quanta[lQ].get_s().getirrep() , dotketS->quanta[dotQ].get_s().getirrep(), unCollectedlbraS->quanta[luncollectedQ].get_s().getirrep());
+	      scaleB *= Symmetry::spatial_ninej(lketS->quanta[lQPrime].get_symm().getirrep() , dotketS->quanta[dotQPrime].get_symm().getirrep(), unCollectedlketS->quanta[luncollectedQPrime].get_symm().getirrep(), 
+					    leftOp.get_symm().getirrep(), dotOp.get_symm().getirrep(), LEFTOP.get_symm().getirrep(),
+					    lbraS->quanta[lQ].get_symm().getirrep() , dotketS->quanta[dotQ].get_symm().getirrep(), unCollectedlbraS->quanta[luncollectedQ].get_symm().getirrep());
+	      scaleB *= dotOp.operator_element(dotQ, dotQPrime)(1,1);
+	      scaleB *= leftOp.get_scaling(lbraS->quanta[lQ], lketS->quanta[lQPrime]);
+	      scaleB *= dotOp.get_scaling(dotbraS->quanta[dotQ], dotketS->quanta[dotQPrime]);
+	      if (dotOp.get_fermion() && IsFermion(lketS->quanta[lQPrime])) scaleB *= -1;
+	    }
+	    else {
+	      scaleB = dmrginp.get_ninej()(lketS->quanta[lQ].get_s().getirrep() , dotketS->quanta[dotQ].get_s().getirrep(), unCollectedlketS->quanta[luncollectedQ].get_s().getirrep(), 
+					   leftOp.get_spin().getirrep(), dotOp.get_spin().getirrep(), LEFTOP.get_spin().getirrep(),
+					   lbraS->quanta[lQPrime].get_s().getirrep() , dotketS->quanta[dotQPrime].get_s().getirrep(), unCollectedlbraS->quanta[luncollectedQPrime].get_s().getirrep());
+	      scaleB *= Symmetry::spatial_ninej(lketS->quanta[lQ].get_symm().getirrep() , dotketS->quanta[dotQ].get_symm().getirrep(), unCollectedlketS->quanta[luncollectedQ].get_symm().getirrep(), 
+					    leftOp.get_symm().getirrep(), dotOp.get_symm().getirrep(), LEFTOP.get_symm().getirrep(),
+					    lbraS->quanta[lQPrime].get_symm().getirrep() , dotketS->quanta[dotQPrime].get_symm().getirrep(), unCollectedlbraS->quanta[luncollectedQPrime].get_symm().getirrep());
+	      scaleB *= dotOp.operator_element(dotQPrime, dotQ)(1,1);
+	      scaleB *= leftOp.get_scaling(lbraS->quanta[lQPrime], lketS->quanta[lQ]);
+	      scaleB *= dotOp.get_scaling(dotbraS->quanta[dotQPrime], dotketS->quanta[dotQ]);
+	      if (dotOp.get_fermion() && IsFermion(lketS->quanta[lQ])) scaleB *= -1;
+	    }
+
+	    int parity = rightOp.get_fermion() && IsFermion(unCollectedlketS->quanta[luncollectedQPrime]) ? -1 : 1;
+	    factor *=  rightOp.get_scaling(rbraS->quanta[rQ], rketS->quanta[rQPrime]);
+
+
+	    MatrixMultiply (c.operator_element(luncollectedQPrime, rQPrime), 'n', rightOp.operator_element(rQ, rQPrime), TransposeOf(rightOp.conjugacy()), 
+			    m, 1.0, 0.);	      
+	    MatrixMultiply (leftOp.operator_element(lQ, lQPrime, LEFTOP.conjugacy()), leftOp.conjugacy()=='n' ? LEFTOP.conjugacy() : TransposeOf(LEFTOP.conjugacy()), m, 'n',  v[OMPRANK].operator_element(luncollectedQ, rQ), factor*parity*scaleB);
+
+	  }
+	}
+    }
+  }
+  
+  
+  for (int q = quanta_thrds-1; q > -1 ; q--) {
+   Stackmem[OMPRANK].deallocate(dataArray[q], maxlen);
+  }
+
+  
+
+}
+
+
+
+void SpinAdapted::operatorfunctions::TensorMultiplysplitRight(const StackSparseMatrix& leftOp, const StackSparseMatrix& rightOp, const StackSparseMatrix& dotOp, const StackSparseMatrix& RIGHTOP, const StackSpinBlock *cblock, StackWavefunction& c, StackWavefunction* v, const SpinQuantum opQ, double scale)
+{
+  long starttime = globaltimer.totalwalltime();
+
+    // can be used for situation with different bra and ket
+  const int unCollectedrightBraOpSz = cblock->get_rightBlock()->get_braStateInfo().unCollectedStateInfo->quanta.size ();
+  const int unCollectedrightKetOpSz = cblock->get_rightBlock()->get_ketStateInfo().unCollectedStateInfo->quanta.size ();
+  const int rightBraOpSz = cblock->get_rightBlock()->get_leftBlock()->get_braStateInfo().quanta.size ();
+  const int rightKetOpSz = cblock->get_rightBlock()->get_leftBlock()->get_ketStateInfo().quanta.size ();
+  const int dotBraOpSz = cblock->get_rightBlock()->get_rightBlock()->get_braStateInfo().quanta.size ();
+  const int dotKetOpSz = cblock->get_rightBlock()->get_rightBlock()->get_ketStateInfo().quanta.size ();
+  const int leftBraOpSz = cblock->get_leftBlock()->get_braStateInfo().quanta.size ();
+  const int leftKetOpSz = cblock->get_leftBlock()->get_ketStateInfo().quanta.size ();
+
+  const boost::shared_ptr<StateInfo> unCollectedrbraS = cblock->get_braStateInfo().rightStateInfo->unCollectedStateInfo;
+  const boost::shared_ptr<StateInfo> unCollectedrketS = cblock->get_ketStateInfo().rightStateInfo->unCollectedStateInfo;
+  const StateInfo* rbraS = cblock->get_rightBlock()->get_braStateInfo().leftStateInfo; 
+  const StateInfo* rketS = cblock->get_rightBlock()->get_ketStateInfo().leftStateInfo;
+  const StateInfo* dotbraS = cblock->get_rightBlock()->get_braStateInfo().rightStateInfo;
+  const StateInfo* dotketS = cblock->get_rightBlock()->get_ketStateInfo().rightStateInfo;
+  const StateInfo* lbraS = cblock->get_braStateInfo().leftStateInfo, *lketS = cblock->get_ketStateInfo().leftStateInfo;
+
+
+  const std::vector< std::pair<std::pair<int, int>, StackMatrix> >& nonZeroBlocks = v[0].get_nonZeroBlocks();
+
+  long maxlen = 0;
+  for (int lQ=0; lQ <leftBraOpSz; lQ++)
+    for (int rQPrime=0; rQPrime <rightKetOpSz; rQPrime++)
+      if (maxlen < lbraS->getquantastates(lQ)* rketS->getquantastates(rQPrime))
+	maxlen = lbraS->getquantastates(lQ)* rketS->getquantastates(rQPrime);
+
+  int OMPRANK = omprank;
+
+  int quanta_thrds = dmrginp.quanta_thrds();
+
+  double* dataArray[quanta_thrds];
+  for (int q = 0; q < quanta_thrds; q++) {
+    dataArray[q] = Stackmem[OMPRANK].allocate(maxlen);
+  }
+
+  //#pragma omp parallel for schedule(dynamic) num_threads(quanta_thrds)
+  for (int index = 0; index<nonZeroBlocks.size(); index++) {
+    int lQ = nonZeroBlocks[index].first.first, runcollectedQ = nonZeroBlocks[index].first.second;
+    int rQ = unCollectedrbraS->leftUnMapQuanta[runcollectedQ], dotQ = unCollectedrbraS->rightUnMapQuanta[runcollectedQ];
+
+    const std::vector<int>& colinds = leftOp.getActiveCols(lQ);
+    for (int lrop=0; lrop <colinds.size(); lrop ++) {
+      int lQPrime = colinds[lrop];
+      
+	const std::vector<int>& colinds2 = c.getActiveCols(lQPrime);
+	for (int r = 0; r < colinds2.size(); r++) {
+	  int runcollectedQPrime = colinds2[r];
+	  int rQPrime = unCollectedrketS->leftUnMapQuanta[runcollectedQPrime], dotQPrime = unCollectedrketS->rightUnMapQuanta[runcollectedQPrime];
+
+	  if (dotOp.allowed(dotQ, dotQPrime, RIGHTOP.conjugacy()) && rightOp.allowed(rQ, rQPrime, RIGHTOP.conjugacy())) {
+
+	    StackMatrix m(dataArray[omprank], lketS->getquantastates(lQPrime), unCollectedrbraS->getquantastates(runcollectedQ));
+	    
+	    double factor = scale*leftOp.get_scaling(lbraS->quanta[lQ], lketS->quanta[lQPrime]);	      
+	    factor *= dmrginp.get_ninej()(lketS->quanta[lQPrime].get_s().getirrep(), unCollectedrketS->quanta[runcollectedQPrime].get_s().getirrep() , c.get_deltaQuantum(0).get_s().getirrep(), 
+					  leftOp.get_spin().getirrep(), RIGHTOP.get_spin().getirrep(), opQ.get_s().getirrep(),
+					  lbraS->quanta[lQ].get_s().getirrep(), unCollectedrbraS->quanta[runcollectedQ].get_s().getirrep() , v[OMPRANK].get_deltaQuantum(0).get_s().getirrep());
+	    factor *= Symmetry::spatial_ninej(lketS->quanta[lQPrime].get_symm().getirrep(), unCollectedrketS->quanta[runcollectedQPrime].get_symm().getirrep() , c.get_deltaQuantum(0).get_symm().getirrep(), 
+					  leftOp.get_symm().getirrep(), RIGHTOP.get_symm().getirrep(), opQ.get_symm().getirrep(),
+					  lbraS->quanta[lQ].get_symm().getirrep(), unCollectedrbraS->quanta[runcollectedQ].get_symm().getirrep() , v[OMPRANK].get_deltaQuantum(0).get_symm().getirrep());
+
+
+	    double scaleB = 1.0;
+	    if (RIGHTOP.conjugacy() == 'n') {
+	      scaleB = dmrginp.get_ninej()(rketS->quanta[rQPrime].get_s().getirrep() , dotketS->quanta[dotQPrime].get_s().getirrep(), unCollectedrketS->quanta[runcollectedQPrime].get_s().getirrep(), 
+						   rightOp.get_spin().getirrep(), dotOp.get_spin().getirrep(), RIGHTOP.get_spin().getirrep(),
+						   rbraS->quanta[rQ].get_s().getirrep() , dotbraS->quanta[dotQ].get_s().getirrep(), unCollectedrbraS->quanta[runcollectedQ].get_s().getirrep());
+	      scaleB *= Symmetry::spatial_ninej(rketS->quanta[rQPrime].get_symm().getirrep() , dotketS->quanta[dotQPrime].get_symm().getirrep(), unCollectedrketS->quanta[runcollectedQPrime].get_symm().getirrep(), 
+					     rightOp.get_symm().getirrep(), dotOp.get_symm().getirrep(), RIGHTOP.get_symm().getirrep(),
+					     rbraS->quanta[rQ].get_symm().getirrep() , dotketS->quanta[dotQ].get_symm().getirrep(), unCollectedrbraS->quanta[runcollectedQ].get_symm().getirrep());
+	      scaleB *= dotOp.operator_element(dotQ, dotQPrime, RIGHTOP.conjugacy())(1,1);
+	      scaleB *= rightOp.get_scaling(rbraS->quanta[rQ], rketS->quanta[rQPrime]);
+	      scaleB *= dotOp.get_scaling(dotbraS->quanta[dotQ], dotketS->quanta[dotQPrime]);
+	      if (dotOp.get_fermion() && IsFermion(rketS->quanta[rQPrime])) scaleB *= -1;
+	    }
+	    else {
+	      scaleB = dmrginp.get_ninej()(rketS->quanta[rQ].get_s().getirrep() , dotketS->quanta[dotQ].get_s().getirrep(), unCollectedrketS->quanta[runcollectedQ].get_s().getirrep(), 
+						   rightOp.get_spin().getirrep(), dotOp.get_spin().getirrep(), RIGHTOP.get_spin().getirrep(),
+						   rbraS->quanta[rQPrime].get_s().getirrep() , dotbraS->quanta[dotQPrime].get_s().getirrep(), unCollectedrbraS->quanta[runcollectedQPrime].get_s().getirrep());
+	      scaleB *= Symmetry::spatial_ninej(rketS->quanta[rQ].get_symm().getirrep() , dotketS->quanta[dotQ].get_symm().getirrep(), unCollectedrketS->quanta[runcollectedQ].get_symm().getirrep(), 
+					     rightOp.get_symm().getirrep(), dotOp.get_symm().getirrep(), RIGHTOP.get_symm().getirrep(),
+					     rbraS->quanta[rQPrime].get_symm().getirrep() , dotketS->quanta[dotQPrime].get_symm().getirrep(), unCollectedrbraS->quanta[runcollectedQPrime].get_symm().getirrep());
+	      scaleB *= dotOp.operator_element(dotQ, dotQPrime, RIGHTOP.conjugacy())(1,1);
+	      scaleB *= rightOp.get_scaling(rbraS->quanta[rQPrime], rketS->quanta[rQ]);
+	      scaleB *= dotOp.get_scaling(dotbraS->quanta[dotQPrime], dotketS->quanta[dotQ]);
+	      if (dotOp.get_fermion() && IsFermion(rketS->quanta[rQ])) scaleB *= -1;
+	    }
+
+	    int parity = RIGHTOP.get_fermion() && IsFermion(lketS->quanta[lQPrime]) ? -1 : 1;
+	    factor *=  RIGHTOP.get_scaling(unCollectedrbraS->quanta[runcollectedQ], unCollectedrketS->quanta[runcollectedQPrime]);
+
+	    MatrixMultiply (c.operator_element(lQPrime, runcollectedQPrime), 'n', rightOp.operator_element(rQ, rQPrime, RIGHTOP.conjugacy()), 
+			    rightOp.conjugacy() == 'n' ? TransposeOf(RIGHTOP.conjugacy()) : RIGHTOP.conjugacy(),  m, 1.0, 0.);	      
+	    MatrixMultiply (leftOp.operator_element(lQ, lQPrime), leftOp.conjugacy(), m, 'n',  v[OMPRANK].operator_element(lQ, runcollectedQ),
+			    factor*parity*scaleB);
 
 	  }
 	}

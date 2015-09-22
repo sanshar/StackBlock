@@ -79,8 +79,8 @@ void SweepGenblock::BlockAndDecimate (SweepParams &sweepParams, StackSpinBlock& 
     
 #ifndef SERIAL
   mpi::communicator world;
-  broadcast(world, leftrotateMatrix, 0);
-  broadcast(world, rightrotateMatrix, 0);
+  broadcast(calc, leftrotateMatrix, 0);
+  broadcast(calc, rightrotateMatrix, 0);
 #endif
 
   p1out <<"\t\t\t Performing Renormalization "<<endl<<endl;

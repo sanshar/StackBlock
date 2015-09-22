@@ -79,8 +79,8 @@ void StackSpinBlock::restore (bool forward, const vector<int>& sites, StackSpinB
   
 #ifndef SERIAL
   mpi::communicator world;
-  mpi::broadcast(world, b.braStateInfo, 0);
-  mpi::broadcast(world, b.ketStateInfo, 0);
+  mpi::broadcast(calc, b.braStateInfo, 0);
+  mpi::broadcast(calc, b.ketStateInfo, 0);
 #endif
 
 
@@ -224,10 +224,18 @@ void StackSpinBlock::store (bool forward, const vector<int>& sites, StackSpinBlo
   std::string file[numthrds];
 
   for (int i=0; i<numthrds; i++) {
-    if (forward)
-      file[i] = str(boost::format("%s%s%d%s%d%s%d%s%d%s%d%s%d%d%s") % dmrginp.save_prefix() % "/Block-f-sites-"% sites[0] % "." % sites[sites.size()-1] % "-states" % left % "." % right % "-integral" %b.integralIndex % "rank" % mpigetrank() % i % ".tmp" );
-    else
-      file[i] = str(boost::format("%s%s%d%s%d%s%d%s%d%s%d%s%d%d%s") % dmrginp.save_prefix() % "/Block-b-sites-"% sites[0] % "." % sites[sites.size()-1] % "-states" % left % "." % right % "-integral" %b.integralIndex % "rank" % mpigetrank() % i % ".tmp" );
+    if (dmrginp.spinAdapted()) {
+      if (forward)
+	file[i] = str(boost::format("%s%s%d%s%d%s%d%s%d%s%d%s%d%d%s") % dmrginp.save_prefix() % "/Block-f-sites-"% sites[0] % "." % sites[sites.size()-1] % "-states" % left % "." % right % "-integral" %b.integralIndex % "rank" % mpigetrank() % i % ".tmp" );
+      else
+	file[i] = str(boost::format("%s%s%d%s%d%s%d%s%d%s%d%s%d%d%s") % dmrginp.save_prefix() % "/Block-b-sites-"% sites[0] % "." % sites[sites.size()-1] % "-states" % left % "." % right % "-integral" %b.integralIndex % "rank" % mpigetrank() % i % ".tmp" );
+    }
+    else {
+      if (forward)
+	file[i] = str(boost::format("%s%s%d%s%d%s%d%s%d%s%d%s%d%d%s") % dmrginp.save_prefix() % "/Block-f-sites-"% (sites[0]/2) % "." % (sites[sites.size()-1]/2) % "-states" % left % "." % right % "-integral" %b.integralIndex % "rank" % mpigetrank() % i % ".tmp" );
+      else
+	file[i] = str(boost::format("%s%s%d%s%d%s%d%s%d%s%d%s%d%d%s") % dmrginp.save_prefix() % "/Block-b-sites-"% (sites[0]/2) % "." % (sites[sites.size()-1]/2) % "-states" % left % "." % right % "-integral" %b.integralIndex % "rank" % mpigetrank() % i % ".tmp" );
+    }
   }
   
   p1out << "\t\t\t Saving block file :: " << file[0] << endl;

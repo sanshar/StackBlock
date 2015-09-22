@@ -91,8 +91,8 @@ void StackSpinBlock::printOperatorSummary()
          p2out << "\t\t\t " << it->second->size()<<" :  "<<it->second->get_op_string()<<"  Virtual Operators  ";      
       }
 
-      vector<int> numops(world.size(), 0);
-      for (int proc = 0; proc <world.size(); proc++) {
+      vector<int> numops(calc.size(), 0);
+      for (int proc = 0; proc <calc.size(); proc++) {
          if (proc != 0) 
             receiveobject(numops[proc],proc);
          else 
@@ -171,7 +171,7 @@ StackSpinBlock::StackSpinBlock(int start, int finish, int p_integralIndex, bool 
 #ifndef SERIAL
     mpi::communicator world;
     PartialTwoElectronArray& ar = dynamic_cast<PartialTwoElectronArray&>(*twoInt.get());
-    mpi::broadcast(world, ar, 0);
+    mpi::broadcast(calc, ar, 0);
 #endif
   }
   else
@@ -218,8 +218,8 @@ void StackSpinBlock::BuildTensorProductBlock(std::vector<int>& new_sites)
 #ifndef SERIAL
     mpi::communicator world;
     PartialTwoElectronArray& ar = dynamic_cast<PartialTwoElectronArray&>(*twoInt.get());
-    mpi::broadcast(world, ar, 0);
-    //world.broadcast(twoInt);
+    mpi::broadcast(calc, ar, 0);
+    //calc.broadcast(twoInt);
 #endif
   }
   else if (twoInt.get() == 0)
@@ -574,7 +574,7 @@ void StackSpinBlock::BuildSumBlockSkeleton(int condition, StackSpinBlock& lBlock
 #ifndef SERIAL
       mpi::communicator world;
       PartialTwoElectronArray& ar = dynamic_cast<PartialTwoElectronArray&>(*twoInt.get());
-      mpi::broadcast(world, ar, 0);
+      mpi::broadcast(calc, ar, 0);
 #endif
 
     }
@@ -708,14 +708,14 @@ int procWithMinOps(std::vector<boost::shared_ptr<StackSparseMatrix> >& allops)
   int size = 1;
 #ifndef SERIAL
   boost::mpi::communicator world;
-  size = world.size();
+  size = calc.size();
 #endif
   std::vector<int> numOps(size, 0);
 
   numOps[mpigetrank()] = allops.size();
   int minproc = 0;
 #ifndef SERIAL
-  MPI::COMM_WORLD.Allreduce(MPI_IN_PLACE, &numOps[0], size, MPI_INT, MPI_SUM);
+  MPI_Allreduce(MPI_IN_PLACE, &numOps[0], size, MPI_INT, MPI_SUM, Calc);
 #endif
 
 
@@ -1053,18 +1053,17 @@ void initialiseSingleSiteBlocks(std::vector<StackSpinBlock>& singleSiteBlocks, i
   }
 }
 
-
 void StackSpinBlock::sendcompOps(StackOp_component_base& opcomp, int I, int J, int optype, int compsite)
 {
 #ifndef SERIAL
   boost::mpi::communicator world;
   std::vector<boost::shared_ptr<StackSparseMatrix> > oparray = opcomp.get_element(I,J);
   for(int i=0; i<oparray.size(); i++) {
-    world.send(processorindex(compsite), optype+i*10+1000*J+100000*I, *oparray[i]);
+    calc.send(processorindex(compsite), optype+i*10+1000*J+100000*I, *oparray[i]);
 
     //now broadcast the data
     //MPI::COMM_WORLD.Bcast(oparray[i]->get_data(), oparray[i]->memoryUsed(), MPI_DOUBLE, trimap_2d(I, J, dmrginp.last_site()));
-    MPI::COMM_WORLD.Send(oparray[i]->get_data(), oparray[i]->memoryUsed(), MPI_DOUBLE, processorindex(compsite), optype+i*10+1000*J+100000*I);
+    MPI_Send(oparray[i]->get_data(), oparray[i]->memoryUsed(), MPI_DOUBLE, processorindex(compsite), optype+i*10+1000*J+100000*I, Calc);
   }  
 #endif
 }
@@ -1075,7 +1074,7 @@ void StackSpinBlock::recvcompOps(StackOp_component_base& opcomp, int I, int J, i
   boost::mpi::communicator world;
   std::vector<boost::shared_ptr<StackSparseMatrix> > oparray = opcomp.get_element(I,J);
   for(int i=0; i<oparray.size(); i++) {
-    world.recv(processorindex(trimap_2d(I, J, dmrginp.last_site())), optype+i*10+1000*J+100000*I, *oparray[i]);
+    calc.recv(processorindex(trimap_2d(I, J, dmrginp.last_site())), optype+i*10+1000*J+100000*I, *oparray[i]);
 
     double* data = Stackmem[omprank].allocate(oparray[i]->memoryUsed());
     if (additionalMemory == 0) 
@@ -1086,7 +1085,7 @@ void StackSpinBlock::recvcompOps(StackOp_component_base& opcomp, int I, int J, i
     oparray[i]->allocateOperatorMatrix();
 
     //now broadcast the data
-    MPI::COMM_WORLD.Recv(oparray[i]->get_data(), oparray[i]->memoryUsed(), MPI_DOUBLE, processorindex(trimap_2d(I, J, dmrginp.last_site())), optype+i*10+1000*J+100000*I);
+    MPI_Recv(oparray[i]->get_data(), oparray[i]->memoryUsed(), MPI_DOUBLE, processorindex(trimap_2d(I, J, dmrginp.last_site())), optype+i*10+1000*J+100000*I, Calc,MPI_STATUS_IGNORE);
   }
 #endif
 }
@@ -1101,7 +1100,7 @@ void StackSpinBlock::addOneIndexOps()
 {
 #ifndef SERIAL
   boost::mpi::communicator world;
-  if (world.size() == 1)
+  if (calc.size() == 1)
     return; //there is no need to have additional compops
   
   int length = dmrginp.last_site();
@@ -1116,9 +1115,9 @@ void StackSpinBlock::addOneIndexOps()
 	
 	ops[CRE]->set_local() = true;
 	boost::shared_ptr<StackSparseMatrix> op = ops[CRE]->get_element(sites[i])[0];
-	
+
 	//this only broadcasts the frame but no data
-	mpi::broadcast(world, *op, processorindex(sites[i]));
+	mpi::broadcast(calc, *op, processorindex(sites[i]));
 	
 	//now allocate the data
 	if (processorindex(sites[i]) != mpigetrank()) {
@@ -1132,7 +1131,7 @@ void StackSpinBlock::addOneIndexOps()
 	}
 	
 	//now broadcast the data
-	MPI::COMM_WORLD.Bcast(op->get_data(), op->memoryUsed(), MPI_DOUBLE, processorindex(sites[i]));
+	MPI_Bcast(op->get_data(), op->memoryUsed(), MPI_DOUBLE, processorindex(sites[i]), Calc);
       }
     }
   }
@@ -1147,7 +1146,7 @@ void StackSpinBlock::addOneIndexOps()
 	boost::shared_ptr<StackSparseMatrix> op = ops[DES]->get_element(sites[i])[0];
 	
 	//this only broadcasts the frame but no data
-	mpi::broadcast(world, *op, processorindex(sites[i]));
+	mpi::broadcast(calc, *op, processorindex(sites[i]));
 	
 	//now allocate the data when it is not already there
 	if (processorindex(sites[i]) != mpigetrank()) {
@@ -1161,7 +1160,7 @@ void StackSpinBlock::addOneIndexOps()
 	}
 	
 	//now broadcast the data
-	MPI::COMM_WORLD.Bcast(op->get_data(), op->memoryUsed(), MPI_DOUBLE, processorindex(sites[i]));
+	MPI_Bcast(op->get_data(), op->memoryUsed(), MPI_DOUBLE, processorindex(sites[i]), Calc);
       }
     }
   }
@@ -1186,7 +1185,7 @@ void StackSpinBlock::addOneIndexOps()
 	  std::vector<boost::shared_ptr<StackSparseMatrix> > oparray = ops[CRE_CRE_DESCOMP]->get_element(I);
 	  for (int iproc =0; iproc<oparray.size(); iproc++) {
 	    //this only broadcasts the frame but no data
-	    mpi::broadcast(world, *oparray[iproc], fromproc);
+	    mpi::broadcast(calc, *oparray[iproc], fromproc);
 	    
 	    //now allocate the data when it is not already there
 	    if (fromproc != mpigetrank()) {
@@ -1200,7 +1199,7 @@ void StackSpinBlock::addOneIndexOps()
 	    }
 	    
 	    //now broadcast the data
-	    MPI::COMM_WORLD.Bcast(oparray[iproc]->get_data(), oparray[iproc]->memoryUsed(), MPI_DOUBLE, fromproc);
+	    MPI_Bcast(oparray[iproc]->get_data(), oparray[iproc]->memoryUsed(), MPI_DOUBLE, fromproc, Calc);
 	  }
 	}
       }
@@ -1215,7 +1214,7 @@ void StackSpinBlock::addOneIndexOps()
 	  std::vector<boost::shared_ptr<StackSparseMatrix> > oparray = ops[CRE_DES_DESCOMP]->get_element(I);
 	  for (int iproc =0; iproc<oparray.size(); iproc++) {
 	    //this only broadcasts the frame but no data
-	    mpi::broadcast(world, *oparray[iproc], fromproc);
+	    mpi::broadcast(calc, *oparray[iproc], fromproc);
 	    
 	    //now allocate the data when it is not already there
 	    if (fromproc != mpigetrank()) {
@@ -1229,7 +1228,7 @@ void StackSpinBlock::addOneIndexOps()
 	    }
 	    
 	    //now broadcast the data
-	    MPI::COMM_WORLD.Bcast(oparray[iproc]->get_data(), oparray[iproc]->memoryUsed(), MPI_DOUBLE, fromproc);
+	    MPI_Bcast(oparray[iproc]->get_data(), oparray[iproc]->memoryUsed(), MPI_DOUBLE, fromproc, Calc);
 	  }
 	}
       }
@@ -1264,7 +1263,7 @@ void StackSpinBlock::messagePassTwoIndexOps()
 	  std::vector<boost::shared_ptr<StackSparseMatrix> > oparray = ops[CRE_DESCOMP]->get_element(I,I);
 	  for (int iproc =0; iproc<oparray.size(); iproc++) {
 	    //this only broadcasts the frame but no data
-	    mpi::broadcast(world, *oparray[iproc], fromproc);
+	    mpi::broadcast(calc, *oparray[iproc], fromproc);
 	    
 	    //now allocate the data when it is not already there
 	    if (fromproc != mpigetrank()) {
@@ -1279,7 +1278,7 @@ void StackSpinBlock::messagePassTwoIndexOps()
 
 	    
 	    //now broadcast the data
-	    MPI::COMM_WORLD.Bcast(oparray[iproc]->get_data(), oparray[iproc]->memoryUsed(), MPI_DOUBLE, fromproc);
+	    MPI_Bcast(oparray[iproc]->get_data(), oparray[iproc]->memoryUsed(), MPI_DOUBLE, fromproc, Calc);
 	  }
 	}
 	
@@ -1290,7 +1289,7 @@ void StackSpinBlock::messagePassTwoIndexOps()
 	  std::vector<boost::shared_ptr<StackSparseMatrix> > oparray = ops[DES_DESCOMP]->get_element(I,I);
 	  for (int iproc =0; iproc<oparray.size(); iproc++) {
 	    //this only broadcasts the frame but no data
-	    mpi::broadcast(world, *oparray[iproc], fromproc);
+	    mpi::broadcast(calc, *oparray[iproc], fromproc);
 	    
 	    //now allocate the data when it is not already there
 	    if (fromproc != mpigetrank()) {
@@ -1304,7 +1303,7 @@ void StackSpinBlock::messagePassTwoIndexOps()
 	    }
 	    
 	    //now broadcast the data
-	    MPI::COMM_WORLD.Bcast(oparray[iproc]->get_data(), oparray[iproc]->memoryUsed(), MPI_DOUBLE, fromproc);
+	    MPI_Bcast(oparray[iproc]->get_data(), oparray[iproc]->memoryUsed(), MPI_DOUBLE, fromproc, Calc);
 	  }
 	}
 	
@@ -1316,7 +1315,7 @@ void StackSpinBlock::messagePassTwoIndexOps()
 	    std::vector<boost::shared_ptr<StackSparseMatrix> > oparray = ops[CRE_CRECOMP]->get_element(I,I);
 	    for (int iproc =0; iproc<oparray.size(); iproc++) {
 	      //this only broadcasts the frame but no data
-	      mpi::broadcast(world, *oparray[iproc], fromproc);
+	      mpi::broadcast(calc, *oparray[iproc], fromproc);
 	      
 	      //now allocate the data when it is not already there
 	      if (fromproc != mpigetrank()) {
@@ -1330,7 +1329,7 @@ void StackSpinBlock::messagePassTwoIndexOps()
 	      }
 	      
 	      //now broadcast the data
-	      MPI::COMM_WORLD.Bcast(oparray[iproc]->get_data(), oparray[iproc]->memoryUsed(), MPI_DOUBLE, fromproc);
+	      MPI_Bcast(oparray[iproc]->get_data(), oparray[iproc]->memoryUsed(), MPI_DOUBLE, fromproc, Calc);
 	    }
 	  }
 	  if( ops[DES_CRECOMP]->has(I,I) ) {
@@ -1339,7 +1338,7 @@ void StackSpinBlock::messagePassTwoIndexOps()
 	    std::vector<boost::shared_ptr<StackSparseMatrix> > oparray = ops[DES_CRECOMP]->get_element(I,I);
 	    for (int iproc =0; iproc<oparray.size(); iproc++) {
 	      //this only broadcasts the frame but no data
-	      mpi::broadcast(world, *oparray[iproc], fromproc);
+	      mpi::broadcast(calc, *oparray[iproc], fromproc);
 	      
 	      //now allocate the data when it is not already there
 	      if (fromproc != mpigetrank()) {
@@ -1353,7 +1352,7 @@ void StackSpinBlock::messagePassTwoIndexOps()
 	      }
 	      
 	      //now broadcast the data
-	      MPI::COMM_WORLD.Bcast(oparray[iproc]->get_data(), oparray[iproc]->memoryUsed(), MPI_DOUBLE, fromproc);
+	      MPI_Bcast(oparray[iproc]->get_data(), oparray[iproc]->memoryUsed(), MPI_DOUBLE, fromproc, Calc);
 	    }
 	  }
 	}
@@ -1372,14 +1371,14 @@ void StackSpinBlock::messagePassTwoIndexOps()
 	  if (processorindex(compsite) == mpigetrank()) {
 	    //this will potentially receive some ops        
 	    bool other_proc_has_ops = true;
-	    world.recv(processorindex(trimap_2d(I, J, length)), 0, other_proc_has_ops);
+	    calc.recv(processorindex(trimap_2d(I, J, length)), 0, other_proc_has_ops);
 	    if (other_proc_has_ops) {
 	      ops[CRE_DESCOMP]->add_local_indices(I, J);
 	      recvcompOps(*ops[CRE_DESCOMP], I, J, CRE_DESCOMP);
 	    }
 	    
 	    other_proc_has_ops = true;
-	    world.recv(processorindex(trimap_2d(I, J, length)), 0, other_proc_has_ops);
+	    calc.recv(processorindex(trimap_2d(I, J, length)), 0, other_proc_has_ops);
 	    if (other_proc_has_ops) {
 	      ops[DES_DESCOMP]->add_local_indices(I, J);
 	      recvcompOps(*ops[DES_DESCOMP], I, J, DES_DESCOMP);
@@ -1387,13 +1386,13 @@ void StackSpinBlock::messagePassTwoIndexOps()
 	    
 	    if (has(DES)) {
 	      other_proc_has_ops = true;
-	      world.recv(processorindex(trimap_2d(I, J, length)), 0, other_proc_has_ops);
+	      calc.recv(processorindex(trimap_2d(I, J, length)), 0, other_proc_has_ops);
 	      if (other_proc_has_ops) {
 		ops[CRE_CRECOMP]->add_local_indices(I, J);
 		recvcompOps(*ops[CRE_CRECOMP], I, J, CRE_CRECOMP);
 	      }
 	      other_proc_has_ops = true;
-	      world.recv(processorindex(trimap_2d(I, J, length)), 0, other_proc_has_ops);
+	      calc.recv(processorindex(trimap_2d(I, J, length)), 0, other_proc_has_ops);
 	      if (other_proc_has_ops) {
 		ops[DES_CRECOMP]->add_local_indices(I, J);
 		recvcompOps(*ops[DES_CRECOMP], I, J, DES_CRECOMP);
@@ -1404,23 +1403,23 @@ void StackSpinBlock::messagePassTwoIndexOps()
 	    //this will potentially send some ops
 	    if (processorindex(trimap_2d(I, J, length)) == mpigetrank()) {
 	      bool this_proc_has_ops = ops[CRE_DESCOMP]->has_local_index(I, J);
-	      world.send(processorindex(compsite), 0, this_proc_has_ops);
+	      calc.send(processorindex(compsite), 0, this_proc_has_ops);
 	      if (this_proc_has_ops) {
 		sendcompOps(*ops[CRE_DESCOMP], I, J, CRE_DESCOMP, compsite);
 	      }
 	      this_proc_has_ops = ops[DES_DESCOMP]->has_local_index(I, J);
-	      world.send(processorindex(compsite), 0, this_proc_has_ops);
+	      calc.send(processorindex(compsite), 0, this_proc_has_ops);
 	      if (this_proc_has_ops) {
 		sendcompOps(*ops[DES_DESCOMP], I, J, DES_DESCOMP, compsite);     
 	      }
 	      if (has(DES)) {
 		this_proc_has_ops = ops[CRE_CRECOMP]->has_local_index(I, J);
-		world.send(processorindex(compsite), 0, this_proc_has_ops);
+		calc.send(processorindex(compsite), 0, this_proc_has_ops);
 		if (this_proc_has_ops) {
 		  sendcompOps(*ops[CRE_CRECOMP], I, J, CRE_CRECOMP, compsite);     
 		}
 		this_proc_has_ops = ops[DES_CRECOMP]->has_local_index(I, J);
-		world.send(processorindex(compsite), 0, this_proc_has_ops);
+		calc.send(processorindex(compsite), 0, this_proc_has_ops);
 		if (this_proc_has_ops) {
 		  sendcompOps(*ops[DES_CRECOMP], I, J, DES_CRECOMP, compsite);     
 		}
@@ -1506,13 +1505,15 @@ void StackSpinBlock::formTwoIndexOps() {
     std::vector<boost::shared_ptr<StackSparseMatrix> > opvec = ops[CRE_DESCOMP]->get_element(I, J);
 
     for (int opindex=0; opindex<opvec.size(); opindex++) {
-      mpi::broadcast(world, *(opvec[opindex]), processorindex(trimap_2d(I, J, length)));
+      mpi::broadcast(calc, *(opvec[opindex]), processorindex(trimap_2d(I, J, length)));
       StackCreDesComp& op = dynamic_cast<StackCreDesComp&>(*(opvec[opindex]));
+      if (op.memoryUsed() != 0) continue;
       op.allocate(braStateInfo, ketStateInfo);
       op.buildfromCreDes(*this);
 
-      if (I == J) { //all proces should have it
-	MPI::COMM_WORLD.Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM);
+      if (find(dotindice.begin(), dotindice.end(), I) != dotindice.end() &&
+	  find(dotindice.begin(), dotindice.end(), J) != dotindice.end()) { //all proces should have it
+	MPI_Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM, Calc);
 	if (additionalMemory == 0)
 	  additionaldata = op.get_data();
 	additionalMemory += op.memoryUsed();
@@ -1520,7 +1521,7 @@ void StackSpinBlock::formTwoIndexOps() {
       else {
 	//this process should have the operator
 	int toproc = processorindex(compsite);
-	MPI::COMM_WORLD.Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM);
+	MPI_Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM, Calc);
 
 	//remove the processor if not required
 	if (mpigetrank() != toproc) {
@@ -1555,13 +1556,15 @@ void StackSpinBlock::formTwoIndexOps() {
     std::vector<boost::shared_ptr<StackSparseMatrix> > opvec = ops[DES_DESCOMP]->get_element(I, J);
 
     for (int opindex=0; opindex<opvec.size(); opindex++) {
-      mpi::broadcast(world, *(opvec[opindex]), processorindex(trimap_2d(I, J, length)));
+      mpi::broadcast(calc, *(opvec[opindex]), processorindex(trimap_2d(I, J, length)));
       StackDesDesComp& op = dynamic_cast<StackDesDesComp&>(*(opvec[opindex]));
+      if (op.memoryUsed() != 0) continue;
       op.allocate(braStateInfo, ketStateInfo);
       op.buildfromDesDes(*this);
       
-      if (I == J) { //all proces should have it
-	MPI::COMM_WORLD.Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM);
+      if (find(dotindice.begin(), dotindice.end(), I) != dotindice.end() &&
+	  find(dotindice.begin(), dotindice.end(), J) != dotindice.end()) { //all proces should have it
+	MPI_Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM, Calc);
 	if (additionalMemory == 0)
 	  additionaldata = op.get_data();
 	additionalMemory += op.memoryUsed();
@@ -1569,7 +1572,7 @@ void StackSpinBlock::formTwoIndexOps() {
       else {
 	//this process should have the operator
 	int toproc = processorindex(compsite);
-	MPI::COMM_WORLD.Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM);
+	MPI_Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM, Calc);
 
 	if (mpigetrank() != toproc) {
 	  op.deallocate();
@@ -1605,13 +1608,13 @@ void StackSpinBlock::formTwoIndexOps() {
     std::vector<boost::shared_ptr<StackSparseMatrix> > opvec = ops[CRE_CRECOMP]->get_element(I, J);
 
     for (int opindex=0; opindex<opvec.size(); opindex++) {
-      mpi::broadcast(world, *(opvec[opindex]), processorindex(trimap_2d(I, J, length)));
+      mpi::broadcast(calc, *(opvec[opindex]), processorindex(trimap_2d(I, J, length)));
       StackCreCreComp& op = dynamic_cast<StackCreCreComp&>(*(opvec[opindex]));
       op.allocate(braStateInfo, ketStateInfo);
       op.buildfromCreCre(*this);
       
       if (I == J) { //all proces should have it
-	MPI::COMM_WORLD.Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM);
+	MPI_Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM, Calc);
 	if (additionalMemory == 0)
 	  additionaldata = op.get_data();
 	additionalMemory += op.memoryUsed();
@@ -1619,7 +1622,7 @@ void StackSpinBlock::formTwoIndexOps() {
       else {
 	//this process should have the operator
 	int toproc = processorindex(compsite);
-	MPI::COMM_WORLD.Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM);
+	MPI_Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM, Calc);
 
 	if (mpigetrank() != toproc) {
 	  op.deallocate();
@@ -1655,13 +1658,13 @@ void StackSpinBlock::formTwoIndexOps() {
     std::vector<boost::shared_ptr<StackSparseMatrix> > opvec = ops[DES_CRECOMP]->get_element(I, J);
 
     for (int opindex=0; opindex<opvec.size(); opindex++) {
-      mpi::broadcast(world, *(opvec[opindex]), processorindex(trimap_2d(I, J, length)));
+      mpi::broadcast(calc, *(opvec[opindex]), processorindex(trimap_2d(I, J, length)));
       StackDesCreComp& op = dynamic_cast<StackDesCreComp&>(*(opvec[opindex]));
       op.allocate(braStateInfo, ketStateInfo);
       op.buildfromDesCre(*this);
       
       if (I == J) { //all proces should have it
-	MPI::COMM_WORLD.Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM);
+	MPI_Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM, Calc);
 	if (additionalMemory == 0)
 	  additionaldata = op.get_data();
 	additionalMemory += op.memoryUsed();
@@ -1669,7 +1672,7 @@ void StackSpinBlock::formTwoIndexOps() {
       else {
 	//this process should have the operator
 	int toproc = processorindex(compsite);
-	MPI::COMM_WORLD.Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM);
+	MPI_Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM, Calc);
 
 	if (mpigetrank() != toproc) {
 	  op.deallocate();
@@ -1749,14 +1752,14 @@ void StackSpinBlock::addAllCompOps() {
       std::vector<boost::shared_ptr<StackSparseMatrix> > opvec = ops[CRE_DESCOMP]->get_element(I, J);
       
       for (int opindex=0; opindex<opvec.size(); opindex++) {
-	mpi::broadcast(world, *(opvec[opindex]), processorindex(trimap_2d(I, J, length)));
+	mpi::broadcast(calc, *(opvec[opindex]), processorindex(trimap_2d(I, J, length)));
 	StackCreDesComp& op = dynamic_cast<StackCreDesComp&>(*(opvec[opindex]));
 	op.allocate(braStateInfo, ketStateInfo);
 	op.buildfromCreDes(*this);
 	
 	//this process should have the operator
 	int toproc = processorindex(trimap_2d(I, J, length));
-	MPI::COMM_WORLD.Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM);
+	MPI_Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM, Calc);
 	
 	//remove the processor if not required
 	if (mpigetrank() != toproc) {
@@ -1777,20 +1780,20 @@ void StackSpinBlock::addAllCompOps() {
       //add local index if not already present
       if (processorindex(trimap_2d(I, J, length)) != mpigetrank())
 	ops[DES_DESCOMP]->add_local_indices(I,J);
-      //mpi::broadcast(world, ops[DES_DESCOMP]->get_element(I,J), processorindex(trimap_2d(I, J, length)));
+      //mpi::broadcast(calc, ops[DES_DESCOMP]->get_element(I,J), processorindex(trimap_2d(I, J, length)));
       
       //get the vector of operators
       std::vector<boost::shared_ptr<StackSparseMatrix> > opvec = ops[DES_DESCOMP]->get_element(I, J);
       
       for (int opindex=0; opindex<opvec.size(); opindex++) {
-	mpi::broadcast(world, *(opvec[opindex]), processorindex(trimap_2d(I, J, length)));
+	mpi::broadcast(calc, *(opvec[opindex]), processorindex(trimap_2d(I, J, length)));
 	StackDesDesComp& op = dynamic_cast<StackDesDesComp&>(*(opvec[opindex]));
 	op.allocate(braStateInfo, ketStateInfo);
 	op.buildfromDesDes(*this);
 	
 	//this process should have the operator
 	int toproc = processorindex( trimap_2d(I, J, length) );
-	MPI::COMM_WORLD.Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM);
+	MPI_Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM, Calc);
 	
 	if (mpigetrank() != toproc) {
 	  op.deallocate();
@@ -1817,14 +1820,14 @@ void StackSpinBlock::addAllCompOps() {
 	std::vector<boost::shared_ptr<StackSparseMatrix> > opvec = ops[DES_CRECOMP]->get_element(I, J);
 	
 	for (int opindex=0; opindex<opvec.size(); opindex++) {
-	  mpi::broadcast(world, *(opvec[opindex]), processorindex(trimap_2d(I, J, length)));
+	  mpi::broadcast(calc, *(opvec[opindex]), processorindex(trimap_2d(I, J, length)));
 	  StackDesCreComp& op = dynamic_cast<StackDesCreComp&>(*(opvec[opindex]));
 	  op.allocate(braStateInfo, ketStateInfo);
 	  op.buildfromDesCre(*this);
 	  
 	  //this process should have the operator
 	  int toproc = processorindex( trimap_2d(I, J, length) );
-	  MPI::COMM_WORLD.Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM);
+	  MPI_Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM, Calc);
 	  
 	  if (mpigetrank() != toproc) {
 	    op.deallocate();
@@ -1849,14 +1852,14 @@ void StackSpinBlock::addAllCompOps() {
 	std::vector<boost::shared_ptr<StackSparseMatrix> > opvec = ops[CRE_CRECOMP]->get_element(I, J);
 	
 	for (int opindex=0; opindex<opvec.size(); opindex++) {
-	  mpi::broadcast(world, *(opvec[opindex]), processorindex(trimap_2d(I, J, length)));
+	  mpi::broadcast(calc, *(opvec[opindex]), processorindex(trimap_2d(I, J, length)));
 	  StackCreCreComp& op = dynamic_cast<StackCreCreComp&>(*(opvec[opindex]));
 	  op.allocate(braStateInfo, ketStateInfo);
 	  op.buildfromCreCre(*this);
 	  
 	  //this process should have the operator
 	  int toproc = processorindex( trimap_2d(I, J, length) );
-	  MPI::COMM_WORLD.Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM);
+	  MPI_Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM, Calc);
 	  
 	  if (mpigetrank() != toproc) {
 	    op.deallocate();

@@ -19,7 +19,7 @@ Sandeep Sharma and Garnet K.-L. Chan
 #include <execinfo.h>
 #include <stdlib.h>
 #include <stdio.h>
-
+#include <sys/time.h>
 #ifndef SERIAL
 #include <boost/serialization/shared_ptr.hpp>
 #include <boost/mpi/timer.hpp>
@@ -39,16 +39,21 @@ class cumulTimer
 
  cumulTimer() : localStart(-1.0), cumulativeSum(0) {};
 
+  void reset() {localStart = -1.0; cumulativeSum = 0.;}
 
 #ifdef _OPENMP
   void start() {
     if(!omp_get_thread_num()) {
-      localStart = time(NULL);
+      struct timeval start;
+      gettimeofday(&start, NULL);
+      localStart = start.tv_sec + 1.e-6*start.tv_usec;
     }
   }
 #else
   void start() {
-    localStart = time(NULL);
+    struct timeval start;
+    gettimeofday(&start, NULL);
+    localStart = start.tv_sec + 1.e-6*start.tv_usec;
   }
 #endif
 
@@ -59,17 +64,21 @@ class cumulTimer
     if(!omp_get_thread_num()){
 #endif
 
-      if (localStart < 0 || localStart > time(NULL) +1 ) 
+
+      struct timeval start;
+      gettimeofday(&start, NULL);
+      cumulativeSum = cumulativeSum + (start.tv_sec + 1.e-6*start.tv_usec) - localStart;
+      if ((start.tv_sec + 1.e-6*start.tv_usec) - localStart < 0 ) 
 	{
 	  
 	  cout << "local stop called without starting first"<<endl;
-	  cout << localStart<<"  "<<time(NULL);
+	  cout << localStart<<"  "<<(start.tv_sec + 1.e-6*start.tv_usec)<<endl;
 	  throw 20;
 	  assert(1==2);
 	  abort();
 	}
 
-      cumulativeSum = cumulativeSum + time(NULL) - localStart;
+
       localStart = 0;
 
 #ifdef _OPENMP
@@ -113,7 +122,7 @@ private:
   {
    boost::mpi::communicator world;
    double sum;
-   all_reduce(world, tcpu, sum, std::plus<double>());
+   all_reduce(calc, tcpu, sum, std::plus<double>());
    return sum;
   }
 #else

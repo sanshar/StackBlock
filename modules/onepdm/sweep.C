@@ -103,7 +103,7 @@ void SweepOnepdm::BlockAndDecimate (SweepParams &sweepParams, StackSpinBlock& sy
 
 #ifndef SERIAL
   mpi::communicator world;
-  MPI::COMM_WORLD.Bcast(solution[0].get_data(), solution[0].memoryUsed(), MPI_DOUBLE, 0);
+  MPI_Bcast(solution[0].get_data(), solution[0].memoryUsed(), MPI_DOUBLE, 0, Calc);
 #endif
 
   std::vector<Matrix> rotateMatrix;
@@ -117,13 +117,13 @@ void SweepOnepdm::BlockAndDecimate (SweepParams &sweepParams, StackSpinBlock& sy
   tracedMatrix.deallocate();
 
 #ifndef SERIAL
-  mpi::broadcast(world,rotateMatrix,0);
+  mpi::broadcast(calc,rotateMatrix,0);
 #endif
 #ifdef SERIAL
   const int numprocs = 1;
 #endif
 #ifndef SERIAL
-  const int numprocs = world.size();
+  const int numprocs = calc.size();
 #endif
 
   Matrix onepdm;

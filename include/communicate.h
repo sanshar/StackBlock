@@ -15,10 +15,11 @@ Sandeep Sharma and Garnet K.-L. Chan
 namespace SpinAdapted{
 class Ham;
 class Wavefunction;
+extern boost::mpi::communicator calc;
 }
 
-inline int mpigetrank() { boost::mpi::communicator world;  return world.rank(); }
-inline int mpigetsize() { boost::mpi::communicator world; return world.size(); }
+inline int mpigetrank() { return SpinAdapted::calc.rank(); }
+inline int mpigetsize() { return SpinAdapted::calc.size(); }
 #else
 inline int mpigetrank() { return 0; }
 inline int mpigetsize() { return 1; }
@@ -29,9 +30,8 @@ template<class T> void sendobject(const T& object, int to) {}
 #else
 template<class T> void sendobject(const T& object, int to)  
 {
-  boost::mpi::communicator world;
   int tag = 0;
-  world.send(to,tag,object);
+  SpinAdapted::calc.send(to,tag,object);
 }
 #endif
 // default argument + template specialization bug workaround
@@ -41,9 +41,8 @@ template<class T> void receiveobject(T& object, int from) {}
 #else
 template<class T> void receiveobject(T& object, int from)
 {
-  boost::mpi::communicator world;
   int tag = 0;
-  world.recv(from,tag,object);
+  SpinAdapted::calc.recv(from,tag,object);
 }
 
 //These are implemented because sometimes the Operator size is very big (maybe more than 2Gb) and this causes 

@@ -29,14 +29,16 @@ template<class T> class para_array_1d;
 template<class T> class para_array_triang_2d;
 template<class T> class para_array_2d;
 
+namespace SpinAdapted {
+extern boost::mpi::communicator calc;
+}
 // utility functions for communication
 inline int processorindex(int i)
 {
 #ifdef SERIAL
   return 0;
 #else
-  boost::mpi::communicator world;
-  int size = world.size();
+  int size = SpinAdapted::calc.size();
   return i % size;
 #endif
 }

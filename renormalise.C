@@ -52,7 +52,6 @@ void StackSpinBlock::RenormaliseFrom(vector<double> &energies, vector<double> &s
   wave_solutions[0].initialise(dmrginp.effective_molecule_quantum_vec(), big.get_leftBlock()->get_stateInfo(), big.get_rightBlock()->get_stateInfo(), onedot);
   wave_solutions[0].Clear();
 
-
   if (mpigetrank() == 0) {
     for (int i=1; i<nroots; i++) {
       wave_solutions[i].initialise(dmrginp.effective_molecule_quantum_vec(), big.get_leftBlock()->get_stateInfo(), big.get_rightBlock()->get_stateInfo(), onedot);
@@ -92,7 +91,7 @@ void StackSpinBlock::RenormaliseFrom(vector<double> &energies, vector<double> &s
 
 #ifndef SERIAL
     mpi::communicator world;
-    broadcast(world, wave_solutions[0], 0);
+    broadcast(calc, wave_solutions[0], 0);
     if (mpigetrank() != 0)
       wave_solutions[0].allocateOperatorMatrix();
 #endif
@@ -141,7 +140,7 @@ void StackSpinBlock::RenormaliseFrom(vector<double> &energies, vector<double> &s
 
 #ifndef SERIAL
   mpi::communicator world;
-  broadcast(world, rotateMatrix, 0);
+  broadcast(calc, rotateMatrix, 0);
 #endif
 
   SaveRotationMatrix (newbig.leftBlock->sites, rotateMatrix);

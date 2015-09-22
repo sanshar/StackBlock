@@ -5,7 +5,8 @@ Copyright (c) 2012, Garnet K.-L. Chan
 This program is integrated in Molpro with the permission of 
 Sandeep Sharma and Garnet K.-L. Chan
 */
-
+#include <sched.h>
+#include <unistd.h>
 #include "IntegralMatrix.h"
 #include <fstream>
 #include "input.h"
@@ -109,13 +110,39 @@ namespace SpinAdapted{
   boost::interprocess::mapped_region region;
 
   std::vector<StackAllocator<double> > Stackmem;
+  boost::mpi::communicator calc;
+  MPI_Comm Calc;
+
 }
 
 using namespace SpinAdapted;
 
+void sleepBarrier(boost::mpi::communicator world, int tag, double psleep)
+{
+  int size = world.size(), rank = world.rank();
+
+  if (size == 1)
+    return;
+
+  int mask = 1;
+  while (mask < size) {
+    int dst = (rank + mask) % size;
+    int src = (rank - mask + size) % size;
+    string s = "h";
+    boost::mpi::request r = world.isend(dst, tag, s);
+    //req = comm.isend(None, dst, tag);
+    while (! world.iprobe(src, tag)) 
+      sleep(psleep);
+
+    world.recv(src, tag, s);
+    r.wait();
+    mask *= 2;
+  }
+
+}
+
 int calldmrg(char* input, char* output)
 {
-  //sleep(8);
   srand(1000);
   streambuf *backup;
   backup = cout.rdbuf();
@@ -125,10 +152,51 @@ int calldmrg(char* input, char* output)
     pout.rdbuf(file.rdbuf());
   }
   license();
+
+
+  boost::mpi::communicator world;
+
   ReadInput(input);
+
+  int size = world.size(), rank = world.rank();
+
+  MPI_Group orig_group, calc_group;
+  MPI_Comm_group(MPI_COMM_WORLD, &orig_group);
+  std::vector<int>& m_calc_procs = dmrginp.calc_procs();
+
+
+  //Make the new mpi comm which only has the calc procs 
+  if (find(m_calc_procs.begin(), m_calc_procs.end(), rank)!=m_calc_procs.end()) {
+    string& lprefix = dmrginp.load_prefix();
+    string& sprefix = dmrginp.save_prefix();
+    string oldrank = str(boost::format("%s%i")  %"/node" % rank);
+    string newrank = str(boost::format("%s%i")  %"/node" % (find(m_calc_procs.begin(), m_calc_procs.end(), rank) - m_calc_procs.begin()));
+    int index=0; index = lprefix.find(oldrank, index);
+    lprefix.replace(index, oldrank.length(), newrank);
+    int index2=0; index2 = sprefix.find(oldrank, index2);
+    sprefix.replace(index2, oldrank.length(), newrank);
+    MPI_Comm_split(MPI_COMM_WORLD, 0, find(m_calc_procs.begin(), m_calc_procs.end(), rank) - m_calc_procs.begin(), &Calc);
+  }
+  else
+    MPI_Comm_split(MPI_COMM_WORLD, MPI_UNDEFINED, 0, &Calc);
+  calc = boost::mpi::communicator(Calc, boost::mpi::comm_attach);
+
+
+  if (find(m_calc_procs.begin(), m_calc_procs.end(), rank)!=m_calc_procs.end()) {
   MAX_THRD = dmrginp.thrds_per_node()[mpigetrank()];
   int mkl_thrd = dmrginp.mkl_thrds();
-  pout << MAX_THRD<<"  "<<mkl_thrd<<endl;
+
+  char processor_name[MPI_MAX_PROCESSOR_NAME];
+  int name_len;
+  MPI_Get_processor_name(processor_name, &name_len);
+  for (int i=0; i<calc.size(); i++) {
+    if (mpigetrank() == i) {
+      cout << "processor: "<<rank<<"  numthrds: "<<MAX_THRD<<"  node name: "<<processor_name<<endl;
+    }
+    calc.barrier();
+  }
+
+
 #ifdef _OPENMP
   omp_set_num_threads(MAX_THRD);
   mkl_set_num_threads(mkl_thrd);
@@ -137,20 +205,15 @@ int calldmrg(char* input, char* output)
 #endif
   pout.precision (12);
   pout << std::fixed;
+
   double* stackmemory = new double[dmrginp.getMemory()];
   Stackmem.resize(numthrds);
   Stackmem[0].data = stackmemory;
   Stackmem[0].size = dmrginp.getMemory();
   //************
   memset(stackmemory, 0, dmrginp.getMemory()*sizeof(double));
-
-   //Initializing timer calls
   dmrginp.initCumulTimer();
 
-
-  //singleSiteBlocks.resize(v_2.size(), std::vector<StackSpinBlock>());
-  //for (int i=0; i<v_2.size(); i++)
-  //initialiseSingleSiteBlocks(singleSiteBlocks[i], i);
 
 
   pout << "**** STACK MEMORY REMAINING ***** "<<1.0*(Stackmem[0].size-Stackmem[0].memused)*sizeof(double)/1.e9<<" GB"<<endl;
@@ -430,7 +493,12 @@ int calldmrg(char* input, char* output)
   double walltime = globaltimer.totalwalltime();
   pout << setprecision(3) <<"\n\n\t\t\t BLOCK CPU  Time (seconds): " << cputime << endl;
   pout << setprecision(3) <<"\t\t\t BLOCK Wall Time (seconds): " << walltime << endl;
+  }
 
+
+  //world.barrier();
+  sleepBarrier(world, 0, 10);
+  MPI_Comm_free(&Calc);
   return 0;
 }
 
