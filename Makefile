@@ -20,7 +20,7 @@ ifeq ($(USE_BOOST56), yes)
 endif
 
 #use these variable to set if we will use mpi or not 
-USE_MPI = no
+USE_MPI = yes
 USE_MKL = yes
 
 # use this variable to set if we will use integer size of 8 or not.
@@ -36,9 +36,9 @@ DOPROF = no
 MOLCAS = no
 
 ifeq ($(USE_MKL), yes)
-MKLLIB = /opt/intel/composer_xe_2013_sp1.0.080/mkl/lib/intel64/
+MKLLIB = .
 LAPACKBLAS = -L${MKLLIB} -lmkl_gf_lp64 -lmkl_intel_thread -lmkl_core -liomp5 -lrt
-MKLFLAGS = /usr/local/server/IntelStudio_2013_SP1/mkl/include/
+MKLFLAGS = /usr/local/server/IntelStudio_2015/mkl/include/
 MKLOPT = -D_HAS_INTEL_MKL
 else
 MKLFLAGS = .
@@ -98,7 +98,7 @@ ifeq (icpc, $(CXX))
 	endif
    endif
 # Intel compiler
-  OPT = -DNDEBUG -O2 #-xAVX -ipo
+  OPT = -DNDEBUG -O3 -xAVX #-ipo
 #  OPT = -g 
    ifeq ($(USE_MPI), no) 
       CXX = icpc
@@ -109,7 +109,7 @@ ifeq (g++, $(CXX))
    ifeq ($(OPENMP), yes)
       OPENMP_FLAGS= -fopenmp 
 	ifeq ($(USE_MPI), yes)
-	OPENMP_FLAGS += -lmpi_mt
+	OPENMP_FLAGS += -lmpi
 	endif
    endif
 # GNU compiler
@@ -143,9 +143,9 @@ SRC_npdm = modules/npdm/npdm.C modules/npdm/npdm_driver.C modules/npdm/npdm_patt
            modules/three_index_ops/build_3index_ops.C modules/four_index_ops/build_4index_ops.C modules/npdm/pairpdm_container.C \
            modules/npdm/nevpt2_npdm_driver.C modules/npdm/nevpt2_container.C modules/npdm/externalsort.C
 
-SRC_spin_adapted = saveBlock.C Stackspinblock.C operatorUtilities.C Stack_op_components.C stackguess_wavefunction.C Stackwavefunction.C Stackdensity.C stackopxop.C StackBaseOperator.C StackOperators.C modules/ResponseTheory/sweepResponse.C modules/ResponseTheory/sweepCompress.C pario.C dmrg.C fiedler.C least_squares.C sweep_mps.C set_stackspinblock_components.C linear.C main.C readinput.C  timer.C SpinQuantum.C Symmetry.C input.C hfOccGenerator.C Schedule.C orbstring.C slater.C csf.C StateInfo.C  screen.C MatrixBLAS.C operatorfunctions.C solver.C davidson.C sweep_params.C sweep.C initblocks.C rotationmat.C renormalise.C couplingCoeffs.C distribute.C new_anglib.C fci.C IrrepSpace.C modules/generate_blocks/sweep.C $(SRC_genetic) SpinSpace.C include/IntegralMatrix.C 
+SRC_spin_adapted = saveBlock.C Stackspinblock.C operatorUtilities.C Stack_op_components.C stackguess_wavefunction.C Stackwavefunction.C Stackdensity.C stackopxop.C StackBaseOperator.C StackOperators.C modules/ResponseTheory/sweepResponse.C modules/ResponseTheory/sweepCompress.C pario.C dmrg.C fiedler.C least_squares.C sweep_mps.C set_stackspinblock_components.C linear.C main.C readinput.C  timer.C SpinQuantum.C Symmetry.C input.C hfOccGenerator.C Schedule.C orbstring.C slater.C csf.C StateInfo.C  screen.C MatrixBLAS.C operatorfunctions.C solver.C davidson.C sweep_params.C sweep.C initblocks.C rotationmat.C renormalise.C couplingCoeffs.C distribute.C new_anglib.C fci.C IrrepSpace.C modules/generate_blocks/sweep.C $(SRC_genetic) SpinSpace.C include/IntegralMatrix.C modules/onepdm/sweep.C modules/onepdm/onepdm.C
 
-SRC_OH = modules/ResponseTheory/sweepResponse.C modules/ResponseTheory/sweepCompress.C wrapper.C fciqmchelper.C pario.C dmrg.C fiedler.C least_squares.C sweep_mps.C set_spinblock_components.C linear.C readinput.C  save_load_block.C timer.C SpinQuantum.C Symmetry.C Schedule.C input.C hfOccGenerator.C orbstring.C slater.C csf.C StateInfo.C  Operators.C BaseOperator.C screen.C MatrixBLAS.C operatorfunctions.C opxop.C wavefunction.C solver.C davidson.C sweep_params.C sweep.C initblocks.C guess_wavefunction.C density.C rotationmat.C renormalise.C couplingCoeffs.C distribute.C new_anglib.C fci.C spinblock.C op_components.C IrrepSpace.C modules/generate_blocks/sweep.C modules/onepdm/sweep.C modules/onepdm/onepdm.C modules/twopdm/sweep.C modules/twopdm/twopdm.C modules/twopdm/twopdm_2.C $(SRC_genetic) SpinSpace.C include/IntegralMatrix.C $(SRC_npdm) $(SRC_nevpt2)
+SRC_OH = wrapper.C fciqmchelper.C saveBlock.C Stackspinblock.C operatorUtilities.C Stack_op_components.C stackguess_wavefunction.C Stackwavefunction.C Stackdensity.C stackopxop.C StackBaseOperator.C StackOperators.C modules/ResponseTheory/sweepResponse.C modules/ResponseTheory/sweepCompress.C pario.C dmrg.C fiedler.C least_squares.C sweep_mps.C set_stackspinblock_components.C linear.C readinput.C  timer.C SpinQuantum.C Symmetry.C input.C hfOccGenerator.C Schedule.C orbstring.C slater.C csf.C StateInfo.C  screen.C MatrixBLAS.C operatorfunctions.C solver.C davidson.C sweep_params.C sweep.C initblocks.C rotationmat.C renormalise.C couplingCoeffs.C distribute.C new_anglib.C fci.C IrrepSpace.C modules/generate_blocks/sweep.C $(SRC_genetic) SpinSpace.C include/IntegralMatrix.C modules/onepdm/sweep.C modules/onepdm/onepdm.C
 OBJ_OH= OverlapHelement.o
 
 SRC_CSFOH = CSFOverlapHelement.C modules/ResponseTheory/sweepResponse.C modules/ResponseTheory/sweepCompress.C wrapper.C fciqmchelper.C pario.C dmrg.C fiedler.C least_squares.C sweep_mps.C set_spinblock_components.C linear.C readinput.C  save_load_block.C timer.C SpinQuantum.C Symmetry.C Schedule.C input.C hfOccGenerator.C orbstring.C slater.C csf.C StateInfo.C  Operators.C BaseOperator.C screen.C MatrixBLAS.C operatorfunctions.C opxop.C wavefunction.C solver.C davidson.C sweep_params.C sweep.C initblocks.C guess_wavefunction.C density.C rotationmat.C renormalise.C couplingCoeffs.C distribute.C new_anglib.C fci.C spinblock.C op_components.C IrrepSpace.C modules/generate_blocks/sweep.C modules/onepdm/sweep.C modules/onepdm/onepdm.C modules/twopdm/sweep.C modules/twopdm/twopdm.C modules/twopdm/twopdm_2.C $(SRC_genetic) SpinSpace.C include/IntegralMatrix.C $(SRC_npdm) $(SRC_nevpt2)
@@ -188,6 +188,7 @@ endif
 .cpp.o :
 	$(CXX) $(FLAGS) $(OPT) -c $< -o $@
 
+
 $(EXECUTABLE) : $(OBJ_spin_adapted) $(NEWMATLIB)/libnewmat.a
 	$(CXX)   $(FLAGS) $(OPT) -o  $(EXECUTABLE) $(OBJ_spin_adapted) $(LIBS)
 
@@ -227,4 +228,6 @@ $(NEWMATLIB)/libnewmat.a :
 clean:
 	rm *.o include/*.o modules/generate_blocks/*.o modules/onepdm/*.o modules/twopdm/*.o modules/npdm/*.o $(NEWMATLIB)*.o libqcdmrg.a libqcdmrg.so $(EXECUTABLE) $(NEWMATLIB)/libnewmat.a genetic/gaopt genetic/*.o btas/lib/*.o btas/lib/libbtas.a modules/two_index_ops/*.o modules/three_index_ops/*.o modules/four_index_ops/*.o modules/ResponseTheory/*.o modules/nevpt2/*.o molcas/*.o
 
+check-syntax:
+	$(CXX) $(FLAGS) $(OPT) -o nul -S -Wall -Wextra -pedantic -fsyntax-only -Wno-variadic-macros $(CHK_SOURCES)
 # DO NOT DELETE
