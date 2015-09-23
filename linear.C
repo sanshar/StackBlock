@@ -76,6 +76,8 @@ void SpinAdapted::Linear::block_davidson(vector<StackWavefunction>& b, DiagonalM
   int nroots = dmrginp.setStateSpecific() ? 1 : dmrginp.nroots();
   //normalise all the guess roots
 
+  double timer = globaltimer.totalwalltime();
+
   bool orthogonalSpace = true;
   if(mpigetrank() == 0) {
     for(int i=0;i<nroots;++i)
@@ -124,7 +126,7 @@ void SpinAdapted::Linear::block_davidson(vector<StackWavefunction>& b, DiagonalM
   if (mpigetrank() == 0)
     r.initialise(b[0]);
 
-  printf("\t\t %15s  %5s  %15s  %15s\n", "iter", "Root", "Energy", "Error");
+  printf("\t\t %15s  %5s  %15s  %15s  %10s  \n", "iter", "Root", "Energy", "Error", "Time");
   int sigmasize=0, bsize= currentRoot == -1 ? dmrginp.nroots() : 1;
   int converged_roots = 0;
   int maxiter = h_diag.Ncols() - lowerStates.size();
@@ -236,7 +238,8 @@ void SpinAdapted::Linear::block_davidson(vector<StackWavefunction>& b, DiagonalM
     double rnorm;
     if (mpigetrank() == 0) {
       rnorm = DotProduct(r,r);  
-      printf("\t\t %15i  %5i  %15.8f  %15.8e\n", iter, converged_roots, currentEnergy, rnorm);
+      printf("\t\t %15i  %5i  %15.8f  %15.8e %10.2f (s)\n", iter, converged_roots, currentEnergy, rnorm, globaltimer.totalwalltime()-timer);
+      timer = globaltimer.totalwalltime();
     }
 
 #ifndef SERIAL
