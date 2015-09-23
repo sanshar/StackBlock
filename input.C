@@ -380,9 +380,15 @@ SpinAdapted::Input::Input(const string& config_name) {
 	  pout <<"calcprocs should be followed by a list of processor ids"<<endl;
 	}
 	m_calc_procs.resize(tok.size()-1, 0);
-	for (int i=0; i<tok.size()-1; i++)
+	for (int i=0; i<tok.size()-1; i++) {
 	  m_calc_procs[i] = atoi(tok[i+1].c_str());
-
+	  if (m_calc_procs[i] >= world.size()) {
+	    pout << "calcprocessor number is greater than total number of processors"<<endl;
+	    pout << "error found in line "<<endl;
+	    pout << msg<<endl;
+	    exit(0);
+	  }
+	}
       }
       else if (boost::iequals(keyword,  "reorder")) {
 	if(usedkey[REORDER] == 0) 
@@ -1189,7 +1195,7 @@ SpinAdapted::Input::Input(const string& config_name) {
   mpi::broadcast(world, m_save_prefix, 0);
   mpi::broadcast(world, m_calc_type, 0);
   mpi::broadcast(world, m_calc_procs, 0);
-
+  mpi::broadcast(world, m_baseState, 0);
 #endif
 
   //make the scratch files

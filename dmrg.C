@@ -143,6 +143,7 @@ void sleepBarrier(boost::mpi::communicator world, int tag, double psleep)
 
 int calldmrg(char* input, char* output)
 {
+  //sleep(10);
   srand(1000);
   streambuf *backup;
   backup = cout.rdbuf();
@@ -182,6 +183,21 @@ int calldmrg(char* input, char* output)
   calc = boost::mpi::communicator(Calc, boost::mpi::comm_attach);
 
 
+  cpu_set_t  *oldmask, newmask;
+  int oldset, newset;
+  //if only a subset of processors are being used, then unset processor affinity
+  if (m_calc_procs.size() < world.size()) {
+    sched_getaffinity(0, oldset, oldmask);
+    CPU_ZERO( &newmask);
+    int maxcpus = 2500;
+    for (int i=0; i<2500; i++)
+      CPU_SET(i, &newmask);
+    int success = sched_setaffinity(0, sizeof(&newmask), &newmask);
+    if (success == -1) {
+      cout << world.rank()<<endl;
+    }
+  }
+
   if (find(m_calc_procs.begin(), m_calc_procs.end(), rank)!=m_calc_procs.end()) {
   MAX_THRD = dmrginp.thrds_per_node()[mpigetrank()];
   int mkl_thrd = dmrginp.mkl_thrds();
@@ -189,6 +205,7 @@ int calldmrg(char* input, char* output)
   char processor_name[MPI_MAX_PROCESSOR_NAME];
   int name_len;
   MPI_Get_processor_name(processor_name, &name_len);
+
   for (int i=0; i<calc.size(); i++) {
     if (mpigetrank() == i) {
       cout << "processor: "<<rank<<"  numthrds: "<<MAX_THRD<<"  node name: "<<processor_name<<endl;
@@ -499,6 +516,7 @@ int calldmrg(char* input, char* output)
   //world.barrier();
   sleepBarrier(world, 0, 10);
   MPI_Comm_free(&Calc);
+  sched_setaffinity(0, sizeof(oldmask), oldmask);
   return 0;
 }
 
