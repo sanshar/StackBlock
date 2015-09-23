@@ -278,12 +278,8 @@ double SpinAdapted::SweepCompress::do_one(SweepParams &sweepParams, const bool &
   vector<int> syssites = system.get_sites();
 
   if (restart)
-  {
-    if (forward && system.get_complementary_sites()[0] >= dmrginp.last_site()/2)
-      dot_with_sys = false;
-    if (!forward && !(system.get_sites()[0] >=dmrginp.last_site()/2))
-      dot_with_sys = false;
-  }
+    Sweep::set_dot_with_sys(dot_with_sys, system, sweepParams, forward);
+   
   if (dmrginp.outputlevel() > 0)
     mcheck("at the very start of sweep");  // just timer
 
@@ -330,10 +326,7 @@ double SpinAdapted::SweepCompress::do_one(SweepParams &sweepParams, const bool &
       system.printOperatorSummary();
       
       //system size is going to be less than environment size
-      if (forward && system.get_complementary_sites()[0] >= dmrginp.last_site()/2)
-	dot_with_sys = false;
-      if (!forward && !(system.get_sites()[0] >=dmrginp.last_site()/2))
-	dot_with_sys = false;
+      Sweep::set_dot_with_sys(dot_with_sys, system, sweepParams, forward);
       
       StackSpinBlock::store (forward, system.get_sites(), system, targetState, baseState);	 	
       syssites = system.get_sites();

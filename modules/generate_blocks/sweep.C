@@ -138,12 +138,8 @@ double SweepGenblock::do_one(SweepParams &sweepParams, const bool &warmUp, const
   sweepParams.savestate(forward, system.get_sites().size());
   bool dot_with_sys = true;
   if (restart)
-  {
-    if (forward && system.get_complementary_sites()[0] >= dmrginp.last_site()/2)
-      dot_with_sys = false;
-    if (!forward && !(system.get_sites()[0] >=dmrginp.last_site()/2))
-      dot_with_sys = false;
-  }
+    Sweep::set_dot_with_sys(dot_with_sys, system, sweepParams, forward);
+  //Sweep::set_dot_with_sys(dot_with_sys, system, const_cast<bool&>(forward));
 
   for (; sweepParams.get_block_iter() < sweepParams.get_n_iters(); )
     {
@@ -174,11 +170,7 @@ double SweepGenblock::do_one(SweepParams &sweepParams, const bool &warmUp, const
       
       system = newSystem;
 
-      //system size is going to be less than environment size
-      if (forward && system.get_complementary_sites()[0] >= dmrginp.last_site()/2)
-	dot_with_sys = false;
-      if (!forward && !(system.get_sites()[0] >=dmrginp.last_site()/2))
-	dot_with_sys = false;
+      Sweep::set_dot_with_sys(dot_with_sys, system, sweepParams, forward);
 
       StackSpinBlock::store (forward, system.get_sites(), system, stateA, stateB);	 	
       pout << system<<endl;

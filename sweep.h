@@ -36,7 +36,8 @@ namespace Sweep
 					     StackSpinBlock& big, SweepParams& sweepParams, const bool& dot_with_sys, const bool& useSlater,
 					     int integralIndex, int braState, int ketState);
   
-};
+  void set_dot_with_sys(bool& dot_with_sys, const StackSpinBlock& system, const SweepParams& sweepParams, const bool& forward) ;
+}
 }
 #endif
 

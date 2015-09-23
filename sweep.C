@@ -30,6 +30,17 @@ using namespace boost;
 using namespace std;
 
 
+void SpinAdapted::Sweep::set_dot_with_sys(bool& dot_with_sys, const StackSpinBlock& system, const SweepParams& sweepParams, const bool& forward) {
+  //system size is going to be less than environment size
+  if (forward && !sweepParams.get_onedot() && system.get_complementary_sites()[0] >= dmrginp.last_site()/2-1)
+    dot_with_sys = false;
+  if (forward && sweepParams.get_onedot() && system.get_complementary_sites()[0] >= dmrginp.last_site()/2)
+    dot_with_sys = false;
+  if (!forward && (system.get_sites()[0]-1 <=dmrginp.last_site()/2))
+    dot_with_sys = false;
+}
+
+
 //these blocks contain only the overlap operators, so they are cheap
 void SpinAdapted::Sweep::makeSystemEnvironmentBigOverlapBlocks(const std::vector<int>& systemSites, StackSpinBlock& systemDot, StackSpinBlock& environmentDot,
 							       StackSpinBlock& system, StackSpinBlock& newSystem, StackSpinBlock& environment, StackSpinBlock& newEnvironment,
@@ -426,12 +437,8 @@ double SpinAdapted::Sweep::do_one(SweepParams &sweepParams, const bool &warmUp, 
   vector<int> syssites = system.get_sites();
 
   if (restart)
-  {
-    if (forward && system.get_complementary_sites()[0] >= dmrginp.last_site()/2)
-      dot_with_sys = false;
-    if (!forward && !(system.get_sites()[0] >=dmrginp.last_site()/2))
-      dot_with_sys = false;
-  }
+    set_dot_with_sys(dot_with_sys, system, sweepParams, forward);
+
   if (dmrginp.outputlevel() > 0)
     mcheck("at the very start of sweep");  // just timer
 
@@ -506,16 +513,12 @@ double SpinAdapted::Sweep::do_one(SweepParams &sweepParams, const bool &warmUp, 
       system = newSystem;
       system.printOperatorSummary();
 
-      //system size is going to be less than environment size
-      if (forward && system.get_complementary_sites()[0] >= dmrginp.last_site()/2)
-	dot_with_sys = false;
-      if (!forward && !(system.get_sites()[0] >=dmrginp.last_site()/2))
-	dot_with_sys = false;
       
 
       StackSpinBlock::store (forward, system.get_sites(), system, sweepParams.current_root(), sweepParams.current_root());	 	
       pout << system<<endl;
       //if (sweepParams.set_block_iter() == 4) exit(0);
+      set_dot_with_sys(dot_with_sys, system, sweepParams, forward);
 
       p1out << "\t\t\t Saving state " << syssites.size() << endl;
       ++sweepParams.set_block_iter();

@@ -570,12 +570,7 @@ double SpinAdapted::SweepResponse::do_one(SweepParams &sweepParams, const bool &
   vector<int> syssites = system.get_sites();
 
   if (restart)
-  {
-    if (forward && system.get_complementary_sites()[0] >= dmrginp.last_site()/2)
-      dot_with_sys = false;
-    if (!forward && !(system.get_sites()[0] >=dmrginp.last_site()/2))
-      dot_with_sys = false;
-  }
+    Sweep::set_dot_with_sys(dot_with_sys, system, sweepParams, forward);
 
  // get_n_iters() returns the number of blocking iterations needed in one sweep
   for (; sweepParams.get_block_iter() < sweepParams.get_n_iters(); )
@@ -642,10 +637,7 @@ double SpinAdapted::SweepResponse::do_one(SweepParams &sweepParams, const bool &
       p2out << system<<endl;
       system.printOperatorSummary();
       
-      if (forward && system.get_complementary_sites()[0] >= dmrginp.last_site()/2)
-	dot_with_sys = false;
-      if (!forward && !(system.get_sites()[0] >=dmrginp.last_site()/2))
-	dot_with_sys = false;
+      Sweep::set_dot_with_sys(dot_with_sys, system, sweepParams, forward);
 
       StackSpinBlock::store (forward, system.get_sites(), system, targetState, targetState);
       syssites = system.get_sites();
