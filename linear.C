@@ -318,6 +318,141 @@ void makeOrthogonalToLowerStates(StackWavefunction& targetState, std::vector<Sta
   }
 }
 
+
+double SpinAdapted::Linear::ConjugateGradient(StackWavefunction& xi, double normtol, Davidson_functor& h_multiply, std::vector<StackWavefunction>& lowerStates)
+{
+  setbuf(stdout, NULL);
+  p3out.precision (12);
+  int iter = 0, maxIter = 20;
+  double levelshift = 0.0, overlap2 = 0.0, oldError=0.0, functional=0.0, Error=0.0;
+
+  StackWavefunction& targetState = lowerStates[0];
+  if (mpigetrank() == 0) {
+    makeOrthogonalToLowerStates(targetState, lowerStates);
+    makeOrthogonalToLowerStates(xi, lowerStates);
+  }
+
+#ifndef SERIAL
+  mpi::communicator world;
+  MPI_Bcast(xi.get_data(), xi.memoryUsed(), MPI_DOUBLE, 0, Calc);
+#endif
+
+  StackWavefunction pi, ri; 
+  ri.initialise(xi);
+  ri.Clear();
+  pi.initialise(ri);
+  pi.Clear();
+  h_multiply(xi, ri);  
+
+  //Check if we should even perform CG or just exit with a zero vector.
+  bool doCG = true;
+  if (mpigetrank() == 0) {
+    StackWavefunction ricopy; ricopy.initialise(ri); ricopy.Randomise();
+    makeOrthogonalToLowerStates(ricopy, lowerStates);
+
+    if (abs(DotProduct(ricopy, targetState)) < NUMERICAL_ZERO) {
+      pout << "The problem is ill posed or the initial guess is very bad "<<DotProduct(ricopy, targetState)<<endl;
+      doCG = false;
+    }
+    ricopy.deallocate();
+  }
+#ifndef SERIAL
+  mpi::broadcast(calc, doCG, 0);
+#endif
+  if (!doCG) {
+    xi.Clear();
+    int success = 0;
+
+    functional = 0.0;
+    pi.deallocate();
+    ri.deallocate();
+    return functional;
+  }
+
+  if (mpigetrank() == 0) {
+    ScaleAdd(-1.0, targetState, ri);
+    Scale(-1.0, ri);
+    
+    makeOrthogonalToLowerStates(ri, lowerStates);    
+
+    DCOPY(ri.memoryUsed(), ri.get_data(), 1, pi.get_data(), 1); 
+
+    oldError = DotProduct(ri, ri);
+    printf("\t\t\t %15s  %15s  %15s\n", "iter", "Functional", "Error");
+  }
+
+
+#ifndef SERIAL
+  mpi::broadcast(calc, Error, 0);
+  mpi::broadcast(calc, oldError, 0);
+  mpi::broadcast(calc, functional, 0);
+#endif
+
+  if (oldError < normtol) {
+    if (mpigetrank() == 0) {
+      functional = DotProduct(xi, ri) - 2.*DotProduct(xi, targetState);
+      printf("\t\t\t %15i  %15.8e  %15.8e\n", 0, functional, oldError);
+    }
+#ifndef SERIAL
+    mpi::broadcast(calc, functional, 0);
+#endif
+    pi.deallocate();
+    ri.deallocate();
+    return functional;
+  }
+
+#ifndef SERIAL
+  MPI_Bcast(pi.get_data(), pi.memoryUsed(), MPI_DOUBLE, 0, Calc);
+#endif
+
+  StackWavefunction Hp; 
+  Hp.initialise(pi); 
+
+  while(true) {
+    Hp.Clear();
+
+
+
+    h_multiply(pi, Hp);
+
+    if (mpigetrank() == 0) {
+      makeOrthogonalToLowerStates(Hp, lowerStates);
+
+      double alpha = oldError/DotProduct(pi, Hp);
+      
+      ScaleAdd(alpha, pi, xi);
+      ScaleAdd(-alpha, Hp, ri);
+      
+      Error = DotProduct(ri, ri);
+      functional = -DotProduct(xi, ri) - DotProduct(xi, targetState);
+      printf("\t\t\t %15i  %15.8e  %15.8e\n", iter, functional, Error);
+    }
+
+    //exit(0);
+#ifndef SERIAL
+    mpi::broadcast(calc, Error, 0);
+    mpi::broadcast(calc, functional, 0);
+#endif
+
+    if (Error < normtol || iter >maxIter) {
+      Hp.deallocate();
+      pi.deallocate();
+      ri.deallocate();
+      return functional;
+    }
+    else {      
+      if (mpigetrank() == 0) {
+	double beta = Error/oldError;
+	oldError = Error;
+	ScaleAdd(1.0/beta, ri, pi);
+	Scale(beta, pi);	
+	makeOrthogonalToLowerStates(pi, lowerStates);
+      }
+      iter ++;
+    }
+  }
+}
+
 double SpinAdapted::Linear::MinResMethod(StackWavefunction& xi, double normtol, Davidson_functor& h_multiply, std::vector<StackWavefunction>& lowerStates)
 {
   setbuf(stdout, NULL);
@@ -385,7 +520,7 @@ double SpinAdapted::Linear::MinResMethod(StackWavefunction& xi, double normtol, 
   
   if (oldError < normtol) {
     if (mpigetrank() == 0) {
-      functional = -DotProduct(xi, ri) - DotProduct(xi, targetState);
+      functional = -DotProduct(xi, ri) -  DotProduct(xi, targetState);
       printf("\t\t\t %15i  %15.8e  %15.8e\n", 0, functional, oldError);
     }
 #ifndef SERIAL

@@ -149,6 +149,7 @@ void SpinAdapted::Solver::solve_wavefunction(vector<StackWavefunction>& solution
 	solution[0].Clear();
 
       double functional = Linear::MinResMethod(solution[0], tol, davidson_f, lowerStates);
+      //double functional = Linear::ConjugateGradient(solution[0], tol, davidson_f, lowerStates);
       if (mpigetrank() == 0)
 	e(1) = functional;
 

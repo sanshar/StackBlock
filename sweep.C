@@ -32,12 +32,30 @@ using namespace std;
 
 void SpinAdapted::Sweep::set_dot_with_sys(bool& dot_with_sys, const StackSpinBlock& system, const SweepParams& sweepParams, const bool& forward) {
   //system size is going to be less than environment size
-  if (forward && !sweepParams.get_onedot() && system.get_complementary_sites()[0] >= dmrginp.last_site()/2-1)
-    dot_with_sys = false;
-  if (forward && sweepParams.get_onedot() && system.get_complementary_sites()[0] >= dmrginp.last_site()/2)
-    dot_with_sys = false;
-  if (!forward && (system.get_sites()[0]-1 <=dmrginp.last_site()/2))
-    dot_with_sys = false;
+  if (dmrginp.algorithm_method() == TWODOT_TO_ONEDOT && dmrginp.twodot_to_onedot_iter()%2 == 0) {
+    if (forward && !sweepParams.get_onedot() && system.get_complementary_sites()[0] >= dmrginp.last_site()/2-1)
+      dot_with_sys = false;
+    if (forward && sweepParams.get_onedot() && system.get_complementary_sites()[0] >= dmrginp.last_site()/2)
+      dot_with_sys = false;
+    if (!forward && (system.get_sites()[0]-1 <=dmrginp.last_site()/2))
+      dot_with_sys = false;
+  }
+  else if (dmrginp.algorithm_method() == TWODOT_TO_ONEDOT && dmrginp.twodot_to_onedot_iter()%2 == 1) {
+    if (forward && system.get_complementary_sites()[0] >= dmrginp.last_site()/2-1)
+      dot_with_sys = false;
+    if (!forward && !sweepParams.get_onedot() && sweepParams.get_onedot() && system.get_sites()[0]-1 <= dmrginp.last_site()/2)
+      dot_with_sys = false;
+    if (!forward && sweepParams.get_onedot() && (system.get_sites()[0]-1 <dmrginp.last_site()/2))
+      dot_with_sys = false;
+  }
+  else {
+    if (forward && !sweepParams.get_onedot() && system.get_complementary_sites()[0] >= dmrginp.last_site()/2-1)
+      dot_with_sys = false;
+    if (forward && sweepParams.get_onedot() && system.get_complementary_sites()[0] >= dmrginp.last_site()/2)
+      dot_with_sys = false;
+    if (!forward && (system.get_sites()[0]-1 <=dmrginp.last_site()/2))
+      dot_with_sys = false;
+  }
 }
 
 

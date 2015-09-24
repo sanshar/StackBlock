@@ -242,9 +242,6 @@ void test(char* infile)
 #endif
   nstates = states.size();
 
-  std::vector<MPS> mpsstates;
-  for (int i=0; i<states.size(); i++)
-    mpsstates.push_back(MPS(states[i]));
 
   std::vector< std::vector<double> > ham(nstates, std::vector<double>(nstates, 0.0));
   std::vector< std::vector<double> > Overlap(nstates, std::vector<double>(nstates, 0.0));
@@ -255,7 +252,7 @@ void test(char* infile)
       printf("starting row : %i\n", i);
     for (int j=0; j<1; j++) {
       double h=0,o=0;
-      calcHamiltonianAndOverlap(mpsstates[i], mpsstates[j], h, o);
+      calcHamiltonianAndOverlap(states[i], states[j], h, o);
       ham[i][j] = h; ham[j][i] = h;
       Overlap[i][j] = o; Overlap[j][i] = o;
       if (mpigetrank() == 0) 
@@ -293,7 +290,7 @@ void test(char* infile)
 
 void evaluateOverlapAndHamiltonian(unsigned long *occ, int length, double* o, double* h) {
   MPS dmrgc(occ, length);
-  calcHamiltonianAndOverlap(SpinAdapted::globalMPS, dmrgc, *h, *o);
+  //calcHamiltonianAndOverlap(SpinAdapted::globalMPS, dmrgc, *h, *o);
 }
 
 

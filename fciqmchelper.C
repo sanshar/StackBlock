@@ -384,7 +384,7 @@ namespace SpinAdapted{
   }
   */
 
-  void calcHamiltonianAndOverlap(const MPS& statea, const MPS& stateb, double& h, double& o, bool sameStates) {
+  void calcHamiltonianAndOverlap(int statea, int stateb, double& h, double& o, bool sameStates) {
 
     StackSpinBlock system, siteblock;
     bool forward = true, restart=false, warmUp = false;
@@ -416,14 +416,20 @@ namespace SpinAdapted{
     */
     int sys_add = true; bool direct = true; 
 
-    for (int i=0; i<MPS::sweepIters-1; i++) {
+    std::vector<int> rotSites(2,0);
+    int sweepIters = dmrginp.spinAdapted() ? dmrginp.last_site() -2 : dmrginp.last_site()/2-2;
+    for (int i=0; i<sweepIters-1; i++) {
+      pout << i<<" out of "<<sweepIters-1<<endl;
       StackSpinBlock newSystem;
       system.addAdditionalOps();
 
       StackSpinBlock dotsite(i+1, i+1, 0, false);
       if (mpigetrank() == 0) {
-	Rotationa = statea.getSiteTensors(i+1);
-	Rotationb = stateb.getSiteTensors(i+1);
+	rotSites[1] = i+1;
+	LoadRotationMatrix(rotSites, Rotationa, statea);
+	LoadRotationMatrix(rotSites, Rotationb, stateb);
+	//Rotationa = statea.getSiteTensors(i+1);
+	//Rotationb = stateb.getSiteTensors(i+1);
       }
 
 #ifndef SERIAL
@@ -445,8 +451,8 @@ namespace SpinAdapted{
     }
 
     StackSpinBlock newSystem, big;
-    StackSpinBlock dotsite1(MPS::sweepIters, MPS::sweepIters, 0, false);
-    StackSpinBlock dotsite2(MPS::sweepIters+1, MPS::sweepIters+1, 0, false);
+    StackSpinBlock dotsite1(sweepIters, sweepIters, 0, false);
+    StackSpinBlock dotsite2(sweepIters+1, sweepIters+1, 0, false);
 
 
     system.addAdditionalOps();
@@ -455,24 +461,36 @@ namespace SpinAdapted{
     newSystem.set_loopblock(false); system.set_loopblock(false);
     InitBlocks::InitBigBlock(newSystem, dotsite2, big); 
     
-    StackWavefunction temp; temp.initialise(statea.getw());
-    temp.Clear();
+    StackWavefunction stateaw, statebw;
+    StateInfo s;
 
-    big.multiplyH(const_cast<StackWavefunction&>(stateb.getw()), &temp, 1);
+    rotSites[1] += 1;
+    stateaw.LoadWavefunctionInfo(s, rotSites, statea, true);
+    statebw.LoadWavefunctionInfo(s, rotSites, stateb, true);
+
+    StackWavefunction temp; temp.initialise(stateaw);
+    temp.Clear();
+    
+
+    big.multiplyH(statebw, &temp, 1);
 
     if (mpigetrank() == 0)
-      h = DotProduct(statea.getw(), temp);
+      h = DotProduct(stateaw, temp);
 
     temp.Clear();
-    big.multiplyOverlap(const_cast<StackWavefunction&>(stateb.getw()), &temp, 1);
+
+    big.multiplyOverlap(statebw, &temp, 1);
     if (mpigetrank() == 0)
-      o = DotProduct(statea.getw(), temp);
+      o = DotProduct(stateaw, temp);
 
 #ifndef SERIAL
       mpi::communicator world;
     mpi::broadcast(calc, h, 0);
     mpi::broadcast(calc, o, 0);
 #endif
+    temp.deallocate();
+    statebw.deallocate();
+    stateaw.deallocate();
 
     return;
   }

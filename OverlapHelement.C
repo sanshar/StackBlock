@@ -19,7 +19,7 @@ int main(int argc, char* argv []) {
   MPI_Comm_size(MPI_COMM_WORLD, &size);
 #endif
   initBoostMPI(argc, argv);
-  ReadInputFromC(argv[1], -1);
+  ReadInputFromC(argv[1], 0);
   double* stackmemory = new double[dmrginp.getMemory()];
   Stackmem.resize(numthrds);
   Stackmem[0].data = stackmemory;
@@ -29,8 +29,8 @@ int main(int argc, char* argv []) {
 
   int mpsstate=0;
   
-  readMPSFromDiskAndInitializeStaticVariables();
-  initializeGlobalMPS(mpsstate);
+  //readMPSFromDiskAndInitializeStaticVariables();
+  //initializeGlobalMPS(mpsstate);
 
   if (rank =0) 
     printf("Reading file %s\n", argv[2]);
