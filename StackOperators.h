@@ -7,6 +7,7 @@
 
 typedef boost::function<void (std::vector<boost::shared_ptr<SpinAdapted::StackSparseMatrix> >)> FUNCTOR;
 typedef boost::function<void (boost::shared_ptr<SpinAdapted::StackSparseMatrix>)> FUNCTOR2;
+typedef boost::function<void (boost::shared_ptr<SpinAdapted::StackSparseMatrix>, int)> FUNCTOR3;
 
 namespace SpinAdapted{
   class StackSpinBlock;
@@ -69,6 +70,7 @@ class StackCreDesComp: public SpinAdapted::StackSparseMatrix
   void buildfromCreDes(StackSpinBlock& block);
   void buildUsingCre(const StackSpinBlock* b);
   double redMatrixElement(Csf c1, vector<Csf>& ladder, const StackSpinBlock* b);
+  void build(StackMatrix &m, int row, int col, const StackSpinBlock& block);
 };
 
 class StackCreCreComp: public SpinAdapted::StackSparseMatrix
@@ -88,6 +90,7 @@ class StackDesDesComp: public SpinAdapted::StackSparseMatrix
   void buildfromDesDes(StackSpinBlock& block);
   //void buildUsingCre(const StackSpinBlock* b);
   double redMatrixElement(Csf c1, vector<Csf>& ladder, const StackSpinBlock* b);
+  void build(StackMatrix &m, int row, int col, const StackSpinBlock& block);
 };
 
 class StackDesCreComp: public SpinAdapted::StackSparseMatrix
@@ -113,6 +116,7 @@ class StackCreCreDesComp: public SpinAdapted::StackSparseMatrix
   StackCreCreDesComp() { conj='n'; fermion = true;}
   void build(const StackSpinBlock& block);
   double redMatrixElement(Csf c1, vector<Csf>& ladder, const StackSpinBlock* b);
+  void build(StackMatrix &m, int row, int col, const StackSpinBlock& block);
 };
 
 

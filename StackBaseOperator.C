@@ -53,6 +53,7 @@ void StackSparseMatrix::build_and_renormalise_transform(StackSpinBlock *big, con
 
   //allocate new data and build the operator
   totalMemory = 0; data=0;
+  colCompressedForm.clear();
   rowCompressedForm.clear();
   allocate(big->get_braStateInfo(), big->get_ketStateInfo());
   build(*big);
@@ -106,6 +107,7 @@ void StackSparseMatrix::build_and_renormalise_transform(StackSpinBlock *big, con
 
   //allocate new data and build the operator
   totalMemory = 0; data=0;
+  colCompressedForm.clear();
   rowCompressedForm.clear();
   allocate(big->get_braStateInfo(), big->get_ketStateInfo());
   build(*big);

@@ -770,6 +770,7 @@ void StackSpinBlock::multiplyH(StackWavefunction& c, StackWavefunction* v, int n
 	allfuncs.push_back(f5);
       }
     unCollectIndex = allfuncs.size();
+
     for (int i=0; i<rightBlock->get_op_array(CRE).get_size(); i++)
       for (int j=0; j<rightBlock->get_op_array(CRE).get_local_element(i).size(); j++) {
 	allops.push_back(rightBlock->get_op_array(CRE).get_local_element(i)[j]);
@@ -793,7 +794,7 @@ void StackSpinBlock::multiplyH(StackWavefunction& c, StackWavefunction* v, int n
 	allfuncs.push_back(f5);
       }
   }
-
+  
   FUNCTOR2 f6 = boost::bind(&stackopxop::cdxcdcomp_3index, otherBlock, _1, this, boost::ref(C), v_array, dmrginp.effective_molecule_quantum() );
   FUNCTOR2 f7 = boost::bind(&stackopxop::ddxcccomp_3index, otherBlock, _1, this, boost::ref(C), v_array, dmrginp.effective_molecule_quantum() );
   //FUNCTOR2 f6 = boost::bind(&stackopxop::cdxcdcomp, otherBlock, _1, this, boost::ref(c), v_array, dmrginp.effective_molecule_quantum() );
@@ -815,7 +816,8 @@ void StackSpinBlock::multiplyH(StackWavefunction& c, StackWavefunction* v, int n
       }
   }
 
-
+  dmrginp.matmultNum = 0;
+  dmrginp.matmultFlops = 0.;
   struct timeval start, end;
   gettimeofday(&start, NULL);
 
@@ -834,7 +836,6 @@ void StackSpinBlock::multiplyH(StackWavefunction& c, StackWavefunction* v, int n
     allfuncs[i](allops[i]);
     
   }
-  
   
 #pragma omp parallel for  schedule(dynamic)
   for (int i = 0; i<numthrds; i++)  {
@@ -861,6 +862,218 @@ void StackSpinBlock::multiplyH(StackWavefunction& c, StackWavefunction* v, int n
   C.deallocate();
 }
 
+
+void StackSpinBlock::multiplyH3index(StackWavefunction& c, StackWavefunction* v, int num_threads) const
+{
+
+  SpinQuantum hq(0,SpinSpace(0),IrrepSpace(0));
+
+  StackSpinBlock* loopBlock=(leftBlock->is_loopblock()) ? leftBlock : rightBlock;
+  StackSpinBlock* otherBlock = loopBlock == leftBlock ? rightBlock : leftBlock;
+
+  StackWavefunction C;
+  C.initialise(c);
+  DCOPY(c.memoryUsed(), c.get_data(), 1, C.get_data(), 1); 
+
+  std::vector<int> collected(numthrds, 0);
+  StackWavefunction* v_array; 
+  initiateMultiThread(v, v_array, numthrds);
+
+
+  //uncollect C[1]
+  if (loopBlock == get_leftBlock()) {
+    C.UnCollectQuantaAlongRows(loopBlock->get_ketStateInfo(), otherBlock->get_ketStateInfo());
+
+    std::vector<boost::shared_ptr<StackSparseMatrix> >  allops;
+    std::vector<boost::shared_ptr<StackSparseMatrix> >  allLeftops;
+    std::vector<FUNCTOR2> allfuncs;
+    std::vector<FUNCTOR3> allLeftfuncs;
+
+    FUNCTOR2 f1 = boost::bind(&stackopxop::hamandoverlap, leftBlock, _1, this, boost::ref(c), v_array, dmrginp.effective_molecule_quantum(), coreEnergy[integralIndex], mpigetsize()-1);
+    if (mpigetsize()-1 == mpigetrank()) {
+      allops.push_back(rightBlock->get_op_array(OVERLAP).get_element(0).at(0)); allfuncs.push_back(f1);//this is just a placeholder function  
+    }
+    FUNCTOR2 f2 = boost::bind(&stackopxop::cxcddcomp, leftBlock, _1, this, boost::ref(c), v_array, dmrginp.effective_molecule_quantum() ); 
+    for (int i=0; i<rightBlock->get_op_array(CRE).get_size(); i++)
+      for (int j=0; j<rightBlock->get_op_array(CRE).get_local_element(i).size(); j++) {
+	allops.push_back(rightBlock->get_op_array(CRE).get_local_element(i)[j]);
+	allfuncs.push_back(f2);
+      }
+
+
+
+    FUNCTOR3 f3 = boost::bind(&stackopxop::OverlaponLeft, _1, _2, this, boost::ref(C), v_array, dmrginp.effective_molecule_quantum());
+    FUNCTOR3 f4 = boost::bind(&stackopxop::CreonLeft, _1, _2, this, boost::ref(C), v_array, dmrginp.effective_molecule_quantum());
+    FUNCTOR3 f5 = boost::bind(&stackopxop::CreDesonLeft, _1, _2, this, boost::ref(C), v_array, dmrginp.effective_molecule_quantum());
+    FUNCTOR3 f6 = boost::bind(&stackopxop::CreCreonLeft, _1, _2, this, boost::ref(C), v_array, dmrginp.effective_molecule_quantum());
+
+    allLeftops.push_back(leftBlock->get_leftBlock()->get_op_array(OVERLAP).get_local_element(0)[0]);
+    allLeftfuncs.push_back(f3);
+    for (int i=0; i<leftBlock->get_leftBlock()->get_op_array(CRE).get_size(); i++) {
+      allLeftops.push_back(leftBlock->get_leftBlock()->get_op_array(CRE).get_local_element(i)[0]);
+      allLeftfuncs.push_back(f4);
+    }
+
+    if (dmrginp.hamiltonian() != HUBBARD) {
+      for (int i=0; i<loopBlock->get_leftBlock()->get_op_array(CRE_DES).get_size(); i++)
+	for (int j=0; j<loopBlock->get_leftBlock()->get_op_array(CRE_DES).get_local_element(i).size(); j++) {
+	  allLeftops.push_back(loopBlock->get_leftBlock()->get_op_array(CRE_DES).get_local_element(i)[j]);
+	  allLeftfuncs.push_back(f5);
+	}
+
+      for (int i=0; i<loopBlock->get_leftBlock()->get_op_array(CRE_CRE).get_size(); i++)
+	for (int j=0; j<loopBlock->get_leftBlock()->get_op_array(CRE_CRE).get_local_element(i).size(); j++) {
+	  allLeftops.push_back(loopBlock->get_leftBlock()->get_op_array(CRE_CRE).get_local_element(i)[j]);
+	  allLeftfuncs.push_back(f6);
+	}
+    }
+
+    const std::vector< std::pair<std::pair<int, int>, StackMatrix> >& nonZeroBlocks = C.get_nonZeroBlocks();
+    //sort according to the size of StackMatrices
+    std::multimap<long, std::pair<int, int> > reorder;
+    for (int i=0; i<nonZeroBlocks.size(); i++)
+      reorder.insert( std::pair<long, std::pair<int, int> >(nonZeroBlocks[i].second.Storage(), nonZeroBlocks[i].first));
+    std::vector<int> reorderedVector(nonZeroBlocks.size(), 0);
+    int index = nonZeroBlocks.size()-1;
+    for (std::multimap<long, std::pair<int, int> >::iterator it = reorder.begin(); it!=reorder.end(); it++) {
+      reorderedVector[index] = it->second.first;
+      index--;
+    }
+
+    dmrginp.matmultNum = 0;
+    dmrginp.matmultFlops = 0.;
+    //finally loop and perform operation
+    struct timeval start, end;
+    gettimeofday(&start, NULL);
+
+    int totalLoops = allops.size() + allLeftops.size()*reorder.size();
+    SplitStackmem();
+#pragma omp parallel for schedule(dynamic)
+    for (int i=0; i<totalLoops; i++) {
+      if (i < allops.size()) {
+	allfuncs[i](allops[i]);
+	continue;
+      }
+      if (i>=allops.size() &&  collected[omprank]==0) {
+	v_array[omprank].UnCollectQuantaAlongRows(loopBlock->get_ketStateInfo(), otherBlock->get_ketStateInfo());
+	collected[omprank] = 1;
+      }
+      
+      int opindex = (i-allops.size())%allLeftops.size(), quantaindex = (i-allops.size())/allLeftops.size();
+      allLeftfuncs[opindex](allLeftops[opindex], reorderedVector[quantaindex]);
+    }
+
+    gettimeofday(&end, NULL);
+  //pout <<"cd/cc "<< *dmrginp.cdtime<<"  "<<*dmrginp.cctime<<"  "<<*dmrginp.guesswf;
+    pout <<"  "<< end.tv_sec-start.tv_sec + 1e-6*(end.tv_usec - start.tv_usec)<<endl;
+
+  }
+  else {
+    C.UnCollectQuantaAlongColumns(otherBlock->get_ketStateInfo(), loopBlock->get_ketStateInfo());
+
+    std::vector<boost::shared_ptr<StackSparseMatrix> >  allops;
+    std::vector<boost::shared_ptr<StackSparseMatrix> >  allLeftops;
+    std::vector<FUNCTOR2> allfuncs;
+    std::vector<FUNCTOR3> allLeftfuncs;
+
+    FUNCTOR2 f1 = boost::bind(&stackopxop::hamandoverlap, leftBlock, _1, this, boost::ref(c), v_array, dmrginp.effective_molecule_quantum(), coreEnergy[integralIndex], mpigetsize()-1);
+    if (mpigetsize()-1 == mpigetrank()) {
+      allops.push_back(rightBlock->get_op_array(OVERLAP).get_element(0).at(0)); allfuncs.push_back(f1);//this is just a placeholder function  
+    }
+    FUNCTOR2 f2 = boost::bind(&stackopxop::cxcddcomp, rightBlock, _1, this, boost::ref(c), v_array, dmrginp.effective_molecule_quantum() ); 
+    for (int i=0; i<leftBlock->get_op_array(CRE).get_size(); i++)
+      for (int j=0; j<leftBlock->get_op_array(CRE).get_local_element(i).size(); j++) {
+	allops.push_back(leftBlock->get_op_array(CRE).get_local_element(i)[j]);
+	allfuncs.push_back(f2);
+      }
+
+
+
+    FUNCTOR3 f3 = boost::bind(&stackopxop::OverlaponRight, _1, _2, this, boost::ref(C), v_array, dmrginp.effective_molecule_quantum());
+    FUNCTOR3 f4 = boost::bind(&stackopxop::CreonRight, _1, _2, this, boost::ref(C), v_array, dmrginp.effective_molecule_quantum());
+    FUNCTOR3 f5 = boost::bind(&stackopxop::CreDesonRight, _1, _2, this, boost::ref(C), v_array, dmrginp.effective_molecule_quantum());
+    FUNCTOR3 f6 = boost::bind(&stackopxop::CreCreonRight, _1, _2, this, boost::ref(C), v_array, dmrginp.effective_molecule_quantum());
+
+    allLeftops.push_back(rightBlock->get_leftBlock()->get_op_array(OVERLAP).get_local_element(0)[0]);
+    allLeftfuncs.push_back(f3);
+    for (int i=0; i<rightBlock->get_leftBlock()->get_op_array(CRE).get_size(); i++) {
+      allLeftops.push_back(rightBlock->get_leftBlock()->get_op_array(CRE).get_local_element(i)[0]);
+      allLeftfuncs.push_back(f4);
+    }
+
+    if (dmrginp.hamiltonian() != HUBBARD) {
+      for (int i=0; i<loopBlock->get_leftBlock()->get_op_array(CRE_DES).get_size(); i++)
+	for (int j=0; j<loopBlock->get_leftBlock()->get_op_array(CRE_DES).get_local_element(i).size(); j++) {
+	  allLeftops.push_back(loopBlock->get_leftBlock()->get_op_array(CRE_DES).get_local_element(i)[j]);
+	  allLeftfuncs.push_back(f5);
+	}
+
+      for (int i=0; i<loopBlock->get_leftBlock()->get_op_array(CRE_CRE).get_size(); i++)
+	for (int j=0; j<loopBlock->get_leftBlock()->get_op_array(CRE_CRE).get_local_element(i).size(); j++) {
+	  allLeftops.push_back(loopBlock->get_leftBlock()->get_op_array(CRE_CRE).get_local_element(i)[j]);
+	  allLeftfuncs.push_back(f6);
+	}
+    }
+
+    const std::vector< std::pair<std::pair<int, int>, StackMatrix> >& nonZeroBlocks = C.get_nonZeroBlocks();
+    //sort according to the size of StackMatrices
+    std::multimap<long, std::pair<int, int> > reorder;
+    for (int i=0; i<nonZeroBlocks.size(); i++)
+      reorder.insert( std::pair<long, std::pair<int, int> >(nonZeroBlocks[i].second.Storage(), nonZeroBlocks[i].first));
+    std::vector<int> reorderedVector(nonZeroBlocks.size(), 0);
+    int index = nonZeroBlocks.size()-1;
+    for (std::multimap<long, std::pair<int, int> >::iterator it = reorder.begin(); it!=reorder.end(); it++) {
+      reorderedVector[index] = it->second.second;
+      index--;
+    }
+
+    dmrginp.matmultNum = 0;
+    dmrginp.matmultFlops = 0.;
+    //finally loop and perform operation
+    struct timeval start, end;
+    gettimeofday(&start, NULL);
+
+    int totalLoops = allops.size() + allLeftops.size()*reorder.size();
+    SplitStackmem();
+#pragma omp parallel for schedule(dynamic)
+    for (int i=0; i<totalLoops; i++) {
+      if (i < allops.size()) {
+	allfuncs[i](allops[i]);
+	continue;
+      }
+      if (i>=allops.size() &&  collected[omprank]==0) {
+	v_array[omprank].UnCollectQuantaAlongColumns(otherBlock->get_ketStateInfo(), loopBlock->get_ketStateInfo());
+	collected[omprank] = 1;
+      }
+      
+      int opindex = (i-allops.size())%allLeftops.size(), quantaindex = (i-allops.size())/allLeftops.size();
+      allLeftfuncs[opindex](allLeftops[opindex], reorderedVector[quantaindex]);
+    }
+
+    gettimeofday(&end, NULL);
+  //pout <<"cd/cc "<< *dmrginp.cdtime<<"  "<<*dmrginp.cctime<<"  "<<*dmrginp.guesswf;
+    pout <<"  "<< end.tv_sec-start.tv_sec + 1e-6*(end.tv_usec - start.tv_usec)<<endl;
+
+  }
+  
+  
+#pragma omp parallel for  schedule(dynamic)
+  for (int i = 0; i<numthrds; i++)  {
+    if (collected[i]==1) {
+      if (loopBlock == get_leftBlock()) v_array[i].CollectQuantaAlongRows(*loopBlock->get_ketStateInfo().unCollectedStateInfo, otherBlock->get_ketStateInfo());
+      else v_array[i].CollectQuantaAlongColumns(otherBlock->get_ketStateInfo(), *loopBlock->get_ketStateInfo().unCollectedStateInfo);
+      collected[i] = 0;
+    }
+  }
+  
+  
+  MergeStackmem();
+  accumulateMultiThread(v, v_array, numthrds);
+  distributedaccumulate(*v);
+  
+  C.deallocate();
+}
+  
 
 
 void StackSpinBlock::diagonalH(DiagonalMatrix& e) const

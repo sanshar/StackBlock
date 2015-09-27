@@ -212,6 +212,7 @@ class StackSpinBlock
   void set_loopblock(bool p_loopblock){loopblock = p_loopblock;}
   friend ostream& operator<< (ostream& os, const StackSpinBlock& b);
   void multiplyH(StackWavefunction& c, StackWavefunction* v, int num_threads) const;
+  void multiplyH3index(StackWavefunction& c, StackWavefunction* v, int num_threads) const;
   void multiplyOverlap(StackWavefunction& c, StackWavefunction* v, int num_threads) const;
   void diagonalH(DiagonalMatrix& e) const;
   void clear();

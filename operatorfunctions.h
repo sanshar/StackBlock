@@ -57,9 +57,36 @@ void TensorProduct (const StackSpinBlock *ablock, const StackSparseMatrix& a, co
 
  void TensorMultiply(const StackSpinBlock *ablock, const StackSparseMatrix& a, const StackSpinBlock *cblock, StackWavefunction& c, StackWavefunction& v, const SpinQuantum dQ, double scale, int num_thrds=1);
 
-void TensorMultiply(const StackSpinBlock *ablock, const StackSparseMatrix& a, const StackSparseMatrix& b, const StackSpinBlock *cblock, StackWavefunction& c, StackWavefunction* v, const SpinQuantum opQ, double scale);
+ void TensorMultiply(const StackSpinBlock *ablock, const StackSparseMatrix& a, const StackSparseMatrix& b, const StackSpinBlock *cblock, StackWavefunction& c, StackWavefunction* v, const SpinQuantum opQ, double scale);
  void TensorMultiplysplitLeft(const StackSparseMatrix& RightO, const StackSparseMatrix& LeftO, const StackSparseMatrix& DotO, const StackSparseMatrix& LEFTOP, const StackSpinBlock *cblock, StackWavefunction& c, StackWavefunction* v, const SpinQuantum opQ, double scale);
  void TensorMultiplysplitRight(const StackSparseMatrix& LeftO, const StackSparseMatrix& RightO, const StackSparseMatrix& DotO, const StackSparseMatrix& RIGHTOP, const StackSpinBlock *cblock, StackWavefunction& c, StackWavefunction* v, const SpinQuantum opQ, double scale);
+ 
+ void multiplyDotRightElement(const StackSparseMatrix& LEFTOP, const StackSparseMatrix& leftOp, const StackSparseMatrix& dotOp, const StackSparseMatrix& rightOp,
+			      const StackMatrix& cMat, const StackMatrix& rightOpmat, StackMatrix& v,  
+			      const SpinQuantum& luncollectedQ, const SpinQuantum& lQ, const SpinQuantum& dotQ, const SpinQuantum& rightQ,
+			      const SpinQuantum& luncollectedQPrime, const SpinQuantum& lQPrime, const SpinQuantum& dotQPrime, const SpinQuantum& rightQPrime,		      
+			      double scale);
+ 
+ void multiplyDotRight(const StackSparseMatrix& LEFTOP, const StackSparseMatrix& leftOp, const StackSparseMatrix& dotop, 
+		       StackSparseMatrix& rightop, std::vector<StackMatrix>& lopCmat, 
+		       StackWavefunction* v,  const StackSpinBlock* cblock, int luncollectedQPrime, int rQPrime, double scale);
+
+
+ void multiplyDotLeftElement(const StackSparseMatrix& RIGHTOP, const StackSparseMatrix& rightOp, const StackSparseMatrix& dotOp, const StackSparseMatrix& leftOp,
+			      const StackMatrix& cMat, const StackMatrix& leftOpmat, StackMatrix& v,  
+			      const SpinQuantum& lQ, const SpinQuantum& runcollectedQ, const SpinQuantum& dotQ, const SpinQuantum& leftQ,
+			      const SpinQuantum& lQPrime, const SpinQuantum& runcollectedQPrime, const SpinQuantum& dotQPrime, const SpinQuantum& leftQPrime,		      
+			      double scale); 
+ void multiplyDotLeft(const StackSparseMatrix& RIGHTOP, const StackSparseMatrix& rightop, const StackSparseMatrix& dotop, 
+		      StackSparseMatrix& leftop, std::vector<StackMatrix>& ropCmat, 
+		      StackWavefunction* v,  const StackSpinBlock* cblock, int lQPrime, int luncollectedQPrime, double scale);
+ 
+
+ void TensorMultiplyLeftLeft(const StackSparseMatrix& a, const StackSpinBlock *cblock, StackWavefunction& c, StackWavefunction& v, const SpinQuantum dQ, double scale);
+ void TensorMultiplyRight(const StackSparseMatrix& rightOp, const StackSparseMatrix& leftOp, const StackSparseMatrix& dotOp, const StackSparseMatrix& LEFTOP, const StackSpinBlock *cblock, StackWavefunction& c, StackWavefunction* v, const SpinQuantum opQ, double scale);
+
+ void TensorMultiplyRightLeft(const StackSparseMatrix& a, const StackSpinBlock *cblock, StackWavefunction& c, StackWavefunction& v, const SpinQuantum dQ, double scale);
+ void TensorMultiplyLeft(const StackSparseMatrix& rightOp, const StackSparseMatrix& leftOp, const StackSparseMatrix& dotOp, const StackSparseMatrix& LEFTOP, const StackSpinBlock *cblock, StackWavefunction& c, StackWavefunction* v, const SpinQuantum opQ, double scale);
     
     
 

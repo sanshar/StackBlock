@@ -21,6 +21,8 @@ namespace stackopxop
  
   void cxcdcomp(const StackSpinBlock* otherblock, std::vector< boost::shared_ptr<StackSparseMatrix> >& op1, const StackSpinBlock* b, int I, StackSparseMatrix* o, double factor);
   void dxcccomp(const StackSpinBlock* otherBlock, std::vector< boost::shared_ptr<StackSparseMatrix> >& op1, const StackSpinBlock* b, int I, StackSparseMatrix* o, double scale);
+  void cxcdcompElement(const StackSpinBlock* otherblock, std::vector< boost::shared_ptr<StackSparseMatrix> >& op1, const StackSpinBlock* b, int I, StackSparseMatrix* o, StackMatrix& m, int row, int col, double factor);
+  void dxcccompElement(const StackSpinBlock* otherBlock, std::vector< boost::shared_ptr<StackSparseMatrix> >& op1, const StackSpinBlock* b, int I, StackSparseMatrix* o, StackMatrix& m, int row, int col, double scale);
 
   void dxcdcomp(const StackSpinBlock* otherBlock, std::vector<boost::shared_ptr<StackSparseMatrix> >& opvec1, const StackSpinBlock* b, int I, StackSparseMatrix* o, double scale);
   void cxddcomp(const StackSpinBlock* otherBlock, std::vector<boost::shared_ptr<StackSparseMatrix> >& opvec1, const StackSpinBlock* b, int K, StackSparseMatrix* o, double scale);
@@ -28,11 +30,23 @@ namespace stackopxop
 
   void hamandoverlap(const StackSpinBlock* otherblock, boost::shared_ptr<StackSparseMatrix> op1, const StackSpinBlock* b, StackWavefunction& c, StackWavefunction* v, const SpinQuantum& q, double scale, int proc);
   void cxcddcomp(const StackSpinBlock* otherblock, boost::shared_ptr<StackSparseMatrix> op1, const StackSpinBlock* b, StackWavefunction& c, StackWavefunction* v, const SpinQuantum& q);
-  void cxcddcomp_3index(const StackSpinBlock* otherblock, boost::shared_ptr<StackSparseMatrix> op1, const StackSpinBlock* b, StackWavefunction& c, StackWavefunction* v, const SpinQuantum& q);
   void cdxcdcomp(const StackSpinBlock* otherblock, boost::shared_ptr<StackSparseMatrix> op1, const StackSpinBlock* b, StackWavefunction& c, StackWavefunction* v, const SpinQuantum& q);
+  void ddxcccomp(const StackSpinBlock* otherblock, boost::shared_ptr<StackSparseMatrix> op1, const StackSpinBlock* b, StackWavefunction& c, StackWavefunction* v, const SpinQuantum& q); 
+
+  void CreonLeft(boost::shared_ptr<StackSparseMatrix> op1, int luncollectedQPrime, const StackSpinBlock* b, StackWavefunction& c, StackWavefunction* v, const SpinQuantum& q);
+  void OverlaponLeft(boost::shared_ptr<StackSparseMatrix> op1, int luncollectedQPrime, const StackSpinBlock* b, StackWavefunction& c, StackWavefunction* v, const SpinQuantum& q);
+  void CreDesonLeft(boost::shared_ptr<StackSparseMatrix> op1, int luncollectedQPrime, const StackSpinBlock* cblock, StackWavefunction& c, StackWavefunction* v, const SpinQuantum& q);
+  void CreCreonLeft(boost::shared_ptr<StackSparseMatrix> op1, int luncollectedQPrime, const StackSpinBlock* cblock, StackWavefunction& c, StackWavefunction* v, const SpinQuantum& q);
+
+  void CreDesonRight(boost::shared_ptr<StackSparseMatrix> op1, int luncollectedQPrime, const StackSpinBlock* cblock, StackWavefunction& c, StackWavefunction* v, const SpinQuantum& q);
+  void CreCreonRight(boost::shared_ptr<StackSparseMatrix> op1, int luncollectedQPrime, const StackSpinBlock* cblock, StackWavefunction& c, StackWavefunction* v, const SpinQuantum& q);
+  void CreonRight(boost::shared_ptr<StackSparseMatrix> op1, int luncollectedQPrime, const StackSpinBlock* b, StackWavefunction& c, StackWavefunction* v, const SpinQuantum& q);
+  void OverlaponRight(boost::shared_ptr<StackSparseMatrix> op1, int luncollectedQPrime, const StackSpinBlock* b, StackWavefunction& c, StackWavefunction* v, const SpinQuantum& q);
+
+
+  void cxcddcomp_3index(const StackSpinBlock* otherblock, boost::shared_ptr<StackSparseMatrix> op1, const StackSpinBlock* b, StackWavefunction& c, StackWavefunction* v, const SpinQuantum& q);
   void cdxcdcomp_3index(const StackSpinBlock* otherblock, boost::shared_ptr<StackSparseMatrix> op1, const StackSpinBlock* b, StackWavefunction& c, StackWavefunction* v, const SpinQuantum& q);
   void ddxcccomp_3index(const StackSpinBlock* otherblock, boost::shared_ptr<StackSparseMatrix> op1, const StackSpinBlock* b, StackWavefunction& c, StackWavefunction* v, const SpinQuantum& q); 
-  void ddxcccomp(const StackSpinBlock* otherblock, boost::shared_ptr<StackSparseMatrix> op1, const StackSpinBlock* b, StackWavefunction& c, StackWavefunction* v, const SpinQuantum& q); 
 
   
   //these are only used when left and right states are different

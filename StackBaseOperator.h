@@ -116,13 +116,14 @@ class StackSparseMatrix : public Baseoperator<StackMatrix>  // the sparse matrix
     {};
 
  StackSparseMatrix(double* pData, long pTotalMemory) : totalMemory(pTotalMemory), data(pData), fermion(false), orbs(2), initialised(false), built(false), built_on_disk(false), Sign(1), conj('n'){};
-  long memoryUsed() {return totalMemory;}
+  virtual long memoryUsed() const {return totalMemory;}
   void allocate (const StateInfo& s);
   void allocate (const StateInfo& sl, const StateInfo& sr);
   void allocate (const StateInfo& s, double* pData);
   double* allocate(const StateInfo& rowSI, const StateInfo& colSI, double* pData);
   void deallocate() ;
   double* allocateOperatorMatrix();
+  virtual void build(StackMatrix &m, int row, int col, const StackSpinBlock& block) {};
   virtual void build(const StackSpinBlock& block) {};
   double* get_data() {return data;}
   const double* get_data() const {return data;}
@@ -312,6 +313,7 @@ public:
     }
     return q;
   }
+  virtual long memoryUsed() const {return opdata->memoryUsed();}
   const std::vector<int>& getActiveRows(int i) const {return opdata->getActiveCols(i);}
   const std::vector<int>& getActiveCols(int i) const {return opdata->getActiveRows(i);}
   std::vector<int>& getActiveRows(int i)  {return opdata->getActiveCols(i);}
@@ -321,6 +323,7 @@ public:
   int nrows() const { return opdata->ncols(); }
   int ncols() const { return opdata->nrows(); }
 
+  virtual void build(StackMatrix &m, int row, int col, const StackSpinBlock& block) {opdata->build(m, col, row, block);}
   const char &allowed(int i, int j) const { return opdata->allowed(j, i); }
   char &allowed(int i, int j) { return opdata->allowed(j, i); }
   const StackMatrix& operator_element(int i, int j) const { return opdata->operator_element(j, i); }
