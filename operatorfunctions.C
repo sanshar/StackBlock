@@ -30,6 +30,15 @@ Sandeep Sharma and Garnet K.-L. Chan
 #include "pario.h"
 
 
+bool allowed(const std::vector<SpinQuantum>& dvec, const SpinQuantum& braQ, const SpinQuantum& ketQ) {
+  for (int k =0; k<dvec.size(); k++) {
+    if (braQ.allow(dvec[k], ketQ)) {
+      return true;
+    }
+  }
+  return false;
+}
+
   //TENSOR TRACE A x I  ->  C
 void SpinAdapted::operatorfunctions::TensorTraceElement(const StackSpinBlock *ablock, const StackSparseMatrix& a, const StackSpinBlock *cblock, const StateInfo *cstateinfo, StackSparseMatrix& c, StackMatrix& cel, int cq, int cqprime, double scale)
 {
@@ -965,15 +974,14 @@ void SpinAdapted::operatorfunctions::TensorMultiplysplitLeft(const StackSparseMa
       int rQ = rowinds2[rrop];
 
       StackMatrix m(dataArray[omprank], unCollectedlketS->getquantastates(luncollectedQPrime), rbraS->getquantastates(rQ));
-      MatrixMultiply (c.operator_element(luncollectedQPrime, rQPrime), 'n', rightOp.operator_element(rQ, rQPrime), TransposeOf(rightOp.conjugacy()), 
-		      m, 1.0, 0.);	      
-
+      ::Clear(m);
       
       const std::vector<int>& rowinds = v[OMPRANK].getActiveRows(rQ);
       for (int l = 0; l < rowinds.size(); l++) {
 	int luncollectedQ = rowinds[l];
 	int lQ = unCollectedlbraS->leftUnMapQuanta[luncollectedQ], dotQ = unCollectedlbraS->rightUnMapQuanta[luncollectedQ];
-	if (dotOp.allowed(dotQ, dotQPrime, LEFTOP.conjugacy()) && leftOp.allowed(lQ, lQPrime, LEFTOP.conjugacy())) {
+	if (dotOp.allowed(dotQ, dotQPrime, LEFTOP.conjugacy()) && leftOp.allowed(lQ, lQPrime, LEFTOP.conjugacy()) &&
+	    allowed(LEFTOP.get_deltaQuantum(), unCollectedlbraS->quanta[luncollectedQ], unCollectedlketS->quanta[luncollectedQPrime])) {
 
 
 	  
@@ -1016,7 +1024,20 @@ void SpinAdapted::operatorfunctions::TensorMultiplysplitLeft(const StackSparseMa
 	  factor *=  rightOp.get_scaling(rbraS->quanta[rQ], rketS->quanta[rQPrime]);
 	  if (fabs(factor*parity*scaleB) < TINY) continue; 
 
-	  MatrixMultiply (leftOp.operator_element(lQ, lQPrime, LEFTOP.conjugacy()), leftOp.conjugacy()=='n' ? LEFTOP.conjugacy() : TransposeOf(LEFTOP.conjugacy()), m, 'n',  v[OMPRANK].operator_element(luncollectedQ, rQ), factor*parity*scaleB);
+	  if (MatrixDotProduct(m,m) < TINY) {
+	    if (rightOp.opName() == "OVERLAP")
+	      copy(c.operator_element(luncollectedQPrime, rQPrime), m);
+	    else
+	      MatrixMultiply (c.operator_element(luncollectedQPrime, rQPrime), 'n', rightOp.operator_element(rQ, rQPrime), 
+			      TransposeOf(rightOp.conjugacy()), m, 1.0, 0.);
+	  }
+
+	  if (leftOp.opName() == "OVERLAP")
+	    MatrixScaleAdd(factor*parity*scaleB, m, v[OMPRANK].operator_element(luncollectedQ, rQ));
+	  else
+	    MatrixMultiply (leftOp.operator_element(lQ, lQPrime, LEFTOP.conjugacy()), 
+			    leftOp.conjugacy()=='n' ? LEFTOP.conjugacy() : TransposeOf(LEFTOP.conjugacy()), 
+			    m, 'n',  v[OMPRANK].operator_element(luncollectedQ, rQ), factor*parity*scaleB);
 	  
 	}
       }
@@ -1032,6 +1053,369 @@ void SpinAdapted::operatorfunctions::TensorMultiplysplitLeft(const StackSparseMa
 
 }
 
+void SpinAdapted::operatorfunctions::TensorMultiplysplitLeftsplitRight(const StackSparseMatrix& LEFTOP, const StackSparseMatrix& RIGHTOP, 
+								       const StackSparseMatrix& leftOp, const StackSparseMatrix& ldotOp, 
+								       const StackSparseMatrix& rightOp, const StackSparseMatrix& rdotOp, 
+								       const StackSpinBlock *cblock, StackWavefunction& c, StackWavefunction* v, 
+								       double factor)
+{
+  long starttime = globaltimer.totalwalltime();
+
+  const boost::shared_ptr<StateInfo> unCollectedlbraS = cblock->get_braStateInfo().leftStateInfo->unCollectedStateInfo;
+  const boost::shared_ptr<StateInfo> unCollectedlketS = cblock->get_ketStateInfo().leftStateInfo->unCollectedStateInfo;
+  const boost::shared_ptr<StateInfo> unCollectedrbraS = cblock->get_braStateInfo().rightStateInfo->unCollectedStateInfo;
+  const boost::shared_ptr<StateInfo> unCollectedrketS = cblock->get_ketStateInfo().rightStateInfo->unCollectedStateInfo;
+  const StateInfo* lbraS = cblock->get_leftBlock()->get_braStateInfo().leftStateInfo; 
+  const StateInfo* lketS = cblock->get_leftBlock()->get_ketStateInfo().leftStateInfo;
+  const StateInfo* ldotbraS = cblock->get_leftBlock()->get_braStateInfo().rightStateInfo;
+  const StateInfo* ldotketS = cblock->get_leftBlock()->get_ketStateInfo().rightStateInfo;
+  const StateInfo* rbraS = cblock->get_rightBlock()->get_braStateInfo().leftStateInfo; 
+  const StateInfo* rketS = cblock->get_rightBlock()->get_ketStateInfo().leftStateInfo;
+  const StateInfo* rdotbraS = cblock->get_rightBlock()->get_braStateInfo().rightStateInfo;
+  const StateInfo* rdotketS = cblock->get_rightBlock()->get_ketStateInfo().rightStateInfo;
+
+  const int leftBraOpSz = cblock->get_leftBlock()->get_leftBlock()->get_braStateInfo().quanta.size ();
+  const int leftKetOpSz = cblock->get_leftBlock()->get_leftBlock()->get_ketStateInfo().quanta.size ();
+  const int dotBraOpSz = cblock->get_leftBlock()->get_rightBlock()->get_braStateInfo().quanta.size ();
+  const int dotKetOpSz = cblock->get_leftBlock()->get_rightBlock()->get_ketStateInfo().quanta.size ();
+
+  const std::vector< std::pair<std::pair<int, int>, StackMatrix> >& nonZeroBlocks2 = c.get_nonZeroBlocks();
+  int OMPRANK = omprank;
+
+  int first = 0, second = 0;
+
+  for (int cc=0; cc<nonZeroBlocks2.size(); cc++) {
+    int luncollectedQPrime = nonZeroBlocks2[cc].first.first;
+    int runcollectedQPrime = nonZeroBlocks2[cc].first.second;
+
+    int lQPrime = unCollectedlketS->leftUnMapQuanta[luncollectedQPrime], ldotQPrime = unCollectedlketS->rightUnMapQuanta[luncollectedQPrime];
+    int rQPrime = unCollectedrketS->leftUnMapQuanta[runcollectedQPrime], rdotQPrime = unCollectedrketS->rightUnMapQuanta[runcollectedQPrime];
+
+    std::vector<int> rowinds;
+    if (RIGHTOP.conjugacy() == 'n')
+      rowinds = rightOp.getActiveRows(rQPrime);
+    else
+      rowinds = rightOp.getActiveCols(rQPrime);
+
+    for (int r = 0; r < rowinds.size(); r++) {
+      int rQ = rowinds[r];
+
+      double* data = Stackmem[omprank].allocate(unCollectedlketS->getquantastates(luncollectedQPrime)* rbraS->getquantastates(rQ));
+      StackMatrix blocks;
+      blocks.allocate(data, unCollectedlketS->getquantastates(luncollectedQPrime), rbraS->getquantastates(rQ) );
+
+      
+      //L(l,l') c(l', dl', r, dr')     
+      for (int lQ=0; lQ<leftBraOpSz; lQ++) 
+      if (leftOp.allowed(lQ, lQPrime, LEFTOP.conjugacy()))  {
+	double scale = factor;
+
+	for (int ldotQ=0; ldotQ<dotBraOpSz; ldotQ++) 
+	  if (ldotOp.allowed(ldotQ, ldotQPrime, LEFTOP.conjugacy())) {
+	    std::vector<int>& luncollectedQvec = unCollectedlbraS->quantaMap(lQ, ldotQ);
+	
+	    for (int luncollectedQindex=0; luncollectedQindex<luncollectedQvec.size(); luncollectedQindex++) {
+	      int luncollectedQ = luncollectedQvec[luncollectedQindex]; 
+	      
+	      //v(l, dl,  r, dr)
+	      for (int runcollectedQ =0; runcollectedQ<unCollectedrbraS->quanta.size(); runcollectedQ++) { 
+		if (v[omprank].allowed(luncollectedQ, runcollectedQ) && 
+		    allowed(LEFTOP.get_deltaQuantum(), unCollectedlbraS->quanta[luncollectedQ], unCollectedlketS->quanta[luncollectedQPrime]) &&
+		    rQ == unCollectedrbraS->leftUnMapQuanta[runcollectedQ]) {
+		  int rdotQ = unCollectedrbraS->rightUnMapQuanta[runcollectedQ];
+		  
+		  if (rdotOp.allowed(rdotQ, rdotQPrime, RIGHTOP.conjugacy()) && rightOp.allowed(rQ, rQPrime, RIGHTOP.conjugacy()) && 
+		      allowed(RIGHTOP.get_deltaQuantum(), unCollectedrbraS->quanta[runcollectedQ], unCollectedrketS->quanta[runcollectedQPrime])) {
+		    
+		    double scale2 = getScaling(LEFTOP,  leftOp,   ldotOp, 
+					       RIGHTOP, rightOp, rdotOp, 
+					       unCollectedlbraS->quanta[luncollectedQ],      lbraS->quanta[lQ],      ldotbraS->quanta[ldotQ],
+					       unCollectedlketS->quanta[luncollectedQPrime], lketS->quanta[lQPrime], ldotketS->quanta[ldotQPrime],
+					       unCollectedrbraS->quanta[runcollectedQ],      rbraS->quanta[rQ],      rdotbraS->quanta[rdotQ],
+					       unCollectedrketS->quanta[runcollectedQPrime], rketS->quanta[rQPrime], rdotketS->quanta[rdotQPrime]);
+		    scale2 *= ldotOp.operator_element(ldotQ, ldotQPrime, LEFTOP.conjugacy())(1,1);
+		    scale2 *= rdotOp.operator_element(rdotQ, rdotQPrime, RIGHTOP.conjugacy())(1,1);
+
+		    if (fabs(scale*scale2) > TINY) {
+		      //R(r, r') c(l',dl', r', dr') ->  b(', dl', r, dr')
+		      if (rightOp.opName() == "OVERLAP") 
+			copy(c.operator_element(luncollectedQPrime, runcollectedQPrime), blocks);
+		      else
+			MatrixMultiply (c.operator_element(luncollectedQPrime, runcollectedQPrime), 'n', rightOp.operator_element(rQ, rQPrime, RIGHTOP.conjugacy()), rightOp.conjugacy() == 'n' ? TransposeOf(RIGHTOP.conjugacy()) : RIGHTOP.conjugacy(), blocks, 1.0, 0.);	      
+		      if (leftOp.opName() == "OVERLAP")
+			MatrixScaleAdd(scale*scale2, blocks, v[omprank].operator_element(luncollectedQ, runcollectedQ));
+		      else
+			MatrixMultiply (leftOp.operator_element(lQ, lQPrime, LEFTOP.conjugacy()), leftOp.conjugacy() == 'n' ? LEFTOP.conjugacy() : TransposeOf(LEFTOP.conjugacy()), 
+					blocks, 'n', v[omprank].operator_element(luncollectedQ, runcollectedQ), scale*scale2);	      
+		      second++;
+		    
+		    }
+		  }
+		}
+	      }
+	      
+	      
+	    }
+	  }
+      }
+      
+      Stackmem[omprank].deallocate(blocks.Store(), blocks.Storage());
+    }
+  }
+  //pout << first<<"  "<<second<<endl;
+}
+
+/*
+void SpinAdapted::operatorfunctions::TensorMultiplysplitLeftsplitRight(const StackSparseMatrix& LEFTOP, const StackSparseMatrix& RIGHTOP, 
+								       const StackSparseMatrix& leftOp, const StackSparseMatrix& ldotOp, 
+								       const StackSparseMatrix& rightOp, const StackSparseMatrix& rdotOp, 
+								       const StackSpinBlock *cblock, StackWavefunction& c, StackWavefunction* v, 
+								       double factor)
+{
+  long starttime = globaltimer.totalwalltime();
+
+  const boost::shared_ptr<StateInfo> unCollectedlbraS = cblock->get_braStateInfo().leftStateInfo->unCollectedStateInfo;
+  const boost::shared_ptr<StateInfo> unCollectedlketS = cblock->get_ketStateInfo().leftStateInfo->unCollectedStateInfo;
+  const boost::shared_ptr<StateInfo> unCollectedrbraS = cblock->get_braStateInfo().rightStateInfo->unCollectedStateInfo;
+  const boost::shared_ptr<StateInfo> unCollectedrketS = cblock->get_ketStateInfo().rightStateInfo->unCollectedStateInfo;
+  const StateInfo* lbraS = cblock->get_leftBlock()->get_braStateInfo().leftStateInfo; 
+  const StateInfo* lketS = cblock->get_leftBlock()->get_ketStateInfo().leftStateInfo;
+  const StateInfo* ldotbraS = cblock->get_leftBlock()->get_braStateInfo().rightStateInfo;
+  const StateInfo* ldotketS = cblock->get_leftBlock()->get_ketStateInfo().rightStateInfo;
+  const StateInfo* rbraS = cblock->get_rightBlock()->get_braStateInfo().leftStateInfo; 
+  const StateInfo* rketS = cblock->get_rightBlock()->get_ketStateInfo().leftStateInfo;
+  const StateInfo* rdotbraS = cblock->get_rightBlock()->get_braStateInfo().rightStateInfo;
+  const StateInfo* rdotketS = cblock->get_rightBlock()->get_ketStateInfo().rightStateInfo;
+
+  const int leftBraOpSz = cblock->get_leftBlock()->get_leftBlock()->get_braStateInfo().quanta.size ();
+  const int leftKetOpSz = cblock->get_leftBlock()->get_leftBlock()->get_ketStateInfo().quanta.size ();
+  const int dotBraOpSz = cblock->get_leftBlock()->get_rightBlock()->get_braStateInfo().quanta.size ();
+  const int dotKetOpSz = cblock->get_leftBlock()->get_rightBlock()->get_ketStateInfo().quanta.size ();
+
+  const std::vector< std::pair<std::pair<int, int>, StackMatrix> >& nonZeroBlocks2 = c.get_nonZeroBlocks();
+  int OMPRANK = omprank;
+
+  int first = 0, second = 0;
+
+  for (int cc=0; cc<nonZeroBlocks2.size(); cc++) {
+    int luncollectedQPrime = nonZeroBlocks2[cc].first.first;
+    int runcollectedQPrime = nonZeroBlocks2[cc].first.second;
+
+    int lQPrime = unCollectedlketS->leftUnMapQuanta[luncollectedQPrime], ldotQPrime = unCollectedlketS->rightUnMapQuanta[luncollectedQPrime];
+    int rQPrime = unCollectedrketS->leftUnMapQuanta[runcollectedQPrime], rdotQPrime = unCollectedrketS->rightUnMapQuanta[runcollectedQPrime];
+
+    std::vector<int> rowinds;
+    if (RIGHTOP.conjugacy() == 'n')
+      rowinds = rightOp.getActiveRows(rQPrime);
+    else
+      rowinds = rightOp.getActiveCols(rQPrime);
+
+    for (int r = 0; r < rowinds.size(); r++) {
+      int rQ = rowinds[r];
+
+      double* data = Stackmem[omprank].allocate(unCollectedlketS->getquantastates(luncollectedQPrime)* rbraS->getquantastates(rQ));
+      StackMatrix blocks;
+      blocks.allocate(data, unCollectedlketS->getquantastates(luncollectedQPrime), rbraS->getquantastates(rQ) );
+
+      
+      //L(l,l') c(l', dl', r, dr')     
+      for (int lQ=0; lQ<leftBraOpSz; lQ++) 
+      if (leftOp.allowed(lQ, lQPrime, LEFTOP.conjugacy()))  {
+	double scale = factor;
+
+	for (int ldotQ=0; ldotQ<dotBraOpSz; ldotQ++) 
+	  if (ldotOp.allowed(ldotQ, ldotQPrime, LEFTOP.conjugacy())) {
+	    std::vector<int>& luncollectedQvec = unCollectedlbraS->quantaMap(lQ, ldotQ);
+	
+	    for (int luncollectedQindex=0; luncollectedQindex<luncollectedQvec.size(); luncollectedQindex++) {
+	      int luncollectedQ = luncollectedQvec[luncollectedQindex]; 
+	      if (allowed(LEFTOP.get_deltaQuantum(), unCollectedlbraS->quanta[luncollectedQ], unCollectedlketS->quanta[luncollectedQPrime])) {
+	      
+		//v(l, dl,  r, dr)
+		for (int runcollectedQ =0; runcollectedQ<unCollectedrbraS->quanta.size(); runcollectedQ++) { 
+		  if (v[omprank].allowed(luncollectedQ, runcollectedQ) && 
+		      rQ == unCollectedrbraS->leftUnMapQuanta[runcollectedQ]) {
+
+		    int rdotQ = unCollectedrbraS->rightUnMapQuanta[runcollectedQ];
+		  
+		    if (rdotOp.allowed(rdotQ, rdotQPrime, RIGHTOP.conjugacy()) && rightOp.allowed(rQ, rQPrime, RIGHTOP.conjugacy()) && 
+			allowed(RIGHTOP.get_deltaQuantum(), unCollectedrbraS->quanta[runcollectedQ], unCollectedrketS->quanta[runcollectedQPrime])) {
+		    
+		      double scale2 = getScaling(LEFTOP,  leftOp,   ldotOp, 
+						 RIGHTOP, rightOp, rdotOp, 
+						 unCollectedlbraS->quanta[luncollectedQ],      lbraS->quanta[lQ],      ldotbraS->quanta[ldotQ],
+						 unCollectedlketS->quanta[luncollectedQPrime], lketS->quanta[lQPrime], ldotketS->quanta[ldotQPrime],
+						 unCollectedrbraS->quanta[runcollectedQ],      rbraS->quanta[rQ],      rdotbraS->quanta[rdotQ],
+						 unCollectedrketS->quanta[runcollectedQPrime], rketS->quanta[rQPrime], rdotketS->quanta[rdotQPrime]);
+		      scale2 *= ldotOp.operator_element(ldotQ, ldotQPrime, LEFTOP.conjugacy())(1,1);
+		      scale2 *= rdotOp.operator_element(rdotQ, rdotQPrime, RIGHTOP.conjugacy())(1,1);
+		      
+		      if (fabs(scale*scale2) > TINY) {
+			//R(r, r') c(l',dl', r', dr') ->  b(', dl', r, dr')
+			if (rightOp.opName() == "OVERLAP") 
+			  copy(c.operator_element(luncollectedQPrime, runcollectedQPrime), blocks);
+			else
+			  MatrixMultiply (c.operator_element(luncollectedQPrime, runcollectedQPrime), 'n', rightOp.operator_element(rQ, rQPrime, RIGHTOP.conjugacy()), rightOp.conjugacy() == 'n' ? TransposeOf(RIGHTOP.conjugacy()) : RIGHTOP.conjugacy(), blocks, 1.0, 0.);	      
+			if (leftOp.opName() == "OVERLAP")
+			  MatrixScaleAdd(scale*scale2, blocks, v[omprank].operator_element(luncollectedQ, runcollectedQ));
+			else
+			  MatrixMultiply (leftOp.operator_element(lQ, lQPrime, LEFTOP.conjugacy()), leftOp.conjugacy() == 'n' ? LEFTOP.conjugacy() : TransposeOf(LEFTOP.conjugacy()), 
+					  blocks, 'n', v[omprank].operator_element(luncollectedQ, runcollectedQ), scale*scale2);	      
+			second++;
+			
+		      }
+		    }
+		  }
+		}
+	      }
+	      
+	    }	    
+	  }
+      }
+      
+      Stackmem[omprank].deallocate(blocks.Store(), blocks.Storage());
+    }
+  }
+  //pout << first<<"  "<<second<<endl;
+}
+*/
+
+void SpinAdapted::operatorfunctions::TensorMultiplysplitLeftsplitRight00(const StackSparseMatrix& LEFTOP, const StackSparseMatrix& RIGHTOP, 
+									 const StackSparseMatrix& leftOp, const StackSparseMatrix& ldotOp, 
+									 const StackSparseMatrix& rightOp, const StackSparseMatrix& rdotOp, 
+									 const StackSpinBlock *cblock, StackWavefunction& c, StackWavefunction* v, 
+									 double factor)
+{
+  long starttime = globaltimer.totalwalltime();
+
+  const boost::shared_ptr<StateInfo> unCollectedlbraS = cblock->get_braStateInfo().leftStateInfo->unCollectedStateInfo;
+  const boost::shared_ptr<StateInfo> unCollectedlketS = cblock->get_ketStateInfo().leftStateInfo->unCollectedStateInfo;
+  const boost::shared_ptr<StateInfo> unCollectedrbraS = cblock->get_braStateInfo().rightStateInfo->unCollectedStateInfo;
+  const boost::shared_ptr<StateInfo> unCollectedrketS = cblock->get_ketStateInfo().rightStateInfo->unCollectedStateInfo;
+  const StateInfo* lbraS = cblock->get_leftBlock()->get_braStateInfo().leftStateInfo; 
+  const StateInfo* lketS = cblock->get_leftBlock()->get_ketStateInfo().leftStateInfo;
+  const StateInfo* ldotbraS = cblock->get_leftBlock()->get_braStateInfo().rightStateInfo;
+  const StateInfo* ldotketS = cblock->get_leftBlock()->get_ketStateInfo().rightStateInfo;
+  const StateInfo* rbraS = cblock->get_rightBlock()->get_braStateInfo().leftStateInfo; 
+  const StateInfo* rketS = cblock->get_rightBlock()->get_ketStateInfo().leftStateInfo;
+  const StateInfo* rdotbraS = cblock->get_rightBlock()->get_braStateInfo().rightStateInfo;
+  const StateInfo* rdotketS = cblock->get_rightBlock()->get_ketStateInfo().rightStateInfo;
+
+  const int leftBraOpSz = cblock->get_leftBlock()->get_leftBlock()->get_braStateInfo().quanta.size ();
+  const int leftKetOpSz = cblock->get_leftBlock()->get_leftBlock()->get_ketStateInfo().quanta.size ();
+  const int dotBraOpSz = cblock->get_leftBlock()->get_rightBlock()->get_braStateInfo().quanta.size ();
+  const int dotKetOpSz = cblock->get_leftBlock()->get_rightBlock()->get_ketStateInfo().quanta.size ();
+
+  const std::vector< std::pair<std::pair<int, int>, StackMatrix> >& nonZeroBlocks2 = c.get_nonZeroBlocks();
+  int OMPRANK = omprank;
+
+  int first = 0, second = 0;
+
+  for (int cc=0; cc<nonZeroBlocks2.size(); cc++) {
+    int luncollectedQPrime = nonZeroBlocks2[cc].first.first;
+    int runcollectedQPrime = nonZeroBlocks2[cc].first.second;
+
+    int lQPrime = unCollectedlketS->leftUnMapQuanta[luncollectedQPrime], ldotQPrime = unCollectedlketS->rightUnMapQuanta[luncollectedQPrime];
+    int rQPrime = unCollectedrketS->leftUnMapQuanta[runcollectedQPrime], rdotQPrime = unCollectedrketS->rightUnMapQuanta[runcollectedQPrime];
+
+    int lQ = lQPrime, rQ= rQPrime, ldotQ = ldotQPrime, luncollectedQ=luncollectedQPrime, runcollectedQ= runcollectedQPrime;
+    int rdotQ = rdotQPrime;
+
+    double* data = Stackmem[omprank].allocate(unCollectedlketS->getquantastates(luncollectedQPrime)* rbraS->getquantastates(rQ));
+    StackMatrix blocks;
+    blocks.allocate(data, unCollectedlketS->getquantastates(luncollectedQPrime), rbraS->getquantastates(rQ) );
+		    
+    double scale2 = getScaling(LEFTOP,  leftOp,   ldotOp, 
+			       RIGHTOP, rightOp, rdotOp, 
+			       unCollectedlbraS->quanta[luncollectedQ],      lbraS->quanta[lQ],      ldotbraS->quanta[ldotQ],
+			       unCollectedlketS->quanta[luncollectedQPrime], lketS->quanta[lQPrime], ldotketS->quanta[ldotQPrime],
+			       unCollectedrbraS->quanta[runcollectedQ],      rbraS->quanta[rQ],      rdotbraS->quanta[rdotQ],
+			       unCollectedrketS->quanta[runcollectedQPrime], rketS->quanta[rQPrime], rdotketS->quanta[rdotQPrime]);
+    scale2 *= ldotOp.operator_element(ldotQ, ldotQPrime, LEFTOP.conjugacy())(1,1);
+    scale2 *= rdotOp.operator_element(rdotQ, rdotQPrime, RIGHTOP.conjugacy())(1,1);
+    double scale = factor;
+    if (fabs(scale*scale2) > TINY) {
+      //R(r, r') c(l',dl', r', dr') ->  b(', dl', r, dr')
+      if (rightOp.opName() == "OVERLAP") 
+	copy(c.operator_element(luncollectedQPrime, runcollectedQPrime), blocks);
+      else
+	MatrixMultiply (c.operator_element(luncollectedQPrime, runcollectedQPrime), 'n', rightOp.operator_element(rQ, rQPrime, RIGHTOP.conjugacy()), rightOp.conjugacy() == 'n' ? TransposeOf(RIGHTOP.conjugacy()) : RIGHTOP.conjugacy(), blocks, 1.0, 0.);	      
+      if (leftOp.opName() == "OVERLAP")
+	MatrixScaleAdd(scale*scale2, blocks, v[omprank].operator_element(luncollectedQ, runcollectedQ));
+      else
+	MatrixMultiply (leftOp.operator_element(lQ, lQPrime, LEFTOP.conjugacy()), leftOp.conjugacy() == 'n' ? LEFTOP.conjugacy() : TransposeOf(LEFTOP.conjugacy()), 
+			blocks, 'n', v[omprank].operator_element(luncollectedQ, runcollectedQ), scale*scale2);	      
+      second++;
+      
+    }
+    Stackmem[omprank].deallocate(blocks.Store(), blocks.Storage());
+  }
+}
+
+
+
+
+double SpinAdapted::operatorfunctions::getScaling(const StackSparseMatrix& LEFTOP, const StackSparseMatrix& leftOp, const StackSparseMatrix& ldotOp, 
+						  const StackSparseMatrix& RIGHTOP, const StackSparseMatrix& rightOp, const StackSparseMatrix& rdotOp, 
+						  const SpinQuantum& luncollectedQ, const SpinQuantum& lQ, const SpinQuantum& ldotQ,
+						  const SpinQuantum& luncollectedQPrime, const SpinQuantum& lQPrime, const SpinQuantum& ldotQPrime,
+						  const SpinQuantum& runcollectedQ, const SpinQuantum& rQ, const SpinQuantum& rdotQ,
+						  const SpinQuantum& runcollectedQPrime, const SpinQuantum& rQPrime, const SpinQuantum& rdotQPrime)
+
+{
+  double factor = RIGHTOP.get_scaling(runcollectedQ, runcollectedQPrime);	      
+  factor *= LEFTOP.get_scaling(luncollectedQ, luncollectedQPrime);
+
+  factor *= dmrginp.get_ninej()(luncollectedQPrime.get_s().getirrep(), runcollectedQPrime.get_s().getirrep() , 0,  
+				LEFTOP.get_spin().getirrep(), RIGHTOP.get_spin().getirrep(), 0,
+				luncollectedQ.get_s().getirrep(), runcollectedQ.get_s().getirrep() , 0);
+	  
+  double scaleBr = 1.0;
+  
+  if (RIGHTOP.conjugacy() == 'n') {
+    scaleBr = dmrginp.get_ninej()(rQPrime.get_s().getirrep() , rdotQPrime.get_s().getirrep(), runcollectedQPrime.get_s().getirrep(), 
+				 rightOp.get_spin().getirrep(), rdotOp.get_spin().getirrep(), RIGHTOP.get_spin().getirrep(),
+				 rQ.get_s().getirrep() , rdotQ.get_s().getirrep(), runcollectedQ.get_s().getirrep());
+
+    scaleBr *= rightOp.get_scaling(rQ, rQPrime);
+    scaleBr *= rdotOp.get_scaling(rdotQ, rdotQPrime);
+    if (rdotOp.get_fermion() && IsFermion(rQPrime)) scaleBr *= -1;
+  }
+  else {
+    scaleBr = dmrginp.get_ninej()(rQ.get_s().getirrep() , rdotQ.get_s().getirrep(), runcollectedQ.get_s().getirrep(), 
+				 rightOp.get_spin().getirrep(), rdotOp.get_spin().getirrep(), RIGHTOP.get_spin().getirrep(),
+				 rQPrime.get_s().getirrep() , rdotQPrime.get_s().getirrep(), runcollectedQPrime.get_s().getirrep());
+    scaleBr *= rightOp.get_scaling(rQPrime, rQ);
+    scaleBr *= rdotOp.get_scaling(rdotQPrime, rdotQ);
+    if (rdotOp.get_fermion() && IsFermion(rQ)) scaleBr *= -1;
+  }
+
+  double scaleBl = 1.0;
+  
+  if (LEFTOP.conjugacy() == 'n') {
+    scaleBl = dmrginp.get_ninej()(lQPrime.get_s().getirrep() , ldotQPrime.get_s().getirrep(), luncollectedQPrime.get_s().getirrep(), 
+				 leftOp.get_spin().getirrep(), ldotOp.get_spin().getirrep(), LEFTOP.get_spin().getirrep(),
+				 lQ.get_s().getirrep() , ldotQ.get_s().getirrep(), luncollectedQ.get_s().getirrep());
+
+    scaleBl *= leftOp.get_scaling(lQ, lQPrime);
+    scaleBl *= ldotOp.get_scaling(ldotQ, ldotQPrime);
+    if (ldotOp.get_fermion() && IsFermion(lQPrime)) scaleBl *= -1;
+  }
+  else {
+    scaleBl = dmrginp.get_ninej()(lQ.get_s().getirrep() , ldotQ.get_s().getirrep(), luncollectedQ.get_s().getirrep(), 
+				 leftOp.get_spin().getirrep(), ldotOp.get_spin().getirrep(), LEFTOP.get_spin().getirrep(),
+				 lQPrime.get_s().getirrep() , ldotQPrime.get_s().getirrep(), luncollectedQPrime.get_s().getirrep());
+    scaleBl *= leftOp.get_scaling(lQPrime, lQ);
+    scaleBl *= ldotOp.get_scaling(ldotQPrime, ldotQ);
+    if (ldotOp.get_fermion() && IsFermion(lQ)) scaleBl *= -1;
+  }
+
+  
+  int parity = RIGHTOP.get_fermion() && IsFermion(luncollectedQPrime) ? -1 : 1;
+  //pout << factor<<"  "<<scaleBl<<"  "<<scaleBr<<"  "<<parity<<endl;
+  return factor*scaleBr*scaleBl*parity;
+  
+}
 
 
 void SpinAdapted::operatorfunctions::multiplyDotRightElement(const StackSparseMatrix& LEFTOP, const StackSparseMatrix& leftOp, const StackSparseMatrix& dotOp, 
@@ -1075,14 +1459,6 @@ void SpinAdapted::operatorfunctions::multiplyDotRightElement(const StackSparseMa
   
 }
 
-bool allowed(const std::vector<SpinQuantum>& dvec, const SpinQuantum& braQ, const SpinQuantum& ketQ) {
-  for (int k =0; k<dvec.size(); k++) {
-    if (braQ.allow(dvec[k], ketQ)) {
-      return true;
-    }
-  }
-  return false;
-}
 
 
 void SpinAdapted::operatorfunctions::multiplyDotRight(const StackSparseMatrix& LEFTOP, const StackSparseMatrix& leftop, const StackSparseMatrix& dotop, 
@@ -1227,7 +1603,7 @@ void SpinAdapted::operatorfunctions::multiplyDotLeft(const StackSparseMatrix& RI
 
     bool deallocate = leftop.memoryUsed() == 0 ? true : false;
     
-    //L(l,l') c(l', r, d')  
+    //L(l,l') c(l', dl'r, d')  
     for (int lQ=0; lQ<leftBraOpSz; lQ++) {
       if (allowed(leftop.get_deltaQuantum(), lbraS->quanta[lQ], lketS->quanta[lQPrime])) {
 	
@@ -1315,8 +1691,7 @@ void SpinAdapted::operatorfunctions::TensorMultiplysplitRight(const StackSparseM
       int lQ = rowinds[lrop];
 
       StackMatrix m(dataArray[omprank], lketS->getquantastates(lQ), unCollectedrbraS->getquantastates(runcollectedQPrime));
-      MatrixMultiply (leftOp.operator_element(lQ, lQPrime), leftOp.conjugacy(), c.operator_element(lQPrime, runcollectedQPrime), 'n', m,
-		      1.0, 0.0);
+      ::Clear(m);
       
       const std::vector<int>& colinds2 = v[OMPRANK].getActiveCols(lQ);
       for (int r = 0; r < colinds2.size(); r++) {
@@ -1364,12 +1739,20 @@ void SpinAdapted::operatorfunctions::TensorMultiplysplitRight(const StackSparseM
 	  factor *=  RIGHTOP.get_scaling(unCollectedrbraS->quanta[runcollectedQ], unCollectedrketS->quanta[runcollectedQPrime]);
 	  if (fabs(factor*parity*scaleB) < TINY) continue; 
 
-	  MatrixMultiply (m, 'n', rightOp.operator_element(rQ, rQPrime, RIGHTOP.conjugacy()), 
-			  rightOp.conjugacy() == 'n' ? TransposeOf(RIGHTOP.conjugacy()) : RIGHTOP.conjugacy(),  v[OMPRANK].operator_element(lQ, runcollectedQ), factor*parity*scaleB);	      
-	    //MatrixMultiply (c.operator_element(lQPrime, runcollectedQPrime), 'n', rightOp.operator_element(rQ, rQPrime, RIGHTOP.conjugacy()), 
-	    //rightOp.conjugacy() == 'n' ? TransposeOf(RIGHTOP.conjugacy()) : RIGHTOP.conjugacy(),  m, 1.0, 0.);	      
-	    //MatrixMultiply (leftOp.operator_element(lQ, lQPrime), leftOp.conjugacy(), m, 'n',  v[OMPRANK].operator_element(lQ, runcollectedQ),
-	    //factor*parity*scaleB);
+	  if (MatrixDotProduct(m,m) < TINY) {
+	    if (leftOp.opName() == "OVERLAP")
+	      copy(c.operator_element(lQPrime, runcollectedQPrime), m);
+	    else
+	      MatrixMultiply (leftOp.operator_element(lQ, lQPrime), leftOp.conjugacy(), c.operator_element(lQPrime, runcollectedQPrime),
+			      'n', m, 1.0, 0.0);
+	  }
+
+	  if (rightOp.opName() == "OVERLAP")
+	    MatrixScaleAdd(factor*parity*scaleB, m, v[OMPRANK].operator_element(lQ, runcollectedQ));
+	  else
+	    MatrixMultiply (m, 'n', rightOp.operator_element(rQ, rQPrime, RIGHTOP.conjugacy()), 
+			    rightOp.conjugacy() == 'n' ? TransposeOf(RIGHTOP.conjugacy()) : RIGHTOP.conjugacy(), 
+			    v[OMPRANK].operator_element(lQ, runcollectedQ), factor*parity*scaleB);	      
 
 	}
       }

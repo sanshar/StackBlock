@@ -940,13 +940,11 @@ void SpinAdapted::StackCreDesComp::build(const StackSpinBlock& b)
 	    boost::shared_ptr<StackSparseMatrix> op2 = leftBlock->get_op_rep(DES, -getSpinQuantum(k), k);
 	    double parity = getCommuteParity(op1->get_deltaQuantum()[0], op2->get_deltaQuantum()[0], get_deltaQuantum()[0]);
 	    SpinAdapted::operatorfunctions::TensorProduct(rightBlock, *op1, *op2, &b, &(b.get_stateInfo()), *this, scaleV*parity);
-	  } else {
-	    //StackTransposeview top2 = StackTransposeview(leftBlock->get_op_rep(CRE, getSpinQuantum(k), k));
+	  } 
+	  else {
 	    boost::shared_ptr<StackSparseMatrix> op2 = leftBlock->get_op_rep(CRE, getSpinQuantum(k), k);
 	    double parity = getCommuteParity(op1->get_deltaQuantum()[0], op2->get_deltaQuantum()[0], get_deltaQuantum()[0]);
-	    //op2->set_conjugacy('t');
 	    SpinAdapted::operatorfunctions::TensorProduct(rightBlock, *op1, Transpose(*op2), &b, &(b.get_stateInfo()), *this, scaleV*parity);
-	    //op2->set_conjugacy('n');
 	  }
 	}
       }
@@ -989,7 +987,8 @@ void SpinAdapted::StackCreDesComp::build(const StackSpinBlock& b)
               if (fabs(scaleV) > dmrginp.twoindex_screen_tol()) {
                 SpinAdapted::operatorfunctions::TensorProduct(leftBlock, *op1, *op2, &b, &(b.get_stateInfo()), *this, scaleV);
               }
-            } else {
+            } 
+	    else {
               boost::shared_ptr<StackSparseMatrix> op1 = leftBlock->get_op_rep(CRE, getSpinQuantum(k), k);
               boost::shared_ptr<StackSparseMatrix> op2 = rightBlock->get_op_rep(CRE, getSpinQuantum(l), l);
 	      //op1->set_conjugacy('t'); op2->set_conjugacy('t');
@@ -2046,7 +2045,8 @@ double SpinAdapted::StackCreCreComp::redMatrixElement(Csf c1, vector<Csf>& ladde
                 double scale = calcCompfactor(DD1, DD2, DD, v_cccc);
                 element += MatElements[index]*scale/cleb;                
               }
-            } else if (dmrginp.hamiltonian() == BCS && dn == 0) {
+            } 
+	    else if (dmrginp.hamiltonian() == BCS && dn == 0) {
               TensorOp CK(k,1), DL(l,-1);
               TensorOp CD2 = CK.product(DL, spin, sym.getirrep());
               if (!CD2.empty) {
@@ -2054,15 +2054,16 @@ double SpinAdapted::StackCreCreComp::redMatrixElement(Csf c1, vector<Csf>& ladde
                 double scale = calcCompfactor(DD1, CD2, DD, v_cccd);
                 element += MatElements[index]*scale/cleb;                
               }
-            } else {
+            } 
+	    else {
               TensorOp CK(k,1), CL(l,1);
-	          TensorOp CC2 = CK.product(CL, spin, sym.getirrep(), k==l);
-
-	          if (!CC2.empty) {
-	            std::vector<double> MatElements = calcMatrixElements(c1, CC2, ladder[i], backupSlater1, backupSlater2) ;
-	            double scale = calcCompfactor(CC2, DD1, DD, index, *(b->get_twoInt()), b->get_integralIndex());
-	            element += MatElements[index]*scale/cleb;
-	          }
+	      TensorOp CC2 = CK.product(CL, spin, sym.getirrep(), k==l);
+	      
+	      if (!CC2.empty) {
+		std::vector<double> MatElements = calcMatrixElements(c1, CC2, ladder[i], backupSlater1, backupSlater2) ;
+		double scale = calcCompfactor(CC2, DD1, DD, index, *(b->get_twoInt()), b->get_integralIndex());
+		element += MatElements[index]*scale/cleb;
+	      }
             }
           }
         break;

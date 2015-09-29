@@ -131,7 +131,7 @@ class StackSparseMatrix : public Baseoperator<StackMatrix>  // the sparse matrix
   void set_data(double* pData) {data = pData;}
   void deepCopy(const StackSparseMatrix& o) ;
   void deepClearCopy(const StackSparseMatrix& o) ;
-
+  virtual string opName() const {return "None";}
   //I cannot simply allow resize because resizing should be accompanied with appropriate data allocation first
   //void resize(int n, int c) { operatorMatrix.ReSize(n, c); allowedQuantaMatrix.ReSize(n, c); }
   std::vector<std::pair<std::pair<int, int>, StackMatrix> >& get_nonZeroBlocks() {return nonZeroBlocks;} 
@@ -322,6 +322,7 @@ public:
   bool get_initialised() const { return opdata->get_initialised(); }
   int nrows() const { return opdata->ncols(); }
   int ncols() const { return opdata->nrows(); }
+  virtual string opName() const {return opdata->opName();}
 
   virtual void build(StackMatrix &m, int row, int col, const StackSpinBlock& block) {opdata->build(m, col, row, block);}
   const char &allowed(int i, int j) const { return opdata->allowed(j, i); }

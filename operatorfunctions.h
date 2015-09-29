@@ -62,6 +62,24 @@ void TensorProduct (const StackSpinBlock *ablock, const StackSparseMatrix& a, co
 
 
  //*****************WHEN LOOP BLOCK IS SPLIT*************
+ double getScaling(const StackSparseMatrix& LEFTOP, const StackSparseMatrix& leftOp, const StackSparseMatrix& ldotOp, 
+		   const StackSparseMatrix& RIGHTOP, const StackSparseMatrix& rightOp, const StackSparseMatrix& rdotOp, 
+		   const SpinQuantum& luncollectedQ, const SpinQuantum& lQ, const SpinQuantum& ldotQ,
+		   const SpinQuantum& luncollectedQPrime, const SpinQuantum& lQPrime, const SpinQuantum& ldotQPrime,
+		   const SpinQuantum& runcollectedQ, const SpinQuantum& rQ, const SpinQuantum& rdotQ,
+		   const SpinQuantum& runcollectedQPrime, const SpinQuantum& rQPrime, const SpinQuantum& rdotQPrime);
+
+ void TensorMultiplysplitLeftsplitRight(const StackSparseMatrix& LeftO, const StackSparseMatrix& RightO, 
+					const StackSparseMatrix& leftOp, const StackSparseMatrix& ldotOp, 
+					const StackSparseMatrix& rightOp, const StackSparseMatrix& rdotOp, 
+					const StackSpinBlock *cblock, StackWavefunction& ropCmat, StackWavefunction* v, 
+					double scale);
+ void TensorMultiplysplitLeftsplitRight00(const StackSparseMatrix& LeftO, const StackSparseMatrix& RightO, 
+					  const StackSparseMatrix& leftOp, const StackSparseMatrix& ldotOp, 
+					  const StackSparseMatrix& rightOp, const StackSparseMatrix& rdotOp, 
+					  const StackSpinBlock *cblock, StackWavefunction& ropCmat, StackWavefunction* v, 
+					  double scale);
+
  void TensorMultiplysplitLeft(const StackSparseMatrix& RightO, const StackSparseMatrix& LeftO, const StackSparseMatrix& DotO, const StackSparseMatrix& LEFTOP, const StackSpinBlock *cblock, StackWavefunction& c, StackWavefunction* v, const SpinQuantum opQ, double scale);
  void TensorMultiplysplitRight(const StackSparseMatrix& LeftO, const StackSparseMatrix& RightO, const StackSparseMatrix& DotO, const StackSparseMatrix& RIGHTOP, const StackSpinBlock *cblock, StackWavefunction& c, StackWavefunction* v, const SpinQuantum opQ, double scale);
  //****************************************************

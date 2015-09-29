@@ -126,7 +126,9 @@ void SpinAdapted::Linear::block_davidson(vector<StackWavefunction>& b, DiagonalM
   if (mpigetrank() == 0)
     r.initialise(b[0]);
 
-  printf("\t\t %15s  %5s  %15s  %15s  %10s  \n", "iter", "Root", "Energy", "Error", "Time");
+  if (mpigetrank() == 0) {
+    printf("\t\t %15s  %5s  %15s  %9s  %10s %10s \n", "iter", "Root", "Energy", "Error", "Time", "FLOPS");
+  }
   int sigmasize=0, bsize= currentRoot == -1 ? dmrginp.nroots() : 1;
   int converged_roots = 0;
   int maxiter = h_diag.Ncols() - lowerStates.size();
@@ -238,7 +240,13 @@ void SpinAdapted::Linear::block_davidson(vector<StackWavefunction>& b, DiagonalM
     double rnorm;
     if (mpigetrank() == 0) {
       rnorm = DotProduct(r,r);  
-      printf("\t\t %15i  %5i  %15.8f  %15.8e %10.2f (s)\n", iter, converged_roots, currentEnergy, rnorm, globaltimer.totalwalltime()-timer);
+      double totalFlops = 0.;
+      for (int thrd=0; thrd<numthrds; thrd++) {
+	totalFlops += dmrginp.matmultFlops[thrd];
+	dmrginp.matmultFlops[thrd] = 0.0;
+      }
+      printf("\t\t %15i  %5i  %15.8f  %9.2e %10.2f (s)  %10.3e\n", iter, converged_roots, currentEnergy, rnorm, globaltimer.totalwalltime()-timer, totalFlops);
+
       timer = globaltimer.totalwalltime();
     }
 

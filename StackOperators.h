@@ -18,6 +18,7 @@ class StackCre: public SpinAdapted::StackSparseMatrix
   StackCre() { conj='n';fermion = true;}
   void build(const StackSpinBlock& block);
   double redMatrixElement(Csf c1, vector<Csf>& ladder, const StackSpinBlock* b);
+  virtual string opName() const {return "CRE";}
 };
 
 class StackDes: public SpinAdapted::StackSparseMatrix
@@ -134,6 +135,7 @@ class StackOverlap: public SpinAdapted::StackSparseMatrix
   StackOverlap() { conj='n'; fermion = false;}
   void build(const StackSpinBlock& block);
   double redMatrixElement(Csf c1, vector<Csf>& ladder, const StackSpinBlock* b);
+  virtual string opName() const {return "OVERLAP";}
 };
 
 }

@@ -258,7 +258,7 @@ namespace SpinAdapted{
 	dmrginp.matmultNum++;
 	if (conjA == 'n' && conjB == 'n')
 	  {	  
-	    dmrginp.matmultFlops += aCols*cRows*cCols;
+	    dmrginp.matmultFlops[omprank] += aCols*cRows*cCols;
 	    assert ((aCols == bRows) && (cRows == aRows) && (cCols == bCols));
 #ifdef BLAS
 	    dgemm_ (&conjA, &conjB, &bCols, &aRows, &bRows, &scale, b.Store (), &bCols, a.Store (), &aCols, &cfactor, c.Store (), &bCols);
@@ -268,7 +268,7 @@ namespace SpinAdapted{
 	  }
 	else if (conjA == 'n' && conjB == 't')
 	  {
-	    dmrginp.matmultFlops += aCols*cRows*cCols;
+	    dmrginp.matmultFlops[omprank] += aCols*cRows*cCols;
 	    assert ((aCols == bCols) && (cRows == aRows) && (cCols == bRows));
 #ifdef BLAS
 	    dgemm_ (&conjB, &conjA, &bRows, &aRows, &bCols, &scale, b.Store (), &bCols, a.Store (), &aCols, &cfactor, c.Store (), &bRows);
@@ -278,7 +278,7 @@ namespace SpinAdapted{
 	  } 
 	else if (conjA == 't' && conjB == 'n')
 	  {
-	    dmrginp.matmultFlops += aRows*cRows*cCols;
+	    dmrginp.matmultFlops[omprank] += aRows*cRows*cCols;
 	    assert ((aRows == bRows) && (cRows == aCols) && (cCols == bCols));
 #ifdef BLAS
 	    dgemm_ (&conjB, &conjA, &bCols, &aCols, &bRows, &scale, b.Store (), &bCols, a.Store (), &aCols, &cfactor, c.Store (), &bCols);
@@ -288,7 +288,7 @@ namespace SpinAdapted{
 	  }
 	else if (conjA == 't' && conjB == 't')
 	  {
-	    dmrginp.matmultFlops += aRows*cRows*cCols;
+	    dmrginp.matmultFlops[omprank] += aRows*cRows*cCols;
 	    assert ((aRows == bCols) && (cRows == aCols) && (cCols == bRows));
 #ifdef BLAS
 	    dgemm_ (&conjB, &conjA, &bRows, &aCols, &bCols, &scale, b.Store (), &bCols, a.Store (), &aCols, &cfactor, c.Store (), &bRows);

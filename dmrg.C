@@ -157,6 +157,7 @@ int calldmrg(char* input, char* output)
   boost::mpi::communicator world;
 
   ReadInput(input);
+  dmrginp.matmultFlops.resize(numthrds, 0.);
 
   int size = world.size(), rank = world.rank();
 

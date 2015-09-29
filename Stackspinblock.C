@@ -735,13 +735,17 @@ void StackSpinBlock::multiplyH(StackWavefunction& c, StackWavefunction* v, int n
   StackSpinBlock* loopBlock=(leftBlock->is_loopblock()) ? leftBlock : rightBlock;
   StackSpinBlock* otherBlock = loopBlock == leftBlock ? rightBlock : leftBlock;
 
-  StackWavefunction C;
-  C.initialise(c);
-  DCOPY(c.memoryUsed(), c.get_data(), 1, C.get_data(), 1); 
+  StackWavefunction C1, C2;
+  C1.initialise(c);
+  DCOPY(c.memoryUsed(), c.get_data(), 1, C1.get_data(), 1); 
+  C2.initialise(c);
+  DCOPY(c.memoryUsed(), c.get_data(), 1, C2.get_data(), 1); 
 
   //uncollect C[1]
-  if (loopBlock == get_leftBlock()) C.UnCollectQuantaAlongRows(loopBlock->get_ketStateInfo(), otherBlock->get_ketStateInfo());
-  else C.UnCollectQuantaAlongColumns(otherBlock->get_ketStateInfo(), loopBlock->get_ketStateInfo());
+  if (loopBlock == get_leftBlock()) C1.UnCollectQuantaAlongRows(loopBlock->get_ketStateInfo(), otherBlock->get_ketStateInfo());
+  else C1.UnCollectQuantaAlongColumns(otherBlock->get_ketStateInfo(), loopBlock->get_ketStateInfo());
+  if (loopBlock == get_leftBlock()) C2.UnCollectQuantaAlongColumns(loopBlock->get_ketStateInfo(), otherBlock->get_ketStateInfo());
+  else C2.UnCollectQuantaAlongRows(otherBlock->get_ketStateInfo(), loopBlock->get_ketStateInfo());
   
 
   std::vector<boost::shared_ptr<StackSparseMatrix> >  allops;
@@ -762,8 +766,8 @@ void StackSpinBlock::multiplyH(StackWavefunction& c, StackWavefunction* v, int n
   int unCollectIndex = 0;
   //first line up the functions that use uncollected wavefunctions
   if (loopBlock == rightBlock) {
-    f5 = boost::bind(&stackopxop::cxcddcomp, rightBlock, _1, this, boost::ref(c), v_array, dmrginp.effective_molecule_quantum() );
-    f4 = boost::bind(&stackopxop::cxcddcomp_3index, leftBlock, _1, this, boost::ref(C), v_array, dmrginp.effective_molecule_quantum() ); 
+    f5 = boost::bind(&stackopxop::cxcddcomp_3index, rightBlock, _1, this, boost::ref(C2), v_array, dmrginp.effective_molecule_quantum());
+    f4 = boost::bind(&stackopxop::cxcddcomp_3index, leftBlock, _1, this, boost::ref(C1), v_array, dmrginp.effective_molecule_quantum() );
     for (int i=0; i<leftBlock->get_op_array(CRE).get_size(); i++)
       for (int j=0; j<leftBlock->get_op_array(CRE).get_local_element(i).size(); j++) {
 	allops.push_back(leftBlock->get_op_array(CRE).get_local_element(i)[j]);
@@ -779,8 +783,8 @@ void StackSpinBlock::multiplyH(StackWavefunction& c, StackWavefunction* v, int n
     
   }
   else {
-    f4 = boost::bind(&stackopxop::cxcddcomp, leftBlock, _1, this, boost::ref(c), v_array, dmrginp.effective_molecule_quantum() ); 
-    f5 = boost::bind(&stackopxop::cxcddcomp_3index, rightBlock, _1, this, boost::ref(C), v_array, dmrginp.effective_molecule_quantum() ); 
+    f4 = boost::bind(&stackopxop::cxcddcomp_3index, leftBlock, _1, this, boost::ref(C2), v_array, dmrginp.effective_molecule_quantum() ); 
+    f5 = boost::bind(&stackopxop::cxcddcomp_3index, rightBlock, _1, this, boost::ref(C1), v_array, dmrginp.effective_molecule_quantum() ); 
     for (int i=0; i<rightBlock->get_op_array(CRE).get_size(); i++)
       for (int j=0; j<rightBlock->get_op_array(CRE).get_local_element(i).size(); j++) {
 	allops.push_back(rightBlock->get_op_array(CRE).get_local_element(i)[j]);
@@ -795,8 +799,8 @@ void StackSpinBlock::multiplyH(StackWavefunction& c, StackWavefunction* v, int n
       }
   }
   
-  FUNCTOR2 f6 = boost::bind(&stackopxop::cdxcdcomp_3index, otherBlock, _1, this, boost::ref(C), v_array, dmrginp.effective_molecule_quantum() );
-  FUNCTOR2 f7 = boost::bind(&stackopxop::ddxcccomp_3index, otherBlock, _1, this, boost::ref(C), v_array, dmrginp.effective_molecule_quantum() );
+  FUNCTOR2 f6 = boost::bind(&stackopxop::cdxcdcomp_3index, otherBlock, _1, this, boost::ref(C1), v_array, dmrginp.effective_molecule_quantum() );
+  FUNCTOR2 f7 = boost::bind(&stackopxop::ddxcccomp_3index, otherBlock, _1, this, boost::ref(C1), v_array, dmrginp.effective_molecule_quantum() );
   //FUNCTOR2 f6 = boost::bind(&stackopxop::cdxcdcomp, otherBlock, _1, this, boost::ref(c), v_array, dmrginp.effective_molecule_quantum() );
   //FUNCTOR2 f7 = boost::bind(&stackopxop::ddxcccomp, otherBlock, _1, this, boost::ref(c), v_array, dmrginp.effective_molecule_quantum() );
 
@@ -804,33 +808,63 @@ void StackSpinBlock::multiplyH(StackWavefunction& c, StackWavefunction* v, int n
   //all these will use the threeindex functions
   if (dmrginp.hamiltonian() != HUBBARD) {
     for (int i=0; i<loopBlock->get_op_array(CRE_DES).get_size(); i++)
-      for (int j=0; j<loopBlock->get_op_array(CRE_DES).get_local_element(i).size(); j++) {
+      for (int j=1; j<loopBlock->get_op_array(CRE_DES).get_local_element(i).size(); j++) {
 	allops.push_back(loopBlock->get_op_array(CRE_DES).get_local_element(i)[j]);
 	allfuncs.push_back(f6);
       }
 
     for (int i=0; i<loopBlock->get_op_array(CRE_CRE).get_size(); i++)
-      for (int j=0; j<loopBlock->get_op_array(CRE_CRE).get_local_element(i).size(); j++) {
+      for (int j=1; j<loopBlock->get_op_array(CRE_CRE).get_local_element(i).size(); j++) {
+	allops.push_back(loopBlock->get_op_array(CRE_CRE).get_local_element(i)[j]);
+	allfuncs.push_back(f7);
+      }
+
+    for (int i=0; i<loopBlock->get_op_array(CRE_DES).get_size(); i++)
+      for (int j=0; j<1; j++) {
+	allops.push_back(loopBlock->get_op_array(CRE_DES).get_local_element(i)[j]);
+	allfuncs.push_back(f6);
+      }
+
+    for (int i=0; i<loopBlock->get_op_array(CRE_CRE).get_size(); i++)
+      for (int j=0; j<1; j++) {
 	allops.push_back(loopBlock->get_op_array(CRE_CRE).get_local_element(i)[j]);
 	allfuncs.push_back(f7);
       }
   }
 
   dmrginp.matmultNum = 0;
-  dmrginp.matmultFlops = 0.;
+
   struct timeval start, end;
   gettimeofday(&start, NULL);
 
   SplitStackmem();
   dmrginp.tensormultiply->start();
   std::vector<int> collected(numthrds, 0);
-#pragma omp parallel for  schedule(dynamic)
+#pragma omp parallel for  schedule(dynamic) 
   for (int i = 0; i<allops.size(); i++)  {
-
-    if (i>=unCollectIndex &&  collected[omprank]==0) {
-      if (loopBlock == get_leftBlock()) v_array[omprank].UnCollectQuantaAlongRows(loopBlock->get_ketStateInfo(), otherBlock->get_ketStateInfo());
-      else v_array[omprank].UnCollectQuantaAlongColumns(otherBlock->get_ketStateInfo(), loopBlock->get_ketStateInfo());
+    if (i>=1 && i <unCollectIndex && collected[omprank] == 0) {
+      if (loopBlock == get_leftBlock()) v_array[omprank].UnCollectQuantaAlongColumns(loopBlock->get_ketStateInfo(), otherBlock->get_ketStateInfo());
+      else v_array[omprank].UnCollectQuantaAlongRows(otherBlock->get_ketStateInfo(), loopBlock->get_ketStateInfo());
       collected[omprank] = 1;
+    }
+    if (i>=unCollectIndex &&  collected[omprank]==1) {
+      if (loopBlock == get_leftBlock()) {
+	v_array[omprank].CollectQuantaAlongColumns(loopBlock->get_ketStateInfo(), *otherBlock->get_ketStateInfo().unCollectedStateInfo);
+	v_array[omprank].UnCollectQuantaAlongRows(loopBlock->get_ketStateInfo(), otherBlock->get_ketStateInfo());
+      }
+      else {
+	v_array[omprank].CollectQuantaAlongRows(*otherBlock->get_ketStateInfo().unCollectedStateInfo, loopBlock->get_ketStateInfo());
+	v_array[omprank].UnCollectQuantaAlongColumns(otherBlock->get_ketStateInfo(), loopBlock->get_ketStateInfo());
+      }
+      collected[omprank] = 2;
+    }
+    if (i>=unCollectIndex &&  collected[omprank]==0) {
+      if (loopBlock == get_leftBlock()) 
+	v_array[omprank].UnCollectQuantaAlongRows(loopBlock->get_ketStateInfo(), otherBlock->get_ketStateInfo());
+      else 
+	v_array[omprank].UnCollectQuantaAlongColumns(otherBlock->get_ketStateInfo(), loopBlock->get_ketStateInfo());
+
+      collected[omprank] = 2;
     }
     
     allfuncs[i](allops[i]);
@@ -839,9 +873,14 @@ void StackSpinBlock::multiplyH(StackWavefunction& c, StackWavefunction* v, int n
   
 #pragma omp parallel for  schedule(dynamic)
   for (int i = 0; i<numthrds; i++)  {
-    if (collected[i]==1) {
+    if (collected[i]==2) {
       if (loopBlock == get_leftBlock()) v_array[i].CollectQuantaAlongRows(*loopBlock->get_ketStateInfo().unCollectedStateInfo, otherBlock->get_ketStateInfo());
       else v_array[i].CollectQuantaAlongColumns(otherBlock->get_ketStateInfo(), *loopBlock->get_ketStateInfo().unCollectedStateInfo);
+      collected[i] = 0;
+    }
+    if (collected[i]==1) {
+      if (loopBlock == get_leftBlock()) v_array[i].CollectQuantaAlongColumns(loopBlock->get_ketStateInfo(), *otherBlock->get_ketStateInfo().unCollectedStateInfo);
+      else v_array[i].CollectQuantaAlongRows(*otherBlock->get_ketStateInfo().unCollectedStateInfo, loopBlock->get_ketStateInfo());
       collected[i] = 0;
     }
   }
@@ -859,7 +898,8 @@ void StackSpinBlock::multiplyH(StackWavefunction& c, StackWavefunction* v, int n
   accumulateMultiThread(v, v_array, numthrds);
   distributedaccumulate(*v);
 
-  C.deallocate();
+  C2.deallocate();
+  C1.deallocate();
 }
 
 
@@ -941,7 +981,7 @@ void StackSpinBlock::multiplyH3index(StackWavefunction& c, StackWavefunction* v,
     }
 
     dmrginp.matmultNum = 0;
-    dmrginp.matmultFlops = 0.;
+
     //finally loop and perform operation
     struct timeval start, end;
     gettimeofday(&start, NULL);
@@ -1028,7 +1068,7 @@ void StackSpinBlock::multiplyH3index(StackWavefunction& c, StackWavefunction* v,
     }
 
     dmrginp.matmultNum = 0;
-    dmrginp.matmultFlops = 0.;
+
     //finally loop and perform operation
     struct timeval start, end;
     gettimeofday(&start, NULL);
