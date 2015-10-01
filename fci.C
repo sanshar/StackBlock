@@ -44,9 +44,9 @@ void SpinAdapted::Sweep::fullci(double sweep_tol)
     system.addAdditionalOps();
     newSystem.set_integralIndex() = integralIndex;
     if (i == forwardsites-2)
-      newSystem.default_op_components(true, false, true, true);
+      newSystem.default_op_components(true, true, false, true);
     else
-      newSystem.default_op_components(false, false, true, true);
+      newSystem.default_op_components(false, true, false, true);
 
     newSystem.setstoragetype(DISTRIBUTED_STORAGE);
     newSystem.BuildSumBlock (NO_PARTICLE_SPIN_NUMBER_CONSTRAINT, system, sysdot);
@@ -70,9 +70,9 @@ void SpinAdapted::Sweep::fullci(double sweep_tol)
     environment.addAdditionalOps();
     newEnvironment.set_integralIndex() = integralIndex;
     if (i == backwardsites-2)
-      newEnvironment.default_op_components(true, true, false, true);
+      newEnvironment.default_op_components(true, false, true, true);
     else
-      newEnvironment.default_op_components(false, true, false, true);
+      newEnvironment.default_op_components(false, false, true, true);
     newEnvironment.setstoragetype(DISTRIBUTED_STORAGE);
     newEnvironment.BuildSumBlock (NO_PARTICLE_SPIN_NUMBER_CONSTRAINT, environment, envdot);
 
@@ -90,7 +90,7 @@ void SpinAdapted::Sweep::fullci(double sweep_tol)
 
   pout <<"\t\t\t System Block :: "<< newSystem;
   pout <<"\t\t\t Environment Block :: "<< newEnvironment;
-  newSystem.set_loopblock(false); newEnvironment.set_loopblock(true);
+  newSystem.set_loopblock(true); newEnvironment.set_loopblock(false);
   StackSpinBlock big;
   InitBlocks::InitBigBlock(newSystem, newEnvironment, big); 
 

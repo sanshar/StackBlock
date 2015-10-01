@@ -53,6 +53,7 @@ void StackSparseMatrix::build_and_renormalise_transform(StackSpinBlock *big, con
 
   //allocate new data and build the operator
   totalMemory = 0; data=0;
+  colCompressedForm.clear();
   rowCompressedForm.clear();
   allocate(big->get_braStateInfo(), big->get_ketStateInfo());
   build(*big);
@@ -106,6 +107,7 @@ void StackSparseMatrix::build_and_renormalise_transform(StackSpinBlock *big, con
 
   //allocate new data and build the operator
   totalMemory = 0; data=0;
+  colCompressedForm.clear();
   rowCompressedForm.clear();
   allocate(big->get_braStateInfo(), big->get_ketStateInfo());
   build(*big);
@@ -130,8 +132,7 @@ void StackSparseMatrix::build_and_renormalise_transform(StackSpinBlock *big, con
   const std::vector<int>& lnewQuantaMap = newleftStateInfo->newQuantaMap;
   const std::vector<int>& rnewQuantaMap = newrightStateInfo->newQuantaMap;
   
-  int quanta_thrds = dmrginp.quanta_thrds();
-#pragma omp parallel for schedule(dynamic) num_threads(quanta_thrds)
+
   for (int newQ = 0; newQ < lnewQuantaMap.size(); newQ++)
     for (int newQPrime = 0; newQPrime < rnewQuantaMap.size(); newQPrime++) {
       if (this->allowed(newQ, newQPrime)) {
@@ -248,6 +249,40 @@ double StackSparseMatrix::get_scaling(SpinQuantum leftq, SpinQuantum rightq) con
   exit(0);
   return 1.0;
 }
+
+double getStandAlonescaling(SpinQuantum opq, SpinQuantum leftq, SpinQuantum rightq) 
+{
+  if(!dmrginp.spinAdapted()) return 1.0;
+
+  int lspin = leftq.get_s().getirrep(), lirrep = leftq.get_symm().getirrep();
+  int rspin = rightq.get_s().getirrep(), rirrep = rightq.get_symm().getirrep();
+  int cspin = opq.get_s().getirrep(), cirrep = opq.get_symm().getirrep();
+
+  int cirrepTranspose = (-opq).get_symm().getirrep();
+  for (int lsz = -lspin; lsz<lspin+1; lsz+=2)
+  for (int rsz = -rspin; rsz<rspin+1; rsz+=2)
+  for (int ll = 0; ll<Symmetry::sizeofIrrep(lirrep); ll++)
+  for (int rl = 0; rl<Symmetry::sizeofIrrep(rirrep); rl++)
+  {
+    double cleb = clebsch(lspin, lsz, cspin, -cspin, rspin, rsz);
+    double clebspatial = Symmetry::spatial_cg(lirrep, cirrep, rirrep, ll, 0, rl);
+    if (fabs(cleb) <= NUMERICAL_ZERO || fabs(clebspatial) <= NUMERICAL_ZERO)
+      continue;
+    else {
+      ///CHANGE THE SPATIAL_CG cirrep,1 to cirrep,0 depending on how the transpose works out!!!
+      double spinscale = pow(-1.0,cspin) * cleb/clebsch(rspin, rsz, cspin, cspin, lspin, lsz);
+      double spatscale =  clebspatial/Symmetry::spatial_cg(rirrep, cirrepTranspose, lirrep, rl, Symmetry::sizeofIrrep(cirrep)-1, ll);  
+
+      return spinscale*spatscale;
+    }
+  }
+  pout << "Major trouble, inappropriate arguments to get_scaling!!!"<<endl;
+  pout << leftq<<"  "<<opq<<"  ";
+  pout <<rightq<<endl;
+  exit(0);
+  return 1.0;
+}
+
 
 long getRequiredMemory(const StackSpinBlock& b, const std::vector<SpinQuantum>& q) {
   return getRequiredMemory(b.get_braStateInfo(), b.get_ketStateInfo(), q);

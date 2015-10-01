@@ -204,6 +204,8 @@ class Input {
   Input() {}
   Input (const std::string& config_name);
   // ROA
+  int matmultNum;
+  vector<double> matmultFlops;
   void initCumulTimer()
   {
     getreqMem       = boost::shared_ptr<cumulTimer> (new cumulTimer());

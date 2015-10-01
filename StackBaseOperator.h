@@ -116,13 +116,14 @@ class StackSparseMatrix : public Baseoperator<StackMatrix>  // the sparse matrix
     {};
 
  StackSparseMatrix(double* pData, long pTotalMemory) : totalMemory(pTotalMemory), data(pData), fermion(false), orbs(2), initialised(false), built(false), built_on_disk(false), Sign(1), conj('n'){};
-  long memoryUsed() {return totalMemory;}
+  virtual long memoryUsed() const {return totalMemory;}
   void allocate (const StateInfo& s);
   void allocate (const StateInfo& sl, const StateInfo& sr);
   void allocate (const StateInfo& s, double* pData);
   double* allocate(const StateInfo& rowSI, const StateInfo& colSI, double* pData);
   void deallocate() ;
   double* allocateOperatorMatrix();
+  virtual void build(StackMatrix &m, int row, int col, const StackSpinBlock& block) {};
   virtual void build(const StackSpinBlock& block) {};
   double* get_data() {return data;}
   const double* get_data() const {return data;}
@@ -130,7 +131,7 @@ class StackSparseMatrix : public Baseoperator<StackMatrix>  // the sparse matrix
   void set_data(double* pData) {data = pData;}
   void deepCopy(const StackSparseMatrix& o) ;
   void deepClearCopy(const StackSparseMatrix& o) ;
-
+  virtual string opName() const {return "None";}
   //I cannot simply allow resize because resizing should be accompanied with appropriate data allocation first
   //void resize(int n, int c) { operatorMatrix.ReSize(n, c); allowedQuantaMatrix.ReSize(n, c); }
   std::vector<std::pair<std::pair<int, int>, StackMatrix> >& get_nonZeroBlocks() {return nonZeroBlocks;} 
@@ -312,6 +313,7 @@ public:
     }
     return q;
   }
+  virtual long memoryUsed() const {return opdata->memoryUsed();}
   const std::vector<int>& getActiveRows(int i) const {return opdata->getActiveCols(i);}
   const std::vector<int>& getActiveCols(int i) const {return opdata->getActiveRows(i);}
   std::vector<int>& getActiveRows(int i)  {return opdata->getActiveCols(i);}
@@ -320,7 +322,9 @@ public:
   bool get_initialised() const { return opdata->get_initialised(); }
   int nrows() const { return opdata->ncols(); }
   int ncols() const { return opdata->nrows(); }
+  virtual string opName() const {return opdata->opName();}
 
+  virtual void build(StackMatrix &m, int row, int col, const StackSpinBlock& block) {opdata->build(m, col, row, block);}
   const char &allowed(int i, int j) const { return opdata->allowed(j, i); }
   char &allowed(int i, int j) { return opdata->allowed(j, i); }
   const StackMatrix& operator_element(int i, int j) const { return opdata->operator_element(j, i); }
@@ -366,6 +370,8 @@ void copy(const StackMatrix& a, StackMatrix& b);
 void copy(const StackMatrix& a, Matrix& b);
 void copy(const Matrix& a, StackMatrix& b);
 void copy(const Matrix& a, Matrix& b);
+double getStandAlonescaling(SpinQuantum opQ, SpinQuantum leftq, SpinQuantum rightq);
+
 } ;
 
 

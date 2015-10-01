@@ -86,7 +86,7 @@ void SweepGenblock::BlockAndDecimate (SweepParams &sweepParams, StackSpinBlock& 
   p1out <<"\t\t\t Performing Renormalization "<<endl<<endl;
 
   dmrginp.operrotT->start();
-  if (stateB == stateA)
+  if (stateB == stateA && dmrginp.setimplicitTranspose()==true)
     newSystem.transform_operators(leftrotateMatrix);
   else
     newSystem.transform_operators(leftrotateMatrix, rightrotateMatrix);

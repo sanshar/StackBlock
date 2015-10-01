@@ -76,6 +76,8 @@ void SpinAdapted::Linear::block_davidson(vector<StackWavefunction>& b, DiagonalM
   int nroots = dmrginp.setStateSpecific() ? 1 : dmrginp.nroots();
   //normalise all the guess roots
 
+  double timer = globaltimer.totalwalltime();
+
   bool orthogonalSpace = true;
   if(mpigetrank() == 0) {
     for(int i=0;i<nroots;++i)
@@ -124,7 +126,9 @@ void SpinAdapted::Linear::block_davidson(vector<StackWavefunction>& b, DiagonalM
   if (mpigetrank() == 0)
     r.initialise(b[0]);
 
-  printf("\t\t %15s  %5s  %15s  %15s\n", "iter", "Root", "Energy", "Error");
+  if (mpigetrank() == 0) {
+    printf("\t\t %15s  %5s  %15s  %9s  %10s %10s \n", "iter", "Root", "Energy", "Error", "Time", "FLOPS");
+  }
   int sigmasize=0, bsize= currentRoot == -1 ? dmrginp.nroots() : 1;
   int converged_roots = 0;
   int maxiter = h_diag.Ncols() - lowerStates.size();
@@ -165,11 +169,13 @@ void SpinAdapted::Linear::block_davidson(vector<StackWavefunction>& b, DiagonalM
     double currentEnergy ;
     if (mpigetrank() == 0) {
       Matrix subspace_h(bsize, bsize);
-      for (int i = 0; i < bsize; ++i)
+      //#pragma omp parallel for schedule(dynamic)
+      for (int i = 0; i < bsize; ++i) {
 	for (int j = 0; j <= i; ++j) {
 	  subspace_h.element(i, j) = DotProduct(b[i], sigma[j]);
 	  subspace_h.element(j, i) = subspace_h.element(i, j);
 	}
+      }
 
       Matrix alpha;
       diagonalise(subspace_h, subspace_eigenvalues, alpha);
@@ -187,11 +193,13 @@ void SpinAdapted::Linear::block_davidson(vector<StackWavefunction>& b, DiagonalM
       for (int i = 0; i < bsize; ++i)
 	Scale(alpha.element(i, i), b[i]);
 
-      for (int i = 0; i < bsize; ++i)
-      for (int j = 0; j < bsize; ++j)
+      //#pragma omp parallel for schedule(dynamic)
+      for (int j = 0; j < bsize; ++j) {
+      for (int i = 0; i < bsize; ++i) 
       if (i != j)
 	ScaleAdd(alpha.element(i,j), tmp[i], b[j]);
       //DAXPY(b[0].memoryUsed(), alpha.element(i, j),  tmp[i], 1, b[j].get_data(), 1);
+      }
 
       for (int i=0; i<bsize; i++) 
 	copy(sigma[i].get_operatorMatrix(), tmp[i].get_operatorMatrix());
@@ -200,10 +208,12 @@ void SpinAdapted::Linear::block_davidson(vector<StackWavefunction>& b, DiagonalM
       for (int i = 0; i < bsize; ++i)
 	Scale(alpha.element(i, i), sigma[i]);
 
-      for (int i = 0; i < bsize; ++i)
-      for (int j = 0; j < bsize; ++j)
+      //#pragma omp parallel for schedule(dynamic)
+      for (int j = 0; j < bsize; ++j) {
+      for (int i = 0; i < bsize; ++i) 
       if (i != j)
 	ScaleAdd(alpha.element(i,j), tmp[i], sigma[j]);
+      }
       //DAXPY(sigma[j].memoryUsed(), alpha.element(i, j),  tmp[i], 1, sigma[j].get_data(), 1);
 
       for (int i=bsize-1; i>-1; i--)
@@ -236,7 +246,14 @@ void SpinAdapted::Linear::block_davidson(vector<StackWavefunction>& b, DiagonalM
     double rnorm;
     if (mpigetrank() == 0) {
       rnorm = DotProduct(r,r);  
-      printf("\t\t %15i  %5i  %15.8f  %15.8e\n", iter, converged_roots, currentEnergy, rnorm);
+      double totalFlops = 0.;
+      for (int thrd=0; thrd<numthrds; thrd++) {
+	totalFlops += dmrginp.matmultFlops[thrd];
+	dmrginp.matmultFlops[thrd] = 0.0;
+      }
+      printf("\t\t %15i  %5i  %15.8f  %9.2e %10.2f (s)  %10.3e\n", iter, converged_roots, currentEnergy, rnorm, globaltimer.totalwalltime()-timer, totalFlops);
+
+      timer = globaltimer.totalwalltime();
     }
 
 #ifndef SERIAL

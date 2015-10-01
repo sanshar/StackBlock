@@ -55,6 +55,9 @@ void SpinAdapted::Solver::solve_wavefunction(vector<StackWavefunction>& solution
 					     const guessWaveTypes& guesswavetype, const bool &onedot, const bool& dot_with_sys, const bool& warmUp,
 					     double additional_noise, int currentRoot, std::vector<StackWavefunction>& lowerStates)
 {
+  for (int thrd=0; thrd<numthrds; thrd++) 
+    dmrginp.matmultFlops[thrd] = 0.0;
+
   const int nroots = dmrginp.setStateSpecific() ? 1 : dmrginp.nroots();
   dmrginp.makediagonal->start();
   DiagonalMatrix e;
