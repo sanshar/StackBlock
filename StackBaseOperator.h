@@ -370,6 +370,8 @@ void copy(const StackMatrix& a, StackMatrix& b);
 void copy(const StackMatrix& a, Matrix& b);
 void copy(const Matrix& a, StackMatrix& b);
 void copy(const Matrix& a, Matrix& b);
+double getStandAlonescaling(SpinQuantum opQ, SpinQuantum leftq, SpinQuantum rightq);
+
 } ;
 
 

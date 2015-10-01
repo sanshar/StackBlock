@@ -820,7 +820,7 @@ SpinAdapted::Input::Input(const string& config_name) {
         if(m_deflation_min_size < m_nroots) 
           m_deflation_min_size = m_nroots;
 	  
-	m_deflation_max_size = max(20, m_nroots+20);
+	m_deflation_max_size = max(5, m_nroots+5);
 
 	ReadMeaningfulLine(input, msg, msgsize);
 	vector<string> weighttoken;

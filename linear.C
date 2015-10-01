@@ -169,11 +169,13 @@ void SpinAdapted::Linear::block_davidson(vector<StackWavefunction>& b, DiagonalM
     double currentEnergy ;
     if (mpigetrank() == 0) {
       Matrix subspace_h(bsize, bsize);
-      for (int i = 0; i < bsize; ++i)
+      //#pragma omp parallel for schedule(dynamic)
+      for (int i = 0; i < bsize; ++i) {
 	for (int j = 0; j <= i; ++j) {
 	  subspace_h.element(i, j) = DotProduct(b[i], sigma[j]);
 	  subspace_h.element(j, i) = subspace_h.element(i, j);
 	}
+      }
 
       Matrix alpha;
       diagonalise(subspace_h, subspace_eigenvalues, alpha);
@@ -191,11 +193,13 @@ void SpinAdapted::Linear::block_davidson(vector<StackWavefunction>& b, DiagonalM
       for (int i = 0; i < bsize; ++i)
 	Scale(alpha.element(i, i), b[i]);
 
-      for (int i = 0; i < bsize; ++i)
-      for (int j = 0; j < bsize; ++j)
+      //#pragma omp parallel for schedule(dynamic)
+      for (int j = 0; j < bsize; ++j) {
+      for (int i = 0; i < bsize; ++i) 
       if (i != j)
 	ScaleAdd(alpha.element(i,j), tmp[i], b[j]);
       //DAXPY(b[0].memoryUsed(), alpha.element(i, j),  tmp[i], 1, b[j].get_data(), 1);
+      }
 
       for (int i=0; i<bsize; i++) 
 	copy(sigma[i].get_operatorMatrix(), tmp[i].get_operatorMatrix());
@@ -204,10 +208,12 @@ void SpinAdapted::Linear::block_davidson(vector<StackWavefunction>& b, DiagonalM
       for (int i = 0; i < bsize; ++i)
 	Scale(alpha.element(i, i), sigma[i]);
 
-      for (int i = 0; i < bsize; ++i)
-      for (int j = 0; j < bsize; ++j)
+      //#pragma omp parallel for schedule(dynamic)
+      for (int j = 0; j < bsize; ++j) {
+      for (int i = 0; i < bsize; ++i) 
       if (i != j)
 	ScaleAdd(alpha.element(i,j), tmp[i], sigma[j]);
+      }
       //DAXPY(sigma[j].memoryUsed(), alpha.element(i, j),  tmp[i], 1, sigma[j].get_data(), 1);
 
       for (int i=bsize-1; i>-1; i--)

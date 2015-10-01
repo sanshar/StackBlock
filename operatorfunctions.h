@@ -81,7 +81,13 @@ void TensorProduct (const StackSpinBlock *ablock, const StackSparseMatrix& a, co
 					  double scale);
 
  void TensorMultiplysplitLeft(const StackSparseMatrix& RightO, const StackSparseMatrix& LeftO, const StackSparseMatrix& DotO, const StackSparseMatrix& LEFTOP, const StackSpinBlock *cblock, StackWavefunction& c, StackWavefunction* v, const SpinQuantum opQ, double scale);
+ void TensorMultiplysplitLeftElement(const StackSparseMatrix& rightOp, const StackSparseMatrix& leftOp, const StackSparseMatrix& dotOp, const StackSparseMatrix& LEFTOP, const StackSpinBlock *cblock, StackWavefunction& c, StackWavefunction* v, const SpinQuantum opQ, int index, double scale);
+ void TensorMultiplyCDxCDsplitLeftElement(const StackSparseMatrix& rightOp, const StackSparseMatrix& leftOp, const StackSparseMatrix& dotOp, const StackSparseMatrix& LEFTOP, const StackSpinBlock *cblock, StackWavefunction& c, StackWavefunction* v, const SpinQuantum opQ, int rQPrime, double scale);
+ void TensorMultiplyCDxCDsplitLeftElementcopy(const StackSparseMatrix& rightOp, const StackSparseMatrix& leftOp, const StackSparseMatrix& dotOp, const StackSparseMatrix& LEFTOP, const StackSpinBlock *cblock, StackWavefunction& c, StackWavefunction* v, const SpinQuantum opQ, int rQPrime, double scale);
  void TensorMultiplysplitRight(const StackSparseMatrix& LeftO, const StackSparseMatrix& RightO, const StackSparseMatrix& DotO, const StackSparseMatrix& RIGHTOP, const StackSpinBlock *cblock, StackWavefunction& c, StackWavefunction* v, const SpinQuantum opQ, double scale);
+ void TensorMultiplysplitRightElement(const StackSparseMatrix& LeftO, const StackSparseMatrix& RightO, const StackSparseMatrix& DotO, const StackSparseMatrix& RIGHTOP, const StackSpinBlock *cblock, StackWavefunction& c, StackWavefunction* v, const SpinQuantum opQ, int lQPrime, double scale);
+ void TensorMultiplyCDxCDsplitRightElement(const StackSparseMatrix& LeftO, const StackSparseMatrix& RightO, const StackSparseMatrix& DotO, const StackSparseMatrix& RIGHTOP, const StackSpinBlock *cblock, StackWavefunction& c, StackWavefunction* v, const SpinQuantum opQ, int lQPrime, double scale, bool doTranspose);
+ void TensorMultiplyCDxCDsplitRightElementcopy(const StackSparseMatrix& LeftO, const StackSparseMatrix& RightO, const StackSparseMatrix& DotO, const StackSparseMatrix& RIGHTOP, const StackSpinBlock *cblock, StackWavefunction& c, StackWavefunction* v, const SpinQuantum opQ, int lQPrime, double scale, bool doTranspose);
  //****************************************************
 
  //***************the order of contraction is different, but the loopblock is still split******************** 

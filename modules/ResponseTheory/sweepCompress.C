@@ -96,7 +96,7 @@ void SpinAdapted::SweepCompress::BlockDecimateAndCompress (SweepParams &sweepPar
 #endif
   
   //*********************
-  multiply_h davidson_f(big, sweepParams.get_onedot());
+  multiply_h_2Index davidson_f(big, sweepParams.get_onedot());
   vector<StackWavefunction> outputState; outputState.resize(1);
   outputState[0].initialise(dmrginp.effective_molecule_quantum_vec(), big.get_leftBlock()->get_braStateInfo(), big.get_rightBlock()->get_braStateInfo(), sweepParams.get_onedot());
   outputState[0].set_onedot(sweepParams.get_onedot());
@@ -633,7 +633,7 @@ void SpinAdapted::SweepCompress::WavefunctionCanonicalize (SweepParams &sweepPar
 #endif
 
   //****************
-  multiply_h davidson_f(big, sweepParams.get_onedot());
+  multiply_h_2Index davidson_f(big, sweepParams.get_onedot());
   vector<StackWavefunction> outputState; outputState.resize(1);
   outputState[0].initialise(dmrginp.effective_molecule_quantum_vec(), big.get_leftBlock()->get_braStateInfo(), big.get_rightBlock()->get_braStateInfo(), true);
   outputState[0].set_onedot(true);

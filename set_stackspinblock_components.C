@@ -46,6 +46,7 @@ void StackSpinBlock::setstoragetype(Storagetype st)
   else if (st == DISTRIBUTED_STORAGE)
   {
     localstorage = false;
+    //ONLY CRE IS LOCAL
     if (has(CRE))
       set_op_array(CRE)->set_local() = false;
     if (has(DES))

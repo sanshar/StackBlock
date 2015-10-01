@@ -14,6 +14,10 @@ namespace stackopxop
   void cdxcdcomp(const StackSpinBlock* otherblock, std::vector< boost::shared_ptr<StackSparseMatrix> >& op1, const StackSpinBlock* b, StackSparseMatrix* o);
   void ddxcccomp(const StackSpinBlock* otherblock, std::vector< boost::shared_ptr<StackSparseMatrix> >& op1, const StackSpinBlock* b, StackSparseMatrix* o);
 
+  void cxcddcomp_Element(const StackSpinBlock* otherblock, std::vector< boost::shared_ptr<StackSparseMatrix> >& op1, const StackSpinBlock* b, StackSparseMatrix* o, StackMatrix& m, int row, int col);
+  void cdxcdcomp_Element(const StackSpinBlock* otherblock, std::vector< boost::shared_ptr<StackSparseMatrix> >& op1, const StackSpinBlock* b, StackSparseMatrix* o, StackMatrix& m, int row, int col);
+  void ddxcccomp_Element(const StackSpinBlock* otherblock, std::vector< boost::shared_ptr<StackSparseMatrix> >& op1, const StackSpinBlock* b, StackSparseMatrix* o, StackMatrix& m, int row, int col);
+
 
   void cdxcdcomp_d(const StackSpinBlock* otherblock, boost::shared_ptr<StackSparseMatrix> op1, const StackSpinBlock* b, DiagonalMatrix* e);
   void ham_d(const StackSpinBlock* otherblock, boost::shared_ptr<StackSparseMatrix> op1, const StackSpinBlock* b, DiagonalMatrix* e, int proc);
@@ -45,7 +49,10 @@ namespace stackopxop
 
 
   void cxcddcomp_3index(const StackSpinBlock* otherblock, boost::shared_ptr<StackSparseMatrix> op1, const StackSpinBlock* b, StackWavefunction& c, StackWavefunction* v, const SpinQuantum& q);
+  void cxcddcomp_3indexElement(const StackSpinBlock* otherblock, boost::shared_ptr<StackSparseMatrix> op1, const StackSpinBlock* b, StackWavefunction& c, StackWavefunction* v, int index, const SpinQuantum& q);
   void cdxcdcomp_3index(const StackSpinBlock* otherblock, boost::shared_ptr<StackSparseMatrix> op1, const StackSpinBlock* b, StackWavefunction& c, StackWavefunction* v, const SpinQuantum& q);
+  void cdxcdcomp_3indexElement(const StackSpinBlock* otherblock, boost::shared_ptr<StackSparseMatrix> op1, const StackSpinBlock* b, StackWavefunction& c, StackWavefunction* v, int index, const SpinQuantum& q);
+  void ddxcccomp_3indexElement(const StackSpinBlock* otherblock, boost::shared_ptr<StackSparseMatrix> op1, const StackSpinBlock* b, StackWavefunction& c, StackWavefunction* v, int index, const SpinQuantum& q); 
   void ddxcccomp_3index(const StackSpinBlock* otherblock, boost::shared_ptr<StackSparseMatrix> op1, const StackSpinBlock* b, StackWavefunction& c, StackWavefunction* v, const SpinQuantum& q); 
 
   

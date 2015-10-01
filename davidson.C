@@ -25,6 +25,15 @@ void SpinAdapted::multiply_h::operator()(StackWavefunction& c, StackWavefunction
   //block.multiplyH3index( c, &v, MAX_THRD);
 }
 
+SpinAdapted::multiply_h_2Index::multiply_h_2Index(const StackSpinBlock& b, const bool &onedot_) : block(b){}
+
+
+void SpinAdapted::multiply_h_2Index::operator()(StackWavefunction& c, StackWavefunction& v)
+{
+  block.multiplyH_2index( c, &v, MAX_THRD);
+  //block.multiplyH3index( c, &v, MAX_THRD);
+}
+
 
 
 

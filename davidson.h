@@ -29,6 +29,16 @@ class multiply_h : public Davidson_functor
   const StackSpinBlock& get_block() {return block;}
 };
 
+class multiply_h_2Index : public Davidson_functor
+{
+ private:
+  const StackSpinBlock& block;
+ public:
+  multiply_h_2Index(const StackSpinBlock& b, const bool &onedot_);
+  void operator()(StackWavefunction& c, StackWavefunction& v);
+  const StackSpinBlock& get_block() {return block;}
+};
+
 }
 
 #endif

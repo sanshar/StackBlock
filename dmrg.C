@@ -143,6 +143,7 @@ void sleepBarrier(boost::mpi::communicator world, int tag, double psleep)
 
 int calldmrg(char* input, char* output)
 {
+  //sleep(8);
   srand(1000);
   streambuf *backup;
   backup = cout.rdbuf();
@@ -212,7 +213,7 @@ int calldmrg(char* input, char* output)
   Stackmem[0].data = stackmemory;
   Stackmem[0].size = dmrginp.getMemory();
   //************
-  memset(stackmemory, 0, dmrginp.getMemory()*sizeof(double));
+  //memset(stackmemory, 0, dmrginp.getMemory()*sizeof(double));
   dmrginp.initCumulTimer();
 
 

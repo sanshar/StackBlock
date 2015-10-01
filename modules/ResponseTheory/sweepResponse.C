@@ -169,7 +169,7 @@ void SpinAdapted::SweepResponse::BlockAndDecimate (SweepParams &sweepParams, Sta
     temp.initialise(dmrginp.effective_molecule_quantum_vec(), *perturbationBig.get_braStateInfo().leftStateInfo,*perturbationBig.get_braStateInfo().rightStateInfo, temp.get_onedot());
     temp.Clear();
 
-    perturbationBig.multiplyH(iwave, &temp, MAX_THRD);
+    perturbationBig.multiplyH_2index(iwave, &temp, MAX_THRD);
     if (mpigetrank() == 0) {
       if(l==0)
 	DCOPY(temp.memoryUsed(), temp.get_data(), 1, lowerStates[0].get_data(), 1);
