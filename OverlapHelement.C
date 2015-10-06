@@ -17,15 +17,22 @@ int main(int argc, char* argv []) {
   MPI_Init(&argc, &argv);
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
+  MPI_Group orig_group, calc_group;
+  MPI_Comm_group(MPI_COMM_WORLD, &orig_group);
+  MPI_Comm_split(MPI_COMM_WORLD, 0, rank, &Calc);
+  calc = boost::mpi::communicator(Calc, boost::mpi::comm_attach);
+
 #endif
   initBoostMPI(argc, argv);
   ReadInputFromC(argv[1], 0);
+  dmrginp.matmultFlops.resize(numthrds, 0.);
+
   double* stackmemory = new double[dmrginp.getMemory()];
   Stackmem.resize(numthrds);
   Stackmem[0].data = stackmemory;
   Stackmem[0].size = dmrginp.getMemory();
   //************
-  memset(stackmemory, 0, dmrginp.getMemory()*sizeof(double));
+  //memset(stackmemory, 0, dmrginp.getMemory()*sizeof(double));
 
   int mpsstate=0;
   
@@ -62,6 +69,7 @@ int main(int argc, char* argv []) {
 
 
 #ifndef SERIAL
+  MPI_Comm_free(&Calc);
   MPI_Finalize();
 #endif
   return 0;
