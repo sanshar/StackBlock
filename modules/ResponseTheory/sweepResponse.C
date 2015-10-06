@@ -1021,8 +1021,9 @@ void SpinAdapted::SweepResponse::WavefunctionCanonicalize (SweepParams &sweepPar
     StackSpinBlock overlapsystemDot(systemDotStart, systemDotEnd, perturbationIntegral, false);
 
     overlapenvironmentDot.set_integralIndex() = perturbationIntegral;
-    overlapenvironmentDot = StackSpinBlock(sitesenvdot[0], sitesenvdot[0], perturbationIntegral, false);//singleSiteBlocks[perturbationIntegral][sitesenvdot[0]];
-    //StackSpinBlock::restore(!forward, sitesenvdot, overlapenvironmentDot, targetState, baseStates[l]); 
+
+    //overlapenvironmentDot = StackSpinBlock(sitesenvdot[0], sitesenvdot[0], perturbationIntegral, false);//singleSiteBlocks[perturbationIntegral][sitesenvdot[0]];
+    StackSpinBlock::restore(!forward, sitesenvdot, overlapenvironmentDot, targetState, baseStates[l]); 
 
     guessWaveTypes guesstype = sweepParams.get_block_iter() == 0 ? TRANSPOSE : TRANSFORM;
     
@@ -1044,6 +1045,7 @@ void SpinAdapted::SweepResponse::WavefunctionCanonicalize (SweepParams &sweepPar
     pout << "transform iwave"<<endl;
     StackWavefunction iwave; iwave.initialise(dmrginp.effective_molecule_quantum_vec(), overlapBig.get_leftBlock()->get_stateInfo(), overlapBig.get_rightBlock()->get_stateInfo(), sweepParams.get_onedot()); iwave.Clear();
     //****************************
+
     if (!mpigetrank())
       GuessWave::transform_previous_twodot_to_onedot_wavefunction(iwave, overlapBig, baseStates[l]);
     iwave.set_onedot(true);
@@ -1093,8 +1095,8 @@ void SpinAdapted::SweepResponse::WavefunctionCanonicalize (SweepParams &sweepPar
     StackSpinBlock overlapsystemDot(systemDotStart, systemDotEnd, perturbationIntegral, true);
 
     overlapenvironmentDot.set_integralIndex() = perturbationIntegral;
-    overlapenvironmentDot = StackSpinBlock(sitesenvdot[0], sitesenvdot[0], perturbationIntegral, false);//singleSiteBlocks[perturbationIntegral][sitesenvdot[0]];
-    //StackSpinBlock::restore(!forward, sitesenvdot, overlapenvironmentDot, targetState, projectors[l]); 
+    //overlapenvironmentDot = StackSpinBlock(sitesenvdot[0], sitesenvdot[0], perturbationIntegral, false);//singleSiteBlocks[perturbationIntegral][sitesenvdot[0]];
+    StackSpinBlock::restore(!forward, sitesenvdot, overlapenvironmentDot, targetState, projectors[l]); 
 
     guessWaveTypes guesstype = sweepParams.get_block_iter() == 0 ? TRANSPOSE : TRANSFORM;
     
