@@ -340,7 +340,7 @@ double SpinAdapted::Linear::ConjugateGradient(StackWavefunction& xi, double norm
 {
   setbuf(stdout, NULL);
   p3out.precision (12);
-  int iter = 0, maxIter = 20;
+  int iter = 0, maxIter = 10;
   double levelshift = 0.0, overlap2 = 0.0, oldError=0.0, functional=0.0, Error=0.0;
 
   StackWavefunction& targetState = lowerStates[0];

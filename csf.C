@@ -338,7 +338,7 @@ std::vector<SpinAdapted::Csf > SpinAdapted::CSFUTIL::spinfockstrings(const std::
     Slater s1(occ_rep1, 1), s2(occ_rep2, 1); map<Slater, double > m1, m2;
     m1[s1]= 1.0; m2[s2] = 1.0;
 
-    if (dmrginp.calc_type() != RESPONSELCC && find(dmrginp.get_openorbs().begin(), dmrginp.get_openorbs().end(), I) != dmrginp.get_openorbs().end() ) {
+    if ( (dmrginp.calc_type() != RESPONSELCC && dmrginp.calc_type() != RESPONSEAAAV) && find(dmrginp.get_openorbs().begin(), dmrginp.get_openorbs().end(), I) != dmrginp.get_openorbs().end() ) {
       thisSiteCsf.push_back( Csf(m1, 0, SpinSpace(0), 0, IrrepVector(0,0))); //0,0,0
       ladderentry.push_back(Csf(m1, 0, SpinSpace(0), 0, IrrepVector(0,0))); singleSiteLadder.push_back(ladderentry);
       numcsfs.push_back(thisSiteCsf.size());
@@ -347,7 +347,7 @@ std::vector<SpinAdapted::Csf > SpinAdapted::CSFUTIL::spinfockstrings(const std::
 	singleSiteCsf.push_back( thisSiteCsf[i]);
       continue;
     }
-    else if (dmrginp.calc_type() != RESPONSELCC && find(dmrginp.get_closedorbs().begin(), dmrginp.get_closedorbs().end(), I) != dmrginp.get_closedorbs().end()) {
+    else if ( (dmrginp.calc_type() != RESPONSELCC && dmrginp.calc_type() != RESPONSEAAAV)&& find(dmrginp.get_closedorbs().begin(), dmrginp.get_closedorbs().end(), I) != dmrginp.get_closedorbs().end()) {
       std::vector<bool> occ_rep(Slater().size(),0);
       occ_rep[dmrginp.spatial_to_spin()[I]+2*irrepsize-2] = 1;
       occ_rep[dmrginp.spatial_to_spin()[I]+2*irrepsize-1] = 1;

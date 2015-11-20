@@ -38,9 +38,11 @@ class Input {
   int m_quanta_thrds;
   int m_mkl_thrds;
   int m_norbs;
+  int m_sweep_type;
   int m_alpha;
   int m_beta;
   int m_Sz;
+  int m_partialSweep;
   bool m_spinAdapted;
   bool m_Bogoliubov;
   int m_permSymm;
@@ -175,7 +177,7 @@ class Input {
   void serialize(Archive & ar, const unsigned int version)
   {
     ar & m_lowMemoryAlgorithm & m_memory & m_mkl_thrds & m_quanta_thrds & m_thrds_per_node & m_spinAdapted & m_Bogoliubov & m_stateSpecific & m_implicitTranspose & m_num_Integrals;
-    ar & m_norbs & m_alpha & m_beta & m_solve_type & m_Sz & m_set_Sz & m_baseState& m_projectorState& m_targetState;
+    ar & m_norbs & m_partialSweep & m_alpha & m_beta & m_sweep_type & m_solve_type & m_Sz & m_set_Sz & m_baseState& m_projectorState& m_targetState;
     ar & m_spin_vector & m_spin_orbs_symmetry & m_guess_permutations & m_nroots & m_weights & m_hf_occ_user & m_hf_occupancy;
     ar & m_sweep_iter_schedule & m_sweep_state_schedule & m_sweep_qstate_schedule & m_sweep_tol_schedule & m_sweep_noise_schedule &m_sweep_additional_noise_schedule & m_reorder;
     ar & m_molecule_quantum & m_total_symmetry_number & m_total_spin & m_orbenergies & m_add_noninteracting_orbs;
@@ -357,6 +359,7 @@ class Input {
   const orbitalFormat& orbformat() const {return m_orbformat;}
   const int& outputlevel() const {return m_outputlevel;}
   int& setOutputlevel()  {return m_outputlevel;}
+  int& get_sweep_type() {return m_sweep_type;}
   const vector<int>& spatial_to_spin() const {return m_spatial_to_spin;}
   int spatial_to_spin(int i) const {return m_spatial_to_spin.at(i);}
   const vector<int>& spin_to_spatial() const {return m_spin_to_spatial;}
@@ -367,6 +370,7 @@ class Input {
   const int& diis_keep_states() const {return m_diis_keep_states;}
   bool get_lowMemoryAlgorithm() { return m_lowMemoryAlgorithm;}
   bool use_partial_two_integrals() const {return (m_norbs/2 >= m_integral_disk_storage_thresh);}
+  int getPartialSweep() const {return m_partialSweep;}
   bool& set_fullrestart() {return m_fullrestart;}
   const bool& get_fullrestart() const {return m_fullrestart;}
   const bool& get_backward() const {return m_backward;}
