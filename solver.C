@@ -117,7 +117,10 @@ void SpinAdapted::Solver::solve_wavefunction(vector<StackWavefunction>& solution
 
       multiply_h davidson_f(big, onedot);
 
-      GuessWave::guess_wavefunctions(solution, e, big, guesswavetype, onedot, dot_with_sys, nroots, additional_noise, currentRoot); 
+      guessWaveTypes guesstype = guesswavetype;
+      if (guesswavetype == TRANSPOSE && big.get_leftBlock()->get_rightBlock() == 0)
+	guesstype = BASIC;
+      GuessWave::guess_wavefunctions(solution, e, big, guesstype, onedot, dot_with_sys, nroots, additional_noise, currentRoot); 
       dmrginp.guesswf->stop();
       
       for (int istate=0; istate<lowerStates.size(); istate++)  {

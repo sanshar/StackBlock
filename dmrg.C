@@ -417,29 +417,29 @@ int calldmrg(char* input, char* output)
   else if (dmrginp.calc_type() == DMRG ||
 	   dmrginp.calc_type() == ONEPDM)
   {
-    if (RESTART && !FULLRESTART)
-      restart(sweep_tol, reset_iter);
-    else if (FULLRESTART) {
-      fullrestartGenblock();
-      reset_iter = true;
-      sweepParams.restorestate(direction, restartsize);
-      sweepParams.calc_niter();
-      sweepParams.savestate(direction, restartsize);
-      restart(sweep_tol, reset_iter);
-    }
-    else if (BACKWARD) {
-       fullrestartGenblock();
-       reset_iter = true;
-       sweepParams.restorestate(direction, restartsize);
-       sweepParams.calc_niter();
-       sweepParams.savestate(direction, restartsize);
-       restart(sweep_tol, reset_iter);
-    }
-    else {
-      if (dmrginp.get_sweep_type() == FULL)
-	dmrg(sweep_tol);
-      else 
+    if (dmrginp.get_sweep_type() != FULL)
 	partialsweepDMRG(sweep_tol);
+    else {
+      if (RESTART && !FULLRESTART)
+	restart(sweep_tol, reset_iter);
+      else if (FULLRESTART) {
+	fullrestartGenblock();
+	reset_iter = true;
+	sweepParams.restorestate(direction, restartsize);
+	sweepParams.calc_niter();
+	sweepParams.savestate(direction, restartsize);
+	restart(sweep_tol, reset_iter);
+      }
+      else if (BACKWARD) {
+	fullrestartGenblock();
+	reset_iter = true;
+	sweepParams.restorestate(direction, restartsize);
+	sweepParams.calc_niter();
+	sweepParams.savestate(direction, restartsize);
+	restart(sweep_tol, reset_iter);
+      }
+      else 
+	dmrg(sweep_tol);
     }
     /*
     if (dmrginp.calc_type() == ONEPDM) 
@@ -817,16 +817,26 @@ void partialsweepDMRG(double sweep_tol)
   bool dodiis = false;
 
   int domoreIter = 0;
-  bool direction;
+  bool direction=true;
+
+  int restartsize = 0;
+  if (RESTART)
+    sweepParams.restorestate(direction, restartsize);
+  else if (FULLRESTART)
+    fullrestartGenblock();
 
   //this is regular dmrg calculation
   if(!dmrginp.setStateSpecific()) {
-    sweepParams.current_root() = -1;
-    dmrginp.get_sweep_type() = FULL;
-    last_fe = Sweep::do_one(sweepParams, true, true, false, 0);
-    last_be = Sweep::do_one(sweepParams, false, false, false, 0);
-    dmrginp.get_sweep_type() = PARTIAL;
-    direction = true;
+    if (!( (RESTART) && sweepParams.get_sweep_iter() >= 2)) {
+      sweepParams.current_root() = -1;
+      dmrginp.get_sweep_type() = FULL;
+      if (FULLRESTART)
+	last_fe = Sweep::do_one(sweepParams, false, direction, false, 0);
+      else
+	last_fe = Sweep::do_one(sweepParams, true, direction, false, 0);
+      last_be = Sweep::do_one(sweepParams, false, !direction, false, 0);
+      dmrginp.get_sweep_type() = PARTIAL;
+    }
     while ((fabs(last_fe - old_fe) > sweep_tol) || (fabs(last_be - old_be) > sweep_tol) || 
 	   (dmrginp.algorithm_method() == TWODOT_TO_ONEDOT && dmrginp.twodot_to_onedot_iter()+1 >= sweepParams.get_sweep_iter()) )
     {
@@ -834,8 +844,10 @@ void partialsweepDMRG(double sweep_tol)
       old_be = last_be;
       if(dmrginp.max_iter() <= sweepParams.get_sweep_iter())
 	break;
-      last_be = Sweep::do_one_partial(sweepParams, false, true, false, 0);
-      direction = true;
+      last_be = Sweep::do_one_partial(sweepParams, false, direction, false, 0);
+      direction = !direction;
+      //last_be = Sweep::do_one_partial(sweepParams, false, true, false, 0);
+      //direction = true;
       pout << "\t\t\t Finished Sweep Iteration "<<sweepParams.get_sweep_iter()<<endl;
       
       if(dmrginp.max_iter() <= sweepParams.get_sweep_iter())
@@ -845,8 +857,10 @@ void partialsweepDMRG(double sweep_tol)
       old_states=sweepParams.get_keep_states();
       new_states=sweepParams.get_keep_states_ls();
       
-      last_fe = Sweep::do_one_partial(sweepParams, false, false, false, 0);
-      direction = false;
+      last_fe = Sweep::do_one_partial(sweepParams, false, direction, false, 0);
+      direction = !direction;
+      //last_fe = Sweep::do_one_partial(sweepParams, false, false, false, 0);
+      //direction = false;
       
       new_states=sweepParams.get_keep_states();
       
@@ -859,7 +873,7 @@ void partialsweepDMRG(double sweep_tol)
       
     }
 
-    if (direction)
+    if (!direction)
       Sweep::do_one_partial(sweepParams, false, false, false, 0);
     //do two final full sweeps to store the rotation matrices
     dmrginp.get_sweep_type() = FULL;
@@ -1029,7 +1043,10 @@ void responsepartialSweep(double sweep_tol, int targetState, vector<int>& projec
     warmUp = false;
     restart = true;
     sweepParams.restorestate(direction, restartSize);
-    last_fe = SweepResponse::do_one(sweepParams, warmUp, direction, restart, restartSize, targetState, projectors, baseStates);
+    if (sweepParams.get_sweep_iter() < 1)
+      last_fe = SweepResponse::do_one(sweepParams, warmUp, direction, restart, restartSize, targetState, projectors, baseStates);
+    else
+      direction = !direction;
   }
   else {
     dmrginp.get_sweep_type() = FULL;
