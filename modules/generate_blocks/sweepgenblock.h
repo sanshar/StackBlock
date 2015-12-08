@@ -10,8 +10,6 @@ Sandeep Sharma and Garnet K.-L. Chan
 #ifndef SWEEPGENBLOCK_HEADER
 #define SWEEPGENBLOCK_HEADER
 
-using namespace boost;
-using namespace std;
 
 namespace SpinAdapted{
   class SweepParams;

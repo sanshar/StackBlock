@@ -8,20 +8,20 @@ Sandeep Sharma and Garnet K.-L. Chan
 
 #include "npdm_spin_ops.h"
 #include "pario.h"
-
+#include "StackBaseOperator.h"
 namespace SpinAdapted {
 namespace Npdm {
 
 //===========================================================================================================================================================
 // NOTE transpose applied to RHS operator here
 
-boost::shared_ptr<SparseMatrix> NpdmSpinOps::build_compound_operator( bool is_fermion, int sign,
-                                                                      boost::shared_ptr<SparseMatrix> lhsOp,
-                                                                      boost::shared_ptr<SparseMatrix> rhsOp,
+boost::shared_ptr<StackSparseMatrix> NpdmSpinOps::build_compound_operator( bool is_fermion, int sign,
+                                                                      boost::shared_ptr<StackSparseMatrix> lhsOp,
+                                                                      boost::shared_ptr<StackSparseMatrix> rhsOp,
                                                                       int ispin, std::vector<int> indices, bool transpose)
 {
   // Initialize new operator
-  boost::shared_ptr<SparseMatrix> newOp (new Cre);
+  boost::shared_ptr<StackSparseMatrix> newOp (new StackCre);
   assert( lhsOp->get_orbs().size() + rhsOp->get_orbs().size() == indices.size() );
   newOp->set_orbs() = indices;
   newOp->set_initialised() = true;
@@ -38,7 +38,7 @@ boost::shared_ptr<SparseMatrix> NpdmSpinOps::build_compound_operator( bool is_fe
 
   if (transpose) {
     // Build compound operator as product of LHS and TRANSPOSE( RHS )
-    operatorfunctions::Product(spinBlock_, *lhsOp, Transposeview(*rhsOp), *newOp, 1.0 );
+    operatorfunctions::Product(spinBlock_, *lhsOp, StackTransposeview(*rhsOp), *newOp, 1.0 );
   }
   else {
     // Build compound operator as product of LHS and RHS

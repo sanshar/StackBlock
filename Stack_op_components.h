@@ -24,6 +24,11 @@ Sandeep Sharma and Garnet K.-L. Chan
 #include "operatorloops.h"
 #include "StackMatrix.h"
 #include <string>
+#include "three_index_ops.h"
+#include "four_index_ops.h"
+#include "para_array_3d.h"
+#include "para_array_4d.h"
+#include <tuple>
 
 namespace SpinAdapted{
 class StackSpinBlock;
@@ -80,6 +85,66 @@ template <> struct ChooseArray<StackOverlap> {
 };
 
 
+//the NPDM operators
+template <> struct ChooseArray<RI3index> {
+  typedef para_array_3d<std::vector<boost::shared_ptr<RI3index> > > ArrayType;
+};  
+template <> struct ChooseArray<RI4index> {
+  typedef para_array_4d<std::vector<boost::shared_ptr<RI4index> > > ArrayType;
+};
+// 3PDM
+template <> struct ChooseArray<StackCreCreDes> {
+  typedef para_array_3d<std::vector<boost::shared_ptr<StackCreCreDes> > > ArrayType;
+};
+template <> struct ChooseArray<StackCreDesDes> {
+  typedef para_array_3d<std::vector<boost::shared_ptr<StackCreDesDes> > > ArrayType;
+};
+template <> struct ChooseArray<StackCreDesCre> {
+  typedef para_array_3d<std::vector<boost::shared_ptr<StackCreDesCre> > > ArrayType;
+};
+template <> struct ChooseArray<StackCreCreCre> {
+  typedef para_array_3d<std::vector<boost::shared_ptr<StackCreCreCre> > > ArrayType;
+};
+// 4PDM
+template <> struct ChooseArray<StackDesCreDes> {
+  typedef para_array_3d<std::vector<boost::shared_ptr<StackDesCreDes> > > ArrayType;
+};
+template <> struct ChooseArray<StackDesDesCre> {
+  typedef para_array_3d<std::vector<boost::shared_ptr<StackDesDesCre> > > ArrayType;
+};
+template <> struct ChooseArray<StackDesCreCre> {
+  typedef para_array_3d<std::vector<boost::shared_ptr<StackDesCreCre> > > ArrayType;
+};
+template <> struct ChooseArray<StackDesDesDes> {
+  typedef para_array_3d<std::vector<boost::shared_ptr<StackDesDesDes> > > ArrayType;
+};
+template <> struct ChooseArray<StackCreCreDesDes> {
+  typedef para_array_4d<std::vector<boost::shared_ptr<StackCreCreDesDes> > > ArrayType;
+};
+template <> struct ChooseArray<StackCreDesCreDes> {
+  typedef para_array_4d<std::vector<boost::shared_ptr<StackCreDesCreDes> > > ArrayType;
+};
+template <> struct ChooseArray<StackCreDesDesCre> {
+  typedef para_array_4d<std::vector<boost::shared_ptr<StackCreDesDesCre> > > ArrayType;
+};
+template <> struct ChooseArray<StackCreDesDesDes> {
+  typedef para_array_4d<std::vector<boost::shared_ptr<StackCreDesDesDes> > > ArrayType;
+};
+template <> struct ChooseArray<StackCreCreCreDes> {
+  typedef para_array_4d<std::vector<boost::shared_ptr<StackCreCreCreDes> > > ArrayType;
+};
+template <> struct ChooseArray<StackCreCreDesCre> {
+  typedef para_array_4d<std::vector<boost::shared_ptr<StackCreCreDesCre> > > ArrayType;
+};
+template <> struct ChooseArray<StackCreDesCreCre> {
+  typedef para_array_4d<std::vector<boost::shared_ptr<StackCreDesCreCre> > > ArrayType;
+};
+template <> struct ChooseArray<StackCreCreCreCre> {
+  typedef para_array_4d<std::vector<boost::shared_ptr<StackCreCreCreCre> > > ArrayType;
+};
+
+
+
 
 //===========================================================================================================================================================
 
@@ -100,7 +165,7 @@ class StackOp_component_base
 
  public:
   virtual long build_iterators(StackSpinBlock& b, bool calcMemory)=0;
-  virtual void build_iterators(StackSpinBlock& b, std::vector<int>& screened_c_ix, std::vector<std::pair<int, int> >& screened_pair)=0;
+  virtual void build_iterators(StackSpinBlock& b, std::vector<int>& screened_c_ix, std::vector<std::pair<int, int> >& screened_pair, std::map< std::tuple<int, int, int>, int>& tuple)=0;
   virtual void build_operators(StackSpinBlock& b)=0;
   virtual double* allocateOperators(const StateInfo& sl, const StateInfo& sr, double* pData) = 0;
   virtual long getRequiredMemory(const StateInfo& sl, const StateInfo& sr) = 0;
@@ -177,7 +242,7 @@ template <class Op> class StackOp_component : public StackOp_component_base
   void clear(){m_op.clear();}
 
   long build_iterators(StackSpinBlock& b, bool calcMemory);
-  void build_iterators(StackSpinBlock& b, std::vector<int>& screened_c_ix, std::vector<std::pair<int, int> >& screened_pair);
+  void build_iterators(StackSpinBlock& b, std::vector<int>& screened_c_ix, std::vector<std::pair<int, int> >& screened_pair, std::map< std::tuple<int, int, int>, int>& tuple);
   void build_operators(StackSpinBlock& b) 
     { singlethread_build(*this, b); }
 
@@ -342,6 +407,15 @@ template <class Op> class StackOp_component : public StackOp_component_base
 };
 
 //===========================================================================================================================================================
+
+template<>
+  void StackOp_component<StackCreCreCre>::build_and_renormalise_operators(StackSpinBlock&b, const opTypes &ot, const std::vector<Matrix>& rotateMatrix, const StateInfo *stateinfo) ;
+template<>
+  void StackOp_component<StackCreCreDes>::build_and_renormalise_operators(StackSpinBlock&b, const opTypes &ot, const std::vector<Matrix>& rotateMatrix, const StateInfo *stateinfo) ;
+template<>
+  void StackOp_component<StackCreDesDes>::build_and_renormalise_operators(StackSpinBlock&b, const opTypes &ot, const std::vector<Matrix>& rotateMatrix, const StateInfo *stateinfo) ;
+template<>
+  void StackOp_component<StackCreDesCre>::build_and_renormalise_operators(StackSpinBlock&b, const opTypes &ot, const std::vector<Matrix>& rotateMatrix, const StateInfo *stateinfo) ;
  
 template <class Op> int StackOp_component<Op>::nIDgenerator = 1;
 

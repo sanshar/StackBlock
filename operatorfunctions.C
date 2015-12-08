@@ -504,62 +504,68 @@ void SpinAdapted::operatorfunctions::TensorMultiply(const StackSpinBlock *ablock
   const int leftKetOpSz = cblock->get_leftBlock()->get_ketStateInfo().quanta.size ();
   const int rightBraOpSz = cblock->get_rightBlock()->get_braStateInfo().quanta.size ();
   const int rightKetOpSz = cblock->get_rightBlock()->get_ketStateInfo().quanta.size ();
-
+  
   const StateInfo* lbraS = cblock->get_braStateInfo().leftStateInfo, *lketS = cblock->get_ketStateInfo().leftStateInfo;
   const StateInfo* rbraS = cblock->get_braStateInfo().rightStateInfo, *rketS = cblock->get_ketStateInfo().rightStateInfo;
-
-
+  
+  
   assert (cblock->get_leftBlock() == ablock || cblock->get_rightBlock() == ablock);
   if (cblock->get_leftBlock() == ablock)
-  {
-    const std::vector< std::pair<std::pair<int, int>, StackMatrix> >& nonZeroBlocks = a.get_nonZeroBlocks();
-    //#pragma omp parallel for schedule(dynamic)
-    for (int index = 0; index<nonZeroBlocks.size(); index++) {
-      int lQ = nonZeroBlocks[index].first.first, lQPrime = nonZeroBlocks[index].first.second;
-      for (int rQ = 0; rQ < rightKetOpSz; ++rQ) 
-	if (c.allowed(lQPrime, rQ) && v.allowed(lQ, rQ))
-	{
-	  double fac=scale;
-	  fac *= dmrginp.get_ninej()(lketS->quanta[lQPrime].get_s().getirrep(), rketS->quanta[rQ].get_s().getirrep() , c.get_deltaQuantum(0).get_s().getirrep(), 
-				     a.get_spin().getirrep(), 0, a.get_spin().getirrep(),
-				     lbraS->quanta[lQ].get_s().getirrep(), rketS->quanta[rQ].get_s().getirrep() , v.get_deltaQuantum(0).get_s().getirrep());
-	  fac *= Symmetry::spatial_ninej(lketS->quanta[lQPrime].get_symm().getirrep() , rketS->quanta[rQ].get_symm().getirrep(), c.get_symm().getirrep(), 
-					 a.get_symm().getirrep(), 0, a.get_symm().getirrep(),
-					 lbraS->quanta[lQ].get_symm().getirrep() , rketS->quanta[rQ].get_symm().getirrep(), v.get_symm().getirrep());
-	  fac *= a.get_scaling(lbraS->quanta[lQ], lketS->quanta[lQPrime]);
-	  MatrixMultiply (a.operator_element(lQ, lQPrime), a.conjugacy(), c.operator_element(lQPrime, rQ), c.conjugacy(),
-			  v.operator_element(lQ, rQ), fac);
-	}
-      
+    {
+      for (int lQ = 0; lQ < leftBraOpSz; ++lQ) {
+	for (int lQPrime = 0; lQPrime < leftKetOpSz; ++lQPrime)
+	  {
+	    if (a.allowed(lQ, lQPrime))
+	      {
+		const StackMatrix& aop = a.operator_element(lQ, lQPrime);
+		for (int rQ = 0; rQ < rightKetOpSz; ++rQ) 
+		  if (c.allowed(lQPrime, rQ) && v.allowed(lQ, rQ))
+		    {
+		      double fac=scale;
+		      fac *= dmrginp.get_ninej()(lketS->quanta[lQPrime].get_s().getirrep(), rketS->quanta[rQ].get_s().getirrep() , c.get_deltaQuantum(0).get_s().getirrep(), 
+						 a.get_spin().getirrep(), 0, a.get_spin().getirrep(),
+						 lbraS->quanta[lQ].get_s().getirrep(), rketS->quanta[rQ].get_s().getirrep() , v.get_deltaQuantum(0).get_s().getirrep());
+		      fac *= Symmetry::spatial_ninej(lketS->quanta[lQPrime].get_symm().getirrep() , rketS->quanta[rQ].get_symm().getirrep(), c.get_symm().getirrep(), 
+						     a.get_symm().getirrep(), 0, a.get_symm().getirrep(),
+						     lbraS->quanta[lQ].get_symm().getirrep() , rketS->quanta[rQ].get_symm().getirrep(), v.get_symm().getirrep());
+		      fac *= a.get_scaling(lbraS->quanta[lQ], lketS->quanta[lQPrime]);
+		      MatrixMultiply (aop, a.conjugacy(), c.operator_element(lQPrime, rQ), c.conjugacy(),
+				      v.operator_element(lQ, rQ), fac);
+		    }
+		
+	      }
+	  }
+      }
     }
-  }
   else
-  {
-    const std::vector< std::pair<std::pair<int, int>, StackMatrix> >& nonZeroBlocks = a.get_nonZeroBlocks();
-    //#pragma omp parallel for schedule(dynamic)
-    for (int index = 0; index<nonZeroBlocks.size(); index++) {
-      int rQ = nonZeroBlocks[index].first.first, rQPrime = nonZeroBlocks[index].first.second;
-      for (int lQPrime = 0; lQPrime < leftKetOpSz; ++lQPrime) 
-	if (v.allowed(lQPrime, rQ) && c.allowed(lQPrime, rQPrime)) {
-	  double fac = scale;
-	  fac *= dmrginp.get_ninej()(lketS->quanta[lQPrime].get_s().getirrep(), rketS->quanta[rQPrime].get_s().getirrep() , c.get_deltaQuantum(0).get_s().getirrep(), 
-				     0, a.get_spin().getirrep(), a.get_spin().getirrep(),
-				     lketS->quanta[lQPrime].get_s().getirrep(), rbraS->quanta[rQ].get_s().getirrep() , v.get_deltaQuantum(0).get_s().getirrep());
-	  fac *= Symmetry::spatial_ninej(lketS->quanta[lQPrime].get_symm().getirrep() , rketS->quanta[rQPrime].get_symm().getirrep(), c.get_symm().getirrep(), 
-					 0, a.get_symm().getirrep(), a.get_symm().getirrep(),
-					 lketS->quanta[lQPrime].get_symm().getirrep() , rbraS->quanta[rQ].get_symm().getirrep(), v.get_symm().getirrep());
-	  fac *= a.get_scaling(rbraS->quanta[rQ], rketS->quanta[rQPrime]);
-	  double parity = a.get_fermion() && IsFermion(lketS->quanta[lQPrime]) ? -1 : 1;
-	  
-	  MatrixMultiply (c.operator_element(lQPrime, rQPrime), c.conjugacy(),
-			  a.operator_element(rQ, rQPrime), TransposeOf(a.conjugacy()), v.operator_element(lQPrime, rQ), fac*parity);
-	}
-      
+    {
+      for (int rQ = 0; rQ < rightBraOpSz; ++rQ) {
+	for (int rQPrime = 0; rQPrime < rightKetOpSz; ++rQPrime)
+	  if (a.allowed(rQ, rQPrime))
+	    {
+	      const StackMatrix& aop = a.operator_element(rQ, rQPrime);
+	      for (int lQPrime = 0; lQPrime < leftKetOpSz; ++lQPrime) 
+		if (v.allowed(lQPrime, rQ) && c.allowed(lQPrime, rQPrime)) {
+		  double fac = scale;
+		  fac *= dmrginp.get_ninej()(lketS->quanta[lQPrime].get_s().getirrep(), rketS->quanta[rQPrime].get_s().getirrep() , c.get_deltaQuantum(0).get_s().getirrep(), 
+					     0, a.get_spin().getirrep(), a.get_spin().getirrep(),
+					     lketS->quanta[lQPrime].get_s().getirrep(), rbraS->quanta[rQ].get_s().getirrep() , v.get_deltaQuantum(0).get_s().getirrep());
+		  fac *= Symmetry::spatial_ninej(lketS->quanta[lQPrime].get_symm().getirrep() , rketS->quanta[rQPrime].get_symm().getirrep(), c.get_symm().getirrep(), 
+						 0, a.get_symm().getirrep(), a.get_symm().getirrep(),
+						 lketS->quanta[lQPrime].get_symm().getirrep() , rbraS->quanta[rQ].get_symm().getirrep(), v.get_symm().getirrep());
+		  fac *= a.get_scaling(rbraS->quanta[rQ], rketS->quanta[rQPrime]);
+		  double parity = a.get_fermion() && IsFermion(lketS->quanta[lQPrime]) ? -1 : 1;
+		  
+		  MatrixMultiply (c.operator_element(lQPrime, rQPrime), c.conjugacy(),
+				  aop, TransposeOf(a.conjugacy()), v.operator_element(lQPrime, rQ), fac*parity);
+		}
+	      
+	    }
+	
+      }
     }
-  }
-}
-
-
+  
+} 
 
 
 void SpinAdapted::operatorfunctions::TensorMultiply(const StackSpinBlock *ablock, const StackSparseMatrix& a, const StackSparseMatrix& b, const StackSpinBlock *cblock, StackWavefunction& c, StackWavefunction* v, const SpinQuantum opQ, double scale)
@@ -769,6 +775,186 @@ void SpinAdapted::operatorfunctions::TensorMultiplysplitLeft(const StackSparseMa
    Stackmem[OMPRANK].deallocate(dataArray[q], maxlen);
   }
 
+  
+
+}
+
+void SpinAdapted::operatorfunctions::TensorMultiplyleftdot(const StackSparseMatrix& leftOp, StateInfo *cstate, StackWavefunction& c, StackWavefunction* v, const SpinQuantum opQ, double scale)
+{
+  long starttime = globaltimer.totalwalltime();
+
+    // can be used for situation with different bra and ket
+  const int unCollectedleftBraOpSz = cstate->leftStateInfo->unCollectedStateInfo->quanta.size ();
+  const int unCollectedleftKetOpSz = cstate->leftStateInfo->unCollectedStateInfo->quanta.size ();
+  const int leftBraOpSz = cstate->leftStateInfo->leftStateInfo->quanta.size ();
+  const int leftKetOpSz = cstate->leftStateInfo->leftStateInfo->quanta.size ();
+  const int dotBraOpSz = cstate->leftStateInfo->rightStateInfo->quanta.size ();
+  const int dotKetOpSz = cstate->leftStateInfo->rightStateInfo->quanta.size ();
+  const int rightBraOpSz = cstate->rightStateInfo->quanta.size ();
+  const int rightKetOpSz = cstate->rightStateInfo->quanta.size ();
+
+  const boost::shared_ptr<StateInfo> unCollectedlbraS = cstate->leftStateInfo->unCollectedStateInfo;
+  const boost::shared_ptr<StateInfo> unCollectedlketS = cstate->leftStateInfo->unCollectedStateInfo;
+  const StateInfo* lbraS = cstate->leftStateInfo->leftStateInfo;
+  const StateInfo* lketS = cstate->leftStateInfo->leftStateInfo;
+  const StateInfo* dotbraS = cstate->leftStateInfo->rightStateInfo;
+  const StateInfo* dotketS = cstate->leftStateInfo->rightStateInfo;
+  const StateInfo* rbraS = cstate->rightStateInfo;
+  const StateInfo* rketS = cstate->rightStateInfo;
+
+  const std::vector< std::pair<std::pair<int, int>, StackMatrix> >& nonZeroBlocks = c.get_nonZeroBlocks();
+
+
+  long maxlen = 0;
+  for (int lQ=0; lQ <leftBraOpSz; lQ++)
+    for (int rQPrime=0; rQPrime <rightKetOpSz; rQPrime++)
+      if (maxlen < lbraS->getquantastates(lQ)* rketS->getquantastates(rQPrime))
+	maxlen = lbraS->getquantastates(lQ)* rketS->getquantastates(rQPrime);
+
+  int OMPRANK = omprank;
+
+  int quanta_thrds = dmrginp.quanta_thrds();
+
+  double* dataArray[quanta_thrds];
+  for (int q = 0; q < quanta_thrds; q++) {
+    dataArray[q] = Stackmem[OMPRANK].allocate(maxlen);
+  }
+  SpinQuantum hq(0,SpinSpace(0),IrrepSpace(0));
+
+#pragma omp parallel for schedule(dynamic) num_threads(quanta_thrds)
+  for (int index = 0; index<nonZeroBlocks.size(); index++) {
+    int luncollectedQPrime = nonZeroBlocks[index].first.first, rQPrime = nonZeroBlocks[index].first.second;
+    int lQPrime = unCollectedlketS->leftUnMapQuanta[luncollectedQPrime], dotQPrime = unCollectedlketS->rightUnMapQuanta[luncollectedQPrime];
+
+    int rQ = rQPrime;
+      
+    const std::vector<int>& rowinds = v[OMPRANK].getActiveRows(rQ);
+    for (int l = 0; l < rowinds.size(); l++) {
+      int luncollectedQ = rowinds[l];
+      int lQ = unCollectedlbraS->leftUnMapQuanta[luncollectedQ], dotQ = unCollectedlbraS->rightUnMapQuanta[luncollectedQ];
+      if (dotQ== dotQPrime && leftOp.allowed(lQ, lQPrime) &&
+	    allowed(leftOp.get_deltaQuantum(), unCollectedlbraS->quanta[luncollectedQ], unCollectedlketS->quanta[luncollectedQPrime])) {
+
+
+	  
+	double factor = scale*leftOp.get_scaling(unCollectedlbraS->quanta[luncollectedQ], unCollectedlketS->quanta[luncollectedQPrime]);	      
+	factor *= dmrginp.get_ninej()(unCollectedlketS->quanta[luncollectedQPrime].get_s().getirrep(), rketS->quanta[rQPrime].get_s().getirrep() , c.get_deltaQuantum(0).get_s().getirrep(), 
+				      leftOp.get_spin().getirrep(), 0, leftOp.get_spin().getirrep(),
+				      unCollectedlbraS->quanta[luncollectedQ].get_s().getirrep(), rbraS->quanta[rQ].get_s().getirrep() , v[OMPRANK].get_deltaQuantum(0).get_s().getirrep());
+	  
+	double scaleB = 1.0;
+
+	scaleB = dmrginp.get_ninej()(lketS->quanta[lQPrime].get_s().getirrep() , dotketS->quanta[dotQPrime].get_s().getirrep(), unCollectedlketS->quanta[luncollectedQPrime].get_s().getirrep(), 
+				     leftOp.get_spin().getirrep(), 0, leftOp.get_spin().getirrep(),
+				     lbraS->quanta[lQ].get_s().getirrep() , dotketS->quanta[dotQ].get_s().getirrep(), unCollectedlbraS->quanta[luncollectedQ].get_s().getirrep());
+
+	scaleB *= leftOp.get_scaling(lbraS->quanta[lQ], lketS->quanta[lQPrime]);
+
+	MatrixScaleAdd(factor*scaleB*leftOp.operator_element(lQ, lQPrime)(1,1), c.operator_element(luncollectedQPrime, rQPrime), v[OMPRANK].operator_element(luncollectedQ, rQ));
+	
+	
+      }
+    }
+  }
+  
+  for (int q = quanta_thrds-1; q > -1 ; q--) {
+    Stackmem[OMPRANK].deallocate(dataArray[q], maxlen);
+  }
+  
+  
+  
+}
+
+
+
+void SpinAdapted::operatorfunctions::TensorMultiplydotop(const StackSparseMatrix& dotOp, StateInfo *cstate, StackWavefunction& c, StackWavefunction* v, const SpinQuantum opQ, double scale)
+{
+  long starttime = globaltimer.totalwalltime();
+
+    // can be used for situation with different bra and ket
+  const int unCollectedleftBraOpSz = cstate->leftStateInfo->unCollectedStateInfo->quanta.size ();
+  const int unCollectedleftKetOpSz = cstate->leftStateInfo->unCollectedStateInfo->quanta.size ();
+  const int leftBraOpSz = cstate->leftStateInfo->leftStateInfo->quanta.size ();
+  const int leftKetOpSz = cstate->leftStateInfo->leftStateInfo->quanta.size ();
+  const int dotBraOpSz = cstate->leftStateInfo->rightStateInfo->quanta.size ();
+  const int dotKetOpSz = cstate->leftStateInfo->rightStateInfo->quanta.size ();
+  const int rightBraOpSz = cstate->rightStateInfo->quanta.size ();
+  const int rightKetOpSz = cstate->rightStateInfo->quanta.size ();
+
+  const boost::shared_ptr<StateInfo> unCollectedlbraS = cstate->leftStateInfo->unCollectedStateInfo;
+  const boost::shared_ptr<StateInfo> unCollectedlketS = cstate->leftStateInfo->unCollectedStateInfo;
+  const StateInfo* lbraS = cstate->leftStateInfo->leftStateInfo;
+  const StateInfo* lketS = cstate->leftStateInfo->leftStateInfo;
+  const StateInfo* dotbraS = cstate->leftStateInfo->rightStateInfo;
+  const StateInfo* dotketS = cstate->leftStateInfo->rightStateInfo;
+  const StateInfo* rbraS = cstate->rightStateInfo;
+  const StateInfo* rketS = cstate->rightStateInfo;
+
+
+  const std::vector< std::pair<std::pair<int, int>, StackMatrix> >& nonZeroBlocks = c.get_nonZeroBlocks();
+
+
+  long maxlen = 0;
+  for (int lQ=0; lQ <leftBraOpSz; lQ++)
+    for (int rQPrime=0; rQPrime <rightKetOpSz; rQPrime++)
+      if (maxlen < lbraS->getquantastates(lQ)* rketS->getquantastates(rQPrime))
+	maxlen = lbraS->getquantastates(lQ)* rketS->getquantastates(rQPrime);
+
+  int OMPRANK = omprank;
+
+  int quanta_thrds = dmrginp.quanta_thrds();
+
+  double* dataArray[quanta_thrds];
+  for (int q = 0; q < quanta_thrds; q++) {
+    dataArray[q] = Stackmem[OMPRANK].allocate(maxlen);
+  }
+
+  SpinQuantum hq(0,SpinSpace(0),IrrepSpace(0));
+
+#pragma omp parallel for schedule(dynamic) num_threads(quanta_thrds)
+  for (int index = 0; index<nonZeroBlocks.size(); index++) {
+    int luncollectedQPrime = nonZeroBlocks[index].first.first, rQPrime = nonZeroBlocks[index].first.second;
+    int lQPrime = unCollectedlketS->leftUnMapQuanta[luncollectedQPrime], dotQPrime = unCollectedlketS->rightUnMapQuanta[luncollectedQPrime];
+
+    int rQ = rQPrime;
+
+    StackMatrix m(dataArray[omprank], unCollectedlketS->getquantastates(luncollectedQPrime), rbraS->getquantastates(rQ));
+    ::Clear(m);
+      
+    const std::vector<int>& rowinds = v[OMPRANK].getActiveRows(rQ);
+    for (int l = 0; l < rowinds.size(); l++) {
+      int luncollectedQ = rowinds[l];
+      int lQ = unCollectedlbraS->leftUnMapQuanta[luncollectedQ], dotQ = unCollectedlbraS->rightUnMapQuanta[luncollectedQ];
+      if (dotOp.allowed(dotQ, dotQPrime) && lQ == lQPrime &&
+	  allowed(dotOp.get_deltaQuantum(), unCollectedlbraS->quanta[luncollectedQ], unCollectedlketS->quanta[luncollectedQPrime])) {
+	
+	double factor = scale*dotOp.get_scaling(unCollectedlbraS->quanta[luncollectedQ], unCollectedlketS->quanta[luncollectedQPrime]);	      
+	factor *= dmrginp.get_ninej()(unCollectedlketS->quanta[luncollectedQPrime].get_s().getirrep(), rketS->quanta[rQPrime].get_s().getirrep() , c.get_deltaQuantum(0).get_s().getirrep(), 
+				      dotOp.get_spin().getirrep(), 0, dotOp.get_spin().getirrep(),
+				      unCollectedlbraS->quanta[luncollectedQ].get_s().getirrep(), rbraS->quanta[rQ].get_s().getirrep() , v[OMPRANK].get_deltaQuantum(0).get_s().getirrep());
+	
+	double scaleB = 1.0;
+	
+	scaleB = dmrginp.get_ninej()(lketS->quanta[lQPrime].get_s().getirrep() , dotketS->quanta[dotQPrime].get_s().getirrep(), unCollectedlketS->quanta[luncollectedQPrime].get_s().getirrep(), 
+				     0, dotOp.get_spin().getirrep(), dotOp.get_spin().getirrep(),
+				     lbraS->quanta[lQ].get_s().getirrep() , dotketS->quanta[dotQ].get_s().getirrep(), unCollectedlbraS->quanta[luncollectedQ].get_s().getirrep());
+	
+	scaleB *= dotOp.operator_element(dotQ, dotQPrime)(1,1);
+	scaleB *= dotOp.get_scaling(dotbraS->quanta[dotQ], dotketS->quanta[dotQPrime]);
+	if (dotOp.get_fermion() && IsFermion(lketS->quanta[lQPrime])) scaleB *= -1;
+	
+	MatrixScaleAdd(factor*scaleB, c.operator_element(luncollectedQPrime, rQPrime), v[OMPRANK].operator_element(luncollectedQ, rQ));
+	
+      }
+    }
+  }
+
+  
+  
+  for (int q = quanta_thrds-1; q > -1 ; q--) {
+    Stackmem[OMPRANK].deallocate(dataArray[q], maxlen);
+  }
+  
   
 
 }
@@ -2326,6 +2512,84 @@ void SpinAdapted::operatorfunctions::multiplyDotLeft(const StackSparseMatrix& RI
   }
 }
 
+void SpinAdapted::operatorfunctions::braTensorMultiply(const StackSpinBlock *ablock, const StackSparseMatrix &a, const StackSpinBlock *cblock, StackWavefunction &c, StackWavefunction &v, double scale, int num_thrds)
+{
+  //It get a result of <\Psi|O. 
+  //It is similar to Transposeview(O)|\Psi>
+  //However, spin coupling coefficients is different for transpose.
+  //It is convenient for npdm with intermediate.
+  const int leftBraOpSz = cblock->get_leftBlock()->get_braStateInfo().quanta.size ();
+  const int leftKetOpSz = cblock->get_leftBlock()->get_ketStateInfo().quanta.size ();
+  const int rightBraOpSz = cblock->get_rightBlock()->get_braStateInfo().quanta.size ();
+  const int rightKetOpSz = cblock->get_rightBlock()->get_ketStateInfo().quanta.size ();
+
+  const StateInfo* lbraS = cblock->get_braStateInfo().leftStateInfo, *lketS = cblock->get_ketStateInfo().leftStateInfo;
+  const StateInfo* rbraS = cblock->get_braStateInfo().rightStateInfo, *rketS = cblock->get_ketStateInfo().rightStateInfo;
+
+  assert (cblock->get_leftBlock() == ablock || cblock->get_rightBlock() == ablock);
+  if (cblock->get_leftBlock() == ablock)
+    {
+      //#pragma omp parallel default(shared)  num_threads(num_thrds)
+      {
+	//#pragma omp for schedule(dynamic)
+      for (int lQ = 0; lQ < leftKetOpSz; ++lQ) {
+	for (int lQPrime = 0; lQPrime < leftBraOpSz; ++lQPrime)
+	  {
+	    if (a.allowed(lQPrime, lQ))
+              {
+		const StackMatrix& aop = a.operator_element(lQPrime, lQ);
+		  for (int rQ = 0; rQ < rightKetOpSz; ++rQ) 
+		    if (c.allowed(lQPrime, rQ) && v.allowed(lQ, rQ))
+		    {
+                      double fac=scale;
+		      fac *= dmrginp.get_ninej()(lbraS->quanta[lQPrime].get_s().getirrep(), rbraS->quanta[rQ].get_s().getirrep() , c.get_deltaQuantum(0).get_s().getirrep(), 
+						   (-a.get_spin()).getirrep(), 0, (-a.get_spin()).getirrep(),
+						   lketS->quanta[lQ].get_s().getirrep(), rbraS->quanta[rQ].get_s().getirrep() , v.get_deltaQuantum(0).get_s().getirrep());
+		      fac *= Symmetry::spatial_ninej(lbraS->quanta[lQPrime].get_symm().getirrep() , rbraS->quanta[rQ].get_symm().getirrep(), c.get_symm().getirrep(), 
+					   (-a.get_symm()).getirrep(), 0, (-a.get_symm()).getirrep(),
+					   lketS->quanta[lQ].get_symm().getirrep() , rbraS->quanta[rQ].get_symm().getirrep(), v.get_symm().getirrep());
+		      fac *= a.get_scaling(lbraS->quanta[lQPrime], lketS->quanta[lQ]);
+		      MatrixMultiply (aop, TransposeOf(a.conjugacy()), c.operator_element(lQPrime, rQ), c.conjugacy(),
+				      v.operator_element(lQ, rQ), fac);
+		    }
+
+              }
+	  }
+      }
+      }
+    }
+  else
+    {
+      //#pragma omp parallel default(shared)  num_threads(num_thrds)
+      {
+	//#pragma omp for schedule(dynamic)
+      for (int rQ = 0; rQ < rightKetOpSz; ++rQ) {
+	for (int rQPrime = 0; rQPrime < rightBraOpSz; ++rQPrime)
+	  if (a.allowed(rQPrime, rQ))
+	    {
+	      const StackMatrix& aop = a.operator_element(rQ, rQPrime);
+	      for (int lQPrime = 0; lQPrime < leftBraOpSz; ++lQPrime) 
+		if (v.allowed(lQPrime, rQ) && c.allowed(lQPrime, rQPrime)) {
+                  double fac = scale;
+		  fac *= dmrginp.get_ninej()(lbraS->quanta[lQPrime].get_s().getirrep(), rbraS->quanta[rQPrime].get_s().getirrep() , c.get_deltaQuantum(0).get_s().getirrep(), 
+					       0, (-a.get_spin()).getirrep(), (-a.get_spin()).getirrep(),
+					       lbraS->quanta[lQPrime].get_s().getirrep(), rketS->quanta[rQ].get_s().getirrep() , v.get_deltaQuantum(0).get_s().getirrep());
+		  fac *= Symmetry::spatial_ninej(lbraS->quanta[lQPrime].get_symm().getirrep() , rbraS->quanta[rQPrime].get_symm().getirrep(), c.get_symm().getirrep(), 
+				      0, (-a.get_symm()).getirrep(), (-a.get_symm()).getirrep(),
+				      lbraS->quanta[lQPrime].get_symm().getirrep() , rketS->quanta[rQ].get_symm().getirrep(), v.get_symm().getirrep());
+		  fac *= a.get_scaling(rbraS->quanta[rQPrime], rketS->quanta[rQ]);
+		  double parity = a.get_fermion() && IsFermion(lbraS->quanta[lQPrime]) ? -1 : 1;
+
+		  MatrixMultiply (c.operator_element(lQPrime, rQPrime), c.conjugacy(),
+				  aop, a.conjugacy(), v.operator_element(lQPrime, rQ), fac*parity);
+		}
+
+	    }
+      }
+      }
+    }
+
+}
 
 
 void SpinAdapted::operatorfunctions::MultiplyWithOwnTranspose(const StackSparseMatrix& a, StackSparseMatrix& c, Real scale)

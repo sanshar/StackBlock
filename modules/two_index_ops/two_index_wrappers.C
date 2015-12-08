@@ -17,7 +17,7 @@ namespace Npdm{
 // 3-PDM OPERATORS
 //===========================================================================================================================================================
 
-Npdm_op_wrapper_DC::Npdm_op_wrapper_DC( SpinBlock * spinBlock )
+Npdm_op_wrapper_DC::Npdm_op_wrapper_DC( StackSpinBlock * spinBlock )
 {
   opReps_.clear();
   indices_.clear();
@@ -113,7 +113,7 @@ if ( ix == jx ) {
 // 2-PDM OPERATORS
 //===========================================================================================================================================================
 
-Npdm_op_wrapper_CC::Npdm_op_wrapper_CC( SpinBlock * spinBlock )
+Npdm_op_wrapper_CC::Npdm_op_wrapper_CC( StackSpinBlock * spinBlock )
 {
   opReps_.clear();
   indices_.clear();
@@ -144,7 +144,7 @@ bool Npdm_op_wrapper_CC::set_local_ops( int idx )
 
 //===========================================================================================================================================================
 
-Npdm_op_wrapper_CD::Npdm_op_wrapper_CD( SpinBlock * spinBlock )
+Npdm_op_wrapper_CD::Npdm_op_wrapper_CD( StackSpinBlock * spinBlock )
 {
   opReps_.clear();
   indices_.clear();
@@ -176,7 +176,7 @@ bool Npdm_op_wrapper_CD::set_local_ops( int idx )
 //===========================================================================================================================================================
 // Build DD as transpose(CC)
 //
-//Npdm_op_wrapper_DD::Npdm_op_wrapper_DD( SpinBlock * spinBlock )
+//Npdm_op_wrapper_DD::Npdm_op_wrapper_DD( StackSpinBlock * spinBlock )
 //{
 //  opReps_.clear();
 //  indices_.clear();
@@ -209,7 +209,7 @@ bool Npdm_op_wrapper_CD::set_local_ops( int idx )
 //
 //===========================================================================================================================================================
 
-Npdm_op_wrapper_DD::Npdm_op_wrapper_DD( SpinBlock * spinBlock )
+Npdm_op_wrapper_DD::Npdm_op_wrapper_DD( StackSpinBlock * spinBlock )
 {
   opReps_.clear();
   indices_.clear();
@@ -242,7 +242,7 @@ bool Npdm_op_wrapper_DD::set_local_ops( int idx )
 // 1-INDEX OPERATORS
 //===========================================================================================================================================================
 
-Npdm_op_wrapper_C::Npdm_op_wrapper_C( SpinBlock * spinBlock ) 
+Npdm_op_wrapper_C::Npdm_op_wrapper_C( StackSpinBlock * spinBlock ) 
 {
   opReps_.clear();
   indices_.clear();
@@ -267,7 +267,7 @@ bool Npdm_op_wrapper_C::set_local_ops( int idx )
 
 //===========================================================================================================================================================
 
-Npdm_op_wrapper_D::Npdm_op_wrapper_D( SpinBlock * spinBlock ) 
+Npdm_op_wrapper_D::Npdm_op_wrapper_D( StackSpinBlock * spinBlock ) 
 {
   opReps_.clear();
   indices_.clear();
@@ -302,7 +302,7 @@ bool Npdm_op_wrapper_D::set_local_ops( int idx )
 
 //===========================================================================================================================================================
 
-Npdm_op_wrapper_NULL::Npdm_op_wrapper_NULL(SpinBlock * spinBlock)
+Npdm_op_wrapper_NULL::Npdm_op_wrapper_NULL(StackSpinBlock * spinBlock)
 {
   // Null operator
   spinBlock_ = spinBlock;

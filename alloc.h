@@ -5,6 +5,11 @@
 #include <vector>
 #include <stdlib.h>  
 #include <memory>
+#include <signal.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+void print_trace(int sig);
 
 template<class T> class StackAllocator
 {
@@ -22,7 +27,7 @@ template<class T> class StackAllocator
   {
     if (memused+n >=size) {
       std::cout << "exceeding allowed memory"<<std::endl;
-      abort();
+      print_trace(11);
     }
     else {
       memused = memused+n;
@@ -33,7 +38,7 @@ template<class T> class StackAllocator
     if (n == 0) return;
     if (memused < n || ptr != &data[memused-n]) {
       std::cout << "deallocation not happening in reverse order"<<std::endl;
-      abort();
+      print_trace(11);
     }
     else {
       memused = memused - n;

@@ -42,6 +42,21 @@ void StackSpinBlock::setstoragetype(Storagetype st)
       set_op_array(CRE_CRE_DESCOMP)->set_local() = true;
     if (has(CRE_DES_DESCOMP))
       set_op_array(CRE_DES_DESCOMP)->set_local() = true;
+    if (has(RI_3INDEX))
+      set_op_array(RI_3INDEX)->set_local() = true;
+    if (has(RI_4INDEX))
+      set_op_array(RI_4INDEX)->set_local() = true;
+
+
+    if (has(CRE_CRE_DES))
+      set_op_array(CRE_CRE_DES)->set_local() = true;
+    if (has(CRE_DES_DES))
+      set_op_array(CRE_DES_DES)->set_local() = true;
+    if (has(CRE_DES_CRE))
+      set_op_array(CRE_DES_CRE)->set_local() = true;
+    if (has(CRE_CRE_CRE))
+      set_op_array(CRE_CRE_CRE)->set_local() = true;
+
   }
   else if (st == DISTRIBUTED_STORAGE)
   {
@@ -71,6 +86,21 @@ void StackSpinBlock::setstoragetype(Storagetype st)
       set_op_array(CRE_CRE_DESCOMP)->set_local() = false;
     if (has(CRE_DES_DESCOMP))
       set_op_array(CRE_DES_DESCOMP)->set_local() = false;
+    if (has(RI_3INDEX))
+      set_op_array(RI_3INDEX)->set_local() = false;
+    if (has(RI_4INDEX))
+      set_op_array(RI_4INDEX)->set_local() = false;
+
+
+    if (has(CRE_CRE_DES))
+      set_op_array(CRE_CRE_DES)->set_local() = false;
+    if (has(CRE_DES_DES))
+      set_op_array(CRE_DES_DES)->set_local() = false;
+    if (has(CRE_DES_CRE))
+      set_op_array(CRE_DES_CRE)->set_local() = false;
+    if (has(CRE_CRE_CRE))
+      set_op_array(CRE_CRE_CRE)->set_local() = false;
+
   }
 
   //this is needed for onepdm generation, the system block all the cre are local
@@ -147,6 +177,49 @@ boost::shared_ptr<StackOp_component_base> make_new_stackop(const opTypes &optype
     case OVERLAP:
       ret = boost::shared_ptr<StackOp_component<StackOverlap> >(new StackOp_component<StackOverlap>(is_core));
       break;
+    case RI_3INDEX:
+      ret = boost::shared_ptr<StackOp_component<RI3index> >(new StackOp_component<RI3index>(is_core));
+      break;
+    case RI_4INDEX:
+      ret = boost::shared_ptr<StackOp_component<RI4index> >(new StackOp_component<RI4index>(is_core));
+      break;
+
+    case CRE_CRE_DES:
+      ret = boost::shared_ptr<StackOp_component<StackCreCreDes> >(new StackOp_component<StackCreCreDes>(is_core));
+      break;
+    case CRE_DES_DES:
+      ret = boost::shared_ptr<StackOp_component<StackCreDesDes> >(new StackOp_component<StackCreDesDes>(is_core));
+      break;
+    case CRE_DES_CRE:
+      ret = boost::shared_ptr<StackOp_component<StackCreDesCre> >(new StackOp_component<StackCreDesCre>(is_core));
+      break;
+    case CRE_CRE_CRE:
+      ret = boost::shared_ptr<StackOp_component<StackCreCreCre> >(new StackOp_component<StackCreCreCre>(is_core));
+      break;
+    // 4PDM
+      /*
+    case DES_CRE_DES:
+      ret = boost::shared_ptr<StackOp_component<StackDesCreDes> >(new StackOp_component<StackDesCreDes>(is_core));
+      break;
+    case DES_DES_CRE:
+      ret = boost::shared_ptr<StackOp_component<StackDesDesCre> >(new StackOp_component<StackDesDesCre>(is_core));
+      break;
+    case DES_CRE_CRE:
+      ret = boost::shared_ptr<StackOp_component<StackDesCreCre> >(new StackOp_component<StackDesCreCre>(is_core));
+      break;
+    case DES_DES_DES:
+      ret = boost::shared_ptr<StackOp_component<StackDesDesDes> >(new StackOp_component<StackDesDesDes>(is_core));
+      break;
+    case CRE_DES_CRE_DES:
+      ret = boost::shared_ptr<StackOp_component<StackCreDesCreDes> >(new StackOp_component<StackCreDesCreDes>(is_core));
+      break;
+    case CRE_DES_DES_CRE:
+      ret = boost::shared_ptr<StackOp_component<StackCreDesDesCre> >(new StackOp_component<StackCreDesDesCre>(is_core));
+      break;
+    case CRE_CRE_DES_DES:
+      ret = boost::shared_ptr<StackOp_component<StackCreCreDesDes> >(new StackOp_component<StackCreCreDesDes>(is_core));
+      break;
+      */
     default:
       assert(false);
       break;
@@ -177,25 +250,43 @@ void StackSpinBlock::default_op_components(bool complementary_, bool implicitTra
   //for hubbard model. But they are so cheap that there is no need to have special
   //cases
   ops[CRE] = make_new_stackop(CRE, true);
-  ops[CRE_CRE_DESCOMP] = make_new_stackop(CRE_CRE_DESCOMP, true);
-
-  if (!implicitTranspose) {
-    ops[DES] = make_new_stackop(DES, true);
-    ops[CRE_DES_DESCOMP] = make_new_stackop(CRE_DES_DESCOMP, true);
-    ops[DES_CRE] = make_new_stackop(DES_CRE, true);
-    ops[DES_CRECOMP] = make_new_stackop(DES_CRECOMP, true);
-    ops[DES_DES] = make_new_stackop(DES_DES, true);
-    ops[CRE_CRECOMP] = make_new_stackop(CRE_CRECOMP, true);
+  if (!dmrginp.do_npdm_ops()) {
+    ops[CRE_CRE_DESCOMP] = make_new_stackop(CRE_CRE_DESCOMP, true);
+    ops[HAM] = make_new_stackop(HAM, true);
   }
 
-  ops[HAM] = make_new_stackop(HAM, true);
+  if (!implicitTranspose ) {
+    ops[DES] = make_new_stackop(DES, true);
+    ops[DES_CRE] = make_new_stackop(DES_CRE, true);
+    ops[DES_DES] = make_new_stackop(DES_DES, true);
+    if (!dmrginp.do_npdm_ops()) {
+      ops[CRE_DES_DESCOMP] = make_new_stackop(CRE_DES_DESCOMP, true);
+      ops[DES_CRECOMP] = make_new_stackop(DES_CRECOMP, true);
+      ops[CRE_CRECOMP] = make_new_stackop(CRE_CRECOMP, true);
+    }
+  }
+
   ops[OVERLAP] = make_new_stackop(OVERLAP, true);
 
   ops[CRE_DES] = make_new_stackop(CRE_DES, true);
   ops[CRE_CRE] = make_new_stackop(CRE_CRE, true);
-  ops[CRE_DESCOMP] = make_new_stackop(CRE_DESCOMP, true);
-  ops[DES_DESCOMP] = make_new_stackop(DES_DESCOMP, true);
+  if (!dmrginp.do_npdm_ops()) {
+    ops[CRE_DESCOMP] = make_new_stackop(CRE_DESCOMP, true);
+    ops[DES_DESCOMP] = make_new_stackop(DES_DESCOMP, true);
+  }
 
+  if (dmrginp.do_npdm_ops()) {
+    ops[RI_3INDEX] = make_new_stackop(RI_3INDEX, true);
+    ops[RI_4INDEX] = make_new_stackop(RI_4INDEX, true);
+
+    if (dmrginp.calc_type() == THREEPDM && !dmrginp.set_fullrestart()) {
+      ops[CRE_CRE_CRE] = make_new_stackop(CRE_CRE_CRE, true);
+      ops[CRE_DES_DES] = make_new_stackop(CRE_DES_DES, true);
+      ops[CRE_CRE_DES] = make_new_stackop(CRE_CRE_DES, true);
+      ops[CRE_DES_CRE] = make_new_stackop(CRE_DES_CRE, true);
+    }
+
+  }
 
   this->loopblock = true;
 
@@ -237,7 +328,7 @@ void StackSpinBlock::default_op_components(bool direct, bool haveNormops, bool h
     ops[OVERLAP] = make_new_stackop(OVERLAP, true);
 
     //this option is used when bra and ket states are different
-    if (!implicitTranspose) {
+    if (!implicitTranspose ) {
       ops[DES] = make_new_stackop(DES, true);
       if (!dmrginp.do_npdm_ops())
 	ops[CRE_DES_DESCOMP] = make_new_stackop(CRE_DES_DESCOMP, true);
@@ -245,7 +336,7 @@ void StackSpinBlock::default_op_components(bool direct, bool haveNormops, bool h
 
     //for hubbard model if we want to calculate twopdm we still need cd operators
     if (dmrginp.hamiltonian() != HUBBARD || dmrginp.do_npdm_ops()) {
-      if (haveNormops) {
+      if (haveNormops || dmrginp.do_npdm_ops()) {
         ops[CRE_DES] = make_new_stackop(CRE_DES, true);
         ops[CRE_CRE] = make_new_stackop(CRE_CRE, true);
         if (!implicitTranspose) {
@@ -261,6 +352,19 @@ void StackSpinBlock::default_op_components(bool direct, bool haveNormops, bool h
           ops[CRE_CRECOMP] = make_new_stackop(CRE_CRECOMP, true);
         }
       }
+      if (dmrginp.do_npdm_ops()) {
+	ops[RI_3INDEX] = make_new_stackop(RI_3INDEX, true);
+	ops[RI_4INDEX] = make_new_stackop(RI_4INDEX, true);
+
+	if (dmrginp.calc_type() == THREEPDM && !dmrginp.set_fullrestart()) {
+	  ops[CRE_CRE_CRE] = make_new_stackop(CRE_CRE_CRE, true);
+	  ops[CRE_DES_DES] = make_new_stackop(CRE_DES_DES, true);
+	  ops[CRE_CRE_DES] = make_new_stackop(CRE_CRE_DES, true);
+	  ops[CRE_DES_CRE] = make_new_stackop(CRE_DES_CRE, true);
+	}
+
+      }
+
     }
 
     if (haveNormops)
@@ -282,7 +386,7 @@ void StackSpinBlock::default_op_components(bool direct, bool haveNormops, bool h
     ops[OVERLAP] = make_new_stackop(OVERLAP, false);
 
     //this option is used when bra and ket states are different
-    if (!implicitTranspose ) {
+    if (!implicitTranspose) {
       ops[DES] = make_new_stackop(DES, false);
       if (!dmrginp.do_npdm_ops())
 	ops[CRE_DES_DESCOMP] = make_new_stackop(CRE_DES_DESCOMP, false);
@@ -293,7 +397,7 @@ void StackSpinBlock::default_op_components(bool direct, bool haveNormops, bool h
       if (haveNormops || dmrginp.do_npdm_ops()) {
         ops[CRE_DES] = make_new_stackop(CRE_DES, false);
         ops[CRE_CRE] = make_new_stackop(CRE_CRE, false);
-        if (!implicitTranspose) {
+        if (!implicitTranspose ) {
           ops[DES_CRE] = make_new_stackop(DES_CRE, false);
           ops[DES_DES] = make_new_stackop(DES_DES, false);
         }
@@ -305,6 +409,19 @@ void StackSpinBlock::default_op_components(bool direct, bool haveNormops, bool h
           ops[DES_CRECOMP] = make_new_stackop(DES_CRECOMP, false);
           ops[CRE_CRECOMP] = make_new_stackop(CRE_CRECOMP, false);
         }
+      }
+
+      if (dmrginp.do_npdm_ops()) {
+	ops[RI_3INDEX] = make_new_stackop(RI_3INDEX, false);
+	ops[RI_4INDEX] = make_new_stackop(RI_4INDEX, false);
+
+	if (dmrginp.calc_type() == THREEPDM && !dmrginp.set_fullrestart()) {
+	  ops[CRE_CRE_CRE] = make_new_stackop(CRE_CRE_CRE, false);
+	  ops[CRE_DES_DES] = make_new_stackop(CRE_DES_DES, false);
+	  ops[CRE_CRE_DES] = make_new_stackop(CRE_CRE_DES, false);
+	  ops[CRE_DES_CRE] = make_new_stackop(CRE_DES_CRE, false);
+	}
+
       }
     }
     if (haveNormops)

@@ -16,9 +16,9 @@ Sandeep Sharma and Garnet K.-L. Chan
 #include <boost/format.hpp>
 #include <fstream>
 #include <stdio.h>
-#include "BaseOperator.h"
-#include "spinblock.h"
-#include "op_components.h"
+#include "StackBaseOperator.h"
+#include "Stackspinblock.h"
+#include "Stack_op_components.h"
 #include "build_4index_ops.h"
 #include "pario.h"
 
@@ -27,12 +27,12 @@ namespace SpinAdapted {
 //===========================================================================================================================================================
 // Choose 4-index tuples on this MPI process such that lower-index ops are available to build them
 
-std::map< std::tuple<int,int,int,int>, int > get_local_4index_tuples(SpinBlock& b)
+std::map< std::tuple<int,int,int,int>, int > get_local_4index_tuples(StackSpinBlock& b)
 {
   std::map< std::tuple<int,int,int,int>, int > tuples;
 
-  SpinBlock* sysBlock = b.get_leftBlock();
-  SpinBlock* dotBlock = b.get_rightBlock();
+  StackSpinBlock* sysBlock = b.get_leftBlock();
+  StackSpinBlock* dotBlock = b.get_rightBlock();
   
   assert( dotBlock != NULL );
   if(dmrginp.spinAdapted())
@@ -149,7 +149,7 @@ std::map< std::tuple<int,int,int,int>, int > get_local_4index_tuples(SpinBlock& 
 //   (3) 4-index must not be done on this thread (it has to be done on another and we don't want duplicates)
 
 //FIXME screening?
-std::map< std::tuple<int,int,int,int>, int > get_4index_tuples(SpinBlock& b)
+std::map< std::tuple<int,int,int,int>, int > get_4index_tuples(StackSpinBlock& b)
 {
   std::map< std::tuple<int,int,int,int>, int > tuples;
 
@@ -192,7 +192,7 @@ std::map< std::tuple<int,int,int,int>, int > get_4index_tuples(SpinBlock& b)
 ////// There are several cases????
 ////
 //////FIXME screening?
-////std::map< std::tuple<int,int,int,int>, int > get_4index_tuples(SpinBlock& b)
+////std::map< std::tuple<int,int,int,int>, int > get_4index_tuples(StackSpinBlock& b)
 ////{
 ////  std::map< std::tuple<int,int,int,int>, int > tuples;
 ////
@@ -236,37 +236,39 @@ std::map< std::tuple<int,int,int,int>, int > get_4index_tuples(SpinBlock& b)
 //----------------------------
 
 template<>
-string Op_component<RI4index>::get_op_string() const {
+string StackOp_component<RI4index>::get_op_string() const {
   return "RI_4_INDEX";
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------  
 template<> 
-void Op_component<RI4index>::build_and_renormalise_operators(SpinBlock&b, const opTypes &ot, const std::vector<Matrix>& rotateMatrix, const StateInfo *stateinfo) 
+void StackOp_component<RI4index>::build_and_renormalise_operators(StackSpinBlock&b, const opTypes &ot, const std::vector<Matrix>& rotateMatrix, const StateInfo *stateinfo) 
 {
   // This is only a skeleton class, so actual operators should never be built
   return; 
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------  
-template<> 
-void Op_component<RI4index>::renormalise_transform(const std::vector<Matrix>& rotateMatrix, const StateInfo* s)
-{
+//template<> 
+//void StackOp_component<RI4index>::renormalise_transform(const std::vector<Matrix>& rotateMatrix, const StateInfo* s)
+//{
   // This is only a skeleton class, so actual operators should never be built
-  return; 
-}
+  //return; 
+  //}
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------  
 template<>
-void Op_component<RI4index>::build_iterators(SpinBlock& b)
+ long StackOp_component<RI4index>::build_iterators(StackSpinBlock& b, bool calcMem)
 {
   // Blank construction (used in unset_initialised() Block copy construction, for use with STL)
-  if (b.get_sites().size () == 0) return;
+  if (b.get_sites().size () == 0) return 0;
 
-  // Set up 4-index (i,j,k,l) spatial operator indices for this SpinBlock
+  // Set up 4-index (i,j,k,l) spatial operator indices for this StackSpinBlock
   std::map< std::tuple<int,int,int,int>, int > tuples = get_4index_tuples(b);
   m_op.set_tuple_indices( tuples, dmrginp.last_site() );
 
+    long requiredMemory = 0;
+    return requiredMemory;
 //  // Allocate new set of operators for each set of spatial orbitals
 //  std::vector<int> orbs(4);
 //  for (int i = 0; i < m_op.local_nnz(); ++i) {
@@ -274,30 +276,45 @@ void Op_component<RI4index>::build_iterators(SpinBlock& b)
 //  }
 }
 
+template<> 
+void StackOp_component<RI4index>::build_iterators(StackSpinBlock& b, std::vector<int>& screened_cdd_ix, std::vector<std::pair<int, int> >& screened_pair, std::map< std::tuple<int, int, int>, int>& tuple)
+{
+  // Blank construction (used in unset_initialised() Block copy construction, for use with STL)
+  if (b.get_sites().size () == 0) return;
+
+  // Set up 4-index (i,j,k,l) spatial operator indices for this StackSpinBlock
+  std::map< std::tuple<int,int,int,int>, int > tuples = get_4index_tuples(b);
+  m_op.set_tuple_indices( tuples, dmrginp.last_site() );
+
+  return;
+
+}
+
+
 //===========================================================================================================================================================
 // (Cre,Cre,Des,Des)
 //-------------------
 
 template<> 
-string Op_component<CreCreDesDes>::get_op_string() const {
+string StackOp_component<StackCreCreDesDes>::get_op_string() const {
   return "CreCreDesDes";
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------  
 template<> 
-void Op_component<CreCreDesDes>::build_and_renormalise_operators(SpinBlock&b, const opTypes &ot, const std::vector<Matrix>& rotateMatrix, const StateInfo *stateinfo) 
+void StackOp_component<StackCreCreDesDes>::build_and_renormalise_operators(StackSpinBlock&b, const opTypes &ot, const std::vector<Matrix>& rotateMatrix, const StateInfo *stateinfo) 
 {
   Four_index_ops::build_4index_ops( CRE_CRE_DES_DES, b, CRE, CRE_CRE, CRE_CRE_DES, DES, DES_DES, CRE_DES_DES, rotateMatrix, stateinfo );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------  
 template<> 
-void Op_component<CreCreDesDes>::build_iterators(SpinBlock& b)
+long StackOp_component<StackCreCreDesDes>::build_iterators(StackSpinBlock& b, bool calcMem)
 {
   // Blank construction (used in unset_initialised() Block copy construction, for use with STL)
-  if (b.get_sites().size () == 0) return; 
+  if (b.get_sites().size () == 0) return 0; 
 
-  // Set up 4-index (i,j,k,l) spatial operator indices for this SpinBlock
+  // Set up 4-index (i,j,k,l) spatial operator indices for this StackSpinBlock
   std::map< std::tuple<int,int,int,int>, int > tuples = get_4index_tuples(b);
   m_op.set_tuple_indices( tuples, dmrginp.last_site() );
 
@@ -307,7 +324,7 @@ void Op_component<CreCreDesDes>::build_iterators(SpinBlock& b)
     orbs = m_op.unmap_local_index(i);
 //pout << "New set of CCDD operators:  " << i << std::endl;
 //pout << "p" << mpigetrank() << "; Orbs = " << orbs[0] << " " << orbs[1] << " " << orbs[2] << " " << orbs[3] << std::endl;
-    std::vector<boost::shared_ptr<CreCreDesDes> >& spin_ops = m_op.get_local_element(i);
+    std::vector<boost::shared_ptr<StackCreCreDesDes> >& spin_ops = m_op.get_local_element(i);
 
     SpinQuantum spin1 = getSpinQuantum(orbs[0]);
     SpinQuantum spin2 = getSpinQuantum(orbs[1]);
@@ -424,12 +441,13 @@ void Op_component<CreCreDesDes>::build_iterators(SpinBlock& b)
     assert( c__cd_d_quantum_ladder.size() == 6 );
 
 
+    long requiredMemory = 0;
     // Allocate new operator for each spin component
     //------------------------------------------------
     spin_ops.clear();
     for (int q=0; q < cc_dd_quantum_ladder.size(); q++) {
-      spin_ops.push_back( boost::shared_ptr<CreCreDesDes>(new CreCreDesDes) );
-      boost::shared_ptr<CreCreDesDes> op = spin_ops.back();
+      spin_ops.push_back( boost::shared_ptr<StackCreCreDesDes>(new StackCreCreDesDes) );
+      boost::shared_ptr<StackCreCreDesDes> op = spin_ops.back();
       op->set_orbs() = orbs;
       op->set_initialised() = true;
       op->set_quantum_ladder()["((CC)(DD))"] = cc_dd_quantum_ladder.at(q);
@@ -439,10 +457,20 @@ void Op_component<CreCreDesDes>::build_iterators(SpinBlock& b)
       op->set_quantum_ladder()["(((C)(CD))(D))"] = c_cd__d_quantum_ladder.at(q);
       // Set default value, which is changed according to current build_pattern // FIXME .at(2) is brittle here!  
       op->set_deltaQuantum(1, op->get_quantum_ladder().at( op->get_build_pattern() ).at(2) );
+      if (calcMem)
+	requiredMemory += SpinAdapted::getRequiredMemory(b.get_braStateInfo(), b.get_ketStateInfo(), op->get_deltaQuantum());
     }
 
     assert( m_op.get_local_element(i).size() == 6);
+    return requiredMemory;
   }
+}
+
+template<> 
+void StackOp_component<StackCreCreDesDes>::build_iterators(StackSpinBlock& b, std::vector<int>& screened_cdd_ix, std::vector<std::pair<int, int> >& screened_pair, std::map< std::tuple<int, int, int>, int>& tuple)
+{
+
+  return;
 }
 
 //===========================================================================================================================================================
@@ -450,25 +478,33 @@ void Op_component<CreCreDesDes>::build_iterators(SpinBlock& b)
 //-------------------
 
 template<> 
-string Op_component<CreDesCreDes>::get_op_string() const {
+string StackOp_component<StackCreDesCreDes>::get_op_string() const {
   return "CreDesCreDes";
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------  
 template<> 
-void Op_component<CreDesCreDes>::build_and_renormalise_operators(SpinBlock&b, const opTypes &ot, const std::vector<Matrix>& rotateMatrix, const StateInfo *stateinfo) 
+void StackOp_component<StackCreDesCreDes>::build_and_renormalise_operators(StackSpinBlock&b, const opTypes &ot, const std::vector<Matrix>& rotateMatrix, const StateInfo *stateinfo) 
 {
   Four_index_ops::build_4index_ops( CRE_DES_CRE_DES, b, CRE, CRE_DES, CRE_DES_CRE, DES, CRE_DES, DES_CRE_DES, rotateMatrix, stateinfo );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------  
+
 template<> 
-void Op_component<CreDesCreDes>::build_iterators(SpinBlock& b)
+void StackOp_component<StackCreDesCreDes>::build_iterators(StackSpinBlock& b, std::vector<int>& screened_cdd_ix, std::vector<std::pair<int, int> >& screened_pair, std::map< std::tuple<int, int, int>, int>& tuple)
+{
+
+  return;
+}
+
+template<> 
+long StackOp_component<StackCreDesCreDes>::build_iterators(StackSpinBlock& b, bool calcMem)
 {
   // Blank construction (used in unset_initialised() Block copy construction, for use with STL)
-  if (b.get_sites().size () == 0) return; 
+  if (b.get_sites().size () == 0) return 0; 
 
-  // Set up 4-index (i,j,k,l) spatial operator indices for this SpinBlock
+  // Set up 4-index (i,j,k,l) spatial operator indices for this StackSpinBlock
   std::map< std::tuple<int,int,int,int>, int > tuples = get_4index_tuples(b);
   m_op.set_tuple_indices( tuples, dmrginp.last_site() );
 
@@ -478,7 +514,7 @@ void Op_component<CreDesCreDes>::build_iterators(SpinBlock& b)
     orbs = m_op.unmap_local_index(i);
 //pout << "New set of CDCD operators:  " << i << std::endl;
 //pout << "p" << mpigetrank() << "; Orbs = " << orbs[0] << " " << orbs[1] << " " << orbs[2] << " " << orbs[3] << std::endl;
-    std::vector<boost::shared_ptr<CreDesCreDes> >& spin_ops = m_op.get_local_element(i);
+    std::vector<boost::shared_ptr<StackCreDesCreDes> >& spin_ops = m_op.get_local_element(i);
 
     SpinQuantum spin1 = getSpinQuantum(orbs[0]);
     SpinQuantum spin2 = getSpinQuantum(orbs[1]);
@@ -585,12 +621,13 @@ void Op_component<CreDesCreDes>::build_iterators(SpinBlock& b)
     assert( c__dc_d_quantum_ladder.size() == 6 );
 
 
+    long requiredMemory = 0;
     // Allocate new operator for each spin component
     //------------------------------------------------
     spin_ops.clear();
     for (int q=0; q < cd_cd_quantum_ladder.size(); q++) {
-      spin_ops.push_back( boost::shared_ptr<CreDesCreDes>(new CreDesCreDes) );
-      boost::shared_ptr<CreDesCreDes> op = spin_ops.back();
+      spin_ops.push_back( boost::shared_ptr<StackCreDesCreDes>(new StackCreDesCreDes) );
+      boost::shared_ptr<StackCreDesCreDes> op = spin_ops.back();
       op->set_orbs() = orbs;
       op->set_initialised() = true;
       op->set_quantum_ladder()["((CD)(CD))"] = cd_cd_quantum_ladder.at(q);
@@ -600,9 +637,12 @@ void Op_component<CreDesCreDes>::build_iterators(SpinBlock& b)
       op->set_quantum_ladder()["(((C)(DC))(D))"] = c_dc__d_quantum_ladder.at(q);
       // Set default value, which is changed according to current build_pattern // FIXME .at(2) is brittle here!  
       op->set_deltaQuantum(1, op->get_quantum_ladder().at( op->get_build_pattern() ).at(2) );
+      if (calcMem)
+	requiredMemory += SpinAdapted::getRequiredMemory(b.get_braStateInfo(), b.get_ketStateInfo(), op->get_deltaQuantum());
     }
 
     assert( m_op.get_local_element(i).size() == 6);
+    return requiredMemory;
   }
 }
 
@@ -612,25 +652,31 @@ void Op_component<CreDesCreDes>::build_iterators(SpinBlock& b)
 //-------------------
 
 template<> 
-string Op_component<CreDesDesCre>::get_op_string() const {
+string StackOp_component<StackCreDesDesCre>::get_op_string() const {
   return "CreDesDesCre";
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------  
 template<> 
-void Op_component<CreDesDesCre>::build_and_renormalise_operators(SpinBlock&b, const opTypes &ot, const std::vector<Matrix>& rotateMatrix, const StateInfo *stateinfo) 
+void StackOp_component<StackCreDesDesCre>::build_and_renormalise_operators(StackSpinBlock&b, const opTypes &ot, const std::vector<Matrix>& rotateMatrix, const StateInfo *stateinfo) 
 {
   Four_index_ops::build_4index_ops( CRE_DES_DES_CRE, b, CRE, CRE_DES, CRE_DES_DES, CRE, DES_CRE, DES_DES_CRE, rotateMatrix, stateinfo );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------  
 template<> 
-void Op_component<CreDesDesCre>::build_iterators(SpinBlock& b)
+void StackOp_component<StackCreDesDesCre>::build_iterators(StackSpinBlock& b, std::vector<int>& screened_cdd_ix, std::vector<std::pair<int, int> >& screened_pair, std::map< std::tuple<int, int, int>, int>& tuple)
+{
+
+  return;
+}
+template<> 
+long StackOp_component<StackCreDesDesCre>::build_iterators(StackSpinBlock& b, bool calcMem)
 {
   // Blank construction (used in unset_initialised() Block copy construction, for use with STL)
-  if (b.get_sites().size () == 0) return; 
+  if (b.get_sites().size () == 0) return 0; 
 
-  // Set up 4-index (i,j,k,l) spatial operator indices for this SpinBlock
+  // Set up 4-index (i,j,k,l) spatial operator indices for this StackSpinBlock
   std::map< std::tuple<int,int,int,int>, int > tuples = get_4index_tuples(b);
   m_op.set_tuple_indices( tuples, dmrginp.last_site() );
 
@@ -640,7 +686,7 @@ void Op_component<CreDesDesCre>::build_iterators(SpinBlock& b)
     orbs = m_op.unmap_local_index(i);
 //pout << "New set of CDDC operators:  " << i << std::endl;
 //pout << "Orbs = " << orbs[0] << " " << orbs[1] << " " << orbs[2] << " " << orbs[3] << std::endl;
-    std::vector<boost::shared_ptr<CreDesDesCre> >& spin_ops = m_op.get_local_element(i);
+    std::vector<boost::shared_ptr<StackCreDesDesCre> >& spin_ops = m_op.get_local_element(i);
 
     SpinQuantum spin1 = getSpinQuantum(orbs[0]);
     SpinQuantum spin2 = getSpinQuantum(orbs[1]);
@@ -748,12 +794,13 @@ void Op_component<CreDesDesCre>::build_iterators(SpinBlock& b)
     assert( c__dd_c_quantum_ladder.size() == 6 );
 
 
+    long requiredMemory = 0;
     // Allocate new operator for each spin component
     //------------------------------------------------
     spin_ops.clear();
     for (int q=0; q < cd_dc_quantum_ladder.size(); q++) {
-      spin_ops.push_back( boost::shared_ptr<CreDesDesCre>(new CreDesDesCre) );
-      boost::shared_ptr<CreDesDesCre> op = spin_ops.back();
+      spin_ops.push_back( boost::shared_ptr<StackCreDesDesCre>(new StackCreDesDesCre) );
+      boost::shared_ptr<StackCreDesDesCre> op = spin_ops.back();
       op->set_orbs() = orbs;
       op->set_initialised() = true;
       op->set_quantum_ladder()["((CD)(DC))"] = cd_dc_quantum_ladder.at(q);
@@ -763,9 +810,12 @@ void Op_component<CreDesDesCre>::build_iterators(SpinBlock& b)
       op->set_quantum_ladder()["(((C)(DD))(C))"] = c_dd__c_quantum_ladder.at(q);
       // Set default value, which is changed according to current build_pattern // FIXME .at(2) is brittle here!  
       op->set_deltaQuantum(1, op->get_quantum_ladder().at( op->get_build_pattern() ).at(2) );
+      if (calcMem)
+	requiredMemory += SpinAdapted::getRequiredMemory(b.get_braStateInfo(), b.get_ketStateInfo(), op->get_deltaQuantum());
     }
 
     assert( m_op.get_local_element(i).size() == 6);
+    return requiredMemory;
   }
 }
 
@@ -775,25 +825,25 @@ void Op_component<CreDesDesCre>::build_iterators(SpinBlock& b)
 //-------------------
 
 template<> 
-string Op_component<CreDesDesDes>::get_op_string() const {
+string StackOp_component<StackCreDesDesDes>::get_op_string() const {
   return "CreDesDesDes";
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------  
 template<> 
-void Op_component<CreDesDesDes>::build_and_renormalise_operators(SpinBlock&b, const opTypes &ot, const std::vector<Matrix>& rotateMatrix, const StateInfo *stateinfo) 
+void StackOp_component<StackCreDesDesDes>::build_and_renormalise_operators(StackSpinBlock&b, const opTypes &ot, const std::vector<Matrix>& rotateMatrix, const StateInfo *stateinfo) 
 {
   Four_index_ops::build_4index_ops( CRE_DES_DES_DES, b, CRE, CRE_DES, CRE_DES_DES, DES, DES_DES, DES_DES_DES, rotateMatrix, stateinfo );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------  
 template<> 
-void Op_component<CreDesDesDes>::build_iterators(SpinBlock& b)
+long StackOp_component<StackCreDesDesDes>::build_iterators(StackSpinBlock& b, bool calcMem)
 {
   // Blank construction (used in unset_initialised() Block copy construction, for use with STL)
-  if (b.get_sites().size () == 0) return; 
+  if (b.get_sites().size () == 0) return 0; 
 
-  // Set up 4-index (i,j,k,l) spatial operator indices for this SpinBlock
+  // Set up 4-index (i,j,k,l) spatial operator indices for this StackSpinBlock
   std::map< std::tuple<int,int,int,int>, int > tuples = get_4index_tuples(b);
   m_op.set_tuple_indices( tuples, dmrginp.last_site() );
 
@@ -803,7 +853,7 @@ void Op_component<CreDesDesDes>::build_iterators(SpinBlock& b)
     orbs = m_op.unmap_local_index(i);
 //pout << "New set of CDDD operators:  " << i << std::endl;
 //pout << "Orbs = " << orbs[0] << " " << orbs[1] << " " << orbs[2] << " " << orbs[3] << std::endl;
-    std::vector<boost::shared_ptr<CreDesDesDes> >& spin_ops = m_op.get_local_element(i);
+    std::vector<boost::shared_ptr<StackCreDesDesDes> >& spin_ops = m_op.get_local_element(i);
 
     SpinQuantum spin1 = getSpinQuantum(orbs[0]);
     SpinQuantum spin2 = getSpinQuantum(orbs[1]);
@@ -911,12 +961,13 @@ void Op_component<CreDesDesDes>::build_iterators(SpinBlock& b)
     assert( c__dd_d_quantum_ladder.size() == 6 );
 
 
+    long requiredMemory = 0;
     // Allocate new operator for each spin component
     //------------------------------------------------
     spin_ops.clear();
     for (int q=0; q < cd_dd_quantum_ladder.size(); q++) {
-      spin_ops.push_back( boost::shared_ptr<CreDesDesDes>(new CreDesDesDes) );
-      boost::shared_ptr<CreDesDesDes> op = spin_ops.back();
+      spin_ops.push_back( boost::shared_ptr<StackCreDesDesDes>(new StackCreDesDesDes) );
+      boost::shared_ptr<StackCreDesDesDes> op = spin_ops.back();
       op->set_orbs() = orbs;
       op->set_initialised() = true;
       op->set_quantum_ladder()["((CD)(DD))"] = cd_dd_quantum_ladder.at(q);
@@ -926,9 +977,12 @@ void Op_component<CreDesDesDes>::build_iterators(SpinBlock& b)
       op->set_quantum_ladder()["(((C)(DD))(D))"] = c_dd__d_quantum_ladder.at(q);
       // Set default value, which is changed according to current build_pattern // FIXME .at(2) is brittle here!  
       op->set_deltaQuantum(1, op->get_quantum_ladder().at( op->get_build_pattern() ).at(2) );
+      if (calcMem)
+	requiredMemory += SpinAdapted::getRequiredMemory(b.get_braStateInfo(), b.get_ketStateInfo(), op->get_deltaQuantum());
     }
 
     assert( m_op.get_local_element(i).size() == 6);
+    return requiredMemory;
   }
 }
 
@@ -938,25 +992,25 @@ void Op_component<CreDesDesDes>::build_iterators(SpinBlock& b)
 //-------------------
 
 template<> 
-string Op_component<CreCreCreDes>::get_op_string() const {
+string StackOp_component<StackCreCreCreDes>::get_op_string() const {
   return "CreCreCreDes";
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------  
 template<> 
-void Op_component<CreCreCreDes>::build_and_renormalise_operators(SpinBlock&b, const opTypes &ot, const std::vector<Matrix>& rotateMatrix, const StateInfo *stateinfo) 
+void StackOp_component<StackCreCreCreDes>::build_and_renormalise_operators(StackSpinBlock&b, const opTypes &ot, const std::vector<Matrix>& rotateMatrix, const StateInfo *stateinfo) 
 {
   Four_index_ops::build_4index_ops( CRE_CRE_CRE_DES, b, CRE, CRE_CRE, CRE_CRE_CRE, DES, CRE_DES, CRE_CRE_DES, rotateMatrix, stateinfo );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------  
 template<> 
-void Op_component<CreCreCreDes>::build_iterators(SpinBlock& b)
+long StackOp_component<StackCreCreCreDes>::build_iterators(StackSpinBlock& b, bool calcMem)
 {
   // Blank construction (used in unset_initialised() Block copy construction, for use with STL)
-  if (b.get_sites().size () == 0) return; 
+  if (b.get_sites().size () == 0) return 0; 
 
-  // Set up 4-index (i,j,k,l) spatial operator indices for this SpinBlock
+  // Set up 4-index (i,j,k,l) spatial operator indices for this StackSpinBlock
   std::map< std::tuple<int,int,int,int>, int > tuples = get_4index_tuples(b);
   m_op.set_tuple_indices( tuples, dmrginp.last_site() );
 
@@ -966,7 +1020,7 @@ void Op_component<CreCreCreDes>::build_iterators(SpinBlock& b)
     orbs = m_op.unmap_local_index(i);
 //pout << "New set of CCCD operators:  " << i << std::endl;
 //pout << "Orbs = " << orbs[0] << " " << orbs[1] << " " << orbs[2] << " " << orbs[3] << std::endl;
-    std::vector<boost::shared_ptr<CreCreCreDes> >& spin_ops = m_op.get_local_element(i);
+    std::vector<boost::shared_ptr<StackCreCreCreDes> >& spin_ops = m_op.get_local_element(i);
 
     SpinQuantum spin1 = getSpinQuantum(orbs[0]);
     SpinQuantum spin2 = getSpinQuantum(orbs[1]);
@@ -1073,12 +1127,13 @@ void Op_component<CreCreCreDes>::build_iterators(SpinBlock& b)
     assert( c__cc_d_quantum_ladder.size() == 6 );
 
 
+    long requiredMemory = 0;
     // Allocate new operator for each spin component
     //------------------------------------------------
     spin_ops.clear();
     for (int q=0; q < cc_cd_quantum_ladder.size(); q++) {
-      spin_ops.push_back( boost::shared_ptr<CreCreCreDes>(new CreCreCreDes) );
-      boost::shared_ptr<CreCreCreDes> op = spin_ops.back();
+      spin_ops.push_back( boost::shared_ptr<StackCreCreCreDes>(new StackCreCreCreDes) );
+      boost::shared_ptr<StackCreCreCreDes> op = spin_ops.back();
       op->set_orbs() = orbs;
       op->set_initialised() = true;
       op->set_quantum_ladder()["((CC)(CD))"] = cc_cd_quantum_ladder.at(q);
@@ -1088,9 +1143,12 @@ void Op_component<CreCreCreDes>::build_iterators(SpinBlock& b)
       op->set_quantum_ladder()["(((C)(CC))(D))"] = c_cc__d_quantum_ladder.at(q);
       // Set default value, which is changed according to current build_pattern // FIXME .at(2) is brittle here!  
       op->set_deltaQuantum(1, op->get_quantum_ladder().at( op->get_build_pattern() ).at(2) );
+      if (calcMem)
+	requiredMemory += SpinAdapted::getRequiredMemory(b.get_braStateInfo(), b.get_ketStateInfo(), op->get_deltaQuantum());
     }
 
     assert( m_op.get_local_element(i).size() == 6);
+    return requiredMemory;
   }
 }
 
@@ -1100,25 +1158,25 @@ void Op_component<CreCreCreDes>::build_iterators(SpinBlock& b)
 //-------------------
 
 template<> 
-string Op_component<CreCreDesCre>::get_op_string() const {
+string StackOp_component<StackCreCreDesCre>::get_op_string() const {
   return "CreCreDesCre";
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------  
 template<> 
-void Op_component<CreCreDesCre>::build_and_renormalise_operators(SpinBlock&b, const opTypes &ot, const std::vector<Matrix>& rotateMatrix, const StateInfo *stateinfo) 
+void StackOp_component<StackCreCreDesCre>::build_and_renormalise_operators(StackSpinBlock&b, const opTypes &ot, const std::vector<Matrix>& rotateMatrix, const StateInfo *stateinfo) 
 {
   Four_index_ops::build_4index_ops( CRE_CRE_DES_CRE, b, CRE, CRE_CRE, CRE_CRE_DES, CRE, DES_CRE, CRE_DES_CRE, rotateMatrix, stateinfo );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------  
 template<> 
-void Op_component<CreCreDesCre>::build_iterators(SpinBlock& b)
+long StackOp_component<StackCreCreDesCre>::build_iterators(StackSpinBlock& b, bool calcMem)
 {
   // Blank construction (used in unset_initialised() Block copy construction, for use with STL)
-  if (b.get_sites().size () == 0) return; 
+  if (b.get_sites().size () == 0) return 0; 
 
-  // Set up 4-index (i,j,k,l) spatial operator indices for this SpinBlock
+  // Set up 4-index (i,j,k,l) spatial operator indices for this StackSpinBlock
   std::map< std::tuple<int,int,int,int>, int > tuples = get_4index_tuples(b);
   m_op.set_tuple_indices( tuples, dmrginp.last_site() );
 
@@ -1128,7 +1186,7 @@ void Op_component<CreCreDesCre>::build_iterators(SpinBlock& b)
     orbs = m_op.unmap_local_index(i);
 //pout << "New set of CCDC operators:  " << i << std::endl;
 //pout << "Orbs = " << orbs[0] << " " << orbs[1] << " " << orbs[2] << " " << orbs[3] << std::endl;
-    std::vector<boost::shared_ptr<CreCreDesCre> >& spin_ops = m_op.get_local_element(i);
+    std::vector<boost::shared_ptr<StackCreCreDesCre> >& spin_ops = m_op.get_local_element(i);
 
     SpinQuantum spin1 = getSpinQuantum(orbs[0]);
     SpinQuantum spin2 = getSpinQuantum(orbs[1]);
@@ -1235,12 +1293,13 @@ void Op_component<CreCreDesCre>::build_iterators(SpinBlock& b)
     assert( c__cd_c_quantum_ladder.size() == 6 );
 
 
+    long requiredMemory = 0;
     // Allocate new operator for each spin component
     //------------------------------------------------
     spin_ops.clear();
     for (int q=0; q < cc_dc_quantum_ladder.size(); q++) {
-      spin_ops.push_back( boost::shared_ptr<CreCreDesCre>(new CreCreDesCre) );
-      boost::shared_ptr<CreCreDesCre> op = spin_ops.back();
+      spin_ops.push_back( boost::shared_ptr<StackCreCreDesCre>(new StackCreCreDesCre) );
+      boost::shared_ptr<StackCreCreDesCre> op = spin_ops.back();
       op->set_orbs() = orbs;
       op->set_initialised() = true;
       op->set_quantum_ladder()["((CC)(DC))"] = cc_dc_quantum_ladder.at(q);
@@ -1250,9 +1309,12 @@ void Op_component<CreCreDesCre>::build_iterators(SpinBlock& b)
       op->set_quantum_ladder()["(((C)(CD))(C))"] = c_cd__c_quantum_ladder.at(q);
       // Set default value, which is changed according to current build_pattern // FIXME .at(2) is brittle here!  
       op->set_deltaQuantum(1, op->get_quantum_ladder().at( op->get_build_pattern() ).at(2) );
+      if (calcMem)
+	requiredMemory += SpinAdapted::getRequiredMemory(b.get_braStateInfo(), b.get_ketStateInfo(), op->get_deltaQuantum());
     }
 
     assert( m_op.get_local_element(i).size() == 6);
+    return requiredMemory;
   }
 }
 
@@ -1262,25 +1324,25 @@ void Op_component<CreCreDesCre>::build_iterators(SpinBlock& b)
 //-------------------
 
 template<> 
-string Op_component<CreDesCreCre>::get_op_string() const {
+string StackOp_component<StackCreDesCreCre>::get_op_string() const {
   return "CreDesCreCre";
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------  
 template<> 
-void Op_component<CreDesCreCre>::build_and_renormalise_operators(SpinBlock&b, const opTypes &ot, const std::vector<Matrix>& rotateMatrix, const StateInfo *stateinfo) 
+void StackOp_component<StackCreDesCreCre>::build_and_renormalise_operators(StackSpinBlock&b, const opTypes &ot, const std::vector<Matrix>& rotateMatrix, const StateInfo *stateinfo) 
 {
   Four_index_ops::build_4index_ops( CRE_DES_CRE_CRE, b, CRE, CRE_DES, CRE_DES_CRE, CRE, CRE_CRE, DES_CRE_CRE, rotateMatrix, stateinfo );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------  
 template<> 
-void Op_component<CreDesCreCre>::build_iterators(SpinBlock& b)
+long StackOp_component<StackCreDesCreCre>::build_iterators(StackSpinBlock& b, bool calcMem)
 {
   // Blank construction (used in unset_initialised() Block copy construction, for use with STL)
-  if (b.get_sites().size () == 0) return; 
+  if (b.get_sites().size () == 0) return 0; 
 
-  // Set up 4-index (i,j,k,l) spatial operator indices for this SpinBlock
+  // Set up 4-index (i,j,k,l) spatial operator indices for this StackSpinBlock
   std::map< std::tuple<int,int,int,int>, int > tuples = get_4index_tuples(b);
   m_op.set_tuple_indices( tuples, dmrginp.last_site() );
 
@@ -1291,7 +1353,7 @@ void Op_component<CreDesCreCre>::build_iterators(SpinBlock& b)
 //pout << "New set of CDCC operators:  " << i << std::endl;
 //pout << "Orbs = " << orbs[0] << " " << orbs[1] << " " << orbs[2] << " " << orbs[3] << std::endl;
 //pout << "p" << mpigetrank() << "; Orbs = " << orbs[0] << " " << orbs[1] << " " << orbs[2] << " " << orbs[3] << std::endl;
-    std::vector<boost::shared_ptr<CreDesCreCre> >& spin_ops = m_op.get_local_element(i);
+    std::vector<boost::shared_ptr<StackCreDesCreCre> >& spin_ops = m_op.get_local_element(i);
 
     SpinQuantum spin1 = getSpinQuantum(orbs[0]);
     SpinQuantum spin2 = getSpinQuantum(orbs[1]);
@@ -1398,12 +1460,13 @@ void Op_component<CreDesCreCre>::build_iterators(SpinBlock& b)
     assert( c__dc_c_quantum_ladder.size() == 6 );
 
 
+    long requiredMemory = 0;
     // Allocate new operator for each spin component
     //------------------------------------------------
     spin_ops.clear();
     for (int q=0; q < cd_cc_quantum_ladder.size(); q++) {
-      spin_ops.push_back( boost::shared_ptr<CreDesCreCre>(new CreDesCreCre) );
-      boost::shared_ptr<CreDesCreCre> op = spin_ops.back();
+      spin_ops.push_back( boost::shared_ptr<StackCreDesCreCre>(new StackCreDesCreCre) );
+      boost::shared_ptr<StackCreDesCreCre> op = spin_ops.back();
       op->set_orbs() = orbs;
       op->set_initialised() = true;
       op->set_quantum_ladder()["((CD)(CC))"] = cd_cc_quantum_ladder.at(q);
@@ -1413,9 +1476,12 @@ void Op_component<CreDesCreCre>::build_iterators(SpinBlock& b)
       op->set_quantum_ladder()["(((C)(DC))(C))"] = c_dc__c_quantum_ladder.at(q);
       // Set default value, which is changed according to current build_pattern // FIXME .at(2) is brittle here!  
       op->set_deltaQuantum(1, op->get_quantum_ladder().at( op->get_build_pattern() ).at(2) );
+      if (calcMem)
+	requiredMemory += SpinAdapted::getRequiredMemory(b.get_braStateInfo(), b.get_ketStateInfo(), op->get_deltaQuantum());
     }
 
     assert( m_op.get_local_element(i).size() == 6);
+    return requiredMemory;
   }
 }
 
@@ -1425,25 +1491,25 @@ void Op_component<CreDesCreCre>::build_iterators(SpinBlock& b)
 //-------------------
 
 template<> 
-string Op_component<CreCreCreCre>::get_op_string() const {
+string StackOp_component<StackCreCreCreCre>::get_op_string() const {
   return "CreCreCreCre";
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------  
 template<> 
-void Op_component<CreCreCreCre>::build_and_renormalise_operators(SpinBlock&b, const opTypes &ot, const std::vector<Matrix>& rotateMatrix, const StateInfo *stateinfo) 
+void StackOp_component<StackCreCreCreCre>::build_and_renormalise_operators(StackSpinBlock&b, const opTypes &ot, const std::vector<Matrix>& rotateMatrix, const StateInfo *stateinfo) 
 {
   Four_index_ops::build_4index_ops( CRE_CRE_CRE_CRE, b, CRE, CRE_CRE, CRE_CRE_CRE, CRE, CRE_CRE, CRE_CRE_CRE, rotateMatrix, stateinfo );
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------  
 template<> 
-void Op_component<CreCreCreCre>::build_iterators(SpinBlock& b)
+long StackOp_component<StackCreCreCreCre>::build_iterators(StackSpinBlock& b, bool calcMem)
 {
   // Blank construction (used in unset_initialised() Block copy construction, for use with STL)
-  if (b.get_sites().size () == 0) return; 
+  if (b.get_sites().size () == 0) return 0; 
 
-  // Set up 4-index (i,j,k,l) spatial operator indices for this SpinBlock
+  // Set up 4-index (i,j,k,l) spatial operator indices for this StackSpinBlock
   std::map< std::tuple<int,int,int,int>, int > tuples = get_4index_tuples(b);
   m_op.set_tuple_indices( tuples, dmrginp.last_site() );
 
@@ -1453,7 +1519,7 @@ void Op_component<CreCreCreCre>::build_iterators(SpinBlock& b)
     orbs = m_op.unmap_local_index(i);
 //pout << "New set of CCCC operators:  " << i << std::endl;
 //pout << "Orbs = " << orbs[0] << " " << orbs[1] << " " << orbs[2] << " " << orbs[3] << std::endl;
-    std::vector<boost::shared_ptr<CreCreCreCre> >& spin_ops = m_op.get_local_element(i);
+    std::vector<boost::shared_ptr<StackCreCreCreCre> >& spin_ops = m_op.get_local_element(i);
 
     SpinQuantum spin1 = getSpinQuantum(orbs[0]);
     SpinQuantum spin2 = getSpinQuantum(orbs[1]);
@@ -1560,12 +1626,13 @@ void Op_component<CreCreCreCre>::build_iterators(SpinBlock& b)
     assert( c__cc_c_quantum_ladder.size() == 6 );
 
 
+    long requiredMemory = 0;
     // Allocate new operator for each spin component
     //------------------------------------------------
     spin_ops.clear();
     for (int q=0; q < cc_cc_quantum_ladder.size(); q++) {
-      spin_ops.push_back( boost::shared_ptr<CreCreCreCre>(new CreCreCreCre) );
-      boost::shared_ptr<CreCreCreCre> op = spin_ops.back();
+      spin_ops.push_back( boost::shared_ptr<StackCreCreCreCre>(new StackCreCreCreCre) );
+      boost::shared_ptr<StackCreCreCreCre> op = spin_ops.back();
       op->set_orbs() = orbs;
       op->set_initialised() = true;
       op->set_quantum_ladder()["((CC)(CC))"] = cc_cc_quantum_ladder.at(q);
@@ -1575,10 +1642,13 @@ void Op_component<CreCreCreCre>::build_iterators(SpinBlock& b)
       op->set_quantum_ladder()["(((C)(CC))(C))"] = c_cc__c_quantum_ladder.at(q);
       // Set default value, which is changed according to current build_pattern // FIXME .at(2) is brittle here!  
       op->set_deltaQuantum(1, op->get_quantum_ladder().at( op->get_build_pattern() ).at(2) );
+      if (calcMem)
+	requiredMemory += SpinAdapted::getRequiredMemory(b.get_braStateInfo(), b.get_ketStateInfo(), op->get_deltaQuantum());
     }
 
     assert( m_op.get_local_element(i).size() == 6);
-  }
+    return requiredMemory;
+}
 }
 
 //===========================================================================================================================================================

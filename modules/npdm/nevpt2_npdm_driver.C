@@ -62,7 +62,7 @@ void Nevpt2_npdm_driver::clear()
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
 
-void Nevpt2_npdm_driver::compute_npdm_elements(std::vector<Wavefunction> & wavefunctions, const SpinBlock & big, int sweepPos, int endPos) 
+void Nevpt2_npdm_driver::compute_npdm_elements(std::vector<StackWavefunction> & wavefunctions, const StackSpinBlock & big, int sweepPos, int endPos) 
 {
   // Compute NPDM elements at this sweep position
   onepdm_driver.compute_npdm_elements(wavefunctions, big, sweepPos, endPos);

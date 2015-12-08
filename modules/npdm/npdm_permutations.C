@@ -10,7 +10,7 @@ Sandeep Sharma and Garnet K.-L. Chan
 #include <algorithm>
 
 #include "npdm_permutations.h"
-#include "spinblock.h"
+#include "Stackspinblock.h"
 #include "pario.h"
 
 namespace SpinAdapted{

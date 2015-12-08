@@ -352,18 +352,18 @@ void StackSpinBlock::build_and_renormalise_operators(const std::vector<Matrix>& 
   std::vector<boost::shared_ptr<StackSparseMatrix> >  allops;
 
   //here enumerate is ordered so that ther cheapest renormalizations will be at the end
-  opTypes OPTYPES[14] {HAM, DES_DESCOMP, CRE_DESCOMP, CRE_CRE_DESCOMP, 
-      DES, DES_DES, CRE_CRECOMP, DES_CRE, DES_CRECOMP, CRE_DES_DESCOMP,  CRE, OVERLAP, CRE_CRE, CRE_DES}; 
+  //opTypes OPTYPES[14] {HAM, DES_DESCOMP, CRE_DESCOMP, CRE_CRE_DESCOMP, 
+  //DES, DES_DES, CRE_CRECOMP, DES_CRE, DES_CRECOMP, CRE_DES_DESCOMP,  CRE, OVERLAP, CRE_CRE, CRE_DES}; 
   
-  for (int opindex = 0; opindex<14; opindex++) {
-    opTypes ot = OPTYPES[opindex];
-    std::map<opTypes, boost::shared_ptr< StackOp_component_base> >::iterator it = ops.find(ot);
-    if (it != ops.end()) {
-      if(! it->second->is_core()) {
-	for (int i=0; i<it->second->get_size(); i++)
-	  for (int j=0; j<it->second->get_local_element(i).size(); j++) 
-	    allops.push_back(it->second->get_local_element(i)[j]);
-      }
+  //for (int opindex = 0; opindex<14; opindex++) {
+  //opTypes ot = OPTYPES[opindex];
+  //std::map<opTypes, boost::shared_ptr< StackOp_component_base> >::iterator it = ops.find(ot);
+  for (std::map<opTypes, boost::shared_ptr< StackOp_component_base> >::iterator it = ops.begin(); it != ops.end(); ++it) {
+    opTypes ot = it->first;
+    if(! it->second->is_core()) {
+      for (int i=0; i<it->second->get_size(); i++)
+	for (int j=0; j<it->second->get_local_element(i).size(); j++) 
+	  allops.push_back(it->second->get_local_element(i)[j]);
     }
   }
 
@@ -423,10 +423,25 @@ void StackSpinBlock::build_and_renormalise_operators(const std::vector<Matrix>& 
 void StackSpinBlock::build_and_renormalise_operators(const std::vector<Matrix>& leftMat, const StateInfo *bra, const std::vector<Matrix>& rightMat, const StateInfo *ket)
 {
   std::vector<boost::shared_ptr<StackSparseMatrix> >  allops;
+  std::vector<boost::shared_ptr<StackSparseMatrix> >  allopsOnDisk;
+  std::vector<std::string >  fileNames;
+
+  //these are for the three index operators which are build on the disk
+  //and have special build_and_renormalise_operators
+  for (std::map<opTypes, boost::shared_ptr< StackOp_component_base> >::iterator it = ops.begin(); it != ops.end(); ++it) {
+    opTypes ot = it->first;
+    if(! it->second->is_core() && ot >= CRE_CRE_CRE) {
+      for (int i=0; i<it->second->get_size(); i++)
+	for (int j=0; j<it->second->get_local_element(i).size(); j++) {
+	  allopsOnDisk.push_back(it->second->get_local_element(i)[j]);
+	  fileNames.push_back( it->second->get_filename());
+	}
+    }
+  }
   
   for (std::map<opTypes, boost::shared_ptr< StackOp_component_base> >::iterator it = ops.begin(); it != ops.end(); ++it) {
     opTypes ot = it->first;
-    if(! it->second->is_core()) {
+    if(! it->second->is_core() && ot < CRE_CRE_CRE) {
       for (int i=0; i<it->second->get_size(); i++)
 	for (int j=0; j<it->second->get_local_element(i).size(); j++)
 	  allops.push_back(it->second->get_local_element(i)[j]);
@@ -436,8 +451,27 @@ void StackSpinBlock::build_and_renormalise_operators(const std::vector<Matrix>& 
   dmrginp.parallelrenorm->start();
   SplitStackmem();
 #pragma omp parallel for schedule(dynamic)
-  for (int i=0; i<allops.size(); i++)
-    allops[i]->build_and_renormalise_transform(this, leftMat, bra, rightMat, ket);
+  for (int i=0; i<allops.size()+allopsOnDisk.size(); i++) {
+    if (i<allopsOnDisk.size()) {
+      allopsOnDisk[i]->allocate(*bra, *ket);
+
+      int ix = allopsOnDisk[i]->get_orbs(0);
+      int jx = allopsOnDisk[i]->get_orbs(1);
+      int kx = allopsOnDisk[i]->get_orbs(2);
+      allopsOnDisk[i]->build_and_renormalise_transform(this, leftMat, bra, rightMat, ket);
+
+      std::vector<SpinQuantum> sq = allopsOnDisk[i]->get_quantum_ladder()[allopsOnDisk[i]->get_build_pattern()];
+      string ladderop = to_string(sq[0].get_s().getirrep())+ to_string(sq[1].get_s().getirrep())+to_string(ix)+to_string(jx)+to_string(kx);
+      std::ofstream ofs;
+      if ( (! dmrginp.do_npdm_in_core()) ) ofs.open( (fileNames[i]+ladderop).c_str(), std::ios::binary );
+      //allopsOnDisk[i]->set_build_on_disk() = true;
+      allopsOnDisk[i]->Save(ofs);
+      allopsOnDisk[i]->deallocate();
+      ofs.close();
+    }
+    else
+      allops[i-allopsOnDisk.size()]->build_and_renormalise_transform(this, leftMat, bra, rightMat, ket);
+  }
   MergeStackmem();
   dmrginp.parallelrenorm->stop();
 
@@ -532,12 +566,14 @@ void StackSpinBlock::transform_operators(std::vector<Matrix>& leftrotateMatrix, 
   //first find out how much memory is required and allocate all the operators
   long requiredMemory = 0;
   for (std::map<opTypes, boost::shared_ptr< StackOp_component_base> >::iterator it = ops.begin(); it != ops.end(); ++it)
-    requiredMemory += it->second->getRequiredMemory(newbraStateInfo, newketStateInfo);
+    if (it->first < CRE_CRE_CRE)
+      requiredMemory += it->second->getRequiredMemory(newbraStateInfo, newketStateInfo);
   totalMemory = requiredMemory;
   data = Stackmem[omprank].allocate(requiredMemory);
   double* localdata = data;
   for (std::map<opTypes, boost::shared_ptr< StackOp_component_base> >::iterator it = ops.begin(); it != ops.end(); ++it)
-    localdata = it->second->allocateOperators(newbraStateInfo, newketStateInfo, localdata);
+    if (it->first < CRE_CRE_CRE)
+      localdata = it->second->allocateOperators(newbraStateInfo, newketStateInfo, localdata);
 
   build_and_renormalise_operators( leftrotateMatrix, &newbraStateInfo, rightrotateMatrix, &newketStateInfo );
 

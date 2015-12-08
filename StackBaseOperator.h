@@ -69,15 +69,14 @@ class StackSparseMatrix : public Baseoperator<StackMatrix>  // the sparse matrix
          & built \
 	 & built_on_disk \
 	 & allowedQuantaMatrix \
-	 & quantum_ladder \
-	 & build_pattern \
-         & operatorMatrix \
+	& operatorMatrix \
          & Sign \
 	& orbs \
 	& rowCompressedForm \
 	& colCompressedForm \
 	& nonZeroBlocks \
 	& mapToNonZeroBlocks \
+	& conj		     \
 	& totalMemory;
     }
 
@@ -108,7 +107,7 @@ class StackSparseMatrix : public Baseoperator<StackMatrix>  // the sparse matrix
  public:
  StackSparseMatrix() : totalMemory(0), data(0), fermion(false), orbs(2), initialised(false), built(false), built_on_disk(false), Sign(1), conj('n'){};
  StackSparseMatrix(const StackSparseMatrix& a) : 
-  orbs(a.get_orbs()), deltaQuantum(a.get_deltaQuantum()), fermion(a.get_fermion()), 
+  orbs(a.get_orbs()), deltaQuantum(a.get_deltaQuantum()), fermion(a.get_fermion()), quantum_ladder(a.quantum_ladder), build_pattern(a.build_pattern),
     initialised(a.get_initialised()), allowedQuantaMatrix(a.get_allowedQuantaMatrix()), 
     Sign(a.get_sign()), totalMemory(a.totalMemory), data(a.data), conj('n'), built(a.built),
     operatorMatrix(a.operatorMatrix), rowCompressedForm(a.rowCompressedForm), built_on_disk(a.built_on_disk),
@@ -337,6 +336,8 @@ public:
   char &allowed(int i, int j, char conj) { if (conj =='n') return opdata->allowed(j, i); else return opdata->allowed(i,j);}
   const StackMatrix& operator_element(int i, int j, char conj) const { if (conj == 'n') return opdata->operator_element(j, i); else return opdata->operator_element(i,j);}
   StackMatrix& operator_element(int i, int j, char conj) { if (conj == 'n') return opdata->operator_element(j, i); else return opdata->operator_element(i,j);}
+  //std::vector<std::pair<std::pair<int, int>, StackMatrix> >& get_nonZeroBlocks() {return nonZeroBlocks;} 
+  //const std::vector<std::pair<std::pair<int, int>, StackMatrix> >& get_nonZeroBlocks() const {return nonZeroBlocks;} 
 
   SpinSpace get_spin(int i=0) const  { return opdata->get_deltaQuantum(i).get_s();}
   IrrepSpace get_symm(int i=0) const  { return -opdata->get_deltaQuantum(i).get_symm();}

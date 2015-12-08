@@ -415,7 +415,9 @@ int calldmrg(char* input, char* output)
     pout << "hamiltonian "<<endl<<H<<endl;
   }
   else if (dmrginp.calc_type() == DMRG ||
-	   dmrginp.calc_type() == ONEPDM)
+	   dmrginp.calc_type() == ONEPDM ||
+	   dmrginp.calc_type() == TWOPDM ||
+	   dmrginp.calc_type() == THREEPDM)
   {
     if (dmrginp.get_sweep_type() != FULL)
 	partialsweepDMRG(sweep_tol);
@@ -441,10 +443,13 @@ int calldmrg(char* input, char* output)
       else 
 	dmrg(sweep_tol);
     }
-    /*
     if (dmrginp.calc_type() == ONEPDM) 
-      Npdm(1, false, false);
-    */
+      Npdm::npdm(NPDM_ONEPDM);
+    //Npdm(1, false, false);
+    if (dmrginp.calc_type() == TWOPDM) 
+      Npdm::npdm(NPDM_TWOPDM);
+    if (dmrginp.calc_type() == THREEPDM) 
+      Npdm::npdm(NPDM_THREEPDM);
   }
   else if (dmrginp.calc_type() ==FCI) {
     Sweep::fullci(sweep_tol);
@@ -1246,6 +1251,7 @@ void Npdm(int pdm, bool restartpdm, bool transitionpdm)
       sweepParams = sweep_copy; direction = direction_copy; restartsize = restartsize_copy;
       SweepGenblock::do_one(sweepParams, false, !direction, false, 0, state, state); //this will generate the cd operators                               
       if (pdm == 1) SweepOnepdm::do_one(sweepParams, false, direction, false, 0, state);     
+      //if (pdm == 2) SweepTwopdm::do_one(sweepParams, false, direction, false, 0, state);     
       //else if (npdm_order == NPDM_TWOPDM) SweepTwopdm::do_one(sweepParams, false, direction, false, 0, state, state);
       else abort();
     }

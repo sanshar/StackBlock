@@ -22,19 +22,24 @@ namespace Npdm{
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
 
-double spinExpectation(Wavefunction& wave1, Wavefunction& wave2, SparseMatrix& leftOp, SparseMatrix& dotOp, SparseMatrix& rightOp, const SpinBlock& big)
+double spinExpectation(StackWavefunction& wave1, StackWavefunction& wave2, StackSparseMatrix& leftOp, StackSparseMatrix& dotOp, StackSparseMatrix& rightOp, const StackSpinBlock& big)
 {
 
   //calculating <wave1| Oa*Ob | wave2>
   // do transpose specifies if we want  <wave1| Oa^T*Ob |wave2> separately. This can be avoided in some sitations if wave1 and wave2 are the same functions
-  Wavefunction opw2;
+  StackWavefunction opw2;
+  StackWavefunction opw_wrapper[omprank+1]; //in tensormultiply the opw_wrapper[omprank] will be used. 
   vector<SpinQuantum> dQ = wave1.get_deltaQuantum();
-  if(dmrginp.setStateSpecific() || !dmrginp.doimplicitTranspose()) opw2.initialisebra(dQ, &big, true);
-  else opw2.initialise(dQ, &big, true);
-  SpinBlock* leftBlock = big.get_leftBlock();
-  SpinBlock* rightBlock = big.get_rightBlock();
 
-  Cre AOp; //This is just an example class
+  if(dmrginp.setStateSpecific() || !dmrginp.doimplicitTranspose()) 
+    opw_wrapper[omprank].initialise(dQ, big.get_leftBlock()->get_braStateInfo(), big.get_rightBlock()->get_braStateInfo(), true);
+  else 
+    opw_wrapper[omprank].initialise(dQ, big.get_leftBlock()->get_stateInfo(), big.get_rightBlock()->get_stateInfo(), true);
+  opw_wrapper[omprank].Clear();
+  StackSpinBlock* leftBlock = big.get_leftBlock();
+  StackSpinBlock* rightBlock = big.get_rightBlock();
+
+  StackCre AOp; //This is just an example class
   int totalspin;
   // In spin-adapted, getirrep is the value of S
   // In non spin-adapted, getirrep is the value of S_z
@@ -46,14 +51,17 @@ double spinExpectation(Wavefunction& wave1, Wavefunction& wave2, SparseMatrix& l
   FormLeftOp(leftBlock, leftOp, dotOp, AOp, totalspin);
   SpinQuantum hq(0,SpinSpace(0),IrrepSpace(0));
 
-  operatorfunctions::TensorMultiply<SpinBlock, SparseMatrix, SparseMatrix>(leftBlock, AOp, rightOp, &big, wave2, opw2, hq, 1.0);
 
-  return DotProduct(wave1, opw2, big) ;
+  operatorfunctions::TensorMultiply(leftBlock, AOp, rightOp, &big, wave2, opw_wrapper, hq, 1.0);
+  AOp.deallocate();
+  double dotproduct =  DotProduct(wave1, opw_wrapper[omprank], big) ;
+  opw_wrapper[omprank].deallocate();
+  return dotproduct;
 }
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
 
-void FormLeftOp(const SpinBlock* leftBlock, const SparseMatrix& leftOp, const SparseMatrix& dotOp, SparseMatrix& Aop, int totalspin)
+void FormLeftOp(const StackSpinBlock* leftBlock, const StackSparseMatrix& leftOp, const StackSparseMatrix& dotOp, StackSparseMatrix& Aop, int totalspin)
 {
   //Cre is just a class..it is not actually cre
   int leftindices=0, dotindices=0;
@@ -89,7 +97,7 @@ void FormLeftOp(const SpinBlock* leftBlock, const SparseMatrix& leftOp, const Sp
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
 
-double DotProduct(const Wavefunction& w1, const Wavefunction& w2, const SpinBlock& big)
+double DotProduct(const StackWavefunction& w1, const StackWavefunction& w2, const StackSpinBlock& big)
 {
   // After multipling ket by cd operator, it has the same basis with ket
   int leftOpSz = big.get_leftBlock()->get_braStateInfo().quanta.size ();

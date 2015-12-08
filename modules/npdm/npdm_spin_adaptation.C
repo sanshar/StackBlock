@@ -254,6 +254,7 @@ void Npdm_spin_adaptation::build_new_A_mat( const std::string& op_string, Matrix
   std::string::const_iterator end  = op.end();          
   std::vector<TensorOp> result;                                       
   bool success = parse(iter, end, eg, result) ;		 
+
   // Edge case: ()((CxCx)... Arises when LHS and Dot blocks are empty.
   if ( not success ) {
     op.erase( op.begin() );   

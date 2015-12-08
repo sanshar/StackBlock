@@ -6,15 +6,24 @@ This program is integrated in Molpro with the permission of
 Sandeep Sharma and Garnet K.-L. Chan
 */
 
+#include <vector>
+#include <iostream>
+#include <iomanip>
+#include <newmat.h>
+#include <newmatio.h>
 #include "npdm.h"
 #include "sweep.h"
 #include "sweepgenblock.h"
-#include "density.h"
-#include "sweeponepdm.h"  // For legacy version of 1pdm
-#include "sweeptwopdm.h"  // For legacy version of 2pdm
+#include "Stackdensity.h"
+//#include "sweeponepdm.h"  // For legacy version of 1pdm
+//#include "sweeptwopdm.h"  // For legacy version of 2pdm
 #include "npdm_driver.h"
 #include "nevpt2_npdm_driver.h"
 #include "pario.h"
+#include "initblocks.h"
+#include "stackguess_wavefunction.h"
+#include "Stackwavefunction.h"
+#include "SpinQuantum.h"
 
 void dmrg(double sweep_tol);
 void restart(double sweep_tol, bool reset_iter);
@@ -26,7 +35,7 @@ namespace Npdm {
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
 
-void npdm_block_and_decimate( Npdm_driver_base& npdm_driver, SweepParams &sweepParams, SpinBlock& system, SpinBlock& newSystem, 
+void npdm_block_and_decimate( Npdm_driver_base& npdm_driver, SweepParams &sweepParams, StackSpinBlock& system, StackSpinBlock& newSystem, 
                               const bool &useSlater, const bool& dot_with_sys, const int state, const int stateB)
 {
   Timer timer;
@@ -34,8 +43,8 @@ void npdm_block_and_decimate( Npdm_driver_base& npdm_driver, SweepParams &sweepP
   // figure out if we are going forward or backwards
   dmrginp.guessgenT -> start();
   bool forward = (system.get_sites() [0] == 0);
-  SpinBlock systemDot;
-  SpinBlock envDot;
+  StackSpinBlock systemDot;
+  StackSpinBlock envDot;
   int systemDotStart, systemDotEnd;
   int systemDotSize = sweepParams.get_sys_add() - 1;
   if (forward)
@@ -52,70 +61,71 @@ void npdm_block_and_decimate( Npdm_driver_base& npdm_driver, SweepParams &sweepP
   spindotsites[0] = systemDotStart;
   spindotsites[1] = systemDotEnd;
   //if (useSlater) {
-    systemDot = SpinBlock(systemDotStart, systemDotEnd, system.get_integralIndex(), true);
-    //SpinBlock::store(true, systemDot.get_sites(), systemDot);
+    systemDot = StackSpinBlock(systemDotStart, systemDotEnd, system.get_integralIndex(), true);
+    //StackSpinBlock::store(true, systemDot.get_sites(), systemDot);
     //}
     //else
-    //SpinBlock::restore(true, spindotsites, systemDot);
-  SpinBlock environment, environmentDot, newEnvironment;
+    //StackSpinBlock::restore(true, spindotsites, systemDot);
+  StackSpinBlock environment, environmentDot, newEnvironment;
 
   int environmentDotStart, environmentDotEnd, environmentStart, environmentEnd;
 
   const int nexact = forward ? sweepParams.get_forward_starting_size() : sweepParams.get_backward_starting_size();
 
-  system.addAdditionalCompOps();
+  //system.addAdditionalOps();
   if(dmrginp.setStateSpecific() || dmrginp.transition_diff_irrep()){
     InitBlocks::InitNewSystemBlock(system, systemDot, newSystem, state, stateB,
-                                   sweepParams.get_sys_add(), dmrginp.direct(), system.get_integralIndex(), DISTRIBUTED_STORAGE, true, true);
+                                   sweepParams.get_sys_add(), dmrginp.direct(), system.get_integralIndex(), DISTRIBUTED_STORAGE, true, false);
     
     InitBlocks::InitNewEnvironmentBlock(environment, systemDot, newEnvironment, system, systemDot,
                                       state, stateB,
                                       sweepParams.get_sys_add(), sweepParams.get_env_add(), forward, dmrginp.direct(),
-                                      sweepParams.get_onedot(), nexact, useSlater, environment.get_integralIndex(), true, true, true);
+                                      sweepParams.get_onedot(), nexact, useSlater, environment.get_integralIndex(), true, false, true);
   }
   else{
     InitBlocks::InitNewSystemBlock(system, systemDot, newSystem, sweepParams.current_root(), sweepParams.current_root(),
-                                   sweepParams.get_sys_add(), dmrginp.direct(), system.get_integralIndex(), DISTRIBUTED_STORAGE, true, true);
+                                   sweepParams.get_sys_add(), dmrginp.direct(), system.get_integralIndex(), DISTRIBUTED_STORAGE, true, false);
     
     InitBlocks::InitNewEnvironmentBlock(environment, systemDot, newEnvironment, system, systemDot,
                                       sweepParams.current_root(), sweepParams.current_root(),
                                       sweepParams.get_sys_add(), sweepParams.get_env_add(), forward, dmrginp.direct(),
-                                      sweepParams.get_onedot(), nexact, useSlater, environment.get_integralIndex(), true, true, true);
+                                      sweepParams.get_onedot(), nexact, useSlater, environment.get_integralIndex(), true, false, true);
 
   }
-  SpinBlock big;
+  StackSpinBlock big;
   newSystem.set_loopblock(true);
   system.set_loopblock(false);
   newEnvironment.set_loopblock(false);
   InitBlocks::InitBigBlock(newSystem, newEnvironment, big); 
 
+
   const int nroots = dmrginp.nroots();
-  std::vector<Wavefunction> solution;
+  std::vector<StackWavefunction> solution;
   if(state==stateB){
     solution.resize(1);
+    solution[0].initialise(dmrginp.effective_molecule_quantum_vec(), big.get_leftBlock()->get_stateInfo(), big.get_rightBlock()->get_stateInfo(), true);
+    solution[0].Clear();
     DiagonalMatrix e;
     GuessWave::guess_wavefunctions(solution[0], e, big, sweepParams.get_guesstype(), true, state, true, 0.0); 
+#ifndef SERIAL
+    MPI_Bcast(solution[0].get_data(), solution[0].memoryUsed(), MPI_DOUBLE, 0, Calc);
+#endif
 
   }
   else{
     solution.resize(2);
     DiagonalMatrix e;
+    solution[0].initialise(dmrginp.effective_molecule_quantum_vec(), big.get_leftBlock()->get_stateInfo(), big.get_rightBlock()->get_stateInfo(), true);
+    solution[1].initialise(dmrginp.effective_molecule_quantum_vec(), big.get_leftBlock()->get_stateInfo(), big.get_rightBlock()->get_stateInfo(), true);
+    solution[0].Clear();
+    solution[1].Clear();
     GuessWave::guess_wavefunctions(solution[0], e, big, sweepParams.get_guesstype(), true, state, true, 0.0,false); 
     GuessWave::guess_wavefunctions(solution[1], e, big, sweepParams.get_guesstype(), true, stateB, true, 0.0,true); 
-  }
-
 #ifndef SERIAL
-  mpi::communicator world;
-  mpi::broadcast(world, solution, 0);
+    MPI_Bcast(solution[0].get_data(), solution[0].memoryUsed(), MPI_DOUBLE, 0, Calc);
+    MPI_Bcast(solution[1].get_data(), solution[1].memoryUsed(), MPI_DOUBLE, 0, Calc);
 #endif
-
-
-  //GuessWave::guess_wavefunctions(solution[0], e, big, sweepParams.get_guesstype(), true, state, false, 0.0); 
-  //GuessWave::guess_wavefunctions(solution[1], e, big, sweepParams.get_guesstype(), true, stateB, true, 0.0); 
-
-
-
-  //bra and ket rotation matrices are calculated from different density matrices.
+  }
 
 
   std::vector<Matrix> rotateMatrix;
@@ -123,28 +133,31 @@ void npdm_block_and_decimate( Npdm_driver_base& npdm_driver, SweepParams &sweepP
 
   if(state!=stateB){
 
-    DensityMatrix tracedMatrix(newSystem.get_braStateInfo());
+    StackDensityMatrix tracedMatrix(newSystem.get_braStateInfo());
     tracedMatrix.allocate(newSystem.get_braStateInfo());
-    tracedMatrix.makedensitymatrix(std::vector<Wavefunction>(1,solution[0]), big, std::vector<double>(1,1.0), 0.0, 0.0, false);
+    tracedMatrix.makedensitymatrix(solution[0], big, 1.0);
     rotateMatrix.clear();
 
-    DensityMatrix tracedMatrixB(newSystem.get_ketStateInfo());
+    StackDensityMatrix tracedMatrixB(newSystem.get_ketStateInfo());
     tracedMatrixB.allocate(newSystem.get_ketStateInfo());
-    tracedMatrixB.makedensitymatrix(std::vector<Wavefunction>(1,solution[1]), big, std::vector<double>(1,1.0), 0.0, 0.0, false);
+    tracedMatrixB.makedensitymatrix(solution[1], big, 1.0);
     rotateMatrixB.clear();
     if (!mpigetrank()){
       double error = makeRotateMatrix(tracedMatrix, rotateMatrix, sweepParams.get_keep_states(), sweepParams.get_keep_qstates());
       error = makeRotateMatrix(tracedMatrixB, rotateMatrixB, sweepParams.get_keep_states(), sweepParams.get_keep_qstates());
     }
+    tracedMatrixB.deallocate();
+    tracedMatrix.deallocate();
   }
   else{
-    DensityMatrix tracedMatrix(newSystem.get_stateInfo());
+    StackDensityMatrix tracedMatrix(newSystem.get_stateInfo());
     tracedMatrix.allocate(newSystem.get_stateInfo());
-    tracedMatrix.makedensitymatrix(std::vector<Wavefunction>(1,solution[0]), big, std::vector<double>(1,1.0), 0.0, 0.0, false);
+    tracedMatrix.makedensitymatrix(solution[0], big, 1.0);
     rotateMatrix.clear();
     if (!mpigetrank()){
       double error = makeRotateMatrix(tracedMatrix, rotateMatrix, sweepParams.get_keep_states(), sweepParams.get_keep_qstates());
     }
+    tracedMatrix.deallocate();
 
   }
 
@@ -154,15 +167,23 @@ void npdm_block_and_decimate( Npdm_driver_base& npdm_driver, SweepParams &sweepP
 
   int sweepPos = sweepParams.get_block_iter();
   int endPos = sweepParams.get_n_iters()-1;
+  cout <<"before "<< Stackmem[0].memused<<endl;
+  size_t mem = Stackmem[0].memused;
+  double *ptr = Stackmem[0].data+mem;
   npdm_driver.compute_npdm_elements(solution, big, sweepPos, endPos);
+  //clear all the memory used so far
+  Stackmem[0].deallocate(ptr, Stackmem[0].memused-mem);
+
+  cout <<"before "<< Stackmem[0].memused<<endl;
   SaveRotationMatrix (newSystem.get_sites(), rotateMatrix, state);
   solution[0].SaveWavefunctionInfo (big.get_braStateInfo(), big.get_leftBlock()->get_sites(), state);
 
   if(state!=stateB){
     SaveRotationMatrix (newSystem.get_sites(), rotateMatrixB, stateB);
     solution[1].SaveWavefunctionInfo (big.get_ketStateInfo(), big.get_leftBlock()->get_sites(), stateB);
+    solution[1].deallocate();
   }
-
+  solution[0].deallocate();
 
   //FIXME
   //Maybe, for StateSpecific calculations, we can load rotation matrices, wavefuntions from the disk. 
@@ -178,6 +199,7 @@ void npdm_block_and_decimate( Npdm_driver_base& npdm_driver, SweepParams &sweepP
   //LoadRotationMatrix (newSystem.get_sites(), rotateMatrixB, stateB);
   //}
   #ifndef SERIAL
+  boost::mpi::communicator world;
     mpi::broadcast(world,rotateMatrix,0);
     if(state!=stateB)
       mpi::broadcast(world,rotateMatrixB,0);
@@ -190,8 +212,17 @@ void npdm_block_and_decimate( Npdm_driver_base& npdm_driver, SweepParams &sweepP
   {
     if(state!=stateB)
       newSystem.transform_operators(rotateMatrix,rotateMatrixB);
-    else
-      newSystem.transform_operators(rotateMatrix);
+    else {
+      newSystem.transform_operators(rotateMatrix, rotateMatrix);
+    }
+  }
+
+  {
+    long memoryToFree = newSystem.getdata() - system.getdata();
+    long newsysmem = newSystem.memoryUsed();
+    newSystem.moveToNewMemory(system.getdata());
+    Stackmem[omprank].deallocate(newSystem.getdata()+newsysmem, memoryToFree);
+    //system.clear();
   }
 
   //newSystem.transform_operators(rotateMatrix,rotateMatrixB);
@@ -206,7 +237,7 @@ double npdm_do_one_sweep(Npdm_driver_base &npdm_driver, SweepParams &sweepParams
 {
   Timer sweeptimer;
   pout.precision(12);
-  SpinBlock system;
+  StackSpinBlock system;
   const int nroots = dmrginp.nroots();
   std::vector<double> finalEnergy(nroots,0.);
   std::vector<double> finalEnergy_spins(nroots,0.);
@@ -227,10 +258,10 @@ double npdm_do_one_sweep(Npdm_driver_base &npdm_driver, SweepParams &sweepParams
 
   if (!restart) sweepParams.set_block_iter() = 0;
   if(dmrginp.setStateSpecific() || dmrginp.transition_diff_irrep()){
-    if (!restart) SpinBlock::store (forward, system.get_sites(), system, state, stateB ); // if restart, just restoring an existing block --
+    if (!restart) StackSpinBlock::store (forward, system.get_sites(), system, state, stateB ); // if restart, just restoring an existing block --
   }
   else{
-    if (!restart) SpinBlock::store (forward, system.get_sites(), system, sweepParams.current_root(), sweepParams.current_root() ); // if restart, just restoring an existing block --
+    if (!restart) StackSpinBlock::store (forward, system.get_sites(), system, sweepParams.current_root(), sweepParams.current_root() ); // if restart, just restoring an existing block --
   }
 
   sweepParams.savestate(forward, system.get_sites().size());
@@ -261,7 +292,7 @@ double npdm_do_one_sweep(Npdm_driver_base &npdm_driver, SweepParams &sweepParams
     //pout << "guess wave funtion type: " << sweepParams.get_guesstype()<<endl;
     p1out << "\t\t\t Blocking and Decimating " << endl;
  
-    SpinBlock newSystem;
+    StackSpinBlock newSystem;
 
     // Build npdm elements
     npdm_block_and_decimate(npdm_driver, sweepParams, system, newSystem, warmUp, dot_with_sys, state, stateB);
@@ -279,9 +310,9 @@ double npdm_do_one_sweep(Npdm_driver_base &npdm_driver, SweepParams &sweepParams
     pout << system<<endl;
     
     if(dmrginp.setStateSpecific() || dmrginp.transition_diff_irrep())
-      SpinBlock::store (forward, system.get_sites(), system, state, stateB);
+      StackSpinBlock::store (forward, system.get_sites(), system, state, stateB);
     else
-      SpinBlock::store (forward, system.get_sites(), system, sweepParams.current_root(), sweepParams.current_root() );
+      StackSpinBlock::store (forward, system.get_sites(), system, sweepParams.current_root(), sweepParams.current_root() );
 
     p1out << "\t\t\t saving state " << system.get_sites().size() << endl;
     ++sweepParams.set_block_iter();
@@ -308,8 +339,8 @@ double npdm_do_one_sweep(Npdm_driver_base &npdm_driver, SweepParams &sweepParams
   // Update the static number of iterations
   ++sweepParams.set_sweep_iter();
 
-  pout << "\t\t\t Elapsed Sweep CPU  Time (seconds): " << setprecision(3) << sweeptimer.elapsedcputime() << endl;
-  pout << "\t\t\t Elapsed Sweep Wall Time (seconds): " << setprecision(3) << sweeptimer.elapsedwalltime() << endl;
+  pout << "\t\t\t Elapsed Sweep CPU  Time (seconds): " << std::setprecision(3) << sweeptimer.elapsedcputime() << endl;
+  pout << "\t\t\t Elapsed Sweep Wall Time (seconds): " << std::setprecision(3) << sweeptimer.elapsedwalltime() << endl;
 
   return finalEnergy[0];
 
@@ -337,22 +368,7 @@ void npdm(NpdmOrder npdm_order, bool restartpdm, bool transitionpdm)
     abort();
   }
 
-  if(!restartpdm){
-    if (RESTART && !FULLRESTART)
-      restart(sweep_tol, reset_iter);
-    else if (FULLRESTART) {
-      fullrestartGenblock();
-      reset_iter = true;
-      sweepParams.restorestate(direction, restartsize);
-      sweepParams.calc_niter();
-      sweepParams.savestate(direction, restartsize);
-      restart(sweep_tol, reset_iter);
-    }
-    else {
-      dmrg(sweep_tol);
-    }
-  }
-  if(transitionpdm)
+  if(transitionpdm )
     dmrginp.setimplicitTranspose() = false;
 
   dmrginp.do_pdm() = true;
@@ -371,15 +387,15 @@ void npdm(NpdmOrder npdm_order, bool restartpdm, bool transitionpdm)
     //By default, new_npdm_code is false.
     //For npdm_order 1 or 2. new_npdm_code is determined by default or manual setting.
     //For the other situation, only old or new code is suitable.
-    if(npdm_order == NPDM_PAIRMATRIX || npdm_order == NPDM_THREEPDM || npdm_order == NPDM_FOURPDM || npdm_order == NPDM_NEVPT2 ||  transitionpdm == true  || dmrginp.spinAdapted() == false || dmrginp.setStateSpecific())
-      dmrginp.set_new_npdm_code();
+    //if(npdm_order == NPDM_PAIRMATRIX || npdm_order == NPDM_THREEPDM || npdm_order == NPDM_FOURPDM || npdm_order == NPDM_NEVPT2 ||  transitionpdm == true  || dmrginp.spinAdapted() == false || dmrginp.setStateSpecific())
+    dmrginp.set_new_npdm_code();
 
     if(dmrginp.new_npdm_code()){
     if      (npdm_order == NPDM_ONEPDM) npdm_driver = boost::shared_ptr<Npdm_driver_base>( new Onepdm_driver( dmrginp.last_site() ) );
     else if (npdm_order == NPDM_TWOPDM) npdm_driver = boost::shared_ptr<Npdm_driver_base>( new Twopdm_driver( dmrginp.last_site() ) );
     else if (npdm_order == NPDM_THREEPDM) npdm_driver = boost::shared_ptr<Npdm_driver_base>( new Threepdm_driver( dmrginp.last_site() ) );
     else if (npdm_order == NPDM_FOURPDM) npdm_driver = boost::shared_ptr<Npdm_driver_base>( new Fourpdm_driver( dmrginp.last_site() ) );
-    else if (npdm_order == NPDM_NEVPT2) npdm_driver = boost::shared_ptr<Npdm_driver_base>( new Nevpt2_npdm_driver( dmrginp.last_site() ) );
+    //else if (npdm_order == NPDM_NEVPT2) npdm_driver = boost::shared_ptr<Npdm_driver_base>( new Nevpt2_npdm_driver( dmrginp.last_site() ) );
     else if (npdm_order == NPDM_PAIRMATRIX) npdm_driver = boost::shared_ptr<Npdm_driver_base>( new Pairpdm_driver( dmrginp.last_site() ) );
     else abort();
     }
@@ -417,8 +433,13 @@ void npdm(NpdmOrder npdm_order, bool restartpdm, bool transitionpdm)
     dmrginp.npdm_generate() = true;
     sweepParams = sweep_copy; direction = direction_copy; restartsize = restartsize_copy;
 
+    dmrginp.setimplicitTranspose() = false;
     if (dmrginp.new_npdm_code())
       SweepGenblock::do_one(sweepParams, false, !direction, false, 0, -1, -1); //this will generate the cd operators                               
+
+    if(!transitionpdm )
+      dmrginp.setimplicitTranspose() = true;
+
     dmrginp.npdm_generate() = false;
     p3out << "\t\t\t NPDM SweepGenblock time " << timer.elapsedwalltime() << " " << timer.elapsedcputime() << endl;
     dmrginp.set_fullrestart() = false;
@@ -449,10 +470,12 @@ void npdm(NpdmOrder npdm_order, bool restartpdm, bool transitionpdm)
           p3out << "\t\t\t NPDM sweep time " << timerX.elapsedwalltime() << " " << timerX.elapsedcputime() << endl;
         } 
         else{
-	  SweepGenblock::do_one(sweepParams, false, !direction, false, 0, state, state); //this will generate the cd operators                               
-          if (npdm_order == NPDM_ONEPDM) SweepOnepdm::do_one(sweepParams, false, direction, false, 0, state);     
-          else if (npdm_order == NPDM_TWOPDM) SweepTwopdm::do_one(sweepParams, false, direction, false, 0, state, state);
-          else abort();
+	  pout << "Old code is not available anymore "<<endl;
+	  print_trace(2);
+	  //SweepGenblock::do_one(sweepParams, false, !direction, false, 0, state, state); //this will generate the cd operators                               
+          //if (npdm_order == NPDM_ONEPDM) SweepOnepdm::do_one(sweepParams, false, direction, false, 0, state);     
+          //else if (npdm_order == NPDM_TWOPDM) SweepTwopdm::do_one(sweepParams, false, direction, false, 0, state, state);
+          //else abort();
         }
       }
     }

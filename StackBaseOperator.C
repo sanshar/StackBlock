@@ -110,6 +110,7 @@ void StackSparseMatrix::build_and_renormalise_transform(StackSpinBlock *big, con
   colCompressedForm.clear();
   rowCompressedForm.clear();
   allocate(big->get_braStateInfo(), big->get_ketStateInfo());
+  initialised = true;
   build(*big);
   
   //put the new operatorMatrix 
@@ -195,22 +196,24 @@ void assignloopblock(StackSpinBlock*& loopblock, StackSpinBlock*& otherblock, St
 
 void StackSparseMatrix::operator=(const StackSparseMatrix& a) 
 {
-  conj = a.conj;
-  orbs = a.get_orbs(); 
   deltaQuantum = a.get_deltaQuantum();
+  quantum_ladder = a.quantum_ladder;
+  build_pattern = a.build_pattern;
   fermion = a.get_fermion();
   initialised = a.get_initialised();
+  built = a.built;
+  built_on_disk = a.built_on_disk;
   allowedQuantaMatrix = a.get_allowedQuantaMatrix();
   operatorMatrix = a.operatorMatrix;
   Sign = a.get_sign();
-  built = a.built;
-  built_on_disk = a.built_on_disk;
-  totalMemory = a.totalMemory;
-  data=a.data;
+  orbs = a.get_orbs(); 
   rowCompressedForm = a.rowCompressedForm;
   colCompressedForm = a.colCompressedForm;
   nonZeroBlocks = a.nonZeroBlocks;
   mapToNonZeroBlocks = a.mapToNonZeroBlocks;
+  conj = a.conj;
+  totalMemory = a.totalMemory;
+  data=a.data;
 }
 
 double StackSparseMatrix::get_scaling(SpinQuantum leftq, SpinQuantum rightq) const 

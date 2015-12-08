@@ -10,6 +10,9 @@ Sandeep Sharma and Garnet K.-L. Chan
 #ifndef SPIN_SWEEP_HEADER
 #define SPIN_SWEEP_HEADER
 
+#include <vector>
+
+class Matrix;
 namespace SpinAdapted{
   class StackSpinBlock;
   class SweepParams;

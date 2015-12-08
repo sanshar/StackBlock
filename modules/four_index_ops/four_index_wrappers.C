@@ -17,7 +17,7 @@ namespace Npdm{
 
 //===========================================================================================================================================================
 
-Npdm_op_wrapper_CCDD::Npdm_op_wrapper_CCDD( SpinBlock * spinBlock )
+Npdm_op_wrapper_CCDD::Npdm_op_wrapper_CCDD( StackSpinBlock * spinBlock )
 {
   opReps_.clear();
   indices_.clear();
@@ -53,7 +53,7 @@ bool Npdm_op_wrapper_CCDD::set_local_ops( int idx )
     opReps_.clear();
     // Read in all spin components for this set of spatial indices (note order matters)
     for ( int i=0; i<size; i++) {
-      boost::shared_ptr<SparseMatrix> op (new Cre);
+      boost::shared_ptr<StackSparseMatrix> op (new StackCre);
       boost::archive::binary_iarchive load_op(ifs_);
       load_op >> *op;
       assert( op->get_built_on_disk() );
@@ -78,7 +78,7 @@ bool Npdm_op_wrapper_CCDD::set_local_ops( int idx )
 
 //===========================================================================================================================================================
 
-Npdm_op_wrapper_CDCD::Npdm_op_wrapper_CDCD( SpinBlock * spinBlock )
+Npdm_op_wrapper_CDCD::Npdm_op_wrapper_CDCD( StackSpinBlock * spinBlock )
 {
   opReps_.clear();
   indices_.clear();
@@ -114,7 +114,7 @@ bool Npdm_op_wrapper_CDCD::set_local_ops( int idx )
     opReps_.clear();
     // Read in all spin components for this set of spatial indices (note order matters)
     for ( int i=0; i<size; i++) {
-      boost::shared_ptr<SparseMatrix> op (new Cre);
+      boost::shared_ptr<StackSparseMatrix> op (new StackCre);
       boost::archive::binary_iarchive load_op(ifs_);
       load_op >> *op;
       assert( op->get_built_on_disk() );
@@ -142,7 +142,7 @@ bool Npdm_op_wrapper_CDCD::set_local_ops( int idx )
 
 //===========================================================================================================================================================
 
-Npdm_op_wrapper_CDDC::Npdm_op_wrapper_CDDC( SpinBlock * spinBlock )
+Npdm_op_wrapper_CDDC::Npdm_op_wrapper_CDDC( StackSpinBlock * spinBlock )
 {
   opReps_.clear();
   indices_.clear();
@@ -178,7 +178,7 @@ bool Npdm_op_wrapper_CDDC::set_local_ops( int idx )
     opReps_.clear();
     // Read in all spin components for this set of spatial indices (note order matters)
     for ( int i=0; i<size; i++) {
-      boost::shared_ptr<SparseMatrix> op (new Cre);
+      boost::shared_ptr<StackSparseMatrix> op (new StackCre);
       boost::archive::binary_iarchive load_op(ifs_);
       load_op >> *op;
       assert( op->get_built_on_disk() );
@@ -206,7 +206,7 @@ bool Npdm_op_wrapper_CDDC::set_local_ops( int idx )
 
 //===========================================================================================================================================================
 
-Npdm_op_wrapper_CDDD::Npdm_op_wrapper_CDDD( SpinBlock * spinBlock )
+Npdm_op_wrapper_CDDD::Npdm_op_wrapper_CDDD( StackSpinBlock * spinBlock )
 {
   opReps_.clear();
   indices_.clear();
@@ -242,7 +242,7 @@ bool Npdm_op_wrapper_CDDD::set_local_ops( int idx )
     opReps_.clear();
     // Read in all spin components for this set of spatial indices (note order matters)
     for ( int i=0; i<size; i++) {
-      boost::shared_ptr<SparseMatrix> op (new Cre);
+      boost::shared_ptr<StackSparseMatrix> op (new StackCre);
       boost::archive::binary_iarchive load_op(ifs_);
       load_op >> *op;
       assert( op->get_built_on_disk() );
@@ -270,7 +270,7 @@ bool Npdm_op_wrapper_CDDD::set_local_ops( int idx )
 
 //===========================================================================================================================================================
 
-Npdm_op_wrapper_CCCD::Npdm_op_wrapper_CCCD( SpinBlock * spinBlock )
+Npdm_op_wrapper_CCCD::Npdm_op_wrapper_CCCD( StackSpinBlock * spinBlock )
 {
   opReps_.clear();
   indices_.clear();
@@ -306,7 +306,7 @@ bool Npdm_op_wrapper_CCCD::set_local_ops( int idx )
     opReps_.clear();
     // Read in all spin components for this set of spatial indices (note order matters)
     for ( int i=0; i<size; i++) {
-      boost::shared_ptr<SparseMatrix> op (new Cre);
+      boost::shared_ptr<StackSparseMatrix> op (new StackCre);
       boost::archive::binary_iarchive load_op(ifs_);
       load_op >> *op;
       assert( op->get_built_on_disk() );
@@ -334,7 +334,7 @@ bool Npdm_op_wrapper_CCCD::set_local_ops( int idx )
 
 //===========================================================================================================================================================
 
-Npdm_op_wrapper_CCDC::Npdm_op_wrapper_CCDC( SpinBlock * spinBlock )
+Npdm_op_wrapper_CCDC::Npdm_op_wrapper_CCDC( StackSpinBlock * spinBlock )
 {
   opReps_.clear();
   indices_.clear();
@@ -370,7 +370,7 @@ bool Npdm_op_wrapper_CCDC::set_local_ops( int idx )
     opReps_.clear();
     // Read in all spin components for this set of spatial indices (note order matters)
     for ( int i=0; i<size; i++) {
-      boost::shared_ptr<SparseMatrix> op (new Cre);
+      boost::shared_ptr<StackSparseMatrix> op (new StackCre);
       boost::archive::binary_iarchive load_op(ifs_);
       load_op >> *op;
       assert( op->get_built_on_disk() );
@@ -398,7 +398,7 @@ bool Npdm_op_wrapper_CCDC::set_local_ops( int idx )
 
 //===========================================================================================================================================================
 
-Npdm_op_wrapper_CDCC::Npdm_op_wrapper_CDCC( SpinBlock * spinBlock )
+Npdm_op_wrapper_CDCC::Npdm_op_wrapper_CDCC( StackSpinBlock * spinBlock )
 {
   opReps_.clear();
   indices_.clear();
@@ -434,7 +434,7 @@ bool Npdm_op_wrapper_CDCC::set_local_ops( int idx )
     opReps_.clear();
     // Read in all spin components for this set of spatial indices (note order matters)
     for ( int i=0; i<size; i++) {
-      boost::shared_ptr<SparseMatrix> op (new Cre);
+      boost::shared_ptr<StackSparseMatrix> op (new StackCre);
       boost::archive::binary_iarchive load_op(ifs_);
       load_op >> *op;
       assert( op->get_built_on_disk() );
@@ -462,7 +462,7 @@ bool Npdm_op_wrapper_CDCC::set_local_ops( int idx )
 
 //===========================================================================================================================================================
 
-Npdm_op_wrapper_CCCC::Npdm_op_wrapper_CCCC( SpinBlock * spinBlock )
+Npdm_op_wrapper_CCCC::Npdm_op_wrapper_CCCC( StackSpinBlock * spinBlock )
 {
   opReps_.clear();
   indices_.clear();
@@ -498,7 +498,7 @@ bool Npdm_op_wrapper_CCCC::set_local_ops( int idx )
     opReps_.clear();
     // Read in all spin components for this set of spatial indices (note order matters)
     for ( int i=0; i<size; i++) {
-      boost::shared_ptr<SparseMatrix> op (new Cre);
+      boost::shared_ptr<StackSparseMatrix> op (new StackCre);
       boost::archive::binary_iarchive load_op(ifs_);
       load_op >> *op;
       assert( op->get_built_on_disk() );

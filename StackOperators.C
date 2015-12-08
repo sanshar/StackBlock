@@ -137,6 +137,43 @@ double SpinAdapted::StackCre::redMatrixElement(Csf c1, vector<Csf>& ladder, cons
 
 //******************DES*****************
 
+void SpinAdapted::StackDes::build(StackMatrix& m, int row, int col, const StackSpinBlock& b)
+{
+  if (b.get_rightBlock() == 0 || memoryUsed() != 0) {
+    m = operator_element(row, col);
+    return;
+  }
+
+  const int i = get_orbs()[0];
+
+
+  StackSpinBlock* leftBlock = b.get_leftBlock();
+  StackSpinBlock* rightBlock = b.get_rightBlock();
+
+  if (leftBlock->get_op_array(DES).has(i))
+  {      
+    const boost::shared_ptr<StackSparseMatrix>& op = leftBlock->get_op_rep(DES, deltaQuantum, i);
+    if (rightBlock->get_sites().size() == 0) 
+      SpinAdapted::operatorfunctions::TensorTraceElement(leftBlock, *op, &b, &(b.get_stateInfo()), *this, m, row, col, 1.0);
+    else {
+      SpinQuantum hq(0, SpinSpace(0), IrrepSpace(0));
+      const boost::shared_ptr<StackSparseMatrix> Overlap = rightBlock->get_op_rep(OVERLAP, hq);
+      SpinAdapted::operatorfunctions::TensorProductElement(leftBlock, *op, *Overlap, &b, &(b.get_stateInfo()), *this, m, row, col, 1.0);
+    }
+    return;
+  }
+  if (rightBlock->get_op_array(DES).has(i))
+  {
+    const boost::shared_ptr<StackSparseMatrix>& op = rightBlock->get_op_rep(DES, deltaQuantum, i);
+    SpinQuantum hq(0, SpinSpace(0), IrrepSpace(0));
+    const boost::shared_ptr<StackSparseMatrix> Overlap = leftBlock->get_op_rep(OVERLAP, hq);
+    
+    SpinAdapted::operatorfunctions::TensorProductElement(leftBlock, *Overlap, *op, &b, &(b.get_stateInfo()), *this, m, row, col, 1.0);
+    return;
+  }  
+  abort();  
+}
+
 void SpinAdapted::StackDes::build(const StackSpinBlock& b)
 {
   if (b.get_rightBlock() == 0) return; //cannot build
@@ -413,6 +450,61 @@ double SpinAdapted::StackCreDes::redMatrixElement(Csf c1, vector<Csf>& ladder, c
 
 
 //******************DESCRE*****************
+
+void SpinAdapted::StackDesCre::build(StackMatrix& m, int row, int col, const StackSpinBlock& b)
+{
+  if (b.get_rightBlock() == 0 || memoryUsed() != 0) {
+    m = operator_element(row, col);
+    return;
+  }
+
+  Sign = 1;
+
+  const int i = get_orbs()[0];
+  const int j = get_orbs()[1];
+
+  StackSpinBlock* leftBlock = b.get_leftBlock();
+  StackSpinBlock* rightBlock = b.get_rightBlock();
+
+
+  if (leftBlock->get_op_array(DES_CRE).has(i, j))
+  {      
+    const boost::shared_ptr<StackSparseMatrix>& op = leftBlock->get_op_rep(DES_CRE, deltaQuantum, i,j);
+    if (rightBlock->get_sites().size() == 0) 
+      SpinAdapted::operatorfunctions::TensorTraceElement(leftBlock, *op, &b, &(b.get_stateInfo()), *this, m, row, col, 1.0);
+    else {
+      //const boost::shared_ptr<StackSparseMatrix> Overlap = rightBlock->getOverlap();
+      SpinQuantum hq(0, SpinSpace(0), IrrepSpace(0));
+      const boost::shared_ptr<StackSparseMatrix> Overlap = rightBlock->get_op_rep(OVERLAP, hq);
+      SpinAdapted::operatorfunctions::TensorProductElement(leftBlock, *op, *Overlap, &b, &(b.get_stateInfo()), *this, m, row, col, 1.0);
+    }
+
+    return;
+  }
+  if (rightBlock->get_op_array(DES_CRE).has(i, j))
+  {
+    const boost::shared_ptr<StackSparseMatrix> op = rightBlock->get_op_rep(DES_CRE, deltaQuantum, i,j);
+    SpinQuantum hq(0, SpinSpace(0), IrrepSpace(0));
+    const boost::shared_ptr<StackSparseMatrix> Overlap = leftBlock->get_op_rep(OVERLAP, hq);
+    SpinAdapted::operatorfunctions::TensorProductElement(rightBlock, *op, *Overlap, &b, &(b.get_stateInfo()), *this, m, row, col, 1.0);
+    return;
+  }  
+  if (leftBlock->get_op_array(DES).has(i))
+  {
+    const boost::shared_ptr<StackSparseMatrix> op1 = leftBlock->get_op_rep(DES, -getSpinQuantum(i), i);
+    boost::shared_ptr<StackSparseMatrix> op2 = rightBlock->get_op_rep(CRE, getSpinQuantum(j), j);
+    SpinAdapted::operatorfunctions::TensorProductElement(leftBlock, *op1, *op2, &b, &(b.get_stateInfo()), *this, m, row, col, 1.0);
+  }
+  else if (rightBlock->get_op_array(DES).has(i))
+  {
+    const boost::shared_ptr<StackSparseMatrix> op1 = rightBlock->get_op_rep(DES, -getSpinQuantum(i), i);
+    boost::shared_ptr<StackSparseMatrix> op2 = leftBlock->get_op_rep(CRE, getSpinQuantum(j), j);
+    double parity = getCommuteParity(-op1->get_deltaQuantum()[0], op2->get_deltaQuantum()[0], get_deltaQuantum()[0]);
+    SpinAdapted::operatorfunctions::TensorProductElement(rightBlock, *op1, *op2, &b, &(b.get_stateInfo()), *this, m, row, col, 1.0*parity);
+  }
+  else
+    abort();  
+}
 
 void SpinAdapted::StackDesCre::build(const StackSpinBlock& b)
 {

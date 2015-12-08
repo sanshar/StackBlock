@@ -15,7 +15,7 @@ namespace Npdm{
 
 //===========================================================================================================================================================
 // Initialize 4-index operators built using RI approximation (exact on 1-site block)
-boost::shared_ptr<NpdmSpinOps> init_RI_4_index_operators( SpinBlock * spinBlock,const std::vector<CD> & cd_type ) {
+boost::shared_ptr<NpdmSpinOps> init_RI_4_index_operators( StackSpinBlock * spinBlock,const std::vector<CD> & cd_type ) {
 
   std::vector<CD> op;
 
@@ -64,7 +64,7 @@ boost::shared_ptr<NpdmSpinOps> init_RI_4_index_operators( SpinBlock * spinBlock,
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
 // Initialize 4-index operators
-boost::shared_ptr<NpdmSpinOps> init_4_index_operators( SpinBlock * spinBlock,const std::vector<CD> & cd_type ) {
+boost::shared_ptr<NpdmSpinOps> init_4_index_operators( StackSpinBlock * spinBlock,const std::vector<CD> & cd_type ) {
 
   std::vector<CD> op;
 
@@ -113,7 +113,7 @@ boost::shared_ptr<NpdmSpinOps> init_4_index_operators( SpinBlock * spinBlock,con
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
 // Initialize 3-index operators built using RI approximation (exact on 1-site block)
-boost::shared_ptr<NpdmSpinOps> init_RI_3_index_operators( SpinBlock * spinBlock,const std::vector<CD> & cd_type ) {
+boost::shared_ptr<NpdmSpinOps> init_RI_3_index_operators( StackSpinBlock * spinBlock,const std::vector<CD> & cd_type ) {
 
   std::vector<CD> op;
 
@@ -157,7 +157,7 @@ boost::shared_ptr<NpdmSpinOps> init_RI_3_index_operators( SpinBlock * spinBlock,
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
 // Initialize 3-index operators
-boost::shared_ptr<NpdmSpinOps> init_3_index_operators( SpinBlock * spinBlock,const std::vector<CD> & cd_type ) {
+boost::shared_ptr<NpdmSpinOps> init_3_index_operators( StackSpinBlock * spinBlock,const std::vector<CD> & cd_type ) {
 
   std::vector<CD> op;
 
@@ -208,7 +208,7 @@ boost::shared_ptr<NpdmSpinOps> init_3_index_operators( SpinBlock * spinBlock,con
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
 // Initialize 2-index operators
-boost::shared_ptr<NpdmSpinOps> init_2_index_operators( SpinBlock * spinBlock, const std::vector<CD> & cd_type ) {
+boost::shared_ptr<NpdmSpinOps> init_2_index_operators( StackSpinBlock * spinBlock, const std::vector<CD> & cd_type ) {
 
   std::vector<CD> op;
 
@@ -237,7 +237,7 @@ boost::shared_ptr<NpdmSpinOps> init_2_index_operators( SpinBlock * spinBlock, co
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
 // Initialize 1-index operators
-boost::shared_ptr<NpdmSpinOps> init_1_index_operators( SpinBlock * spinBlock,const std::vector<CD> & cd_type ) {
+boost::shared_ptr<NpdmSpinOps> init_1_index_operators( StackSpinBlock * spinBlock,const std::vector<CD> & cd_type ) {
 
   std::vector<CD> op;
 
@@ -256,14 +256,14 @@ boost::shared_ptr<NpdmSpinOps> init_1_index_operators( SpinBlock * spinBlock,con
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
 // Initialize NULL operators
-boost::shared_ptr<NpdmSpinOps> init_0_index_operators(SpinBlock * spinBlock) {
+boost::shared_ptr<NpdmSpinOps> init_0_index_operators(StackSpinBlock * spinBlock) {
   boost::shared_ptr<NpdmSpinOps> ret( new Npdm_op_wrapper_NULL(spinBlock) );
   return ret;
 }
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
 
-boost::shared_ptr<NpdmSpinOps> select_op_wrapper( SpinBlock * spinBlock,const std::vector<CD> & cd_type ) {
+boost::shared_ptr<NpdmSpinOps> select_op_wrapper( StackSpinBlock * spinBlock,const std::vector<CD> & cd_type ) {
 
   boost::shared_ptr<NpdmSpinOps> ret;
 

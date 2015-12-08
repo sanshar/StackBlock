@@ -17,7 +17,7 @@ namespace Npdm{
 
 //===========================================================================================================================================================
 
-Npdm_op_compound_CCD::Npdm_op_compound_CCD( SpinBlock * spinBlock )
+Npdm_op_compound_CCD::Npdm_op_compound_CCD( StackSpinBlock * spinBlock )
 {
   opReps_.clear();
   indices_.clear();
@@ -54,18 +54,18 @@ bool Npdm_op_compound_CCD::set_local_ops( int idx )
   }
 
   // Get 2-index and 1-index ops as RI building blocks
-  std::vector< boost::shared_ptr<SparseMatrix> > twoOps = spinBlock_->get_op_array(CRE_CRE).get_element(ix,jx);
-  //std::vector< boost::shared_ptr<SparseMatrix> > oneOp = spinBlock_->get_op_array(DES).get_element(kx);
-  std::vector< boost::shared_ptr<SparseMatrix> > oneOp = spinBlock_->get_op_array(CRE).get_element(kx);
+  std::vector< boost::shared_ptr<StackSparseMatrix> > twoOps = spinBlock_->get_op_array(CRE_CRE).get_element(ix,jx);
+  //std::vector< boost::shared_ptr<StackSparseMatrix> > oneOp = spinBlock_->get_op_array(DES).get_element(kx);
+  std::vector< boost::shared_ptr<StackSparseMatrix> > oneOp = spinBlock_->get_op_array(CRE).get_element(kx);
 
 ////  // Spatial orbital indices
 ////  indices_.clear();
 ////  int ix, jx, kx;
 ////
-////  std::vector< boost::shared_ptr<SparseMatrix> > twoOps = spinBlock_->get_op_array(CRE_CRE).get_local_element(idx);
+////  std::vector< boost::shared_ptr<StackSparseMatrix> > twoOps = spinBlock_->get_op_array(CRE_CRE).get_local_element(idx);
 ////  ix = twoOps.at(0)->get_orbs(0);
 ////  jx = twoOps.at(0)->get_orbs(1);
-////  std::vector< boost::shared_ptr<SparseMatrix> > oneOp = spinBlock_->get_op_array(CRE).get_local_element(idx);
+////  std::vector< boost::shared_ptr<StackSparseMatrix> > oneOp = spinBlock_->get_op_array(CRE).get_local_element(idx);
 ////  kx = oneOp.at(0)->get_orbs(0);
 ////  indices_.push_back( ix );
 ////  indices_.push_back( jx );
@@ -99,10 +99,10 @@ bool Npdm_op_compound_CCD::set_local_ops( int idx )
   }
 
   // Get 2-index and 1-index ops as RI building blocks
-  std::vector< boost::shared_ptr<SparseMatrix> > twoOps = spinBlock_->get_op_array(CRE_CRE).get_element(ix,jx);
-  std::vector< boost::shared_ptr<SparseMatrix> > oneOp = spinBlock_->get_op_array(DES).get_element(kx);
+  std::vector< boost::shared_ptr<StackSparseMatrix> > twoOps = spinBlock_->get_op_array(CRE_CRE).get_element(ix,jx);
+  std::vector< boost::shared_ptr<StackSparseMatrix> > oneOp = spinBlock_->get_op_array(DES).get_element(kx);
 
-  std::vector< boost::shared_ptr<SparseMatrix> > testOp = spinBlock_->get_op_array(DES_CRE).get_element(ix,jx);
+  std::vector< boost::shared_ptr<StackSparseMatrix> > testOp = spinBlock_->get_op_array(DES_CRE).get_element(ix,jx);
   
 
 
@@ -125,7 +125,7 @@ bool Npdm_op_compound_CCD::set_local_ops( int idx )
 
 //===========================================================================================================================================================
 
-Npdm_op_compound_CDD::Npdm_op_compound_CDD( SpinBlock * spinBlock )
+Npdm_op_compound_CDD::Npdm_op_compound_CDD( StackSpinBlock * spinBlock )
 {
   opReps_.clear();
   indices_.clear();
@@ -158,17 +158,17 @@ bool Npdm_op_compound_CDD::set_local_ops( int idx )
     if(kx==ix) return true;
   }
 
-  std::vector< boost::shared_ptr<SparseMatrix> > twoOps = spinBlock_->get_op_array(CRE_DES).get_element(ix,jx);
-  std::vector< boost::shared_ptr<SparseMatrix> > oneOp = spinBlock_->get_op_array(CRE).get_element(kx);
+  std::vector< boost::shared_ptr<StackSparseMatrix> > twoOps = spinBlock_->get_op_array(CRE_DES).get_element(ix,jx);
+  std::vector< boost::shared_ptr<StackSparseMatrix> > oneOp = spinBlock_->get_op_array(CRE).get_element(kx);
 
 ////  // Spatial orbital indices
 ////  indices_.clear();
 ////  int ix, jx, kx;
 ////
-////  std::vector< boost::shared_ptr<SparseMatrix> > twoOps = spinBlock_->get_op_array(CRE_DES).get_local_element(idx);
+////  std::vector< boost::shared_ptr<StackSparseMatrix> > twoOps = spinBlock_->get_op_array(CRE_DES).get_local_element(idx);
 ////  ix = twoOps.at(0)->get_orbs(0);
 ////  jx = twoOps.at(0)->get_orbs(1);
-////  std::vector< boost::shared_ptr<SparseMatrix> > oneOp = spinBlock_->get_op_array(CRE).get_local_element(idx);
+////  std::vector< boost::shared_ptr<StackSparseMatrix> > oneOp = spinBlock_->get_op_array(CRE).get_local_element(idx);
 ////  kx = oneOp.at(0)->get_orbs(0);
 ////  indices_.push_back( ix );
 ////  indices_.push_back( jx );
@@ -195,7 +195,7 @@ bool Npdm_op_compound_CDD::set_local_ops( int idx )
 //-----------------------------
 
 //  "(C(DD))";
-//  std::vector< boost::shared_ptr<SparseMatrix> > twoOps = spinBlock_->get_op_array(CRE_CRE).get_local_element(idx);
+//  std::vector< boost::shared_ptr<StackSparseMatrix> > twoOps = spinBlock_->get_op_array(CRE_CRE).get_local_element(idx);
 //  build_pattern_ = "(C(DD))";
 //  factor_ = -1.0;  //FIXME note we need -1 here!
 //  opReps_.clear();
@@ -238,8 +238,8 @@ bool Npdm_op_compound_CDD::set_local_ops( int idx )
     if(kx==ix) return true;
   }
 
-  std::vector< boost::shared_ptr<SparseMatrix> > twoOps = spinBlock_->get_op_array(CRE_DES).get_element(ix,jx);
-  std::vector< boost::shared_ptr<SparseMatrix> > oneOp = spinBlock_->get_op_array(DES).get_element(kx);
+  std::vector< boost::shared_ptr<StackSparseMatrix> > twoOps = spinBlock_->get_op_array(CRE_DES).get_element(ix,jx);
+  std::vector< boost::shared_ptr<StackSparseMatrix> > oneOp = spinBlock_->get_op_array(DES).get_element(kx);
 
 
   opReps_.clear();
@@ -261,7 +261,7 @@ bool Npdm_op_compound_CDD::set_local_ops( int idx )
 //-----------------------------
 
 //  "(C(DD))";
-//  std::vector< boost::shared_ptr<SparseMatrix> > twoOps = spinBlock_->get_op_array(CRE_CRE).get_local_element(idx);
+//  std::vector< boost::shared_ptr<StackSparseMatrix> > twoOps = spinBlock_->get_op_array(CRE_CRE).get_local_element(idx);
 //  build_pattern_ = "(C(DD))";
 //  factor_ = -1.0;  //FIXME note we need -1 here!
 //  opReps_.clear();
@@ -297,7 +297,7 @@ bool Npdm_op_compound_CDD::set_local_ops( int idx )
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
 
-Npdm_op_compound_CDC::Npdm_op_compound_CDC( SpinBlock * spinBlock )
+Npdm_op_compound_CDC::Npdm_op_compound_CDC( StackSpinBlock * spinBlock )
 {
 //abort();
   // Assume single site block
@@ -330,8 +330,8 @@ bool Npdm_op_compound_CDC::set_local_ops( int idx )
     if(ix==kx) return true;
     if(jx==kx) return true;
 
-    std::vector< boost::shared_ptr<SparseMatrix> > twoOps = spinBlock_->get_op_array(CRE_DES).get_element(ix,jx);
-    std::vector< boost::shared_ptr<SparseMatrix> > oneOp = spinBlock_->get_op_array(CRE).get_element(kx);
+    std::vector< boost::shared_ptr<StackSparseMatrix> > twoOps = spinBlock_->get_op_array(CRE_DES).get_element(ix,jx);
+    std::vector< boost::shared_ptr<StackSparseMatrix> > oneOp = spinBlock_->get_op_array(CRE).get_element(kx);
 
 
     opReps_.clear();
@@ -343,10 +343,10 @@ bool Npdm_op_compound_CDC::set_local_ops( int idx )
   indices_.clear();
   int ix, jx, kx;
 
-  std::vector< boost::shared_ptr<SparseMatrix> > twoOps = spinBlock_->get_op_array(CRE_DES).get_local_element(idx);
+  std::vector< boost::shared_ptr<StackSparseMatrix> > twoOps = spinBlock_->get_op_array(CRE_DES).get_local_element(idx);
   ix = twoOps.at(0)->get_orbs(0);
   jx = twoOps.at(0)->get_orbs(1);
-  std::vector< boost::shared_ptr<SparseMatrix> > oneOp = spinBlock_->get_op_array(CRE).get_local_element(idx);
+  std::vector< boost::shared_ptr<StackSparseMatrix> > oneOp = spinBlock_->get_op_array(CRE).get_local_element(idx);
   kx = oneOp.at(0)->get_orbs(0);
 //pout << "singlet CD operator elements:\n";
 //pout << *(twoOps[0]);
@@ -425,7 +425,7 @@ bool Npdm_op_compound_CDC::set_local_ops( int idx )
 //  opReps_.clear();
 //
 //  // Singlet or triplet CD operator
-//  boost::shared_ptr<SparseMatrix> cdOp (new CreDes);
+//  boost::shared_ptr<StackSparseMatrix> cdOp (new CreDes);
 //  cdOp->set_orbs() = indices_;
 //  cdOp->set_orbs().pop_back();
 //  cdOp->set_initialised() = true;
@@ -434,11 +434,11 @@ bool Npdm_op_compound_CDC::set_local_ops( int idx )
 //  // CD s=0
 //  cdOp->set_deltaQuantum() = ( oneOp.at(0)->get_deltaQuantum() - oneOp.at(0)->get_deltaQuantum() ).at(0);
 //  cdOp->allocate( spinBlock_->get_stateInfo() );
-//  operatorfunctions::Product(spinBlock_, *oneOp.at(0), Transposeview(*oneOp.at(0)), *cdOp, 1.0 );
+//  operatorfunctions::Product(spinBlock_, *oneOp.at(0), StackTransposeview(*oneOp.at(0)), *cdOp, 1.0 );
 //pout << "singlet CD operator elements (built by me):\n";
 //pout << *cdOp;
 //  // S=0 (+) S=1/2  =>  S=1/2
-//  boost::shared_ptr<SparseMatrix> cdcOp (new Cre);
+//  boost::shared_ptr<StackSparseMatrix> cdcOp (new Cre);
 //  cdcOp->set_orbs() = indices_;
 //  cdcOp->set_initialised() = true;
 //  cdcOp->set_fermion() = true;
@@ -451,11 +451,11 @@ bool Npdm_op_compound_CDC::set_local_ops( int idx )
 //  // CD s=1
 //  cdOp->set_deltaQuantum() = ( oneOp.at(0)->get_deltaQuantum() - oneOp.at(0)->get_deltaQuantum() ).at(1);
 //  cdOp->allocate( spinBlock_->get_stateInfo() );
-//  operatorfunctions::Product(spinBlock_, *oneOp.at(0), Transposeview(*oneOp.at(0)), *cdOp, 1.0 );
+//  operatorfunctions::Product(spinBlock_, *oneOp.at(0), StackTransposeview(*oneOp.at(0)), *cdOp, 1.0 );
 //pout << "triplet CD operator elements (built by me):\n";
 //pout << *cdOp;
 //  // S=1 (+) S=1/2  =>  S=1/2
-//  boost::shared_ptr<SparseMatrix> cdcOp2 (new Cre);
+//  boost::shared_ptr<StackSparseMatrix> cdcOp2 (new Cre);
 //  cdcOp2->set_orbs() = indices_;
 //  cdcOp2->set_initialised() = true;
 //  cdcOp2->set_fermion() = true;
@@ -464,7 +464,7 @@ bool Npdm_op_compound_CDC::set_local_ops( int idx )
 //  operatorfunctions::Product(spinBlock_, *cdOp, *oneOp.at(0), *cdcOp2, 1.0 );
 //  opReps_.push_back( cdcOp2 );
 //  // S=1 (+) S=1/2  =>  S=3/2
-//  boost::shared_ptr<SparseMatrix> cdcOp3 (new Cre);
+//  boost::shared_ptr<StackSparseMatrix> cdcOp3 (new Cre);
 //  cdcOp3->set_orbs() = indices_;
 //  cdcOp3->set_initialised() = true;
 //  cdcOp3->set_fermion() = true;
@@ -488,7 +488,7 @@ bool Npdm_op_compound_CDC::set_local_ops( int idx )
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
 
-Npdm_op_compound_CCC::Npdm_op_compound_CCC( SpinBlock * spinBlock )
+Npdm_op_compound_CCC::Npdm_op_compound_CCC( StackSpinBlock * spinBlock )
 {
   // Assume single site block
 abort(); // << this operator should always be zero on one site!
@@ -512,10 +512,10 @@ bool Npdm_op_compound_CCC::set_local_ops( int idx )
   indices_.clear();
   int ix, jx, kx;
 
-  std::vector< boost::shared_ptr<SparseMatrix> > twoOps = spinBlock_->get_op_array(CRE_CRE).get_local_element(idx);
+  std::vector< boost::shared_ptr<StackSparseMatrix> > twoOps = spinBlock_->get_op_array(CRE_CRE).get_local_element(idx);
   ix = twoOps.at(0)->get_orbs(0);
   jx = twoOps.at(0)->get_orbs(1);
-  std::vector< boost::shared_ptr<SparseMatrix> > oneOp = spinBlock_->get_op_array(CRE).get_local_element(idx);
+  std::vector< boost::shared_ptr<StackSparseMatrix> > oneOp = spinBlock_->get_op_array(CRE).get_local_element(idx);
   kx = oneOp.at(0)->get_orbs(0);
 
   if(dmrginp.spinAdapted()) return true;
@@ -539,7 +539,7 @@ bool Npdm_op_compound_CCC::set_local_ops( int idx )
 
 //===========================================================================================================================================================
 
-Npdm_op_compound_DCD::Npdm_op_compound_DCD( SpinBlock * spinBlock )
+Npdm_op_compound_DCD::Npdm_op_compound_DCD( StackSpinBlock * spinBlock )
 {
 //abort();
   // Assume single site block
@@ -570,11 +570,11 @@ bool Npdm_op_compound_DCD::set_local_ops( int idx )
     if(ix==jx) return true;
     if(ix==kx) return true;
 
-    std::vector< boost::shared_ptr<SparseMatrix> > oneOp = spinBlock_->get_op_array(CRE).get_element(ix);
-    boost::shared_ptr<SparseMatrix>  t_oneOp(new Transposeview(*oneOp.at(0)));
-    //pout << Transposeview(*oneOp.at(0));
-    //*t_oneOp = Transposeview(*oneOp.at(0));
-    std::vector< boost::shared_ptr<SparseMatrix> > twoOps = spinBlock_->get_op_array(CRE_DES).get_element(jx,kx);
+    std::vector< boost::shared_ptr<StackSparseMatrix> > oneOp = spinBlock_->get_op_array(CRE).get_element(ix);
+    boost::shared_ptr<StackSparseMatrix>  t_oneOp(new StackTransposeview(*oneOp.at(0)));
+    //pout << StackTransposeview(*oneOp.at(0));
+    //*t_oneOp = StackTransposeview(*oneOp.at(0));
+    std::vector< boost::shared_ptr<StackSparseMatrix> > twoOps = spinBlock_->get_op_array(CRE_DES).get_element(jx,kx);
 
 
 
@@ -588,10 +588,10 @@ bool Npdm_op_compound_DCD::set_local_ops( int idx )
   indices_.clear();
   int ix, jx, kx;
 
-  std::vector< boost::shared_ptr<SparseMatrix> > twoOps = spinBlock_->get_op_array(DES_CRE).get_local_element(idx);
+  std::vector< boost::shared_ptr<StackSparseMatrix> > twoOps = spinBlock_->get_op_array(DES_CRE).get_local_element(idx);
   ix = twoOps.at(0)->get_orbs(0);
   jx = twoOps.at(0)->get_orbs(1);
-  std::vector< boost::shared_ptr<SparseMatrix> > oneOp = spinBlock_->get_op_array(CRE).get_local_element(idx);
+  std::vector< boost::shared_ptr<StackSparseMatrix> > oneOp = spinBlock_->get_op_array(CRE).get_local_element(idx);
   kx = oneOp.at(0)->get_orbs(0);
 
   if(ix==jx) return true;
@@ -629,8 +629,8 @@ bool Npdm_op_compound_DCD::set_local_ops( int idx )
     if(ix==jx) return true;
     if(ix==kx) return true;
 
-    std::vector< boost::shared_ptr<SparseMatrix> > twoOps = spinBlock_->get_op_array(DES_CRE).get_element(ix,jx);
-    std::vector< boost::shared_ptr<SparseMatrix> > oneOp = spinBlock_->get_op_array(DES).get_element(kx);
+    std::vector< boost::shared_ptr<StackSparseMatrix> > twoOps = spinBlock_->get_op_array(DES_CRE).get_element(ix,jx);
+    std::vector< boost::shared_ptr<StackSparseMatrix> > oneOp = spinBlock_->get_op_array(DES).get_element(kx);
 
 
     opReps_.clear();
@@ -641,10 +641,10 @@ bool Npdm_op_compound_DCD::set_local_ops( int idx )
   indices_.clear();
   int ix, jx, kx;
 
-  std::vector< boost::shared_ptr<SparseMatrix> > twoOps = spinBlock_->get_op_array(DES_CRE).get_local_element(idx);
+  std::vector< boost::shared_ptr<StackSparseMatrix> > twoOps = spinBlock_->get_op_array(DES_CRE).get_local_element(idx);
   ix = twoOps.at(0)->get_orbs(0);
   jx = twoOps.at(0)->get_orbs(1);
-  std::vector< boost::shared_ptr<SparseMatrix> > oneOp = spinBlock_->get_op_array(DES).get_local_element(idx);
+  std::vector< boost::shared_ptr<StackSparseMatrix> > oneOp = spinBlock_->get_op_array(DES).get_local_element(idx);
   kx = oneOp.at(0)->get_orbs(0);
 
   if(jx==ix) return true;
@@ -672,7 +672,7 @@ bool Npdm_op_compound_DCD::set_local_ops( int idx )
 
 //===========================================================================================================================================================
 
-Npdm_op_compound_DDC::Npdm_op_compound_DDC( SpinBlock * spinBlock )
+Npdm_op_compound_DDC::Npdm_op_compound_DDC( StackSpinBlock * spinBlock )
 {
   // Assume single site block
 abort();
@@ -698,10 +698,10 @@ abort();
 //  indices_.clear();
 //  int ix, jx, kx;
 //
-//  std::vector< boost::shared_ptr<SparseMatrix> > twoOps = spinBlock_->get_op_array(DES_CRE).get_local_element(idx);
+//  std::vector< boost::shared_ptr<StackSparseMatrix> > twoOps = spinBlock_->get_op_array(DES_CRE).get_local_element(idx);
 //  ix = twoOps.at(0)->get_orbs(0);
 //  jx = twoOps.at(0)->get_orbs(1);
-//  std::vector< boost::shared_ptr<SparseMatrix> > oneOp = spinBlock_->get_op_array(CRE).get_local_element(idx);
+//  std::vector< boost::shared_ptr<StackSparseMatrix> > oneOp = spinBlock_->get_op_array(CRE).get_local_element(idx);
 //  kx = oneOp.at(0)->get_orbs(0);
 //
 //  // Assumed single site (i=j=k)
@@ -730,7 +730,7 @@ abort();
 
 //===========================================================================================================================================================
 
-Npdm_op_compound_DCC::Npdm_op_compound_DCC( SpinBlock * spinBlock )
+Npdm_op_compound_DCC::Npdm_op_compound_DCC( StackSpinBlock * spinBlock )
 {
   opReps_.clear();
   indices_.clear();
@@ -768,8 +768,8 @@ bool Npdm_op_compound_DCC::set_local_ops( int idx )
   if ( ix == jx ) return true;
 
   // Get 2-index and 1-index ops as RI building blocks
-  std::vector< boost::shared_ptr<SparseMatrix> > twoOps = spinBlock_->get_op_array(DES_CRE).get_element(ix,jx);
-  std::vector< boost::shared_ptr<SparseMatrix> > oneOp = spinBlock_->get_op_array(CRE).get_element(kx);
+  std::vector< boost::shared_ptr<StackSparseMatrix> > twoOps = spinBlock_->get_op_array(DES_CRE).get_element(ix,jx);
+  std::vector< boost::shared_ptr<StackSparseMatrix> > oneOp = spinBlock_->get_op_array(CRE).get_element(kx);
 
   // Allocate and build operator representation on the fly as RI tensor product for each spin component
   opReps_.clear();

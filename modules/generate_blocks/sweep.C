@@ -24,6 +24,8 @@ Sandeep Sharma and Garnet K.-L. Chan
 #include "overlaptensor.h"
 #endif
 #include "sweep.h"
+using namespace boost;
+using namespace std;
 
 namespace SpinAdapted{
 void SweepGenblock::BlockAndDecimate (SweepParams &sweepParams, StackSpinBlock& system, StackSpinBlock& newSystem, const bool &useSlater, const bool& dot_with_sys, int stateA, int stateB)

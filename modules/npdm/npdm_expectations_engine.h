@@ -9,16 +9,16 @@ Sandeep Sharma and Garnet K.-L. Chan
 #ifndef NPDM_EXPECTATIONS_ENGINE_H
 #define NPDM_EXPECTATIONS_ENGINE_H
 
-#include "spinblock.h"
-#include "wavefunction.h"
-#include "BaseOperator.h"
+#include "Stackspinblock.h"
+#include "Stackwavefunction.h"
+#include "StackBaseOperator.h"
 
 namespace SpinAdapted{
 namespace Npdm{
 
-  void FormLeftOp(const SpinBlock* leftBlock, const SparseMatrix& leftOp, const SparseMatrix& dotOp, SparseMatrix& Aop, int totalspin);
-  double DotProduct(const Wavefunction& w1, const Wavefunction& w2, const SpinBlock& big);
-  double spinExpectation(Wavefunction& wave1, Wavefunction& wave2, SparseMatrix &leftOp, SparseMatrix& dotOp, SparseMatrix& rightOp, const SpinBlock& big);
+  void FormLeftOp(const StackSpinBlock* leftBlock, const StackSparseMatrix& leftOp, const StackSparseMatrix& dotOp, StackSparseMatrix& Aop, int totalspin);
+  double DotProduct(const StackWavefunction& w1, const StackWavefunction& w2, const StackSpinBlock& big);
+  double spinExpectation(StackWavefunction& wave1, StackWavefunction& wave2, StackSparseMatrix &leftOp, StackSparseMatrix& dotOp, StackSparseMatrix& rightOp, const StackSpinBlock& big);
 }
 }
 

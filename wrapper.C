@@ -247,7 +247,7 @@ void test(char* infile)
   std::vector< std::vector<double> > Overlap(nstates, std::vector<double>(nstates, 0.0));
 
 
-  for (int i=0; i<nstates; i++) {
+  for (int i=1; i<nstates; i++) {
     if(mpigetrank() == 0)
       printf("starting row : %i\n", i);
     for (int j=0; j<1; j++) {

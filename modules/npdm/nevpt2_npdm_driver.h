@@ -26,7 +26,7 @@ class Nevpt2_npdm_driver : public Npdm_driver_base {
     ~Nevpt2_npdm_driver() {};
   
     void save_data( const int i, const int j );
-    void compute_npdm_elements( std::vector<Wavefunction>& wavefunctions, const SpinBlock& big, int sweepPos, int endPos );
+    void compute_npdm_elements( std::vector<StackWavefunction>& wavefunctions, const StackSpinBlock& big, int sweepPos, int endPos );
     void clear();
 
   private:
