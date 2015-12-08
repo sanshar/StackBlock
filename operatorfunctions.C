@@ -13,7 +13,6 @@ Sandeep Sharma and Garnet K.-L. Chan
 #include "MatrixBLAS.h"
 #include <math.h>
 #include "global.h"
-#include <omp.h>
 #include <iostream>
 #include <map>
 #include <vector>

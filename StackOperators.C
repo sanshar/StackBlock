@@ -131,7 +131,6 @@ double SpinAdapted::StackCre::redMatrixElement(Csf c1, vector<Csf>& ladder, cons
         continue;
     }
   }
-
   return element;
 }
 
@@ -2681,43 +2680,61 @@ double SpinAdapted::StackCreCreDesComp::redMatrixElement(Csf c1, vector<Csf>& la
   if (c1.n_is() != ladder[0].n_is()+1) return 0.0;
   if (c1.S_is().getirrep() > ladder[0].S_is().getirrep()+1 || c1.S_is().getirrep() <ladder[0].S_is().getirrep() -1) return 0.0;
 
-  for (int ki =0; ki<b->get_sites().size(); ki++) 
-  for (int kj =0; kj<b->get_sites().size(); kj++) 
-  for (int kl =0; kl<b->get_sites().size(); kl++) {
+  for (int ki =0; ki<b->get_sites().size(); ki++) for (int kj =0; kj<b->get_sites().size(); kj++) for (int kl =0; kl<b->get_sites().size(); kl++) {
     int _i = b->get_sites()[ki];
     int _j = b->get_sites()[kj];
     int _l = b->get_sites()[kl];
-
-    for (map<Slater, double>::iterator it1 = c1.det_rep.begin(); it1!= c1.det_rep.end(); it1++) {
-      const Slater &s1 = it1->first;
-      for (int ixx = dmrginp.spatial_to_spin(_i); ixx <dmrginp.spatial_to_spin(_i+1); ixx++)
-	if ( (s1.get_orbstring().get_occ_rep()[ixx] == 1) )
-	  for (int jxx = dmrginp.spatial_to_spin(_j); jxx <dmrginp.spatial_to_spin(_j+1); jxx++)
-	    if ( (s1.get_orbstring().get_occ_rep()[jxx] == 1) )
-	      if (_l != _i && _l != _j) {
-		for (int lxx1 = dmrginp.spatial_to_spin(_l); lxx1 <dmrginp.spatial_to_spin(_l+1); lxx1++)
-		  if ( s1.get_orbstring().get_occ_rep()[lxx1] == 0) 
-		    for (map<Slater, double>::iterator it1 = ladder[0].det_rep.begin(); it1!= ladder[0].det_rep.end(); it1++) {
-		      const Slater &s1 = it1->first;
-		      for (int ixx2 = dmrginp.spatial_to_spin(_i); ixx2 <dmrginp.spatial_to_spin(_i+1); ixx2++)
-			if ( (s1.get_orbstring().get_occ_rep()[ixx2] == 0) )
-			  for (int jxx2 = dmrginp.spatial_to_spin(_j); jxx2 <dmrginp.spatial_to_spin(_j+1); jxx2++)
-			    if ( (s1.get_orbstring().get_occ_rep()[jxx2] == 0) )
-			      for (int lxx = dmrginp.spatial_to_spin(_l); lxx <dmrginp.spatial_to_spin(_l+1); lxx++)
-				if ( s1.get_orbstring().get_occ_rep()[lxx] == 1) 
-				  goto dontstop;
-		    }
-	      }
-	      else {      
-		for (map<Slater, double>::iterator it1 = ladder[0].det_rep.begin(); it1!= ladder[0].det_rep.end(); it1++) {
-		  const Slater &s1 = it1->first;
-		  for (int lxx = dmrginp.spatial_to_spin(_l); lxx <dmrginp.spatial_to_spin(_l+1); lxx++)
-		    if ( s1.get_orbstring().get_occ_rep()[lxx] == 1) 
-		      goto dontstop;
-		}
-	      }
+    if (!dmrginp.spinAdapted()) {
+      for (auto it1 = c1.det_rep.begin(); it1!= c1.det_rep.end(); it1++) {
+        const Slater &s1 = it1->first;
+        if (s1.get_orbstring().get_occ_rep()[_i] == 1 && s1.get_orbstring().get_occ_rep()[_j] == 1) {
+          if (_l != _i && _l != _j && s1.get_orbstring().get_occ_rep()[_l] == 0) {
+            for (auto it2 = ladder[0].det_rep.begin(); it2 != ladder[0].det_rep.end(); ++it2) {
+              const Slater &s2 = it2 -> first;
+              if (s2.get_orbstring().get_occ_rep()[_i] == 0 && s2.get_orbstring().get_occ_rep()[_j] == 0 && s2.get_orbstring().get_occ_rep()[_l] == 1) {
+                goto dontstop;
+              }
+            }
+          } else {
+            for (auto it2 = ladder[0].det_rep.begin(); it2 != ladder[0].det_rep.end(); ++it2) {
+              const Slater &s2 = it2->first;
+              if (s2.get_orbstring().get_occ_rep()[_l] == 1) {
+                goto dontstop;
+              }
+            }
+          }
+        }
+      }
+    } else {
+      for (map<Slater, double>::iterator it1 = c1.det_rep.begin(); it1!= c1.det_rep.end(); it1++) {
+        const Slater &s1 = it1->first;
+        for (int ixx = dmrginp.spatial_to_spin(_i); ixx <dmrginp.spatial_to_spin(_i+1); ixx++)
+	        if ( (s1.get_orbstring().get_occ_rep()[ixx] == 1) )
+	          for (int jxx = dmrginp.spatial_to_spin(_j); jxx <dmrginp.spatial_to_spin(_j+1); jxx++)
+	            if ( (s1.get_orbstring().get_occ_rep()[jxx] == 1) )
+	              if (_l != _i && _l != _j) {
+		              for (int lxx1 = dmrginp.spatial_to_spin(_l); lxx1 <dmrginp.spatial_to_spin(_l+1); lxx1++)
+		                if ( s1.get_orbstring().get_occ_rep()[lxx1] == 0) 
+		                  for (map<Slater, double>::iterator it2 = ladder[0].det_rep.begin(); it2!= ladder[0].det_rep.end(); it2++) {
+		                    const Slater &s2 = it2->first;
+		                    for (int ixx2 = dmrginp.spatial_to_spin(_i); ixx2 <dmrginp.spatial_to_spin(_i+1); ixx2++)
+		              	      if ( (s2.get_orbstring().get_occ_rep()[ixx2] == 0) )
+		              	        for (int jxx2 = dmrginp.spatial_to_spin(_j); jxx2 <dmrginp.spatial_to_spin(_j+1); jxx2++)
+		              	          if ( (s2.get_orbstring().get_occ_rep()[jxx2] == 0) )
+		              	            for (int lxx = dmrginp.spatial_to_spin(_l); lxx <dmrginp.spatial_to_spin(_l+1); lxx++)
+		              		            if ( s2.get_orbstring().get_occ_rep()[lxx] == 1) goto dontstop;
+		                  }
+	              } else {      
+		              for (map<Slater, double>::iterator it2 = ladder[0].det_rep.begin(); it2!= ladder[0].det_rep.end(); it2++) {
+		                const Slater &s2 = it2->first;
+		                for (int lxx = dmrginp.spatial_to_spin(_l); lxx <dmrginp.spatial_to_spin(_l+1); lxx++)
+		                  if ( s2.get_orbstring().get_occ_rep()[lxx] == 1) 
+		                    goto dontstop;
+		              }
+	              }
+      }
+      continue;
     }
-    continue;
 
  dontstop:
     

@@ -78,11 +78,16 @@ SpinQuantum SpinQuantum::operator-() const
 bool SpinQuantum::allow(const SpinQuantum s1, const SpinQuantum s2) const
 {
   if (particleNumber != s1.particleNumber + s2.particleNumber) return false;
-  if (totalSpin.getirrep() < abs(s1.totalSpin.getirrep() - s2.totalSpin.getirrep()) 
-      || totalSpin.getirrep() > s1.totalSpin.getirrep() + s2.totalSpin.getirrep()) return false;
-  if (!NonabelianSym && groupTable(s1.orbitalSymmetry.getirrep(), s2.orbitalSymmetry.getirrep()) != orbitalSymmetry.getirrep()) return false;
 
+  if (dmrginp.spinAdapted()) {
+    if (totalSpin.getirrep() < abs(s1.totalSpin.getirrep() - s2.totalSpin.getirrep()) 
+        || totalSpin.getirrep() > s1.totalSpin.getirrep() + s2.totalSpin.getirrep()) return false;
+  } else {
+    if (totalSpin.getirrep() != s1.totalSpin.getirrep() + s2.totalSpin.getirrep()) return false;
+  }
+  if (!NonabelianSym && groupTable(s1.orbitalSymmetry.getirrep(), s2.orbitalSymmetry.getirrep()) != orbitalSymmetry.getirrep()) return false;
   if (!NonabelianSym) return true;
+
   std::vector<SpinQuantum> sumQ = s1+s2;
   for (int i=0; i<sumQ.size(); i++)
     if (*this == sumQ[i])
