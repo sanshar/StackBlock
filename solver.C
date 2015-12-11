@@ -26,18 +26,19 @@ void memorySummary(StackSpinBlock& big, vector<StackWavefunction>& solution) {
   long sysmem, envmem, sysop=0, envop=0;
   StackSpinBlock* sys = big.get_leftBlock()->get_leftBlock() == 0 ? big.get_leftBlock() : big.get_leftBlock()->get_leftBlock();
   StackSpinBlock* env = big.get_rightBlock()->get_leftBlock() == 0 ? big.get_rightBlock() : big.get_rightBlock()->get_leftBlock();
+  int opidx = dmrginp.spinAdapted() ? 1 : 0;
   if (!big.get_leftBlock()->has(CRE_DES)) {
     if (big.get_leftBlock()->get_op_array(CRE_DESCOMP).get_size()!=0)
-      sysop = big.get_leftBlock()->get_op_array(CRE_DESCOMP).get_local_element(0)[1]->memoryUsed();
+      sysop = big.get_leftBlock()->get_op_array(CRE_DESCOMP).get_local_element(0)[opidx]->memoryUsed();
     if (big.get_rightBlock()->get_op_array(CRE_DES).get_size()!=0)
-      envop = big.get_rightBlock()->get_op_array(CRE_DES).get_local_element(0)[1]->memoryUsed();
+      envop = big.get_rightBlock()->get_op_array(CRE_DES).get_local_element(0)[opidx]->memoryUsed();
   }
   else {
     if (big.get_leftBlock()->get_op_array(CRE_DES).get_size()!=0)
-      sysop = big.get_leftBlock()->get_op_array(CRE_DES).get_local_element(0)[1]->memoryUsed();
+      sysop = big.get_leftBlock()->get_op_array(CRE_DES).get_local_element(0)[opidx]->memoryUsed();
     if (big.get_rightBlock()->has(CRE_DESCOMP)) {
       if (big.get_rightBlock()->get_op_array(CRE_DESCOMP).get_size()!=0)
-	envop = big.get_rightBlock()->get_op_array(CRE_DESCOMP).get_local_element(0)[1]->memoryUsed();
+	envop = big.get_rightBlock()->get_op_array(CRE_DESCOMP).get_local_element(0)[opidx]->memoryUsed();
     }
   }
   p2out << str(boost::format("%-40s - %-10.4f\n") % "Total memory" % (Stackmem[0].size*8/1.e9));
@@ -66,7 +67,6 @@ void SpinAdapted::Solver::solve_wavefunction(vector<StackWavefunction>& solution
   e.ReSize(big.get_stateInfo().totalStates); e= 0;
   p1out << "\t\t\t Building Diagonal Hamiltonian " << endl;
 
-
   big.diagonalH(e);
   p1out << "\t\t\t Done building diagonal hamiltonian "<<endl;
   FORTINT m, n=1, nsize=e.Storage();
@@ -85,15 +85,14 @@ void SpinAdapted::Solver::solve_wavefunction(vector<StackWavefunction>& solution
   mpi::communicator world;
   broadcast(calc, haveEnoughStates, 0);
 #endif
-
   if (!haveEnoughStates) {
     //sometimes when you need many roots and at the start of the sweep the hilbert space is not big
     //enough to support all the roots
     
     if (dmrginp.calc_type() != RESPONSE) {
       for (int i=0; i<nroots&&mpigetrank() == 0; i++) {
-	solution[i].Randomise();
-	Normalise(solution[i]);
+	      solution[i].Randomise();
+	      Normalise(solution[i]);
       }
 
     }
@@ -110,14 +109,16 @@ void SpinAdapted::Solver::solve_wavefunction(vector<StackWavefunction>& solution
       dmrginp.guesswf->start();
       //mcheck ("before guess wavefunction");
       solution.resize(dmrginp.deflation_max_size());
-      if (mpigetrank()==0) memorySummary(big, solution);
-      for (int i=nroots; i<solution.size(); i++)
-	if (mpigetrank() == 0)
-	  solution[i].initialise(dmrginp.effective_molecule_quantum_vec(), big.get_leftBlock()->get_stateInfo(), big.get_rightBlock()->get_stateInfo(), onedot);
+      if (mpigetrank()==0) {
+        memorySummary(big, solution);
+        for (int i=nroots; i<solution.size(); i++) {
+	          solution[i].initialise(dmrginp.effective_molecule_quantum_vec(), big.get_leftBlock()->get_stateInfo(), big.get_rightBlock()->get_stateInfo(), onedot);
+        }
+      }
 
       multiply_h davidson_f(big, onedot);
 
-      GuessWave::guess_wavefunctions(solution, e, big, guesswavetype, onedot, dot_with_sys, nroots, additional_noise, currentRoot); 
+      GuessWave::guess_wavefunctions(solution, e, big, guesswavetype, onedot, dot_with_sys, nroots, additional_noise, currentRoot);
       dmrginp.guesswf->stop();
       
       for (int istate=0; istate<lowerStates.size(); istate++)  {
