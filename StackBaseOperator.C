@@ -401,23 +401,226 @@ double* StackSparseMatrix::allocateOperatorMatrix()
 
 
 
+template<class T>  void write(std::ofstream &ofs, const T& t)
+{
+  ofs.write((char*)(&t), sizeof(t));
+}
+template<class T>  void read(std::ifstream &ifs, const T& t)
+{
+  ifs.read((char*)(&t), sizeof(t));
+}
+void SaveVecThreadSafe(std::ofstream &ofs, const std::vector<int>& v)
+{
+  write(ofs, v.size());
+  for (int i=0; i<v.size(); i++)
+    write(ofs, v[i]);
+
+}
+
+void LoadVecThreadSafe(std::ifstream &ifs, std::vector<int>& v)
+{
+  size_t n;
+  read(ifs, n);
+  v.resize(n);
+  for (int i=0; i<v.size(); i++)
+    read(ifs, v[i]);
+}
+
+void StackSparseMatrix::SaveThreadSafe(std::ofstream &ofs) const
+{
+  //#pragma omp critical
+  //{
+  write(ofs, deltaQuantum.size());
+
+  for (int i=0; i<deltaQuantum.size(); i++)
+    deltaQuantum[i].SaveThreadSafe(ofs);
+
+  size_t size = build_pattern.size();
+  write(ofs, size);
+  ofs.write(build_pattern.c_str(), build_pattern.size());
+  write(ofs, fermion);
+  write(ofs, initialised);
+  write(ofs, built);
+  write(ofs, built_on_disk);
+
+  size_t nrows = allowedQuantaMatrix.nrows();
+  size_t ncols = allowedQuantaMatrix.ncols();
+  write(ofs, nrows);
+  write(ofs, ncols);
+  for (int i=0 ; i<allowedQuantaMatrix.nrows(); i++)
+    for (int j=0; j<allowedQuantaMatrix.ncols(); j++)
+      write(ofs, allowedQuantaMatrix(i,j));
+
+  for (int i=0 ; i<allowedQuantaMatrix.nrows(); i++)
+    for (int j=0; j<allowedQuantaMatrix.ncols(); j++)
+      operatorMatrix(i,j).SaveThreadSafe(ofs);
+
+  write(ofs, Sign) ;
+  size = orbs.size();
+  write(ofs, size);
+  for (int i=0; i< orbs.size(); i++)
+    write(ofs, orbs[i]);
+
+  write(ofs, quantum_ladder.size());
+  for (std::map<std::string, std::vector<SpinQuantum> >::const_iterator it = quantum_ladder.begin(); it != quantum_ladder.end(); it++) {
+    size = it->first.size();
+    write(ofs, size);
+    ofs.write(it->first.c_str(), it->first.size());
+
+    size = it->second.size();
+    write(ofs, size);
+    for (int i=0; i<it->second.size(); i++)
+      it->second[i].SaveThreadSafe(ofs);
+  }
+
+  size = rowCompressedForm.size();
+  write(ofs, size);
+  for (int i=0; i<rowCompressedForm.size(); i++)
+    SaveVecThreadSafe(ofs, rowCompressedForm[i]);
+
+  size = colCompressedForm.size();
+  write(ofs, size);
+  for (int i=0; i<colCompressedForm.size(); i++)
+    SaveVecThreadSafe(ofs, colCompressedForm[i]);
+
+  size = nonZeroBlocks.size();
+  write(ofs, size);
+  for (int i=0; i<nonZeroBlocks.size(); i++) {
+    write(ofs, nonZeroBlocks[i].first.first);
+    write(ofs, nonZeroBlocks[i].first.second);
+    nonZeroBlocks[i].second.SaveThreadSafe(ofs);
+  }
+
+  size = mapToNonZeroBlocks.size();
+  write(ofs, size);
+  for (std::map<std::pair<int, int>, int >::const_iterator it = mapToNonZeroBlocks.begin(); it != mapToNonZeroBlocks.end(); it++) {
+    write(ofs, it->first.first);
+    write(ofs, it->first.second);
+    write(ofs, it->second);
+  }
+
+  write(ofs, totalMemory);
+  ofs.write((char*)(data), sizeof(*data)*totalMemory);
+  //}
+}
+
+
+void StackSparseMatrix::LoadThreadSafe(std::ifstream &ifs, bool allocate)
+{
+  //#pragma omp critical
+  //{
+  size_t size=0;
+  read(ifs, size);
+  deltaQuantum.resize(size);
+  for (int i=0; i<deltaQuantum.size(); i++)
+    deltaQuantum[i].LoadThreadSafe(ifs);
+
+  read(ifs, size);
+  char* temp = new char[size+1];
+  ifs.read(temp, size);
+  temp[size] = '\0';
+  build_pattern = temp;
+  delete [] temp;
+
+  read(ifs, fermion);
+  read(ifs, initialised);
+  read(ifs, built);
+  read(ifs, built_on_disk);
+
+  size_t nrows, ncols;
+  read(ifs, nrows);
+  read(ifs, ncols);
+  allowedQuantaMatrix.resize(nrows, ncols);
+  operatorMatrix.resize(nrows, ncols);
+  for (int i=0 ; i<allowedQuantaMatrix.nrows(); i++)
+    for (int j=0; j<allowedQuantaMatrix.ncols(); j++)
+      read(ifs, allowedQuantaMatrix(i,j));
+
+  for (int i=0 ; i<allowedQuantaMatrix.nrows(); i++)
+    for (int j=0; j<allowedQuantaMatrix.ncols(); j++)
+      operatorMatrix(i,j).LoadThreadSafe(ifs);
+
+  
+
+  read(ifs, Sign) ;
+  read(ifs, size);
+  orbs.resize(size);
+  for (int i=0; i< orbs.size(); i++)
+    read(ifs, orbs[i]);
+
+  read(ifs, size);
+  for (int i=0; i<size; i++) {
+    size_t size2;
+    read(ifs, size2);
+    char* temp = new char[size2+1];
+    ifs.read(temp, size2);
+    temp[size2] = '\0';
+    string s = temp;
+    delete [] temp;
+
+    std::vector<SpinQuantum> qvec;
+
+    read(ifs, size2);
+    qvec.resize(size2);
+    for (int j=0; j<size2; j++) 
+      qvec[j].LoadThreadSafe(ifs);
+    quantum_ladder[s] = qvec;
+  }
+
+
+  read(ifs, size);
+  rowCompressedForm.resize(size);
+  for (int i=0; i<rowCompressedForm.size(); i++)
+    LoadVecThreadSafe(ifs, rowCompressedForm[i]);
+
+  read(ifs, size);
+  colCompressedForm.resize(size);
+  for (int i=0; i<colCompressedForm.size(); i++)
+    LoadVecThreadSafe(ifs, colCompressedForm[i]);
+
+  read(ifs, size);
+  nonZeroBlocks.resize(size);
+  for (int i=0; i<nonZeroBlocks.size(); i++) {
+    int first, second;
+    read(ifs, first);
+    read(ifs, second);
+    StackMatrix m;
+    m.LoadThreadSafe(ifs);
+    nonZeroBlocks[i] = make_pair( make_pair(first, second), m);
+  }
+
+  read(ifs, size);
+  for (int i=0; i<size; i++) {
+    int first, second, third;
+    read(ifs, first);
+    read(ifs, second);
+    read(ifs, third);
+    mapToNonZeroBlocks[make_pair(first, second)] = third;
+  }
+
+  read(ifs, totalMemory);
+
+  if (allocate) data = Stackmem[omprank].allocate(totalMemory);
+  ifs.read((char*)(data), sizeof(*data)*totalMemory);
+  //}
+}
+
 void StackSparseMatrix::Save(std::ofstream &ofs) const
 {
-  boost::archive::binary_oarchive save_op(ofs);
-  save_op << *this;
-
-  save_op << totalMemory;
-  save_op << boost::serialization::make_array<double>(data, totalMemory);
+    boost::archive::binary_oarchive save_op(ofs);
+    save_op << *this;
+    save_op << totalMemory;
+    save_op << boost::serialization::make_array<double>(data, totalMemory);
 }
  
 void StackSparseMatrix::Load(std::ifstream &ifs, bool allocateData)
 {
-  boost::archive::binary_iarchive load_op(ifs);
-  load_op >> *this;
-
-  load_op >> totalMemory;
-  if (allocateData) data = Stackmem[omprank].allocate(totalMemory);
-  load_op >> boost::serialization::make_array<double>(data, totalMemory);
+    boost::archive::binary_iarchive load_op(ifs);
+    load_op >> *this;
+    
+    load_op >> totalMemory;
+    if (allocateData) data = Stackmem[omprank].allocate(totalMemory);
+    load_op >> boost::serialization::make_array<double>(data, totalMemory);
 }
 
 long getRequiredMemory(const StateInfo& sr, const StateInfo& sc, const std::vector<SpinQuantum>& q) {

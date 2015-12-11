@@ -47,7 +47,7 @@ void SpinAdapted::StackDesDesDes::build(const StackSpinBlock& b) {
     }
   }
   else {
-    Three_index_ops::build_3index_single_op( DES_DES_DES, b, DES, DES_DES, DES, DES_DES, boost::shared_ptr<StackSparseMatrix> (this, boostutils::null_deleter()) );
+    Three_index_ops::build_3index_single_op( DES_DES_DES, b, DES, DES_DES, DES, DES_DES, *this );
   }
 }
 
@@ -129,7 +129,7 @@ void SpinAdapted::StackCreCreDes::build(const StackSpinBlock& b) {
     }
   }
   else {
-    Three_index_ops::build_3index_single_op( CRE_CRE_DES, b, CRE, CRE_CRE, DES, CRE_DES, boost::shared_ptr<StackSparseMatrix> (this, boostutils::null_deleter()) );
+    Three_index_ops::build_3index_single_op( CRE_CRE_DES, b, CRE, CRE_CRE, DES, CRE_DES, *this );
   }
 
 }
@@ -215,7 +215,7 @@ void SpinAdapted::StackCreDesDes::build(const StackSpinBlock& b) {
     }
   }
   else {
-    Three_index_ops::build_3index_single_op( CRE_DES_DES, b, CRE, CRE_DES, DES, DES_DES, boost::shared_ptr<StackSparseMatrix> (this, boostutils::null_deleter()) );
+    Three_index_ops::build_3index_single_op( CRE_DES_DES, b, CRE, CRE_DES, DES, DES_DES, *this );
   }
 
   //assert(false && "Only build CREDESDES in the starting block when spin-embeding is used");
@@ -302,7 +302,7 @@ void SpinAdapted::StackCreDesCre::build(const StackSpinBlock& b) {
     }
   }
   else {
-    Three_index_ops::build_3index_single_op( CRE_DES_CRE, b, CRE, CRE_DES, CRE, DES_CRE, boost::shared_ptr<StackSparseMatrix> (this, boostutils::null_deleter()) );
+    Three_index_ops::build_3index_single_op( CRE_DES_CRE, b, CRE, CRE_DES, CRE, DES_CRE, *this );
   }
 
   //assert(false && "Only build CREDESCRE in the starting block when spin-embeding is used");
@@ -387,7 +387,7 @@ void SpinAdapted::StackCreCreCre::build(const StackSpinBlock& b) {
     }
   }
   else {
-    Three_index_ops::build_3index_single_op( CRE_CRE_CRE, b, CRE, CRE_CRE, CRE, CRE_CRE, boost::shared_ptr<StackSparseMatrix> (this, boostutils::null_deleter()) );
+    Three_index_ops::build_3index_single_op( CRE_CRE_CRE, b, CRE, CRE_CRE, CRE, CRE_CRE, *this );
   }
 
   //assert(false && "Only build CRECRECRE in the starting block when spin-embeding is used");

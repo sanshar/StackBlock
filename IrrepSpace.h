@@ -10,6 +10,7 @@ Sandeep Sharma and Garnet K.-L. Chan
 #ifndef IRREP_SPACE_HEADER
 #define IRREP_SPACE_HEADER
 #include "Symmetry.h"
+#include <fstream>
 
 //In nonabelian symmetries each irrep could have many basis vectors, this class
 // represents the irrep. Each basis vector in a irrep is represented by a 
@@ -27,6 +28,9 @@ class IrrepSpace
  public:
   IrrepSpace() : irrep(0) {}
   explicit IrrepSpace(int ir) : irrep(ir) {}
+
+  void SaveThreadSafe(std::ofstream& ofs) const {ofs.write( (char*)(&irrep), sizeof(irrep));}
+  void LoadThreadSafe(std::ifstream& ifs) {ifs.read( (char*)(&irrep), sizeof(irrep));}
 
   std::vector<IrrepSpace> operator+=(IrrepSpace rhs);
   bool operator==(IrrepSpace rhs) const;

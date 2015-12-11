@@ -235,9 +235,9 @@ void Npdm_spin_adaptation::store_new_A_mat( const int so_dim, const int order, c
   build_new_A_mat( op_string, A, singlet_rows, so_indices );
 
   // Store for later reuse
-  stored_A_mats_[ cd_string ] = A;
-  stored_singlet_rows_[ cd_string ] = singlet_rows;
-  stored_so_indices_[ cd_string ] = so_indices;
+  stored_A_mats_[omprank][ cd_string ] = A;
+  stored_singlet_rows_[omprank][ cd_string ] = singlet_rows;
+  stored_so_indices_[omprank][ cd_string ] = so_indices;
 
 }
 
@@ -253,6 +253,7 @@ void Npdm_spin_adaptation::build_new_A_mat( const std::string& op_string, Matrix
   std::string::const_iterator iter = op.begin();        
   std::string::const_iterator end  = op.end();          
   std::vector<TensorOp> result;                                       
+
   bool success = parse(iter, end, eg, result) ;		 
 
   // Edge case: ()((CxCx)... Arises when LHS and Dot blocks are empty.
@@ -263,6 +264,7 @@ void Npdm_spin_adaptation::build_new_A_mat( const std::string& op_string, Matrix
   }
   assert( success );
   assert( result.size() == so_indices.size() );
+
 
   // Get transformation matrix A and relevant spin-orbital indices from tensor operators
   parse_result_into_matrix( result, A, so_indices, singlet_rows ); 
@@ -275,7 +277,7 @@ void Npdm_spin_adaptation::get_so_indices( std::string& cd_string, const std::ve
 {
   // Assume all the stored spin-indices were generated from spatial indices of the form 1,2,3,4,5,6...
   so_indices.resize(0);
-  std::vector< std::vector<int> > stored_so_indices = stored_so_indices_.at( cd_string );
+  std::vector< std::vector<int> > stored_so_indices = stored_so_indices_[omprank].at( cd_string );
   // Loop over stored spin-orbital elements
   for (auto vec = stored_so_indices.begin(); vec != stored_so_indices.end(); ++vec) {
     std::vector<int> new_element;
@@ -306,13 +308,18 @@ void Npdm_spin_adaptation::npdm_set_up_linear_equations( const int dim, const st
   // RHS indices (i.e. rows of A) corresponding to singlet expectations
   std::vector<int> singlet_rows;
 
-  if ( stored_A_mats_.find(cd_string) != stored_A_mats_.end() ) {
-    A = stored_A_mats_.at( cd_string );
-    singlet_rows = stored_singlet_rows_.at( cd_string );
+
+  if ( stored_A_mats_[omprank].find(cd_string) != stored_A_mats_[omprank].end() ) {
+    A = stored_A_mats_[omprank].at( cd_string );
+    singlet_rows = stored_singlet_rows_[omprank].at( cd_string );
+    //so_indices = stored_so_indices_[omprank][cd_string];
     get_so_indices( cd_string, indices, so_indices );
   }
   else {
     build_new_A_mat( op_string, A, singlet_rows, so_indices );
+    //stored_A_mats_[omprank][cd_string] = A;
+    //stored_singlet_rows_[omprank][cd_string] = singlet_rows;
+    //stored_so_indices_[omprank][cd_string] = so_indices;
     store_new_A_mat( dim, indices.size(), cd_string );
   }
 

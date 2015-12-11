@@ -258,49 +258,43 @@ void Npdm_driver::get_inner_Operators( const char inner, Npdm_expectations& npdm
   // Many spatial combinations on right block
   if( inner == 'l')
     {
-      for ( int i = 0; i < lhsOps->size(); ++i ) {
-	bool skip = lhsOps->set_local_ops( i );
-	if (!skip) {
-	  boost::shared_ptr<NpdmSpinOps> newOps( new NpdmSpinOps(*lhsOps));
-	  inner_Operators.push_back(newOps);
-	}
-	else 
-	  inner_Operators.push_back(boost::shared_ptr<NpdmSpinOps>());
-      }
-      for(int i=0;i<inner_Operators.size();i++)
-	{
-	  if(inner_Operators[i] == NULL)
-	    inner_intermediate.push_back(boost::shared_ptr<std::map<std::vector<int>, StackWavefunction> >());
-	  else{
-	    boost::shared_ptr<std::map<std::vector<int>, StackWavefunction> >  half_waves( new std::map<std::vector<int>, StackWavefunction>);
-	    
-	    npdm_expectations.compute_intermediate( *inner_Operators[i], *dotOps, *half_waves );
-	    inner_intermediate.push_back(half_waves);
-	  }
-	}
+      cout << "the inner loop should always be the RHS"<<endl;
+      exit(0);
     }
   else if( inner == 'r')
     {
+      inner_Operators.resize(rhsOps->size());
+      inner_intermediate.resize(rhsOps->size());
+
+
+      //allocate memory for the inner_intermediates
       for ( int i = 0; i < rhsOps->size(); ++i ) {
 	bool skip = rhsOps->set_local_ops( i );
 	if (!skip) {
 	  boost::shared_ptr<NpdmSpinOps> newOps( new NpdmSpinOps(*rhsOps));
-	  inner_Operators.push_back(newOps);
+	  inner_Operators[i] = newOps;
+	  inner_intermediate[i] = boost::shared_ptr<std::map<std::vector<int>, StackWavefunction> >(new std::map<std::vector<int>, StackWavefunction>);
+	  npdm_expectations.AllocateInitialiseWavefunctions(*inner_Operators[i], *inner_intermediate[i]);
 	}
-	else 
-	  inner_Operators.push_back(boost::shared_ptr<NpdmSpinOps>());
+	else
+	  inner_intermediate[i] = boost::shared_ptr<std::map<std::vector<int>, StackWavefunction> >();
       }
-      for(int i=0;i<inner_Operators.size();i++)
-	{
-	  if(inner_Operators[i] == NULL)
-	    inner_intermediate.push_back(boost::shared_ptr<std::map<std::vector<int>, StackWavefunction> >());
-	  else{
-	    boost::shared_ptr<std::map<std::vector<int>, StackWavefunction> >  half_waves( new std::map<std::vector<int>, StackWavefunction>);
-	    
-	    npdm_expectations.compute_intermediate( *inner_Operators[i], *half_waves );
-	    inner_intermediate.push_back(half_waves);
-	  }
+
+      std::vector<boost::shared_ptr<NpdmSpinOps> > rhsopsvec;
+      for (int i=0; i<numthrds; i++)
+	rhsopsvec.push_back(rhsOps->getcopy());
+
+      SplitStackmem();      
+#pragma omp parallel for schedule(dynamic)
+      for ( int i = 0; i < rhsOps->size(); ++i ) {
+	if(inner_Operators[i] == NULL)
+	  inner_intermediate[i] = boost::shared_ptr<std::map<std::vector<int>, StackWavefunction> >();
+	else{
+	  npdm_expectations.compute_intermediate( *inner_Operators[i], *inner_intermediate[i]);
 	}
+      }
+      MergeStackmem();
+
     }
   
 }
@@ -365,21 +359,13 @@ void Npdm_driver::do_inner_loop( const char inner, Npdm::Npdm_expectations& npdm
   // Many spatial combinations on right block
   if(innerOps.is_local_ && mpigetrank()>0) return;
 
-  npdm_expectations.expectations_.resize(numthrds, std::vector<double>(1,0.0));
-  //npdm_expectations.spin_adaptation_.stored_A_mats_.resize(numthrds);
-  //npdm_expectations.spin_adaptation_.stored_singlet_rows_.resize(numthrds);
-  //npdm_expectations.spin_adaptation_.stored_so_indices_.resize(numthrds);
 
-  std::vector< boost::shared_ptr<NpdmSpinOps> > inneropsvector;
-  for (int i=0; i<numthrds; i++)
-    inneropsvector.push_back( innerOps.getcopy() ); 
-
-  SplitStackmem();
-#pragma omp parallel for schedule(dynamic)
-  for ( int iop = 0; iop < inneropsvector[omprank]->size(); ++iop ) {
+  //SplitStackmem();
+  //#pragma omp parallel for schedule(dynamic)
+  for ( int iop = 0; iop < innerOps.size(); ++iop ) {
     Timer timer2;
     //bool skip = innerOps.set_local_ops( iop );
-    bool skip = inneropsvector[omprank]->set_local_ops( iop );
+    bool skip = innerOps.set_local_ops( iop );
     diskread_time += timer2.elapsedwalltime();
     if (skip) continue;
     
@@ -388,9 +374,9 @@ void Npdm_driver::do_inner_loop( const char inner, Npdm::Npdm_expectations& npdm
     DEBUG_CALL_GET_EXPECT += 1;
     // This should always work out as calling in order (lhs,rhs,dot)
     if ( inner == 'r' )
-      new_spin_orbital_elements = npdm_expectations.get_nonspin_adapted_expectations( outerOps, *inneropsvector[omprank], dotOps );
+      new_spin_orbital_elements = npdm_expectations.get_nonspin_adapted_expectations( outerOps, innerOps, dotOps );
     else if ( inner == 'l' ) 
-      new_spin_orbital_elements = npdm_expectations.get_nonspin_adapted_expectations( *inneropsvector[omprank], outerOps, dotOps );
+      new_spin_orbital_elements = npdm_expectations.get_nonspin_adapted_expectations( innerOps, outerOps, dotOps );
     else
       abort();
     
@@ -402,7 +388,7 @@ void Npdm_driver::do_inner_loop( const char inner, Npdm::Npdm_expectations& npdm
      DEBUG_STORE_ELE_TIME += timer.elapsedwalltime();
     }
   }
-  MergeStackmem();
+  //MergeStackmem();
 
   assert( ! innerOps.ifs_.is_open() );
 }
@@ -415,9 +401,9 @@ void Npdm_driver::do_inner_loop( const char inner, Npdm::Npdm_expectations& npdm
   // Many spatial combinations on right block
 
   npdm_expectations.expectations_.resize(numthrds, std::vector<double>(1,0.0));
-  //npdm_expectations.spin_adaptation_.stored_A_mats_.resize(numthrds);
-  //npdm_expectations.spin_adaptation_.stored_singlet_rows_.resize(numthrds);
-  //npdm_expectations.spin_adaptation_.stored_so_indices_.resize(numthrds);
+  npdm_expectations.spin_adaptation_.stored_A_mats_.resize(numthrds);
+  npdm_expectations.spin_adaptation_.stored_singlet_rows_.resize(numthrds);
+  npdm_expectations.spin_adaptation_.stored_so_indices_.resize(numthrds);
 
 
   //std::vector< boost::shared_ptr<NpdmSpinOps> > inneropsvector;
@@ -457,17 +443,83 @@ void Npdm_driver::do_inner_loop( const char inner, Npdm::Npdm_expectations& npdm
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
 
+void Npdm_driver::do_inner_loop( const char inner, Npdm::Npdm_expectations& npdm_expectations, 
+                                 NpdmSpinOps_base& outerOps, NpdmSpinOps& dotOps, std::map<std::vector<int>, StackWavefunction>& outerwaves, int i) 
+{
+  //npdm_expectations.expectations_.resize(numthrds, std::vector<double>(1,0.0));
+  //npdm_expectations.spin_adaptation_.stored_A_mats_.resize(numthrds);
+  //npdm_expectations.spin_adaptation_.stored_singlet_rows_.resize(numthrds);
+  //npdm_expectations.spin_adaptation_.stored_so_indices_.resize(numthrds);
+
+  if(inner_Operators[i] == NULL) return;
+    
+  // Get non-spin-adapated spin-orbital 3PDM elements after building spin-adapted elements
+  std::vector< std::pair< std::vector<int>, double > > new_spin_orbital_elements;
+  DEBUG_CALL_GET_EXPECT += 1;
+  // This should always work out as calling in order (lhs,rhs,dot)
+  if ( inner == 'r' )
+    new_spin_orbital_elements = npdm_expectations.get_nonspin_adapted_expectations(outerOps, *inner_Operators[i], dotOps, outerwaves, *inner_intermediate[i] );
+  else if ( inner == 'l' ) 
+    new_spin_orbital_elements = npdm_expectations.get_nonspin_adapted_expectations(*inner_Operators[i], outerOps, dotOps, *inner_intermediate[i], outerwaves );
+  else
+    abort();
+    
+  Timer timer;
+#pragma omp critical
+  {
+    // Store new npdm elements
+    if ( new_spin_orbital_elements.size() > 0 ) container_.store_npdm_elements( new_spin_orbital_elements );
+    DEBUG_STORE_ELE_TIME += timer.elapsedwalltime();
+  }
+
+
+}
+
+
+
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------
+
 void Npdm_driver::loop_over_block_operators( Npdm::Npdm_expectations& npdm_expectations, NpdmSpinOps& outerOps, NpdmSpinOps& innerOps, NpdmSpinOps& dotOps)
 {
+  npdm_expectations.expectations_.resize(numthrds, std::vector<double>(1,0.0));
+  npdm_expectations.spin_adaptation_.stored_A_mats_.resize(numthrds);
+  npdm_expectations.spin_adaptation_.stored_singlet_rows_.resize(numthrds);
+  npdm_expectations.spin_adaptation_.stored_so_indices_.resize(numthrds);
+
+  std::vector< boost::shared_ptr<NpdmSpinOps> > inneropsvector;
+  std::vector< boost::shared_ptr<NpdmSpinOps> > outeropsvector;
+  std::vector< boost::shared_ptr<NpdmSpinOps> > dotopsvector;
+  for (int i=0; i<numthrds; i++) {
+    inneropsvector.push_back( innerOps.getcopy() ); 
+    outeropsvector.push_back( outerOps.getcopy() ); 
+    dotopsvector.push_back( dotOps.getcopy() ); 
+  }
+
+  //SplitStackmem();
   // Many spatial combinations on left block
+  //#pragma omp parallel for schedule(dynamic)
   for ( int ilhs = 0; ilhs < outerOps.size(); ++ilhs ) {
     // Set local operators as dummy if load-balancing isn't perfect
     bool skip_op = true;
-			Timer timer2;
-    skip_op = outerOps.set_local_ops( ilhs );
-			diskread_time += timer2.elapsedwalltime();
-    if ( ! skip_op ) do_inner_loop( 'r', npdm_expectations, outerOps, innerOps, dotOps );
+    Timer timer2;
+
+    size_t mem = Stackmem[omprank].memused;
+    double *ptr = Stackmem[omprank].data+mem;
+
+    skip_op = outeropsvector[omprank]->set_local_ops( ilhs );
+    //diskread_time += timer2.elapsedwalltime();
+
+    if (!skip_op) {
+      std::map<std::vector<int>, StackWavefunction> outerWaves;
+      npdm_expectations.compute_intermediate(*outeropsvector[omprank], *dotopsvector[omprank], outerWaves);
+      for (int k=0; k<inner_intermediate.size(); k++) 
+	do_inner_loop( 'r', npdm_expectations, *outeropsvector[omprank], *dotopsvector[omprank], outerWaves, k);      
+    }
+
+    Stackmem[omprank].deallocate(ptr, Stackmem[omprank].memused-mem);
+    
   }
+  //MergeStackmem();
 
   assert( ! outerOps.ifs_.is_open() );
   assert( ! innerOps.ifs_.is_open() );
@@ -525,39 +577,28 @@ void Npdm_driver::loop_over_operator_patterns( Npdm::Npdm_patterns& patterns, Np
 
     // Only one spatial combination on the dot block (including NULL)
     if(dmrginp.spinAdapted()){
-    assert( dotOps->size() == 1 );
+      assert( dotOps->size() == 1 );
+      
+      bool skip = dotOps->set_local_ops( 0 );
+      if ( ! skip ) {
+	// <Psi_1| L_i d_j  R_k |Psi_0> 
+	//we form a series of  |Psi_k> = R_k |Psi_0>
 
-    bool skip = dotOps->set_local_ops( 0 );
-    if ( ! skip ) {
-      // Compute all irreducible PDM elements generated by this block operator pattern at this sweep position
-#ifndef SERIAL
-      bool lhs_or_rhs_dot = ( (lhsBlock->size() == 1) || (rhsBlock->size() == 1) );
-      if ( broadcast_lhs( lhsOps->size(), rhsOps->size() ) ) {
-        if(dmrginp.npdm_intermediate() && (npdm_order_== NPDM_NEVPT2 || npdm_order_== NPDM_THREEPDM || npdm_order_== NPDM_FOURPDM))
-        {
-	  Timer timer2;
-          inner_Operators.clear();
-          inner_intermediate.clear();
-          get_inner_Operators( 'r', expectations, lhsOps, dotOps , rhsOps) ;
-	  diskread_time += timer2.elapsedwalltime();
-        }
-        par_loop_over_block_operators( 'r', expectations, *lhsOps, *rhsOps, *dotOps, lhs_or_rhs_dot );
+	//then we loop over ij and contract <Psi_1| L_i d_j |Psi_k> 
+	//these expectation values are then converted to usable RDM elements
+	Timer timer2;
+	inner_Operators.clear();
+	inner_intermediate.clear();
+	
+	size_t mem = Stackmem[0].memused;
+	double *ptr = Stackmem[0].data+mem;
+
+	get_inner_Operators( 'r', expectations, lhsOps, dotOps , rhsOps) ;  // this makes the |Psi_k> and stores them as intermediates
+	diskread_time += timer2.elapsedwalltime();
+	loop_over_block_operators( expectations, *lhsOps, *rhsOps, *dotOps ); //contracts <Psi_1|L_i d_j|Psi_k>
+
+	Stackmem[0].deallocate(ptr, Stackmem[0].memused-mem);
       }
-      else {
-        if(dmrginp.npdm_intermediate() && (npdm_order_== NPDM_NEVPT2 || npdm_order_== NPDM_THREEPDM || npdm_order_== NPDM_FOURPDM))
-        {
-	  		  Timer timer2;
-          inner_Operators.clear();
-          inner_intermediate.clear();
-          get_inner_Operators( 'l', expectations, lhsOps, dotOps, rhsOps ) ;
-	  		  diskread_time += timer2.elapsedwalltime();
-        }
-        par_loop_over_block_operators( 'l', expectations, *rhsOps, *lhsOps, *dotOps, lhs_or_rhs_dot );
-      }
-#else
-      loop_over_block_operators( expectations, *lhsOps, *rhsOps, *dotOps );
-#endif
-    }
     }
     else{
       //bool skip=true; 

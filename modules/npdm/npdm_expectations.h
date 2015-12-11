@@ -33,6 +33,9 @@ class Npdm_expectations {
       get_nonspin_adapted_expectations(NpdmSpinOps_base& lhsOps, NpdmSpinOps_base& rhsOps, NpdmSpinOps_base& dotOps,std::map<std::vector<int>, StackWavefunction>& leftwaves, std::map<std::vector<int>, StackWavefunction>& rightwaves);
     void compute_intermediate( NpdmSpinOps_base & lhsOps, NpdmSpinOps_base & dotOps, std::map<std::vector<int>, StackWavefunction> & waves);
     void compute_intermediate( NpdmSpinOps_base & rhsOps, std::map<std::vector<int>, StackWavefunction> &  waves);
+    void AllocateInitialiseWavefunctions(NpdmSpinOps_base & rhsOps, std::map<std::vector<int>, StackWavefunction> &  waves);
+    void DeallocateInitialiseWavefunctions(NpdmSpinOps_base & rhsOps, std::map<std::vector<int>, StackWavefunction> &  waves);
+
     void get_op_string( NpdmSpinOps_base & rhsOps, std::string& op_string);
     void get_op_string( NpdmSpinOps_base & lhsOps, NpdmSpinOps_base & dotOps, std::string& op_string );
 		double diskread_time = 0;

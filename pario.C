@@ -25,7 +25,7 @@ void print_trace(int nSig)
     fprintf(stderr, "%s\n", strings[nCnt]);
 
 
-  exit(nSig);
+  abort();
 }
 
 #ifdef MOLPRO

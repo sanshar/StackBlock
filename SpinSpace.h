@@ -12,6 +12,7 @@ Sandeep Sharma and Garnet K.-L. Chan
 #include <boost/serialization/serialization.hpp>
 #include <vector>
 #include <iostream>
+#include <fstream>
 
 
 namespace SpinAdapted{
@@ -38,6 +39,8 @@ class SpinSpace
   SpinSpace() : irrep(0) {}
   explicit SpinSpace(int ir);
 
+  void SaveThreadSafe(std::ofstream& ofs) const {ofs.write( (char*)(&irrep), sizeof(irrep));}
+  void LoadThreadSafe(std::ifstream& ifs) {ifs.read( (char*)(&irrep), sizeof(irrep));}
   std::vector<SpinSpace> operator+=(SpinSpace rhs);
   bool operator==(SpinSpace rhs) const;
   bool operator!=(SpinSpace rhs) const;

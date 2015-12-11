@@ -3,7 +3,18 @@
 
 namespace SpinAdapted{
   enum opTypes{ HAM, CRE, CRE_CRE, DES_DESCOMP, CRE_DES, CRE_DESCOMP, CRE_CRE_DESCOMP, 
-		DES, DES_DES, CRE_CRECOMP, DES_CRE, DES_CRECOMP, CRE_DES_DESCOMP, OVERLAP};
+		DES, DES_DES, CRE_CRECOMP, DES_CRE, DES_CRECOMP, CRE_DES_DESCOMP, OVERLAP,
+
+		// Extra (empty) operator classes for RI-approx NPDM                                                                                                                 
+		RI_3INDEX, RI_4INDEX,
+
+		// Extra 3PDM operators                                                                                                                                              
+		CRE_CRE_CRE, CRE_CRE_DES, CRE_DES_DES, CRE_DES_CRE,
+		// Extra 4PDM operators                                                                                                                                              
+		DES_CRE_DES, DES_DES_CRE, DES_CRE_CRE, DES_DES_DES,
+		CRE_CRE_DES_DES, CRE_DES_CRE_DES, CRE_DES_DES_CRE, CRE_DES_DES_DES,
+		CRE_CRE_CRE_DES, CRE_CRE_DES_CRE, CRE_DES_CRE_CRE, CRE_CRE_CRE_CRE };
+
   enum CompType{CD, DD, CCD, C, CDD};
   enum sweepType {FULL, PARTIAL};
   enum guessWaveTypes {BASIC, TRANSFORM, TRANSPOSE};

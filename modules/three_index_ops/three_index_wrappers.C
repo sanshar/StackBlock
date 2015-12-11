@@ -62,7 +62,7 @@ bool Npdm_op_wrapper_CCC::set_local_ops( int idx )
       if ( ! dmrginp.do_npdm_in_core() ) ifs.open( filename.c_str(), std::ios::binary );
 
        boost::shared_ptr<StackSparseMatrix> op (new StackCre);
-       op->Load(ifs, true);
+       op->LoadThreadSafe(ifs, true);
        op->allocateOperatorMatrix(); 
        opReps_.push_back(op);
     }
@@ -140,14 +140,14 @@ bool Npdm_op_wrapper_CCD::set_local_ops( int idx )
       std::vector<SpinQuantum> sq = opReps_tmp[i]->get_quantum_ladder()[opReps_tmp[i]->get_build_pattern()];
       string ladder = to_string(sq[0].get_s().getirrep())+ to_string(sq[1].get_s().getirrep())+to_string(ix)+to_string(jx)+to_string(kx);
       string filename = spinBlock_->get_op_array(CRE_CRE_DES).get_filename()+ladder;
-      if ( ! dmrginp.do_npdm_in_core() ) ifs.open( filename.c_str(), std::ios::binary );
-
+      if ( ! dmrginp.do_npdm_in_core() )      ifs.open( filename.c_str(), std::ios::binary );
+      //ifs.sync();
        boost::shared_ptr<StackSparseMatrix> op (new StackCre);
-       op->Load(ifs, true);
+       op->LoadThreadSafe(ifs, true);
        op->allocateOperatorMatrix(); 
-       //cout << filename<<endl;
-       //cout << *op<<endl;
+
        opReps_.push_back(op);
+       if ( ! dmrginp.do_npdm_in_core() ) ifs.close();
     }
     //if ( ! check_file_close(idx) ) abort();
   }
@@ -210,7 +210,7 @@ bool Npdm_op_wrapper_CDD::set_local_ops( int idx )
       if ( ! dmrginp.do_npdm_in_core() ) ifs.open( filename.c_str(), std::ios::binary );
 
        boost::shared_ptr<StackSparseMatrix> op (new StackCre);
-       op->Load(ifs, true);
+       op->LoadThreadSafe(ifs, true);
        op->allocateOperatorMatrix(); 
        opReps_.push_back(op);
     }
@@ -277,7 +277,7 @@ bool Npdm_op_wrapper_CDC::set_local_ops( int idx )
       if ( ! dmrginp.do_npdm_in_core() ) ifs.open( filename.c_str(), std::ios::binary );
 
        boost::shared_ptr<StackSparseMatrix> op (new StackCre);
-       op->Load(ifs, true);
+       op->LoadThreadSafe(ifs, true);
        op->allocateOperatorMatrix(); 
        opReps_.push_back(op);
     }
@@ -349,7 +349,7 @@ bool Npdm_op_wrapper_DCD::set_local_ops( int idx )
       if ( ! dmrginp.do_npdm_in_core() ) ifs.open( filename.c_str(), std::ios::binary );
 
        boost::shared_ptr<StackSparseMatrix> op (new StackCre);
-       op->Load(ifs, true);
+       op->LoadThreadSafe(ifs, true);
        op->allocateOperatorMatrix(); 
        opReps_.push_back(op);
     }
@@ -419,7 +419,7 @@ bool Npdm_op_wrapper_DDC::set_local_ops( int idx )
       if ( ! dmrginp.do_npdm_in_core() ) ifs.open( filename.c_str(), std::ios::binary );
 
        boost::shared_ptr<StackSparseMatrix> op (new StackCre);
-       op->Load(ifs, true);
+       op->LoadThreadSafe(ifs, true);
        op->allocateOperatorMatrix(); 
        opReps_.push_back(op);
     }
@@ -559,7 +559,7 @@ bool Npdm_op_wrapper_DCC::set_local_ops( int idx )
       if ( ! dmrginp.do_npdm_in_core() ) ifs.open( filename.c_str(), std::ios::binary );
 
        boost::shared_ptr<StackSparseMatrix> op (new StackCre);
-       op->Load(ifs, true);
+       op->LoadThreadSafe(ifs, true);
        op->allocateOperatorMatrix(); 
        opReps_.push_back(op);
     }
@@ -688,7 +688,7 @@ bool Npdm_op_wrapper_DDD::set_local_ops( int idx )
     for (int i = 0; i < opReps_tmp.size(); i++) {
       //boost::archive::binary_iarchive load_op(ifs_);
        boost::shared_ptr<StackSparseMatrix> op (new StackCre);
-       op->Load(ifs_, true);
+       op->LoadThreadSafe(ifs_, true);
        op->allocateOperatorMatrix(); 
        //load_op >> *op;
        opReps_.push_back(op);

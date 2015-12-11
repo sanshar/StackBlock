@@ -62,7 +62,7 @@ void SweepGenblock::BlockAndDecimate (SweepParams &sweepParams, StackSpinBlock& 
   bool doNorms = (dot_with_sys || dmrginp.new_npdm_code() == true);
   bool doComp = dmrginp.get_lowMemoryAlgorithm() ? !dot_with_sys : true;
   //bool doComp = true;
-  if (doComp && !system.has(CRE_DESCOMP))
+  if (doComp && !system.has(CRE_DESCOMP) && !dmrginp.npdm_generate())
     system.addAllCompOps();
   system.addAdditionalOps();
 

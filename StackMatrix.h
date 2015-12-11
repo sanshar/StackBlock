@@ -6,6 +6,7 @@
 #include <boost/serialization/vector.hpp>
 #include <iostream>
 #include "alloc.h"
+#include <fstream>
 
 using namespace std;
 
@@ -27,6 +28,8 @@ class StackMatrix
   }
 
  public:
+  void SaveThreadSafe(std::ofstream& ofs) const {ofs.write((char*)(&ncols), sizeof(ncols));ofs.write((char*)(&nrows), sizeof(nrows));}
+  void LoadThreadSafe(std::ifstream& ifs) {ifs.read((char*)(&ncols), sizeof(ncols));ifs.read((char*)(&nrows), sizeof(nrows));}
   StackMatrix() : data(0), nrows(0), ncols(0) {};
   StackMatrix(double* pData, int pnrows, int pncols) : data(pData), nrows(pnrows), ncols(pncols) {};
   StackMatrix(const StackMatrix& sm) : data(sm.Store()), nrows(sm.Nrows()), ncols(sm.Ncols()) {};

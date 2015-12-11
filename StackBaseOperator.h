@@ -115,6 +115,8 @@ class StackSparseMatrix : public Baseoperator<StackMatrix>  // the sparse matrix
     {};
 
  StackSparseMatrix(double* pData, long pTotalMemory) : totalMemory(pTotalMemory), data(pData), fermion(false), orbs(2), initialised(false), built(false), built_on_disk(false), Sign(1), conj('n'){};
+  void SaveThreadSafe(std::ofstream &ofs) const;
+  void LoadThreadSafe(std::ifstream &ifs, bool allocate);
   virtual long memoryUsed() const {return totalMemory;}
   void allocate (const StateInfo& s);
   void allocate (const StateInfo& sl, const StateInfo& sr);
@@ -140,6 +142,7 @@ class StackSparseMatrix : public Baseoperator<StackMatrix>  // the sparse matrix
   std::vector<int>& getActiveRows(int i)  {return colCompressedForm[i];}
   std::vector<int>& getActiveCols(int i) {return rowCompressedForm[i];}
   std::vector<std::vector<int> >& getrowCompressedForm() {return rowCompressedForm;}
+  std::vector<std::vector<int> >& getcolCompressedForm() {return colCompressedForm;}
   const StackMatrix& operator_element(int i, int j) const { 
     if (conj == 'n') return operatorMatrix(i, j); 
     else return operatorMatrix(j, i);

@@ -447,7 +447,9 @@ Npdm_expectations::get_nonspin_adapted_expectations( NpdmSpinOps_base & lhsOps, 
   // Get operator build string. e.g. (C2C4)(D5D6)
   std::string op_string;
   std::vector<int> indices;
+
   get_full_op_string( lhsOps, rhsOps, dotOps, op_string, indices );
+
 
   // Screen away unwanted strings (e.g. those that produce duplicate NPDM elements)
   //for( int i=0;i<indices.size();i++)
@@ -558,8 +560,10 @@ Npdm_expectations::get_nonspin_adapted_expectations(NpdmSpinOps_base & lhsOps, N
   std::string op_string;
   std::vector<int> indices;
 
-  get_full_op_string( lhsOps, rhsOps, dotOps, op_string, indices );
-
+#pragma omp critical
+  {
+    get_full_op_string( lhsOps, rhsOps, dotOps, op_string, indices );
+  }
   if ( screen_op_string_for_duplicates( op_string, indices ) ) return new_pdm_elements;
 
   // Contract spin-adapted spatial operators and build singlet expectation values
@@ -656,11 +660,43 @@ void Npdm_expectations::compute_intermediate( NpdmSpinOps_base & lhsOps, NpdmSpi
 	  if (waves.find(spin) == waves.end())
 	    waves[spin] = opw2;
 
+	  //cout << "intermediate 2 "<<DotProduct(opw2, opw2)<<endl;
         }
       }
     }
   }
 
+}
+
+void Npdm_expectations::AllocateInitialiseWavefunctions(NpdmSpinOps_base & rhsOps, std::map<std::vector<int>, StackWavefunction> &  waves)
+{
+#ifndef SERIAL
+  boost::mpi::communicator world;
+#endif
+  
+  StackSparseMatrix* null = 0; 
+  vector<SpinQuantum> dQ = wavefunction_0.get_deltaQuantum();
+  assert(dQ.size()==1 );
+  assert(dQ[0].totalSpin.getirrep()== 0);
+  int rindices= &rhsOps ? rhsOps.indices_.size(): 0;
+  int hirhs = rhsOps.opReps_.size();
+  for (int irhs = 0; irhs < hirhs; ++irhs) {
+    int rs= !rhsOps.transpose_? rhsOps.opReps_.at(irhs)->get_deltaQuantum(0).get_s().getirrep(): (-rhsOps.opReps_.at(irhs)->get_deltaQuantum(0).get_s()).getirrep();
+    boost::shared_ptr<StackSparseMatrix> rhsOp;
+    if(rhsOps.transpose_) rhsOp=boost::shared_ptr<StackSparseMatrix>(new StackTransposeview(*rhsOps.opReps_.at(irhs)));
+    else rhsOp= rhsOps.opReps_.at(irhs);
+    rs = rhsOp->get_deltaQuantum(0).get_s().getirrep();
+    StackWavefunction opw2;
+    
+    opw2.initialise(dQ[0]+rhsOp->get_deltaQuantum(0), big_.get_leftBlock()->get_ketStateInfo(),big_.get_rightBlock()->get_braStateInfo(),true);
+    opw2.Clear();
+    
+    std::vector<int> spin;
+    spin.push_back(irhs);
+    if (waves.find(spin) == waves.end())
+      waves[spin] = opw2;
+    
+  }
 }
 
 void Npdm_expectations::compute_intermediate( NpdmSpinOps_base & rhsOps, std::map<std::vector<int>, StackWavefunction> &  waves)
@@ -683,20 +719,16 @@ void Npdm_expectations::compute_intermediate( NpdmSpinOps_base & rhsOps, std::ma
 	if(rhsOps.transpose_) rhsOp=boost::shared_ptr<StackSparseMatrix>(new StackTransposeview(*rhsOps.opReps_.at(irhs)));
 	else rhsOp= rhsOps.opReps_.at(irhs);
 	rs = rhsOp->get_deltaQuantum(0).get_s().getirrep();
-	StackWavefunction opw2;
 
-	opw2.initialise(dQ[0]+rhsOp->get_deltaQuantum(0), big_.get_leftBlock()->get_ketStateInfo(),big_.get_rightBlock()->get_braStateInfo(),true);
-	opw2.Clear();
-
-	//Left part of intermediate wavefuntion should multiply transpose of left ops.
-
-	operatorfunctions::TensorMultiply(big_.get_rightBlock(), *rhsOp, &big_, wavefunction_0, opw2, rhsOp->get_deltaQuantum(0), rhsOps.factor_);
-	//opw2.deallocate();
 	std::vector<int> spin;
 	spin.push_back(irhs);
-	if (waves.find(spin) == waves.end())
-	  waves[spin] = opw2;
+	//if (waves.find(spin) == waves.end()) continue;
+	StackWavefunction& opw2 = waves[spin];
 
+	operatorfunctions::TensorMultiply(big_.get_rightBlock(), *rhsOp, &big_, wavefunction_0, opw2, rhsOp->get_deltaQuantum(0), rhsOps.factor_);
+
+
+	//cout << "intermediate 1 "<<DotProduct(opw2, opw2)<<endl;
       }
     
   }

@@ -47,6 +47,9 @@ class SpinQuantum
   SpinQuantum (const int p, const SpinSpace s, const SpinAdapted::IrrepSpace orbS);
   SpinQuantum operator-() const;
 
+  void SaveThreadSafe(std::ofstream& ofs) const ;
+  void LoadThreadSafe(std::ifstream& ifs);
+
   /// \return Vector of (Sz type) quantum numbers with Sz=-S ... +S
   vector<SpinQuantum> spinToNonSpin() const;
   int insertionNum(const SpinQuantum& ql, const SpinQuantum& qr) const;
