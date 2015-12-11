@@ -26,6 +26,7 @@ class StackDes: public SpinAdapted::StackSparseMatrix
 {
  public:
   StackDes() { conj='n'; fermion = true;}
+  virtual string opName() const {return "DES";}
   void build(const StackSpinBlock& block);
   double redMatrixElement(Csf c1, vector<Csf>& ladder, const StackSpinBlock* b);
 };
@@ -34,6 +35,7 @@ class StackCreDes: public SpinAdapted::StackSparseMatrix
 {
  public:
   StackCreDes() { conj='n'; fermion = false;}
+  virtual string opName() const {return "CREDES";}
   void build(const StackSpinBlock& block);
   void buildUsingCre(const StackSpinBlock* b);
   double redMatrixElement(Csf c1, vector<Csf>& ladder, const StackSpinBlock* b);
@@ -44,6 +46,7 @@ class StackDesCre: public SpinAdapted::StackSparseMatrix
 {
  public:
   StackDesCre() { conj='n'; fermion = false;}
+  virtual string opName() const {return "DESCRE";}
   void build(const StackSpinBlock& block);
   double redMatrixElement(Csf c1, vector<Csf>& ladder, const StackSpinBlock* b);
 };
@@ -52,6 +55,7 @@ class StackCreCre: public SpinAdapted::StackSparseMatrix
 {
  public:
   StackCreCre() { conj='n'; fermion = false;}
+  virtual string opName() const {return "CRECRE";}
   void build(const StackSpinBlock& block);
   void buildUsingCre(const StackSpinBlock* b);
   double redMatrixElement(Csf c1, vector<Csf>& ladder, const StackSpinBlock* b);
@@ -62,6 +66,7 @@ class StackDesDes: public SpinAdapted::StackSparseMatrix
 {
  public:
   StackDesDes() { conj='n'; fermion = false;}
+  virtual string opName() const {return "DESDES";}
   void build(const StackSpinBlock& block);
   double redMatrixElement(Csf c1, vector<Csf>& ladder, const StackSpinBlock* b);
 };
@@ -70,6 +75,7 @@ class StackCreDesComp: public SpinAdapted::StackSparseMatrix
 {
  public:
   StackCreDesComp() { conj='n'; fermion = false;}
+  virtual string opName() const {return "CREDESCOMP";}
   void build(const StackSpinBlock& block);
   void buildfromCreDes(StackSpinBlock& block);
   void buildUsingCre(const StackSpinBlock* b);
@@ -81,6 +87,7 @@ class StackCreCreComp: public SpinAdapted::StackSparseMatrix
 {
  public:
   StackCreCreComp() { conj='n'; fermion = false;}
+  virtual string opName() const {return "CRECRECOMP";}
   void build(const StackSpinBlock& block);
   void buildfromCreCre(StackSpinBlock& block);
   double redMatrixElement(Csf c1, vector<Csf>& ladder, const StackSpinBlock* b);
@@ -90,6 +97,7 @@ class StackDesDesComp: public SpinAdapted::StackSparseMatrix
 {
  public:
   StackDesDesComp() { conj='n'; fermion = false;}
+  virtual string opName() const {return "DESDESCOMP";}
   void build(const StackSpinBlock& block);
   void buildfromDesDes(StackSpinBlock& block);
   //void buildUsingCre(const StackSpinBlock* b);
@@ -101,6 +109,7 @@ class StackDesCreComp: public SpinAdapted::StackSparseMatrix
 {
  public:
   StackDesCreComp() { conj='n'; fermion = false;}
+  virtual string opName() const {return "DESCRECOMP";}
   void build(const StackSpinBlock& block);
   void buildfromDesCre(StackSpinBlock& block);
   double redMatrixElement(Csf c1, vector<Csf>& ladder, const StackSpinBlock* b);
@@ -110,6 +119,7 @@ class StackCreDesDesComp: public SpinAdapted::StackSparseMatrix
 {
  public:
   StackCreDesDesComp() { conj='n'; fermion = true;}
+  virtual string opName() const {return "CREDESDESCOMP";}
   void build(const StackSpinBlock& block);
   double redMatrixElement(Csf c1, vector<Csf>& ladder, const StackSpinBlock* b);
 };
@@ -118,6 +128,7 @@ class StackCreCreDesComp: public SpinAdapted::StackSparseMatrix
 {
  public:
   StackCreCreDesComp() { conj='n'; fermion = true;}
+  virtual string opName() const {return "CRECREDESCOMP";}
   void build(const StackSpinBlock& block);
   double redMatrixElement(Csf c1, vector<Csf>& ladder, const StackSpinBlock* b);
   void build(StackMatrix &m, int row, int col, const StackSpinBlock& block) ;
@@ -128,6 +139,7 @@ class StackHam: public SpinAdapted::StackSparseMatrix
 {
  public:
   StackHam() { conj='n'; fermion = false;}
+  virtual string opName() const {return "HAM";}
   void build(const StackSpinBlock& block);
   double redMatrixElement(Csf c1, vector<Csf>& ladder, const StackSpinBlock* b);
   void build(StackMatrix &m, int row, int col, const StackSpinBlock& block) ;

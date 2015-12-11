@@ -155,7 +155,7 @@ void StackSparseMatrix::buildUsingCsf(const StackSpinBlock& b, vector< vector<Cs
     int i = nonZeroBlocks[index].first.first, j = nonZeroBlocks[index].first.second;
     for (int jq =stateinfo.unBlockedIndex[j]; jq < stateinfo.unBlockedIndex[j]+stateinfo.quantaStates[j]; jq++) 
       for (int iq =stateinfo.unBlockedIndex[i]; iq < stateinfo.unBlockedIndex[i]+stateinfo.quantaStates[i]; iq++) {
-	nonZeroBlocks[index].second.operator()(iq-stateinfo.unBlockedIndex[i]+1, jq-stateinfo.unBlockedIndex[j]+1) = redMatrixElement(s[iq], ladders[jq], &b);
+	      nonZeroBlocks[index].second.operator()(iq-stateinfo.unBlockedIndex[i]+1, jq-stateinfo.unBlockedIndex[j]+1) = redMatrixElement(s[iq], ladders[jq], &b);
       }
   }
 
@@ -331,7 +331,6 @@ double* StackSparseMatrix::allocate(const StateInfo& rowSI, const StateInfo& col
     data = pData;
     return allocateOperatorMatrix();
   }
-
   rowCompressedForm.clear();rowCompressedForm.resize(rowSI.quanta.size(), vector<int>());
   colCompressedForm.clear();colCompressedForm.resize(colSI.quanta.size(), vector<int>());
   nonZeroBlocks.resize(0);
@@ -349,18 +348,18 @@ double* StackSparseMatrix::allocate(const StateInfo& rowSI, const StateInfo& col
       for (int k = 0; k < deltaQuantum.size(); ++k) {
         if (rowSI.quanta[lQ].allow(deltaQuantum[k], colSI.quanta[rQ])) {
           allowedcoupling = true;
-	  rowCompressedForm[lQ].push_back(rQ);
-	  colCompressedForm[rQ].push_back(lQ);
+	        rowCompressedForm[lQ].push_back(rQ);
+	        colCompressedForm[rQ].push_back(lQ);
           break;
         }
       }
       allowedQuantaMatrix (lQ,rQ) = allowedcoupling;
       if (allowedQuantaMatrix(lQ, rQ))
       {
-	operatorMatrix(lQ,rQ).allocate(&data[index], rowSI.quantaStates [lQ], colSI.quantaStates [rQ]);
-	index += rowSI.quantaStates [lQ]* colSI.quantaStates [rQ] + CACHEBUFFER;
-	nonZeroBlocks.push_back(std::pair< std::pair<int, int> , StackMatrix>( std::pair<int,int>(lQ,rQ), operatorMatrix(lQ,rQ)));
-	mapToNonZeroBlocks.insert(std::pair< std::pair<int, int>, int>(std::pair<int, int>(lQ, rQ), nonZeroBlocks.size()-1));
+	      operatorMatrix(lQ,rQ).allocate(&data[index], rowSI.quantaStates [lQ], colSI.quantaStates [rQ]);
+	      index += rowSI.quantaStates [lQ]* colSI.quantaStates [rQ] + CACHEBUFFER;
+	      nonZeroBlocks.push_back(std::pair< std::pair<int, int> , StackMatrix>( std::pair<int,int>(lQ,rQ), operatorMatrix(lQ,rQ)));
+	      mapToNonZeroBlocks.insert(std::pair< std::pair<int, int>, int>(std::pair<int, int>(lQ, rQ), nonZeroBlocks.size()-1));
       }
     }
   totalMemory = index;

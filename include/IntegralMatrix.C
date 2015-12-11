@@ -14,19 +14,19 @@ using namespace boost;
 
 double& SpinAdapted::OneElectronArray::operator()(int i, int j) {
   assert(i >= 0 && i < dim && j >= 0 && j < dim);
-  if (rhf) {
-      bool is_odd_i = (i & 1);
-      bool is_odd_j = (j & 1);
 
-      bool zero = !(is_odd_i == is_odd_j);
-      if (zero) {
-        dummyZero = 0.0;
-        return dummyZero;
-      }
+  bool is_odd_i = (i & 1);
+  bool is_odd_j = (j & 1);
 
-      i=i/2;
-      j=j/2;
+  bool zero = !(is_odd_i == is_odd_j);
+  if (zero) {
+    dummyZero = 0.0;
+    return dummyZero;
   }
+
+  i=i/2;
+  j=j/2;
+
   if (isCalcLCC) {
     if (isH0 && dmrginp.excitation()[i] != dmrginp.excitation()[j])
       return dummyZero;
@@ -34,25 +34,30 @@ double& SpinAdapted::OneElectronArray::operator()(int i, int j) {
       return dummyZero;
   }
   //i should be greater than j
-  if (i>= j)
-    return rep[ i*(i+1)/2 + j];
-  else
-    return rep[ j*(j+1)/2 + i];
+  int idx = (i >= j) ? i*(i+1)/2 + j : j*(j+1)/2 + i;
+  if (rhf) {
+      return rep[ idx];
+  } else {
+    // uhf
+    if (is_odd_i) {
+      return rep[idx*2+1];
+    } else {
+      return rep[idx*2];
+    }
+  }
 }
 
 double SpinAdapted::OneElectronArray::operator()(int i, int j) const {
   assert(i >= 0 && i < dim && j >= 0 && j < dim);
-  if (rhf)
-  {
-      bool is_odd_i = (i & 1);
-      bool is_odd_j = (j & 1);
+  bool is_odd_i = (i & 1);
+  bool is_odd_j = (j & 1);
 
-      bool zero = !(is_odd_i == is_odd_j);
-      if (zero)
-        return 0.0;
-      i=i/2;
-      j=j/2;
-  }
+  bool zero = !(is_odd_i == is_odd_j);
+  if (zero)
+    return 0.0;
+  
+  i=i/2;
+  j=j/2;
   //i should be greater than j
   if (isCalcLCC) {
     if (isH0 && dmrginp.excitation()[i] != dmrginp.excitation()[j])
@@ -60,10 +65,18 @@ double SpinAdapted::OneElectronArray::operator()(int i, int j) const {
     if (!isH0 && dmrginp.excitation()[i] == dmrginp.excitation()[j])
       return dummyZero;
   }
-  if (i>= j)
-    return rep[ i*(i+1)/2 + j];
-  else
-    return rep[ j*(j+1)/2 + i];
+
+  int idx = (i >= j) ? i*(i+1)/2 + j : j*(j+1)/2 + i;
+
+  if (rhf) {
+    return rep[ idx];
+  } else {
+    if (is_odd_i) {
+      return rep[idx*2+1];
+    } else {
+      return rep[idx*2];
+    }
+  }
 }
 
 void SpinAdapted::OneElectronArray::ReSize(int n) {
@@ -87,6 +100,7 @@ void SpinAdapted::OneElectronArray::ReadOccNum(ifstream& inFile) {
 }
 
 void SpinAdapted::OneElectronArray::ReadFromDumpFile(ifstream& dumpFile, int norbs) {
+  pout << "OneElectronArray::ReadFromDumpFile is deprecated" << endl;
   if (bin) {
     dumpFile.seekg (0, ios::end);
     //int size = dumpFile.tellg();
@@ -320,8 +334,7 @@ double& SpinAdapted::TwoElectronArray::operator()(int i, int j, int k, int l) {
   if (n >= m) {
     long index = n*(n+1)/2+m;
     return rep[ index];
-  }
-  else {
+  } else {
     long index = m*(m+1)/2 + n;
     return rep[index];
   }
