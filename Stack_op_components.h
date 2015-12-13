@@ -258,7 +258,7 @@ template <class Op> class StackOp_component : public StackOp_component_base
   std::string get_filename() const
   {
     std::string file;
-    file = str( boost::format("%s%s%s%s%d%s%d%s") % dmrginp.load_prefix() % "/" % get_op_string() % "_" % uniqueID % "_p" % mpigetrank() % ".tmp" );
+    file = str( boost::format("%s%s%s%s%d%d%s") % dmrginp.load_prefix() % "/" % get_op_string() % "_p" % mpigetrank() % get_size() % ".tmp" );
     return file;
   }
 

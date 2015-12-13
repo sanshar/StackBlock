@@ -28,8 +28,9 @@ Npdm_op_wrapper_CCC::Npdm_op_wrapper_CCC( StackSpinBlock * spinBlock )
   factor_ = 1.0;
   transpose_ = false;
   build_pattern_ = "0";
+  opIndices_=3;
   // For disk-based storage
-  ifile_ = spinBlock_->get_op_array(CRE_CRE_CRE).get_filename();
+
 }
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -61,10 +62,11 @@ bool Npdm_op_wrapper_CCC::set_local_ops( int idx )
       string filename = spinBlock_->get_op_array(CRE_CRE_CRE).get_filename()+ladder;
       if ( ! dmrginp.do_npdm_in_core() ) ifs.open( filename.c_str(), std::ios::binary );
 
-       boost::shared_ptr<StackSparseMatrix> op (new StackCre);
-       op->LoadThreadSafe(ifs, true);
-       op->allocateOperatorMatrix(); 
-       opReps_.push_back(op);
+      boost::shared_ptr<StackSparseMatrix> op (new StackCre);
+      op->LoadThreadSafe(ifs, true);
+      if ( ! dmrginp.do_npdm_in_core() ) ifs.close();
+      op->allocateOperatorMatrix(); 
+      opReps_.push_back(op);
     }
     //if ( ! check_file_close(idx) ) abort();
   }
@@ -106,8 +108,9 @@ Npdm_op_wrapper_CCD::Npdm_op_wrapper_CCD( StackSpinBlock * spinBlock )
   factor_ = 1.0;
   transpose_ = false;
   build_pattern_ = "0";
+  opIndices_=3;
   // For disk-based storage
-  ifile_ = spinBlock_->get_op_array(CRE_CRE_DES).get_filename();
+
 }
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -176,7 +179,8 @@ Npdm_op_wrapper_CDD::Npdm_op_wrapper_CDD( StackSpinBlock * spinBlock )
   transpose_ = false;
   build_pattern_ = "0";
   // For disk-based storage
-  ifile_ = spinBlock_->get_op_array(CRE_DES_DES).get_filename();
+  opIndices_=3;
+
 }
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -211,6 +215,7 @@ bool Npdm_op_wrapper_CDD::set_local_ops( int idx )
 
        boost::shared_ptr<StackSparseMatrix> op (new StackCre);
        op->LoadThreadSafe(ifs, true);
+      if ( ! dmrginp.do_npdm_in_core() ) ifs.close();
        op->allocateOperatorMatrix(); 
        opReps_.push_back(op);
     }
@@ -243,8 +248,9 @@ Npdm_op_wrapper_CDC::Npdm_op_wrapper_CDC( StackSpinBlock * spinBlock )
   factor_ = 1.0;
   transpose_ = false;
   build_pattern_ = "0";
+  opIndices_=3;
   // For disk-based storage
-  ifile_ = spinBlock_->get_op_array(CRE_DES_CRE).get_filename();
+
 }
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -278,6 +284,7 @@ bool Npdm_op_wrapper_CDC::set_local_ops( int idx )
 
        boost::shared_ptr<StackSparseMatrix> op (new StackCre);
        op->LoadThreadSafe(ifs, true);
+      if ( ! dmrginp.do_npdm_in_core() ) ifs.close();
        op->allocateOperatorMatrix(); 
        opReps_.push_back(op);
     }
@@ -315,8 +322,9 @@ Npdm_op_wrapper_DCD::Npdm_op_wrapper_DCD( StackSpinBlock * spinBlock )
   factor_ = 1.0;
   transpose_ = false;
   build_pattern_ = "0";
+  opIndices_=3;
   // For disk-based storage
-  ifile_ = spinBlock_->get_op_array(DES_CRE_DES).get_filename();
+
 }
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -350,6 +358,7 @@ bool Npdm_op_wrapper_DCD::set_local_ops( int idx )
 
        boost::shared_ptr<StackSparseMatrix> op (new StackCre);
        op->LoadThreadSafe(ifs, true);
+      if ( ! dmrginp.do_npdm_in_core() ) ifs.close();
        op->allocateOperatorMatrix(); 
        opReps_.push_back(op);
     }
@@ -385,8 +394,9 @@ Npdm_op_wrapper_DDC::Npdm_op_wrapper_DDC( StackSpinBlock * spinBlock )
   factor_ = 1.0;
   transpose_ = false;
   build_pattern_ = "0";
+  opIndices_=3;
   // For disk-based storage
-  ifile_ = spinBlock_->get_op_array(DES_DES_CRE).get_filename();
+
 }
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -420,6 +430,7 @@ bool Npdm_op_wrapper_DDC::set_local_ops( int idx )
 
        boost::shared_ptr<StackSparseMatrix> op (new StackCre);
        op->LoadThreadSafe(ifs, true);
+      if ( ! dmrginp.do_npdm_in_core() ) ifs.close();
        op->allocateOperatorMatrix(); 
        opReps_.push_back(op);
     }
@@ -522,8 +533,9 @@ Npdm_op_wrapper_DCC::Npdm_op_wrapper_DCC( StackSpinBlock * spinBlock )
   factor_ = 1.0;
   transpose_ = false;
   build_pattern_ = "0";
+  opIndices_=3;
   // For disk-based storage
-  ifile_ = spinBlock_->get_op_array(DES_CRE_CRE).get_filename();
+
 }
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -560,6 +572,7 @@ bool Npdm_op_wrapper_DCC::set_local_ops( int idx )
 
        boost::shared_ptr<StackSparseMatrix> op (new StackCre);
        op->LoadThreadSafe(ifs, true);
+      if ( ! dmrginp.do_npdm_in_core() ) ifs.close();
        op->allocateOperatorMatrix(); 
        opReps_.push_back(op);
     }
@@ -662,8 +675,9 @@ Npdm_op_wrapper_DDD::Npdm_op_wrapper_DDD( StackSpinBlock * spinBlock )
   factor_ = 1.0;
   transpose_ = false;
   build_pattern_ = "0";
+  opIndices_=3;
   // For disk-based storage
-  ifile_ = spinBlock_->get_op_array(DES_DES_DES).get_filename();
+
 }
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -688,8 +702,8 @@ bool Npdm_op_wrapper_DDD::set_local_ops( int idx )
     for (int i = 0; i < opReps_tmp.size(); i++) {
       //boost::archive::binary_iarchive load_op(ifs_);
        boost::shared_ptr<StackSparseMatrix> op (new StackCre);
-       op->LoadThreadSafe(ifs_, true);
-       op->allocateOperatorMatrix(); 
+       //op->LoadThreadSafe(ifs_, true);
+       //op->allocateOperatorMatrix(); 
        //load_op >> *op;
        opReps_.push_back(op);
     }

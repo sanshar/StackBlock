@@ -28,7 +28,7 @@ Npdm_op_wrapper_CCDD::Npdm_op_wrapper_CCDD( StackSpinBlock * spinBlock )
   transpose_ = false;
   build_pattern_ = "0";
   // For disk-based storage
-  ifile_ = spinBlock_->get_op_array(CRE_CRE_DES_DES).get_filename();
+  opIndices_=4;
 }
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -46,7 +46,7 @@ bool Npdm_op_wrapper_CCDD::set_local_ops( int idx )
   }
   else {
 //pout << "...from disk...\n";
-    if( ! check_file_open(idx) ) abort();
+
 //FIXME combine 3-index and 4-indexx read from disk.... UNIFY......
     int size = spinBlock_->get_op_array(CRE_CRE_DES_DES).get_local_element(idx).size();
     assert( size == 6 );
@@ -54,12 +54,12 @@ bool Npdm_op_wrapper_CCDD::set_local_ops( int idx )
     // Read in all spin components for this set of spatial indices (note order matters)
     for ( int i=0; i<size; i++) {
       boost::shared_ptr<StackSparseMatrix> op (new StackCre);
-      boost::archive::binary_iarchive load_op(ifs_);
-      load_op >> *op;
+      //boost::archive::binary_iarchive load_op(ifs_);
+      //load_op >> *op;
       assert( op->get_built_on_disk() );
       opReps_.push_back(op);
     }
-    if( ! check_file_close(idx) ) abort();
+
   }
 
   build_pattern_ = opReps_.at(0)->get_build_pattern();
@@ -89,7 +89,7 @@ Npdm_op_wrapper_CDCD::Npdm_op_wrapper_CDCD( StackSpinBlock * spinBlock )
   transpose_ = false;
   build_pattern_ = "0";
   // For disk-based storage
-  ifile_ = spinBlock_->get_op_array(CRE_DES_CRE_DES).get_filename();
+  opIndices_=4;
 }
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -107,7 +107,6 @@ bool Npdm_op_wrapper_CDCD::set_local_ops( int idx )
   }
   else {
 //pout << "...from disk...\n";
-    if( ! check_file_open(idx) ) abort();
 //FIXME
     int size = spinBlock_->get_op_array(CRE_DES_CRE_DES).get_local_element(idx).size();
     assert( size == 6 );
@@ -115,12 +114,12 @@ bool Npdm_op_wrapper_CDCD::set_local_ops( int idx )
     // Read in all spin components for this set of spatial indices (note order matters)
     for ( int i=0; i<size; i++) {
       boost::shared_ptr<StackSparseMatrix> op (new StackCre);
-      boost::archive::binary_iarchive load_op(ifs_);
-      load_op >> *op;
+      //boost::archive::binary_iarchive load_op(ifs_);
+      //load_op >> *op;
       assert( op->get_built_on_disk() );
       opReps_.push_back(op);
     }
-    if( ! check_file_close(idx) ) abort();
+
   }
 
   build_pattern_ = opReps_.at(0)->get_build_pattern();
@@ -153,7 +152,8 @@ Npdm_op_wrapper_CDDC::Npdm_op_wrapper_CDDC( StackSpinBlock * spinBlock )
   transpose_ = false;
   build_pattern_ = "0";
   // For disk-based storage
-  ifile_ = spinBlock_->get_op_array(CRE_DES_DES_CRE).get_filename();
+  opIndices_=4;
+
 }
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -171,7 +171,7 @@ bool Npdm_op_wrapper_CDDC::set_local_ops( int idx )
   }
   else {
 //pout << "...from disk...\n";
-    if( ! check_file_open(idx) ) abort();
+
 //FIXME
     int size = spinBlock_->get_op_array(CRE_DES_DES_CRE).get_local_element(idx).size();
     assert( size == 6 );
@@ -179,12 +179,12 @@ bool Npdm_op_wrapper_CDDC::set_local_ops( int idx )
     // Read in all spin components for this set of spatial indices (note order matters)
     for ( int i=0; i<size; i++) {
       boost::shared_ptr<StackSparseMatrix> op (new StackCre);
-      boost::archive::binary_iarchive load_op(ifs_);
-      load_op >> *op;
+      //boost::archive::binary_iarchive load_op(ifs_);
+      //load_op >> *op;
       assert( op->get_built_on_disk() );
       opReps_.push_back(op);
     }
-    if( ! check_file_close(idx) ) abort();
+
   }
 
   build_pattern_ = opReps_.at(0)->get_build_pattern();
@@ -217,7 +217,8 @@ Npdm_op_wrapper_CDDD::Npdm_op_wrapper_CDDD( StackSpinBlock * spinBlock )
   transpose_ = false;
   build_pattern_ = "0";
   // For disk-based storage
-  ifile_ = spinBlock_->get_op_array(CRE_DES_DES_DES).get_filename();
+  opIndices_=4;
+
 }
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -235,7 +236,7 @@ bool Npdm_op_wrapper_CDDD::set_local_ops( int idx )
   }
   else {
 //pout << "...from disk...\n";
-    if( ! check_file_open(idx) ) abort();
+
 //FIXME
     int size = spinBlock_->get_op_array(CRE_DES_DES_DES).get_local_element(idx).size();
     assert( size == 6 );
@@ -243,12 +244,12 @@ bool Npdm_op_wrapper_CDDD::set_local_ops( int idx )
     // Read in all spin components for this set of spatial indices (note order matters)
     for ( int i=0; i<size; i++) {
       boost::shared_ptr<StackSparseMatrix> op (new StackCre);
-      boost::archive::binary_iarchive load_op(ifs_);
-      load_op >> *op;
+      //boost::archive::binary_iarchive load_op(ifs_);
+      //load_op >> *op;
       assert( op->get_built_on_disk() );
       opReps_.push_back(op);
     }
-    if( ! check_file_close(idx) ) abort();
+
   }
 
   build_pattern_ = opReps_.at(0)->get_build_pattern();
@@ -281,7 +282,8 @@ Npdm_op_wrapper_CCCD::Npdm_op_wrapper_CCCD( StackSpinBlock * spinBlock )
   transpose_ = false;
   build_pattern_ = "0";
   // For disk-based storage
-  ifile_ = spinBlock_->get_op_array(CRE_CRE_CRE_DES).get_filename();
+  opIndices_=4;
+
 }
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -299,7 +301,7 @@ bool Npdm_op_wrapper_CCCD::set_local_ops( int idx )
   }
   else {
 //pout << "...from disk...\n";
-    if( ! check_file_open(idx) ) abort();
+
 //FIXME
     int size = spinBlock_->get_op_array(CRE_CRE_CRE_DES).get_local_element(idx).size();
     assert( size == 6 );
@@ -307,12 +309,12 @@ bool Npdm_op_wrapper_CCCD::set_local_ops( int idx )
     // Read in all spin components for this set of spatial indices (note order matters)
     for ( int i=0; i<size; i++) {
       boost::shared_ptr<StackSparseMatrix> op (new StackCre);
-      boost::archive::binary_iarchive load_op(ifs_);
-      load_op >> *op;
+      //boost::archive::binary_iarchive load_op(ifs_);
+      //load_op >> *op;
       assert( op->get_built_on_disk() );
       opReps_.push_back(op);
     }
-    if( ! check_file_close(idx) ) abort();
+
   }
 
   build_pattern_ = opReps_.at(0)->get_build_pattern();
@@ -345,7 +347,8 @@ Npdm_op_wrapper_CCDC::Npdm_op_wrapper_CCDC( StackSpinBlock * spinBlock )
   transpose_ = false;
   build_pattern_ = "0";
   // For disk-based storage
-  ifile_ = spinBlock_->get_op_array(CRE_CRE_DES_CRE).get_filename();
+  opIndices_=4;
+
 }
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -363,7 +366,7 @@ bool Npdm_op_wrapper_CCDC::set_local_ops( int idx )
   }
   else {
 //pout << "...from disk...\n";
-    if( ! check_file_open(idx) ) abort();
+
 //FIXME
     int size = spinBlock_->get_op_array(CRE_CRE_DES_CRE).get_local_element(idx).size();
     assert( size == 6 );
@@ -371,12 +374,12 @@ bool Npdm_op_wrapper_CCDC::set_local_ops( int idx )
     // Read in all spin components for this set of spatial indices (note order matters)
     for ( int i=0; i<size; i++) {
       boost::shared_ptr<StackSparseMatrix> op (new StackCre);
-      boost::archive::binary_iarchive load_op(ifs_);
-      load_op >> *op;
+      //boost::archive::binary_iarchive load_op(ifs_);
+      //load_op >> *op;
       assert( op->get_built_on_disk() );
       opReps_.push_back(op);
     }
-    if( ! check_file_close(idx) ) abort();
+
   }
 
   build_pattern_ = opReps_.at(0)->get_build_pattern();
@@ -409,7 +412,8 @@ Npdm_op_wrapper_CDCC::Npdm_op_wrapper_CDCC( StackSpinBlock * spinBlock )
   transpose_ = false;
   build_pattern_ = "0";
   // For disk-based storage
-  ifile_ = spinBlock_->get_op_array(CRE_DES_CRE_CRE).get_filename();
+  opIndices_=4;
+
 }
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -427,7 +431,7 @@ bool Npdm_op_wrapper_CDCC::set_local_ops( int idx )
   }
   else {
 //pout << "...from disk...\n";
-    if( ! check_file_open(idx) ) abort();
+
 //FIXME
     int size = spinBlock_->get_op_array(CRE_DES_CRE_CRE).get_local_element(idx).size();
     assert( size == 6 );
@@ -435,12 +439,12 @@ bool Npdm_op_wrapper_CDCC::set_local_ops( int idx )
     // Read in all spin components for this set of spatial indices (note order matters)
     for ( int i=0; i<size; i++) {
       boost::shared_ptr<StackSparseMatrix> op (new StackCre);
-      boost::archive::binary_iarchive load_op(ifs_);
-      load_op >> *op;
+      //boost::archive::binary_iarchive load_op(ifs_);
+      //load_op >> *op;
       assert( op->get_built_on_disk() );
       opReps_.push_back(op);
     }
-    if( ! check_file_close(idx) ) abort();
+
   }
 
   build_pattern_ = opReps_.at(0)->get_build_pattern();
@@ -473,7 +477,8 @@ Npdm_op_wrapper_CCCC::Npdm_op_wrapper_CCCC( StackSpinBlock * spinBlock )
   transpose_ = false;
   build_pattern_ = "0";
   // For disk-based storage
-  ifile_ = spinBlock_->get_op_array(CRE_CRE_CRE_CRE).get_filename();
+  opIndices_=4;
+
 }
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -491,7 +496,7 @@ bool Npdm_op_wrapper_CCCC::set_local_ops( int idx )
   }
   else {
 //pout << "...from disk...\n";
-    if( ! check_file_open(idx) ) abort();
+
 //FIXME combine 3-index and 4-indexx read from disk.... UNIFY......
     int size = spinBlock_->get_op_array(CRE_CRE_CRE_CRE).get_local_element(idx).size();
     assert( size == 6 );
@@ -499,12 +504,12 @@ bool Npdm_op_wrapper_CCCC::set_local_ops( int idx )
     // Read in all spin components for this set of spatial indices (note order matters)
     for ( int i=0; i<size; i++) {
       boost::shared_ptr<StackSparseMatrix> op (new StackCre);
-      boost::archive::binary_iarchive load_op(ifs_);
-      load_op >> *op;
+      //boost::archive::binary_iarchive load_op(ifs_);
+      //load_op >> *op;
       assert( op->get_built_on_disk() );
       opReps_.push_back(op);
     }
-    if( ! check_file_close(idx) ) abort();
+
   }
 
   build_pattern_ = opReps_.at(0)->get_build_pattern();

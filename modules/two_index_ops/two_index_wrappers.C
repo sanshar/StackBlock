@@ -33,6 +33,7 @@ Npdm_op_wrapper_DC::Npdm_op_wrapper_DC( StackSpinBlock * spinBlock )
   if(!dmrginp.spinAdapted()) factor_*=-1;
   transpose_ = false;
   build_pattern_ = "(DC)";
+  opIndices_=2;
 }
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -123,6 +124,7 @@ Npdm_op_wrapper_CC::Npdm_op_wrapper_CC( StackSpinBlock * spinBlock )
   factor_ = 1.0;
   transpose_ = false;
   build_pattern_ = "(CC)";
+  opIndices_=2;
 }
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -153,6 +155,7 @@ Npdm_op_wrapper_CD::Npdm_op_wrapper_CD( StackSpinBlock * spinBlock )
   is_local_ = spinBlock_->get_op_array(CRE_DES).is_local();
   factor_ = 1.0;
   build_pattern_ = "(CD)";
+  opIndices_=2;
 }
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -219,6 +222,7 @@ Npdm_op_wrapper_DD::Npdm_op_wrapper_DD( StackSpinBlock * spinBlock )
   factor_ = 1.0;
   transpose_ = false;
   build_pattern_ = "(DD)";
+  opIndices_=2;
 }
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -252,6 +256,7 @@ Npdm_op_wrapper_C::Npdm_op_wrapper_C( StackSpinBlock * spinBlock )
   factor_ = 1.0;
   transpose_ = false;
   build_pattern_ = "(C)";
+  opIndices_=1;
 }
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -284,6 +289,7 @@ Npdm_op_wrapper_D::Npdm_op_wrapper_D( StackSpinBlock * spinBlock )
     transpose_= false;
   }
   build_pattern_ = "(D)";
+  opIndices_=1;
 }
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -313,6 +319,7 @@ Npdm_op_wrapper_NULL::Npdm_op_wrapper_NULL(StackSpinBlock * spinBlock)
   factor_ = 1.0;
   transpose_ = false;
   build_pattern_ = "";
+  opIndices_=0;
 }
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------

@@ -225,6 +225,9 @@ void npdm_block_and_decimate( Npdm_driver_base& npdm_driver, SweepParams &sweepP
     //system.clear();
   }
 
+  pout << system <<endl;
+  system.printOperatorSummary();
+
   //newSystem.transform_operators(rotateMatrix,rotateMatrixB);
   p3out << "NPDM block and decimate and compute elements " << timer.elapsedwalltime() << " " << timer.elapsedcputime() << endl;
 

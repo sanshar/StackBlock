@@ -35,12 +35,14 @@ class NpdmSpinOps_base {
     NpdmSpinOps_base() = default;
 // FIXME Shallow copy constructor
     NpdmSpinOps_base( const NpdmSpinOps_base & obj ) {
-      opReps_ = obj.opReps_;
+      //opReps_ = obj.opReps_;  //dont copy opReps_
+      //opReps_.resize(obj.opReps_.size());
       build_pattern_ = obj.build_pattern_;
       transpose_ = obj.transpose_;
       factor_ = obj.factor_;
       indices_ = obj.indices_;
       is_local_ = obj.is_local_;
+      opIndices_ = obj.opIndices_;
     }
     virtual bool set_local_ops( int idx ) { abort(); }
 
@@ -57,6 +59,9 @@ class NpdmSpinOps_base {
     double factor_;
     // Effective spatial orbital indices (since due to use of transposition / commutation may not match OpRep.get_orbs() etc)
     std::vector<int> indices_;
+
+    //the number of indices of the operators stored in opReps_
+    int opIndices_=0;
 
 #ifndef SERIAL
 //FIXME put in implementation file
@@ -115,26 +120,20 @@ class NpdmSpinOps : public NpdmSpinOps_base {
     virtual boost::shared_ptr<NpdmSpinOps> getcopy() {return boost::shared_ptr<NpdmSpinOps>(new NpdmSpinOps(*this));}
 //FIXME public??
     // Input file stream for disk-based operators used to build NPDM
-    std::ifstream ifs_;
-    std::string ifile_;
+    //std::ifstream ifs_;
+    //std::string ifile_;
     // Number of spatial orbital combinations
     int size_;
 
     NpdmSpinOps() = default;
-  NpdmSpinOps( const NpdmSpinOps & obj ) : NpdmSpinOps_base(obj) {
-  
-      //FIXME
-      //ifstream is not copyable.
-      //Now, we do not copy it. 
-     // ifs_ = obj.ifs_;
-      ifile_ = obj.ifile_;
-      size_ = obj.size_;
+ NpdmSpinOps( const NpdmSpinOps & obj ) : NpdmSpinOps_base(obj) {
       spinBlock_ = obj.spinBlock_;
     }
 
     virtual std::vector< std::vector<int> > get_indices() { abort(); }
 //    virtual const std::vector< int >& get_1d_indices() { abort(); }
 
+    StackSpinBlock* spinBlock_;
   protected:
     //FIXME
     boost::shared_ptr<StackSparseMatrix> build_compound_operator( bool is_fermion, int sign,
@@ -142,24 +141,7 @@ class NpdmSpinOps : public NpdmSpinOps_base {
                                                              boost::shared_ptr<StackSparseMatrix> rhsOp,
                                                              int ispin, std::vector<int> indices, bool transpose );
 
-    StackSpinBlock* spinBlock_;
 
-    bool check_file_open( int idx ) 
-    { 
-      if ( idx == 0 ) {
-        assert( ! ifs_.is_open() );
-        ifs_.open(ifile_.c_str(), ios::binary); 
-      }
-      return ifs_.good();
-    }
-    bool check_file_close( int idx ) 
-    { 
-      if ( idx == (size_-1) ) {
-        assert( ifs_.is_open() );
-        ifs_.close(); 
-      }
-      return true;
-    }
 
 };
 

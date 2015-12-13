@@ -423,7 +423,7 @@ void StackSpinBlock::build_and_renormalise_operators(const std::vector<Matrix>& 
 void StackSpinBlock::build_and_renormalise_operators(const std::vector<Matrix>& leftMat, const StateInfo *bra, const std::vector<Matrix>& rightMat, const StateInfo *ket)
 {
   std::vector<boost::shared_ptr<StackSparseMatrix> >  allops;
-  std::vector< std::vector<boost::shared_ptr<StackSparseMatrix> > >  allopsOnDisk;
+  std::vector<boost::shared_ptr<StackSparseMatrix> >  allopsOnDisk;
   std::vector<std::string >  fileNames;
 
   //these are for the three index operators which are build on the disk
@@ -432,8 +432,10 @@ void StackSpinBlock::build_and_renormalise_operators(const std::vector<Matrix>& 
     opTypes ot = it->first;
     if(! it->second->is_core() && ot >= CRE_CRE_CRE) {
       for (int i=0; i<it->second->get_size(); i++) {
-	allopsOnDisk.push_back(it->second->get_local_element(i));
-	fileNames.push_back( it->second->get_filename());
+	for (int j=0; j<it->second->get_local_element(i).size(); j++) {
+	  allopsOnDisk.push_back(it->second->get_local_element(i)[j]);
+	  fileNames.push_back( it->second->get_filename());
+	}
       }
     }
   }
@@ -447,6 +449,86 @@ void StackSpinBlock::build_and_renormalise_operators(const std::vector<Matrix>& 
     }
   }
 
+  dmrginp.parallelrenorm->start();
+  SplitStackmem();
+  if (!dmrginp.do_npdm_in_core()){
+    //int threads = min(8, dmrginp.thrds_per_node()[mpigetrank()]);
+    vector<StackSparseMatrix> tmp(numthrds);
+#pragma omp parallel 
+    {
+      for (int I=0; I<allopsOnDisk.size()/numthrds+1; I++) {
+
+	size_t mem = Stackmem[omprank].memused;
+	double *ptr = Stackmem[omprank].data+mem;
+
+	if (omprank==0) {
+	  for (int thrd=0; thrd<numthrds; thrd++) {
+	    if (I*numthrds+thrd < allopsOnDisk.size()) {
+	      int i = I*numthrds+thrd;
+	      allopsOnDisk[i]->allocate(get_braStateInfo(), get_ketStateInfo());
+	      allopsOnDisk[i]->build(*this);
+	    }
+	  }
+	}
+
+#pragma omp barrier
+
+	if (I*numthrds+omprank < allopsOnDisk.size()) {
+	  int i = I*numthrds+omprank;
+	  
+	  tmp[omprank] = *allopsOnDisk[i];
+	  tmp[omprank].set_totalMemory() = 0; tmp[omprank].set_data(0); tmp[omprank].CleanUp();
+	  tmp[omprank].allocate(*bra, *ket);
+	  
+	  const std::vector<int>& lnewQuantaMap = bra->newQuantaMap;
+	  const std::vector<int>& rnewQuantaMap = ket->newQuantaMap;
+	  for (int newQ = 0; newQ < lnewQuantaMap.size(); newQ++)
+	    for (int newQPrime = 0; newQPrime < rnewQuantaMap.size(); newQPrime++) {
+	      if (tmp[omprank].allowed(newQ, newQPrime)) {
+		int Q = lnewQuantaMap[newQ], QPrime = rnewQuantaMap[newQPrime];
+		MatrixRotate(leftMat[Q], allopsOnDisk[i]->operator()(Q, QPrime), rightMat[QPrime], tmp[omprank](newQ, newQPrime));
+	      }
+	    }
+	}
+
+#pragma omp barrier
+	if (omprank==0) {
+	  for (int thrd=0; thrd<numthrds; thrd++) {
+	    if (I*numthrds+thrd < allopsOnDisk.size()) {
+	      int ix = tmp[thrd].get_orbs(0);
+	      int jx = tmp[thrd].get_orbs(1);
+	      int kx = tmp[thrd].get_orbs(2);
+	      std::vector<SpinQuantum> sq = tmp[thrd].get_quantum_ladder()[tmp[thrd].get_build_pattern()];
+	      string ladderop = to_string(sq[0].get_s().getirrep())+ to_string(sq[1].get_s().getirrep())+to_string(ix)+to_string(jx)+to_string(kx);
+	      std::ofstream ofs( (fileNames[I*numthrds+thrd]+ladderop).c_str(), std::ios::binary );	  
+	      tmp[thrd].SaveThreadSafe(ofs);
+	      ofs.close();	  
+	    }
+	  }
+	}
+
+#pragma omp barrier
+	Stackmem[omprank].deallocate(ptr, Stackmem[omprank].memused-mem);
+      }
+    }
+  }
+  else {
+#pragma omp parallel for schedule(dynamic) 
+    for (int i=0; i<allopsOnDisk.size(); i++) {
+	allopsOnDisk[i]->build_and_renormalise_transform(this, leftMat, bra, rightMat, ket);
+    }
+  }
+
+#pragma omp parallel for schedule(dynamic) 
+  for (int i=0; i<allops.size(); i++) {
+    allops[i]->build_and_renormalise_transform(this, leftMat, bra, rightMat, ket);
+  }
+
+  MergeStackmem();
+
+  dmrginp.parallelrenorm->stop();
+
+  /*
   dmrginp.parallelrenorm->start();
   SplitStackmem();
 #pragma omp parallel for schedule(static)
@@ -480,7 +562,7 @@ void StackSpinBlock::build_and_renormalise_operators(const std::vector<Matrix>& 
   }
   MergeStackmem();
   dmrginp.parallelrenorm->stop();
-
+  */
 }
 
 void StackSpinBlock::CleanUpOperators()
