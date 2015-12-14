@@ -527,185 +527,186 @@ void StackSpinBlock::messagePassTwoIndexOps()
     int dotopindex = dotindice[idx];
     int I = dotopindex;
     
-    //CDII should be broadcast to all procs
-    if (has(CRE_DESCOMP)) {
-      if (!ops[CRE_DESCOMP]->is_local() ) {
-	int fromproc = processorindex(trimap_2d(I, I, length));
+    for (int idx1 = idx; idx1 < dotindice.size(); ++idx1) {
+      //CDII should be broadcast to all procs
+      int J = dotindice[idx1];
+      if (J > I) {
+        int K = J; J = I; I = K;
+      }
+      if (has(CRE_DESCOMP)) {
+        if (!ops[CRE_DESCOMP]->is_local() ) {
+	        int fromproc = processorindex(trimap_2d(I, J, length));
 
-	//take the CDComp(I,I) where I=dot index and broadcast it
-	if( ops[CRE_DESCOMP]->has(I,I) ) {
-	  if (fromproc != mpigetrank()) ops[CRE_DESCOMP]->add_local_indices(I,I);
-	  
-	  std::vector<boost::shared_ptr<StackSparseMatrix> > oparray = ops[CRE_DESCOMP]->get_element(I,I);
-	  for (int iproc =0; iproc<oparray.size(); iproc++) {
-	    //this only broadcasts the frame but no data
-	    mpi::broadcast(calc, *oparray[iproc], fromproc);
-	    
-	    //now allocate the data when it is not already there
-	    if (fromproc != mpigetrank()) {
-	      double *data = Stackmem[omprank].allocate(oparray[iproc]->memoryUsed());
-	      oparray[iproc]->set_data(data);
-	      if (additionalMemory == 0) 
-		additionaldata=data; 
-	      additionalMemory+=oparray[iproc]->memoryUsed();
-	      
-	      oparray[iproc]->allocateOperatorMatrix();
-	    }
+	        //take the CDComp(I,I) where I=dot index and broadcast it
+	        if( ops[CRE_DESCOMP]->has(I,J) ) {
+	          if (fromproc != mpigetrank()) ops[CRE_DESCOMP]->add_local_indices(I,J);
+	          
+	          std::vector<boost::shared_ptr<StackSparseMatrix> > oparray = ops[CRE_DESCOMP]->get_element(I,J);
+	          for (int iproc =0; iproc<oparray.size(); iproc++) {
+	            //this only broadcasts the frame but no data
+	            mpi::broadcast(calc, *oparray[iproc], fromproc);
+	            
+	            //now allocate the data when it is not already there
+	            if (fromproc != mpigetrank()) {
+	              double *data = Stackmem[omprank].allocate(oparray[iproc]->memoryUsed());
+	              oparray[iproc]->set_data(data);
+	              if (additionalMemory == 0) 
+	        	additionaldata=data; 
+	              additionalMemory+=oparray[iproc]->memoryUsed();
+	              
+	              oparray[iproc]->allocateOperatorMatrix();
+	            }
 
-	    
-	    //now broadcast the data
-	    MPI_Bcast(oparray[iproc]->get_data(), oparray[iproc]->memoryUsed(), MPI_DOUBLE, fromproc, Calc);
-	  }
-	}
+	            
+	            //now broadcast the data
+	            MPI_Bcast(oparray[iproc]->get_data(), oparray[iproc]->memoryUsed(), MPI_DOUBLE, fromproc, Calc);
+	          }
+	        }
 	
-	//take the DDComp(I,I) where I=dot index and broadcast it
-	if( ops[DES_DESCOMP]->has(I,I) ) {
-	  if (fromproc != mpigetrank()) ops[DES_DESCOMP]->add_local_indices(I,I);
-	  
-	  std::vector<boost::shared_ptr<StackSparseMatrix> > oparray = ops[DES_DESCOMP]->get_element(I,I);
-	  for (int iproc =0; iproc<oparray.size(); iproc++) {
-	    //this only broadcasts the frame but no data
-	    mpi::broadcast(calc, *oparray[iproc], fromproc);
-	    
-	    //now allocate the data when it is not already there
-	    if (fromproc != mpigetrank()) {
-	      double *data = Stackmem[omprank].allocate(oparray[iproc]->memoryUsed());
-	      oparray[iproc]->set_data(data);
-	      if (additionalMemory == 0) 
-		additionaldata=data; 
-	      additionalMemory+=oparray[iproc]->memoryUsed();
-	      
-	      oparray[iproc]->allocateOperatorMatrix();
-	    }
-	    
-	    //now broadcast the data
-	    MPI_Bcast(oparray[iproc]->get_data(), oparray[iproc]->memoryUsed(), MPI_DOUBLE, fromproc, Calc);
-	  }
-	}
+	        //take the DDComp(I,I) where I=dot index and broadcast it
+	        if( ops[DES_DESCOMP]->has(I,J) ) {
+	          if (fromproc != mpigetrank()) ops[DES_DESCOMP]->add_local_indices(I,J);
+	          
+	          std::vector<boost::shared_ptr<StackSparseMatrix> > oparray = ops[DES_DESCOMP]->get_element(I,J);
+	          for (int iproc =0; iproc<oparray.size(); iproc++) {
+	            //this only broadcasts the frame but no data
+	            mpi::broadcast(calc, *oparray[iproc], fromproc);
+	            
+	            //now allocate the data when it is not already there
+	            if (fromproc != mpigetrank()) {
+	              double *data = Stackmem[omprank].allocate(oparray[iproc]->memoryUsed());
+	              oparray[iproc]->set_data(data);
+	              if (additionalMemory == 0) 
+	        	additionaldata=data; 
+	              additionalMemory+=oparray[iproc]->memoryUsed();
+	              
+	              oparray[iproc]->allocateOperatorMatrix();
+	            }
+	            
+	            //now broadcast the data
+	            MPI_Bcast(oparray[iproc]->get_data(), oparray[iproc]->memoryUsed(), MPI_DOUBLE, fromproc, Calc);
+	          }
+	        }
 	
-	//take the DCComp(I,I) and CCComp(I,I) where I=dot index and broadcast it
-	if (has(DES) ) {
-	  if( ops[CRE_CRECOMP]->has(I,I) ) {
-	    if (fromproc != mpigetrank()) ops[CRE_CRECOMP]->add_local_indices(I,I);
-	    
-	    std::vector<boost::shared_ptr<StackSparseMatrix> > oparray = ops[CRE_CRECOMP]->get_element(I,I);
-	    for (int iproc =0; iproc<oparray.size(); iproc++) {
-	      //this only broadcasts the frame but no data
-	      mpi::broadcast(calc, *oparray[iproc], fromproc);
-	      
-	      //now allocate the data when it is not already there
-	      if (fromproc != mpigetrank()) {
-		double *data = Stackmem[omprank].allocate(oparray[iproc]->memoryUsed());
-		oparray[iproc]->set_data(data);
-		if (additionalMemory == 0) 
-		  additionaldata=data; 
-		additionalMemory+=oparray[iproc]->memoryUsed();
-		
-		oparray[iproc]->allocateOperatorMatrix();
-	      }
-	      
-	      //now broadcast the data
-	      MPI_Bcast(oparray[iproc]->get_data(), oparray[iproc]->memoryUsed(), MPI_DOUBLE, fromproc, Calc);
-	    }
-	  }
-	  if( ops[DES_CRECOMP]->has(I,I) ) {
-	    if (fromproc != mpigetrank()) ops[DES_CRECOMP]->add_local_indices(I,I);
-	    
-	    std::vector<boost::shared_ptr<StackSparseMatrix> > oparray = ops[DES_CRECOMP]->get_element(I,I);
-	    for (int iproc =0; iproc<oparray.size(); iproc++) {
-	      //this only broadcasts the frame but no data
-	      mpi::broadcast(calc, *oparray[iproc], fromproc);
-	      
-	      //now allocate the data when it is not already there
-	      if (fromproc != mpigetrank()) {
-		double *data = Stackmem[omprank].allocate(oparray[iproc]->memoryUsed());
-		oparray[iproc]->set_data(data);
-		if (additionalMemory == 0) 
-		  additionaldata=data; 
-		additionalMemory+=oparray[iproc]->memoryUsed();
-		
-		oparray[iproc]->allocateOperatorMatrix();
-	      }
-	      
-	      //now broadcast the data
-	      MPI_Bcast(oparray[iproc]->get_data(), oparray[iproc]->memoryUsed(), MPI_DOUBLE, fromproc, Calc);
-	    }
-	  }
-	}
+	        //take the DCComp(I,I) and CCComp(I,I) where I=dot index and broadcast it
+	        if (has(DES) ) {
+	          if( ops[CRE_CRECOMP]->has(I,J) ) {
+	            if (fromproc != mpigetrank()) ops[CRE_CRECOMP]->add_local_indices(I,J);
+	            
+	            std::vector<boost::shared_ptr<StackSparseMatrix> > oparray = ops[CRE_CRECOMP]->get_element(I,J);
+	            for (int iproc =0; iproc<oparray.size(); iproc++) {
+	              //this only broadcasts the frame but no data
+	              mpi::broadcast(calc, *oparray[iproc], fromproc);
+	              
+	              //now allocate the data when it is not already there
+	              if (fromproc != mpigetrank()) {
+	        	double *data = Stackmem[omprank].allocate(oparray[iproc]->memoryUsed());
+	        	oparray[iproc]->set_data(data);
+	        	if (additionalMemory == 0) 
+	        	  additionaldata=data; 
+	        	additionalMemory+=oparray[iproc]->memoryUsed();
+	        	
+	        	oparray[iproc]->allocateOperatorMatrix();
+	              }
+	              
+	              //now broadcast the data
+	              MPI_Bcast(oparray[iproc]->get_data(), oparray[iproc]->memoryUsed(), MPI_DOUBLE, fromproc, Calc);
+	            }
+	          }
+	          if( ops[DES_CRECOMP]->has(I,J) ) {
+	            if (fromproc != mpigetrank()) ops[DES_CRECOMP]->add_local_indices(I,J);
+	            
+	            std::vector<boost::shared_ptr<StackSparseMatrix> > oparray = ops[DES_CRECOMP]->get_element(I,J);
+	            for (int iproc =0; iproc<oparray.size(); iproc++) {
+	              //this only broadcasts the frame but no data
+	              mpi::broadcast(calc, *oparray[iproc], fromproc);
+	              
+	              //now allocate the data when it is not already there
+	              if (fromproc != mpigetrank()) {
+	        	double *data = Stackmem[omprank].allocate(oparray[iproc]->memoryUsed());
+	        	oparray[iproc]->set_data(data);
+	        	if (additionalMemory == 0) 
+	        	  additionaldata=data; 
+	        	additionalMemory+=oparray[iproc]->memoryUsed();
+	        	
+	        	oparray[iproc]->allocateOperatorMatrix();
+	              }
+	              
+	              //now broadcast the data
+	              MPI_Bcast(oparray[iproc]->get_data(), oparray[iproc]->memoryUsed(), MPI_DOUBLE, fromproc, Calc);
+	            }
+	          }
+	        }
+        }
 	
-	
-	for (int i=0; i<complementary_sites.size(); i++) {
-	  int compsite = complementary_sites[i];
-	  if (std::find(dotindice.begin(), dotindice.end(), compsite) != dotindice.end())
-	    continue;
-	  int I = (compsite > dotopindex) ? compsite : dotopindex;
-	  int J = (compsite > dotopindex) ? dotopindex : compsite;
-	  
-	  if (processorindex(compsite) == processorindex(trimap_2d(I, J, length)) || ops[CRE_DESCOMP]->is_local())
-	    continue;
-	  
-	  if (processorindex(compsite) == mpigetrank()) {
-	    //this will potentially receive some ops        
-	    bool other_proc_has_ops = true;
-	    calc.recv(processorindex(trimap_2d(I, J, length)), 0, other_proc_has_ops);
-	    if (other_proc_has_ops) {
-	      ops[CRE_DESCOMP]->add_local_indices(I, J);
-	      recvcompOps(*ops[CRE_DESCOMP], I, J, CRE_DESCOMP);
-	    }
-	    
-	    other_proc_has_ops = true;
-	    calc.recv(processorindex(trimap_2d(I, J, length)), 0, other_proc_has_ops);
-	    if (other_proc_has_ops) {
-	      ops[DES_DESCOMP]->add_local_indices(I, J);
-	      recvcompOps(*ops[DES_DESCOMP], I, J, DES_DESCOMP);
-	    }
-	    
-	    if (has(DES)) {
-	      other_proc_has_ops = true;
-	      calc.recv(processorindex(trimap_2d(I, J, length)), 0, other_proc_has_ops);
-	      if (other_proc_has_ops) {
-		ops[CRE_CRECOMP]->add_local_indices(I, J);
-		recvcompOps(*ops[CRE_CRECOMP], I, J, CRE_CRECOMP);
+	      for (int i=0; i<complementary_sites.size(); i++) {
+	        int compsite = complementary_sites[i];
+	        if (std::find(dotindice.begin(), dotindice.end(), compsite) != dotindice.end())
+	          continue;
+	        int I = (compsite > dotopindex) ? compsite : dotopindex;
+	        int J = (compsite > dotopindex) ? dotopindex : compsite;
+	        
+	        if (processorindex(compsite) == processorindex(trimap_2d(I, J, length)) || ops[CRE_DESCOMP]->is_local())
+	          continue;
+	        
+	        if (processorindex(compsite) == mpigetrank()) {
+	          //this will potentially receive some ops        
+	          bool other_proc_has_ops = true;
+	          calc.recv(processorindex(trimap_2d(I, J, length)), 0, other_proc_has_ops);
+	          if (other_proc_has_ops) {
+	            ops[CRE_DESCOMP]->add_local_indices(I, J);
+	            recvcompOps(*ops[CRE_DESCOMP], I, J, CRE_DESCOMP);
+	          }
+	          
+	          other_proc_has_ops = true;
+	          calc.recv(processorindex(trimap_2d(I, J, length)), 0, other_proc_has_ops);
+	          if (other_proc_has_ops) {
+	            ops[DES_DESCOMP]->add_local_indices(I, J);
+	            recvcompOps(*ops[DES_DESCOMP], I, J, DES_DESCOMP);
+	          }
+	          
+	          if (has(DES)) {
+	            other_proc_has_ops = true;
+	            calc.recv(processorindex(trimap_2d(I, J, length)), 0, other_proc_has_ops);
+	            if (other_proc_has_ops) {
+	      	      ops[CRE_CRECOMP]->add_local_indices(I, J);
+	      	      recvcompOps(*ops[CRE_CRECOMP], I, J, CRE_CRECOMP);
+	            }
+	            other_proc_has_ops = true;
+	            calc.recv(processorindex(trimap_2d(I, J, length)), 0, other_proc_has_ops);
+	            if (other_proc_has_ops) {
+	      	      ops[DES_CRECOMP]->add_local_indices(I, J);
+	      	      recvcompOps(*ops[DES_CRECOMP], I, J, DES_CRECOMP);
+	            }
+	          }
+	        } else {
+	          //this will potentially send some ops
+	          if (processorindex(trimap_2d(I, J, length)) == mpigetrank()) {
+	            bool this_proc_has_ops = ops[CRE_DESCOMP]->has_local_index(I, J);
+	            calc.send(processorindex(compsite), 0, this_proc_has_ops);
+	            if (this_proc_has_ops) {
+	      	      sendcompOps(*ops[CRE_DESCOMP], I, J, CRE_DESCOMP, compsite);
+	            }
+	            this_proc_has_ops = ops[DES_DESCOMP]->has_local_index(I, J);
+	            calc.send(processorindex(compsite), 0, this_proc_has_ops);
+	            if (this_proc_has_ops) {
+	      	      sendcompOps(*ops[DES_DESCOMP], I, J, DES_DESCOMP, compsite);     
+	            }
+	            if (has(DES)) {
+	      	      this_proc_has_ops = ops[CRE_CRECOMP]->has_local_index(I, J);
+	      	      calc.send(processorindex(compsite), 0, this_proc_has_ops);
+	      	      if (this_proc_has_ops) {
+	      	        sendcompOps(*ops[CRE_CRECOMP], I, J, CRE_CRECOMP, compsite);     
+	      	      }
+	      	      this_proc_has_ops = ops[DES_CRECOMP]->has_local_index(I, J);
+	      	      calc.send(processorindex(compsite), 0, this_proc_has_ops);
+	      	      if (this_proc_has_ops) {
+	      	        sendcompOps(*ops[DES_CRECOMP], I, J, DES_CRECOMP, compsite);     
+	      	      }
+	            }
+	          } else continue;
+	        }
 	      }
-	      other_proc_has_ops = true;
-	      calc.recv(processorindex(trimap_2d(I, J, length)), 0, other_proc_has_ops);
-	      if (other_proc_has_ops) {
-		ops[DES_CRECOMP]->add_local_indices(I, J);
-		recvcompOps(*ops[DES_CRECOMP], I, J, DES_CRECOMP);
-	      }
-	    }
-	  } 
-	  else {
-	    //this will potentially send some ops
-	    if (processorindex(trimap_2d(I, J, length)) == mpigetrank()) {
-	      bool this_proc_has_ops = ops[CRE_DESCOMP]->has_local_index(I, J);
-	      calc.send(processorindex(compsite), 0, this_proc_has_ops);
-	      if (this_proc_has_ops) {
-		sendcompOps(*ops[CRE_DESCOMP], I, J, CRE_DESCOMP, compsite);
-	      }
-	      this_proc_has_ops = ops[DES_DESCOMP]->has_local_index(I, J);
-	      calc.send(processorindex(compsite), 0, this_proc_has_ops);
-	      if (this_proc_has_ops) {
-		sendcompOps(*ops[DES_DESCOMP], I, J, DES_DESCOMP, compsite);     
-	      }
-	      if (has(DES)) {
-		this_proc_has_ops = ops[CRE_CRECOMP]->has_local_index(I, J);
-		calc.send(processorindex(compsite), 0, this_proc_has_ops);
-		if (this_proc_has_ops) {
-		  sendcompOps(*ops[CRE_CRECOMP], I, J, CRE_CRECOMP, compsite);     
-		}
-		this_proc_has_ops = ops[DES_CRECOMP]->has_local_index(I, J);
-		calc.send(processorindex(compsite), 0, this_proc_has_ops);
-		if (this_proc_has_ops) {
-		  sendcompOps(*ops[DES_CRECOMP], I, J, DES_CRECOMP, compsite);     
-		}
-	      }
-	      
-	    } 
-	    else 
-	      continue;
-	  }
-	}
       }
     }
   }
