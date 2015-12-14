@@ -69,7 +69,6 @@ class StackSparseMatrix : public Baseoperator<StackMatrix>  // the sparse matrix
          & built \
 	 & built_on_disk \
 	 & allowedQuantaMatrix \
-	& operatorMatrix \
          & Sign \
 	& orbs \
 	& rowCompressedForm \
@@ -84,7 +83,6 @@ class StackSparseMatrix : public Baseoperator<StackMatrix>  // the sparse matrix
  protected:
   long totalMemory; //the length of the data
   double* data;    //the data which this object does not own
-  ObjectMatrix<StackMatrix> operatorMatrix;  // The StackMatrix does not own its data
 
   char conj;
   std::vector<int> orbs;
@@ -112,7 +110,7 @@ class StackSparseMatrix : public Baseoperator<StackMatrix>  // the sparse matrix
   orbs(a.get_orbs()), deltaQuantum(a.get_deltaQuantum()), fermion(a.get_fermion()), quantum_ladder(a.quantum_ladder), build_pattern(a.build_pattern),
     initialised(a.get_initialised()), allowedQuantaMatrix(a.get_allowedQuantaMatrix()), 
     Sign(a.get_sign()), totalMemory(a.totalMemory), data(a.data), conj('n'), built(a.built),
-    operatorMatrix(a.operatorMatrix), rowCompressedForm(a.rowCompressedForm), built_on_disk(a.built_on_disk),
+    rowCompressedForm(a.rowCompressedForm), built_on_disk(a.built_on_disk),
     colCompressedForm(a.colCompressedForm), nonZeroBlocks(a.nonZeroBlocks), mapToNonZeroBlocks(a.mapToNonZeroBlocks), filename(a.filename) 
     {};
 
@@ -135,8 +133,8 @@ class StackSparseMatrix : public Baseoperator<StackMatrix>  // the sparse matrix
   const double* get_data() const {return data;}
   long& set_totalMemory() {return totalMemory;}
   void set_data(double* pData) {data = pData;}
-  void deepCopy(const StackSparseMatrix& o) ;
-  void deepClearCopy(const StackSparseMatrix& o) ;
+  virtual void deepCopy(const StackSparseMatrix& o) ;
+  virtual void deepClearCopy(const StackSparseMatrix& o) ;
   virtual string opName() const {return "None";}
   //I cannot simply allow resize because resizing should be accompanied with appropriate data allocation first
   //void resize(int n, int c) { operatorMatrix.ReSize(n, c); allowedQuantaMatrix.ReSize(n, c); }
@@ -198,8 +196,6 @@ class StackSparseMatrix : public Baseoperator<StackMatrix>  // the sparse matrix
     //else return operatorMatrix(j, i);
   }
 
-  ObjectMatrix<StackMatrix>& get_operatorMatrix() {return operatorMatrix;}
-  const ObjectMatrix<StackMatrix>& get_operatorMatrix() const {return operatorMatrix;}
   friend ostream& operator<<(ostream& os, const StackSparseMatrix& a);
   void operator=(const StackSparseMatrix& m);
   void Randomise();
@@ -212,7 +208,6 @@ class StackSparseMatrix : public Baseoperator<StackMatrix>  // the sparse matrix
   void Save(std::ofstream &ofs) const;
   void Load(std::ifstream &ifs, bool allocateData);
 
-  void OperatorMatrixReference(ObjectMatrix<StackMatrix*>& m, const std::vector<int>& oldToNewStateI, const std::vector<int>& oldToNewStateJ);
 
   virtual ~StackSparseMatrix(){};
   int nrows() const { 

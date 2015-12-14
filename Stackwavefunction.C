@@ -159,6 +159,7 @@ void SpinAdapted::StackWavefunction::SaveWavefunctionInfo (const StateInfo &wave
 	save_wave << *(waveInfo.rightStateInfo->leftStateInfo) << *(waveInfo.rightStateInfo->rightStateInfo);
 
       this->Save (ofs);
+      save_wave << operatorMatrix;
       ofs.close();
     }
   dmrginp.diskwo->stop();
@@ -183,6 +184,7 @@ void SpinAdapted::StackWavefunction::LoadWavefunctionInfo (StateInfo &waveInfo, 
 	load_wave >> *(waveInfo.rightStateInfo->leftStateInfo) >> *(waveInfo.rightStateInfo->rightStateInfo);
 
       this->Load (ifs, allocateData);
+      load_wave >> operatorMatrix;
       ifs.close();
       allocateWfnOperatorMatrix(); 
     }
@@ -295,6 +297,18 @@ void SpinAdapted::StackWavefunction::UnCollectQuantaAlongRows (const StateInfo& 
     }
 }
 
+void SpinAdapted::StackWavefunction::OperatorMatrixReference(ObjectMatrix<StackMatrix*>& m, const std::vector<int>& oldToNewStateI, const std::vector<int>& oldToNewStateJ)
+{
+  int rows = oldToNewStateI.size ();
+  int cols = oldToNewStateJ.size ();
+  m.ReSize (rows, cols);
+  for (int i = 0; i < rows; ++i)
+    for (int j = 0; j < cols; ++j)
+    {
+	  assert (allowedQuantaMatrix (oldToNewStateI [i], oldToNewStateJ [j]));
+	  m (i,j) = &operatorMatrix(oldToNewStateI [i], oldToNewStateJ [j]);
+    }
+}
 
 
 void SpinAdapted::StackWavefunction::CollectQuantaAlongColumns (const StateInfo& sRow, const StateInfo& sCol)
@@ -347,6 +361,21 @@ void SpinAdapted::StackWavefunction::CollectQuantaAlongColumns (const StateInfo&
   //mdebugcheck("after collectquantaalongcolumns");
 }
 
+void SpinAdapted::StackWavefunction::deepCopy(const StackWavefunction& o)
+{
+  *this = o;
+  data = Stackmem[omprank].allocate(totalMemory);
+  DCOPY(totalMemory, o.data, 1, data, 1);
+  allocateWfnOperatorMatrix();
+}
+
+void SpinAdapted::StackWavefunction::deepClearCopy(const StackWavefunction& o)
+{
+  *this = o;
+  data = Stackmem[omprank].allocate(totalMemory);
+  memset(data, 0, totalMemory*sizeof(double));
+  allocateWfnOperatorMatrix();
+}
 
 void  SpinAdapted::StackWavefunction::UnCollectQuantaAlongColumns (const StateInfo& sRow, const StateInfo& sCol)
 {
