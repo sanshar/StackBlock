@@ -22,19 +22,19 @@ private:
   void serialize(Archive & ar, const unsigned int version)
   {
     ar & boost::serialization::base_object<StackSparseMatrix>(*this);
-    ar & operatorMatrix;
     ar & onedot;
   } 
   bool onedot;
-  ObjectMatrix<StackMatrix> operatorMatrix;  // The StackMatrix does not own its data
+  //ObjectMatrix<StackMatrix> operatorMatrix;  // The StackMatrix does not own its data
 public:
  StackWavefunction() : onedot(false), StackSparseMatrix(){}
- StackWavefunction(const StackWavefunction& wf) : StackSparseMatrix(wf), onedot(wf.onedot), operatorMatrix(wf.operatorMatrix) {}
+ StackWavefunction(const StackWavefunction& wf) : StackSparseMatrix(wf), onedot(wf.onedot){}
 
-  void operator=(const StackWavefunction& wf) {StackSparseMatrix::operator=(wf); onedot=wf.onedot; operatorMatrix = wf.operatorMatrix;}
-  ObjectMatrix<StackMatrix>& get_operatorMatrix() {return operatorMatrix;}
-  void OperatorMatrixReference(ObjectMatrix<StackMatrix*>& m, const std::vector<int>& oldToNewStateI, const std::vector<int>& oldToNewStateJ);
-  const ObjectMatrix<StackMatrix>& get_operatorMatrix() const {return operatorMatrix;}
+  void copyData(const StackWavefunction& a);
+  void operator=(const StackWavefunction& wf) {StackSparseMatrix::operator=(wf); onedot=wf.onedot;}
+  //ObjectMatrix<StackMatrix>& get_operatorMatrix() {return operatorMatrix;}
+  //void OperatorMatrixReference(ObjectMatrix<StackMatrix*>& m, const std::vector<int>& oldToNewStateI, const std::vector<int>& oldToNewStateJ);
+  //const ObjectMatrix<StackMatrix>& get_operatorMatrix() const {return operatorMatrix;}
   void initialise(const vector<SpinQuantum>& dQ, const StateInfo& sl, const StateInfo& sr, const bool &onedot_, double* pData, long ptotalMemory);  
   void initialise(const vector<SpinQuantum>& dQ, const StateInfo& sl, const StateInfo& sr, const bool &onedot_);  
   void initialise(const StackWavefunction& w);

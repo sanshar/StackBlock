@@ -35,257 +35,292 @@ long SpinAdapted::getRequiredMemoryForWavefunction(const StateInfo& sr, const St
   return memory;
 }
 
-double* SpinAdapted::StackWavefunction::allocateWfnOperatorMatrix()
-{
-  long index = 0;
-  for (int i=0; i<nonZeroBlocks.size(); i++) {
-    int lQ = nonZeroBlocks[i].first.first, rQ = nonZeroBlocks[i].first.second;
-    operatorMatrix(lQ,rQ).allocate(&data[index], operatorMatrix(lQ, rQ).Nrows(), operatorMatrix(lQ, rQ).Ncols());
-    index += operatorMatrix(lQ, rQ).Nrows()* operatorMatrix(lQ, rQ).Ncols()+ CACHEBUFFER;
-    nonZeroBlocks[i].second= operatorMatrix(lQ,rQ);
-    mapToNonZeroBlocks.insert(std::pair< std::pair<int, int>, int>(std::pair<int, int>(lQ, rQ), i));
-  }
-  totalMemory = index;
-  return &data[index];
-}
+void SpinAdapted::StackWavefunction::copyData(const StackWavefunction& a) {
+  for (int i=0; i<a.nonZeroBlocks.size(); i++) {
+    int lQ = a.nonZeroBlocks[i].first.first, rQ = a.nonZeroBlocks[i].first.second;
+    //assert(lQ == nonZeroBlocks[i].first.first && rQ == nonZeroBlocks[i].first.second);
+    
+    copy(a.nonZeroBlocks[i].second, operator()(lQ, rQ));
+   }
+   return ;
 
-void SpinAdapted::StackWavefunction::initialise(const StackWavefunction& w)
-{
-  *this = w;
-  data = Stackmem[omprank].allocate(totalMemory);
-
-  long index = 0;
-  for (int i = 0; i<nonZeroBlocks.size(); i++) {
-    int lQ = nonZeroBlocks[i].first.first, rQ = nonZeroBlocks[i].first.second;
-    operatorMatrix(lQ,rQ).allocate(&data[index], operatorMatrix(lQ, rQ).Nrows(), operatorMatrix(lQ, rQ).Ncols());
-    index += operatorMatrix(lQ, rQ).Nrows()* operatorMatrix(lQ, rQ).Ncols()+ CACHEBUFFER;
-    nonZeroBlocks[i].second= operatorMatrix(lQ,rQ);
-    mapToNonZeroBlocks.insert(std::pair< std::pair<int, int>, int>(std::pair<int, int>(lQ, rQ), i));
-  }
-  if (index != totalMemory) exit(0);
-}
-
-void SpinAdapted::StackWavefunction::initialise(const vector<SpinQuantum>& dQ, const StateInfo& sl, const StateInfo& sr, const bool &onedot_)
-{
-  long totalMemory = getRequiredMemoryForWavefunction(sl, sr, dQ);
-  double* data = Stackmem[omprank].allocate(totalMemory);
-  //memset(data, 0, totalMemory*sizeof(double));
-  initialise(dQ, sl, sr, onedot_, data, totalMemory);  
-}
+ }
 
 
-void SpinAdapted::StackWavefunction::initialise(const vector<SpinQuantum>& dQ, const StateInfo& sl, const StateInfo& sr, const bool &onedot_, double* pData, long ptotalMemory)
-{
-  // initialized a ket wavefunction
-  operatorMatrix.resize(0,0);
-  data = pData;
-  totalMemory = ptotalMemory;
-  initialised = true;
-  fermion = false;
-  built = true;
-  deltaQuantum = dQ;
-  onedot = onedot_; 
+ double* SpinAdapted::StackWavefunction::allocateWfnOperatorMatrix()
+ {
+   long index = 0;
+   for (int i=0; i<nonZeroBlocks.size(); i++) {
+     int lQ = nonZeroBlocks[i].first.first, rQ = nonZeroBlocks[i].first.second;
+     StackMatrix m(&data[index], operator()(lQ, rQ).Nrows(), operator()(lQ, rQ).Ncols());
+     //operatorMatrix(lQ,rQ).allocate(&data[index], operatorMatrix(lQ, rQ).Nrows(), operatorMatrix(lQ, rQ).Ncols());
+     index += operator()(lQ, rQ).Nrows()* operator()(lQ, rQ).Ncols()+ CACHEBUFFER;
+     nonZeroBlocks[i].second= m;
+     mapToNonZeroBlocks.insert(std::pair< std::pair<int, int>, int>(std::pair<int, int>(lQ, rQ), i));
+   }
+   totalMemory = index;
+   return &data[index];
+ }
+
+ void SpinAdapted::StackWavefunction::initialise(const StackWavefunction& w)
+ {
+   *this = w;
+   data = Stackmem[omprank].allocate(totalMemory);
+
+   long index = 0;
+   for (int i = 0; i<nonZeroBlocks.size(); i++) {
+     int lQ = nonZeroBlocks[i].first.first, rQ = nonZeroBlocks[i].first.second;
+     StackMatrix m(&data[index], operator()(lQ, rQ).Nrows(), operator()(lQ, rQ).Ncols());
+     //operatorMatrix(lQ,rQ).allocate(&data[index], operatorMatrix(lQ, rQ).Nrows(), operatorMatrix(lQ, rQ).Ncols());
+     index += operator()(lQ, rQ).Nrows()* operator()(lQ, rQ).Ncols()+ CACHEBUFFER;
+     nonZeroBlocks[i].second= m;
+     mapToNonZeroBlocks.insert(std::pair< std::pair<int, int>, int>(std::pair<int, int>(lQ, rQ), i));
+   }
+   if (index != totalMemory) exit(0);
+ }
+
+ void SpinAdapted::StackWavefunction::initialise(const vector<SpinQuantum>& dQ, const StateInfo& sl, const StateInfo& sr, const bool &onedot_)
+ {
+   long totalMemory = getRequiredMemoryForWavefunction(sl, sr, dQ);
+   double* data = Stackmem[omprank].allocate(totalMemory);
+   //memset(data, 0, totalMemory*sizeof(double));
+   initialise(dQ, sl, sr, onedot_, data, totalMemory);  
+ }
 
 
-  nonZeroBlocks.resize(0);
-  mapToNonZeroBlocks.clear();
-  rowCompressedForm.clear();rowCompressedForm.resize(sl.quanta.size(), vector<int>());
-  colCompressedForm.clear();colCompressedForm.resize(sr.quanta.size(), vector<int>());
-  operatorMatrix.resize(sl.quanta.size (), sr.quanta.size ());
-  allowedQuantaMatrix.resize(sl.quanta.size (), sr.quanta.size ());
-
-  long index = 0;
-  for (int lQ = 0; lQ < sl.quanta.size (); ++lQ)
-    for (int rQ = 0; rQ < sr.quanta.size (); ++rQ) {
-      allowedQuantaMatrix(lQ, rQ) = false;
-      for (int i = 0; i < deltaQuantum.size(); ++i)
-        if (deltaQuantum[i].allow(sl.quanta [lQ] , sr.quanta [rQ])) {
-          allowedQuantaMatrix(lQ, rQ) = true;
-	  rowCompressedForm[lQ].push_back(rQ);
-	  colCompressedForm[rQ].push_back(lQ);
-          break;
-        }
-
-      if (allowedQuantaMatrix(lQ, rQ))
-      {
-	operatorMatrix(lQ,rQ).allocate(&data[index], sl.quantaStates [lQ], sr.quantaStates [rQ]);
-	index += sl.quantaStates [lQ]* sr.quantaStates [rQ]+ CACHEBUFFER;
-	nonZeroBlocks.push_back(std::pair< std::pair<int, int> , StackMatrix>( std::pair<int,int>(lQ,rQ), operatorMatrix(lQ,rQ)));
-	mapToNonZeroBlocks.insert(std::pair< std::pair<int, int>, int>(std::pair<int, int>(lQ, rQ), nonZeroBlocks.size()-1));
-      }
-
-    }
-
-}
+ void SpinAdapted::StackWavefunction::initialise(const vector<SpinQuantum>& dQ, const StateInfo& sl, const StateInfo& sr, const bool &onedot_, double* pData, long ptotalMemory)
+ {
+   // initialized a ket wavefunction
+   //operatorMatrix.resize(0,0);
+   data = pData;
+   totalMemory = ptotalMemory;
+   initialised = true;
+   fermion = false;
+   built = true;
+   deltaQuantum = dQ;
+   onedot = onedot_; 
 
 
-/*
-void SpinAdapted::StackWavefunction::FlattenInto (Matrix& C)
-{
-  C.ReSize(totalMemory,1);
-  DCOPY(totalMemory, data, 1, C.Store(), 1);
-}
-*/
+   nonZeroBlocks.resize(0);
+   mapToNonZeroBlocks.clear();
+   rowCompressedForm.clear();rowCompressedForm.resize(sl.quanta.size(), vector<int>());
+   colCompressedForm.clear();colCompressedForm.resize(sr.quanta.size(), vector<int>());
+   //operatorMatrix.resize(sl.quanta.size (), sr.quanta.size ());
+   allowedQuantaMatrix.resize(sl.quanta.size (), sr.quanta.size ());
 
-void SpinAdapted::StackWavefunction::CollectFrom (const RowVector& C)
-{
-  assert(totalMemory == C.Storage());
-  long index = 0;
-  for (int lQ = 0; lQ < nrows(); ++lQ)
-  for (int rQ = 0; rQ < ncols(); ++rQ)
-  if (allowed(lQ, rQ)) {
-    int copysize = operatorMatrix(lQ, rQ).Nrows()* operatorMatrix(lQ, rQ).Ncols();
-    DCOPY(copysize, C.Store()+(index), 1, operatorMatrix(lQ, rQ).Store(), 1);
-    index += copysize;
-  }
-}
+   long index = 0;
+   for (int lQ = 0; lQ < sl.quanta.size (); ++lQ)
+     for (int rQ = 0; rQ < sr.quanta.size (); ++rQ) {
+       allowedQuantaMatrix(lQ, rQ) = false;
+       for (int i = 0; i < deltaQuantum.size(); ++i)
+	 if (deltaQuantum[i].allow(sl.quanta [lQ] , sr.quanta [rQ])) {
+	   allowedQuantaMatrix(lQ, rQ) = true;
+	   rowCompressedForm[lQ].push_back(rQ);
+	   colCompressedForm[rQ].push_back(lQ);
+	   break;
+	 }
 
+       if (allowedQuantaMatrix(lQ, rQ))
+       {
+	 StackMatrix m(&data[index], sl.quantaStates [lQ], sr.quantaStates [rQ]);
+	 //operatorMatrix(lQ,rQ).allocate(&data[index], sl.quantaStates [lQ], sr.quantaStates [rQ]);
+	 index += sl.quantaStates [lQ]* sr.quantaStates [rQ]+ CACHEBUFFER;
+	 nonZeroBlocks.push_back(std::pair< std::pair<int, int> , StackMatrix>( std::pair<int,int>(lQ,rQ), m));
+	 mapToNonZeroBlocks.insert(std::pair< std::pair<int, int>, int>(std::pair<int, int>(lQ, rQ), nonZeroBlocks.size()-1));
+       }
 
-  
-void SpinAdapted::StackWavefunction::SaveWavefunctionInfo (const StateInfo &waveInfo, const std::vector<int>& sites, const int wave_num)
-{
-  dmrginp.diskwo->start();
-  char file [5000];
-  int first = min(sites[0], *sites.rbegin()), last = max(sites[0], *sites.rbegin());
-  sprintf (file, "%s%s%d%s%d%s%d%s%d%s", dmrginp.save_prefix().c_str(), "/wave-", first, "-", last, ".", mpigetrank(), ".", wave_num, ".tmp");
-  p1out << "\t\t\t Saving Wavefunction " << file << endl;
-  if (mpigetrank() == 0)
-    {
-      std::ofstream ofs(file, std::ios::binary);
-      boost::archive::binary_oarchive save_wave(ofs);
-      save_wave << onedot << waveInfo << *waveInfo.leftStateInfo << *(waveInfo.leftStateInfo->leftStateInfo);
-      save_wave << *(waveInfo.leftStateInfo->rightStateInfo) << *waveInfo.rightStateInfo;
-      if(!onedot)
-	save_wave << *(waveInfo.rightStateInfo->leftStateInfo) << *(waveInfo.rightStateInfo->rightStateInfo);
+     }
 
-      this->Save (ofs);
-      save_wave << operatorMatrix;
-      ofs.close();
-    }
-  dmrginp.diskwo->stop();
-
-}
-
-void SpinAdapted::StackWavefunction::LoadWavefunctionInfo (StateInfo &waveInfo, const std::vector<int>& sites, const int wave_num, bool allocateData)
-{
-  dmrginp.diskwi->start();
-  char file [5000];
-  int first = min(sites[0], *sites.rbegin()), last = max(sites[0], *sites.rbegin());
-  sprintf (file, "%s%s%d%s%d%s%d%s%d%s", dmrginp.load_prefix().c_str(), "/wave-", first, "-", last, ".", mpigetrank(), ".", wave_num, ".tmp");
-  p1out << "\t\t\t Loading Wavefunction " << file << endl;
-  waveInfo.Allocate ();
-  if (mpigetrank() == 0)
-    {
-      std::ifstream ifs(file, std::ios::binary);
-      boost::archive::binary_iarchive load_wave(ifs);
-      load_wave >> onedot >> waveInfo >> *waveInfo.leftStateInfo >> *(waveInfo.leftStateInfo->leftStateInfo)
-		>> *(waveInfo.leftStateInfo->rightStateInfo) >> *waveInfo.rightStateInfo;
-      if(!onedot)
-	load_wave >> *(waveInfo.rightStateInfo->leftStateInfo) >> *(waveInfo.rightStateInfo->rightStateInfo);
-
-      this->Load (ifs, allocateData);
-      load_wave >> operatorMatrix;
-      ifs.close();
-      allocateWfnOperatorMatrix(); 
-    }
-  dmrginp.diskwi->stop();
-}
-
-void SpinAdapted::StackWavefunction::CollectQuantaAlongRows (const StateInfo& sRow, const StateInfo& sCol)
-{
-  //mdebugcheck("before collectquantaalongrows");
-  try
-    {
-      Timer ctimer;
-
-      StateInfo tmpState = sRow;
-      tmpState.CollectQuanta ();
-
-      StackWavefunction tmpOper;
-      tmpOper.initialise(deltaQuantum, tmpState, sCol, onedot);
-
-      rowCompressedForm.clear();rowCompressedForm.resize(tmpState.quanta.size(), vector<int>());
-      colCompressedForm.clear();colCompressedForm.resize(sCol.quanta.size(), vector<int>());
-      nonZeroBlocks.resize(0);
-      mapToNonZeroBlocks.clear();
+ }
 
 
-      ObjectMatrix<StackMatrix*> matRef;
-      for (int i = 0; i < tmpState.quanta.size (); ++i)
-	for (int j = 0; j < sCol.quanta.size (); ++j) {
-	  std::vector<int> dum (1); dum [0] = j;
-	  if (tmpOper.allowed(i, j)) {
-	    OperatorMatrixReference (matRef, tmpState.oldToNewState [i], dum);
-	    CatenateProduct (matRef, tmpOper.operator_element(i,j));
+ /*
+ void SpinAdapted::StackWavefunction::FlattenInto (Matrix& C)
+ {
+   C.ReSize(totalMemory,1);
+   DCOPY(totalMemory, data, 1, C.Store(), 1);
+ }
+ */
 
-	    rowCompressedForm[i].push_back(j);
-	    colCompressedForm[j].push_back(i);
-	    nonZeroBlocks.push_back(std::pair< std::pair<int, int> , StackMatrix>( std::pair<int,int>(i,j), tmpOper.operatorMatrix(i,j)));
-	    mapToNonZeroBlocks.insert(std::pair< std::pair<int, int>, int>(std::pair<int, int>(i, j), nonZeroBlocks.size()-1));
-	  }
-	}
-
-      allowedQuantaMatrix = tmpOper.allowedQuantaMatrix;
-      operatorMatrix = tmpOper.operatorMatrix;
-
-      allocateWfnOperatorMatrix(); 
-      copy(tmpOper.operatorMatrix, operatorMatrix);
-      //DCOPY(totalMemory, tmpOper.data, 1, data, 1);
-
-      tmpOper.deallocate();
-    }
-  catch (Exception)
-    {
-      Exception::what ();
-      abort ();
-    }
-  //mdebugcheck("after collectquantaalongrows");
-}
+ void SpinAdapted::StackWavefunction::CollectFrom (const RowVector& C)
+ {
+   assert(totalMemory == C.Storage());
+   long index = 0;
+   for (int lQ = 0; lQ < nrows(); ++lQ)
+   for (int rQ = 0; rQ < ncols(); ++rQ)
+   if (allowed(lQ, rQ)) {
+     int copysize = operator_element(lQ, rQ).Nrows()* operator_element(lQ, rQ).Ncols();
+     DCOPY(copysize, C.Store()+(index), 1, operator_element(lQ, rQ).Store(), 1);
+     index += copysize;
+   }
+ }
 
 
 
-void SpinAdapted::StackWavefunction::UnCollectQuantaAlongRows (const StateInfo& sRow, const StateInfo& sCol)
-{
-  try
-    {
-      rowCompressedForm.clear();rowCompressedForm.resize(sRow.unCollectedStateInfo->quanta.size(), vector<int>());
-      colCompressedForm.clear();colCompressedForm.resize(sCol.quanta.size(), vector<int>());
-      nonZeroBlocks.resize(0);
-      mapToNonZeroBlocks.clear();
+ void SpinAdapted::StackWavefunction::SaveWavefunctionInfo (const StateInfo &waveInfo, const std::vector<int>& sites, const int wave_num)
+ {
+   dmrginp.diskwo->start();
+   char file [5000];
+   int first = min(sites[0], *sites.rbegin()), last = max(sites[0], *sites.rbegin());
+   sprintf (file, "%s%s%d%s%d%s%d%s%d%s", dmrginp.save_prefix().c_str(), "/wave-", first, "-", last, ".", mpigetrank(), ".", wave_num, ".tmp");
+   p1out << "\t\t\t Saving Wavefunction " << file << endl;
+   if (mpigetrank() == 0)
+     {
+       std::ofstream ofs(file, std::ios::binary);
+       boost::archive::binary_oarchive save_wave(ofs);
+       save_wave << onedot << waveInfo << *waveInfo.leftStateInfo << *(waveInfo.leftStateInfo->leftStateInfo);
+       save_wave << *(waveInfo.leftStateInfo->rightStateInfo) << *waveInfo.rightStateInfo;
+       if(!onedot)
+	 save_wave << *(waveInfo.rightStateInfo->leftStateInfo) << *(waveInfo.rightStateInfo->rightStateInfo);
 
-      StackWavefunction tmpOper;
-      tmpOper.initialise(deltaQuantum, *sRow.unCollectedStateInfo, sCol, onedot);
-      tmpOper.Clear();
+       this->Save (ofs);
+       //save_wave << operatorMatrix;
+       ofs.close();
+     }
+   dmrginp.diskwo->stop();
 
-      for (int i = 0; i < sRow.quanta.size (); ++i)
-	{
-	  const std::vector<int>& oldToNewStateI = sRow.oldToNewState [i];
-	  int firstRow = 0;
-	  for (int iSub = 0; iSub < oldToNewStateI.size (); ++iSub)
-	    {
-	      int unCollectedI = oldToNewStateI [iSub];
-	      int lastRowSize = sRow.unCollectedStateInfo->quantaStates [unCollectedI];
-	      for (int j = 0; j < sCol.quanta.size (); ++j)
-		if (tmpOper.allowedQuantaMatrix (unCollectedI, j)) {
-		  for (int row = 0; row<lastRowSize; row++) 
-		    for (int col = 0; col <tmpOper.operator_element(unCollectedI, j).Ncols(); col++) {
-		      tmpOper.operator_element(unCollectedI, j)(row+1, col+1) = operatorMatrix(i, j)( row + firstRow + 1, col+1);
-		    }
+ }
+
+ void SpinAdapted::StackWavefunction::LoadWavefunctionInfo (StateInfo &waveInfo, const std::vector<int>& sites, const int wave_num, bool allocateData)
+ {
+   dmrginp.diskwi->start();
+   char file [5000];
+   int first = min(sites[0], *sites.rbegin()), last = max(sites[0], *sites.rbegin());
+   sprintf (file, "%s%s%d%s%d%s%d%s%d%s", dmrginp.load_prefix().c_str(), "/wave-", first, "-", last, ".", mpigetrank(), ".", wave_num, ".tmp");
+   p1out << "\t\t\t Loading Wavefunction " << file << endl;
+   waveInfo.Allocate ();
+   if (mpigetrank() == 0)
+     {
+       std::ifstream ifs(file, std::ios::binary);
+       boost::archive::binary_iarchive load_wave(ifs);
+       load_wave >> onedot >> waveInfo >> *waveInfo.leftStateInfo >> *(waveInfo.leftStateInfo->leftStateInfo)
+		 >> *(waveInfo.leftStateInfo->rightStateInfo) >> *waveInfo.rightStateInfo;
+       if(!onedot)
+	 load_wave >> *(waveInfo.rightStateInfo->leftStateInfo) >> *(waveInfo.rightStateInfo->rightStateInfo);
+
+       this->Load (ifs, allocateData);
+       //load_wave >> operatorMatrix;
+       ifs.close();
+       allocateWfnOperatorMatrix(); 
+     }
+   dmrginp.diskwi->stop();
+ }
+
+ void SpinAdapted::StackWavefunction::CollectQuantaAlongRows (const StateInfo& sRow, const StateInfo& sCol)
+ {
+   //mdebugcheck("before collectquantaalongrows");
+   try
+     {
+       Timer ctimer;
+
+       std::vector<std::pair<std::pair<int, int>, StackMatrix> > nonZeroBlocksbkp = nonZeroBlocks;
+       std::map< std::pair<int, int>, int> mapToNonZeroBlocksbkp = mapToNonZeroBlocks;
+
+       StateInfo tmpState = sRow;
+       tmpState.CollectQuanta ();
+
+       StackWavefunction tmpOper;
+       tmpOper.initialise(deltaQuantum, tmpState, sCol, onedot);
+
+       rowCompressedForm.clear();rowCompressedForm.resize(tmpState.quanta.size(), vector<int>());
+       colCompressedForm.clear();colCompressedForm.resize(sCol.quanta.size(), vector<int>());
+       nonZeroBlocks.resize(0);
+       mapToNonZeroBlocks.clear();
+
+
+       ObjectMatrix<StackMatrix*> matRef;
+       for (int i = 0; i < tmpState.quanta.size (); ++i)
+	 for (int j = 0; j < sCol.quanta.size (); ++j) {
+	   std::vector<int> dum (1); dum [0] = j;
+	   if (tmpOper.allowed(i, j)) {
+	     {
+	       int rows = tmpState.oldToNewState[i].size ();
+	       int cols = dum.size ();
+	       matRef.ReSize (rows, cols);
+	       for (int x = 0; x < rows; ++x)
+		 for (int y = 0; y < cols; ++y)
+		   {
+		     matRef (x,y) = &nonZeroBlocksbkp[mapToNonZeroBlocksbkp.at(std::pair<int,int>( tmpState.oldToNewState[i][x], dum[y] ))].second;
+		     //m (x,y) = &operatorMatrix(oldToNewStateI [i], oldToNewStateJ [j]);
+		   }
+	     }
+	     //OperatorMatrixReference (matRef, tmpState.oldToNewState [i], dum);
+	     CatenateProduct (matRef, tmpOper.operator_element(i,j));
+
+	     rowCompressedForm[i].push_back(j);
+	     colCompressedForm[j].push_back(i);
+	     nonZeroBlocks.push_back(std::pair< std::pair<int, int> , StackMatrix>( std::pair<int,int>(i,j), tmpOper.operator_element(i,j)));
+	     mapToNonZeroBlocks.insert(std::pair< std::pair<int, int>, int>(std::pair<int, int>(i, j), nonZeroBlocks.size()-1));
+	   }
+	 }
+
+       allowedQuantaMatrix = tmpOper.allowedQuantaMatrix;
+       //operatorMatrix = tmpOper.operatorMatrix;
+
+       allocateWfnOperatorMatrix(); 
+       copyData(tmpOper);
+       //copy(tmpOper.operatorMatrix, operatorMatrix);
+       //DCOPY(totalMemory, tmpOper.data, 1, data, 1);
+
+       tmpOper.deallocate();
+     }
+   catch (Exception)
+     {
+       Exception::what ();
+       abort ();
+     }
+   //mdebugcheck("after collectquantaalongrows");
+ }
+
+
+
+ void SpinAdapted::StackWavefunction::UnCollectQuantaAlongRows (const StateInfo& sRow, const StateInfo& sCol)
+ {
+   try
+     {
+       std::vector<std::pair<std::pair<int, int>, StackMatrix> > nonZeroBlocksbkp = nonZeroBlocks;
+       std::map< std::pair<int, int>, int> mapToNonZeroBlocksbkp = mapToNonZeroBlocks;
+
+       rowCompressedForm.clear();rowCompressedForm.resize(sRow.unCollectedStateInfo->quanta.size(), vector<int>());
+       colCompressedForm.clear();colCompressedForm.resize(sCol.quanta.size(), vector<int>());
+       nonZeroBlocks.resize(0);
+       mapToNonZeroBlocks.clear();
+
+       StackWavefunction tmpOper;
+       tmpOper.initialise(deltaQuantum, *sRow.unCollectedStateInfo, sCol, onedot);
+       tmpOper.Clear();
+
+       for (int i = 0; i < sRow.quanta.size (); ++i)
+	 {
+	   const std::vector<int>& oldToNewStateI = sRow.oldToNewState [i];
+	   int firstRow = 0;
+	   for (int iSub = 0; iSub < oldToNewStateI.size (); ++iSub)
+	     {
+	       int unCollectedI = oldToNewStateI [iSub];
+	       int lastRowSize = sRow.unCollectedStateInfo->quantaStates [unCollectedI];
+	       for (int j = 0; j < sCol.quanta.size (); ++j)
+		 if (tmpOper.allowedQuantaMatrix (unCollectedI, j)) {
+		   for (int row = 0; row<lastRowSize; row++) 
+		     for (int col = 0; col <tmpOper.operator_element(unCollectedI, j).Ncols(); col++) {
+		       tmpOper.operator_element(unCollectedI, j)(row+1, col+1) = nonZeroBlocksbkp[mapToNonZeroBlocksbkp.at(std::pair<int,int>(i,j))].second( row + firstRow + 1, col+1);
+		       //tmpOper.operator_element(unCollectedI, j)(row+1, col+1) = operatorMatrix(i, j)( row + firstRow + 1, col+1);
+		     }
 
 
 		  rowCompressedForm[unCollectedI].push_back(j);
 		  colCompressedForm[j].push_back(unCollectedI);
-		  nonZeroBlocks.push_back(std::pair< std::pair<int, int> , StackMatrix>( std::pair<int,int>(unCollectedI,j), tmpOper.operatorMatrix(unCollectedI, j)));
+		  nonZeroBlocks.push_back(std::pair< std::pair<int, int> , StackMatrix>( std::pair<int,int>(unCollectedI,j), tmpOper.operator_element(unCollectedI, j)));
 		  mapToNonZeroBlocks.insert(std::pair< std::pair<int, int>, int>(std::pair<int, int>(unCollectedI, j), nonZeroBlocks.size()-1));
 		}
 	      firstRow += lastRowSize;
 	    }
 	}
       allowedQuantaMatrix = tmpOper.allowedQuantaMatrix;
-      operatorMatrix = tmpOper.operatorMatrix;
+      //operatorMatrix = tmpOper.operatorMatrix;
 
       allocateWfnOperatorMatrix(); 
-      copy(tmpOper.operatorMatrix, operatorMatrix);
+      copyData(tmpOper);
+      //copy(tmpOper.operatorMatrix, operatorMatrix);
       
       tmpOper.deallocate();
 
@@ -297,18 +332,6 @@ void SpinAdapted::StackWavefunction::UnCollectQuantaAlongRows (const StateInfo& 
     }
 }
 
-void SpinAdapted::StackWavefunction::OperatorMatrixReference(ObjectMatrix<StackMatrix*>& m, const std::vector<int>& oldToNewStateI, const std::vector<int>& oldToNewStateJ)
-{
-  int rows = oldToNewStateI.size ();
-  int cols = oldToNewStateJ.size ();
-  m.ReSize (rows, cols);
-  for (int i = 0; i < rows; ++i)
-    for (int j = 0; j < cols; ++j)
-    {
-	  assert (allowedQuantaMatrix (oldToNewStateI [i], oldToNewStateJ [j]));
-	  m (i,j) = &operatorMatrix(oldToNewStateI [i], oldToNewStateJ [j]);
-    }
-}
 
 
 void SpinAdapted::StackWavefunction::CollectQuantaAlongColumns (const StateInfo& sRow, const StateInfo& sCol)
@@ -316,6 +339,9 @@ void SpinAdapted::StackWavefunction::CollectQuantaAlongColumns (const StateInfo&
   //mdebugcheck("before collectquantaalongcolumns");
   try
     {
+      std::vector<std::pair<std::pair<int, int>, StackMatrix> > nonZeroBlocksbkp = nonZeroBlocks;
+      std::map< std::pair<int, int>, int> mapToNonZeroBlocksbkp = mapToNonZeroBlocks;
+
       StateInfo tmpState = sCol;
       tmpState.CollectQuanta ();
 
@@ -335,20 +361,32 @@ void SpinAdapted::StackWavefunction::CollectQuantaAlongColumns (const StateInfo&
 	    std::vector<int> dum (1); dum [0] = i;
 	    if (tmpOper.allowed(i, j))
 	      {
-		OperatorMatrixReference (matRef, dum, tmpState.oldToNewState [j]);
+		{
+		  int rows = dum.size ();
+		  int cols = tmpState.oldToNewState[j].size ();
+		  matRef.ReSize (rows, cols);
+		  for (int x = 0; x < rows; ++x)
+		    for (int y = 0; y < cols; ++y)
+		      {
+			matRef (x,y) = &nonZeroBlocksbkp[mapToNonZeroBlocksbkp.at(std::pair<int,int>(dum[x],tmpState.oldToNewState[j][y]))].second;
+			//m (x,y) = &operatorMatrix(oldToNewStateI [i], oldToNewStateJ [j]);
+		      }
+		}
+		//OperatorMatrixReference (matRef, dum, tmpState.oldToNewState [j]);
 		CatenateProduct (matRef, tmpOper.operator_element(i,j));
 
 		rowCompressedForm[i].push_back(j);
 		colCompressedForm[j].push_back(i);
-		nonZeroBlocks.push_back(std::pair< std::pair<int, int> , StackMatrix>( std::pair<int,int>(i,j), tmpOper.operatorMatrix(i,j)));
+		nonZeroBlocks.push_back(std::pair< std::pair<int, int> , StackMatrix>( std::pair<int,int>(i,j), tmpOper.operator_element(i,j)));
 		mapToNonZeroBlocks.insert(std::pair< std::pair<int, int>, int>(std::pair<int, int>(i, j), nonZeroBlocks.size()-1));
 	      }
 	  }
       allowedQuantaMatrix = tmpOper.allowedQuantaMatrix;
-      operatorMatrix = tmpOper.operatorMatrix;
+      //operatorMatrix = tmpOper.operatorMatrix;
 
       allocateWfnOperatorMatrix(); 
-      copy(tmpOper.operatorMatrix, operatorMatrix);
+      copyData(tmpOper);
+      //copy(tmpOper.operatorMatrix, operatorMatrix);
       //DCOPY(totalMemory, tmpOper.data, 1, data, 1);
 
       tmpOper.deallocate();
@@ -379,8 +417,9 @@ void SpinAdapted::StackWavefunction::deepClearCopy(const StackWavefunction& o)
 
 void  SpinAdapted::StackWavefunction::UnCollectQuantaAlongColumns (const StateInfo& sRow, const StateInfo& sCol)
 {
-  //try                                                                                                                                   
-  // {                                                                                                                                    
+  std::vector<std::pair<std::pair<int, int>, StackMatrix> > nonZeroBlocksbkp = nonZeroBlocks;
+  std::map< std::pair<int, int>, int> mapToNonZeroBlocksbkp = mapToNonZeroBlocks;
+
   rowCompressedForm.clear();rowCompressedForm.resize(sRow.quanta.size(), vector<int>());
   colCompressedForm.clear();colCompressedForm.resize(sCol.unCollectedStateInfo->quanta.size(), vector<int>());
   nonZeroBlocks.resize(0);
@@ -402,11 +441,12 @@ void  SpinAdapted::StackWavefunction::UnCollectQuantaAlongColumns (const StateIn
       if (tmpOper.allowed(j, unCollectedI)){
 	for (int row = 0; row<tmpOper.operator_element(j, unCollectedI).Nrows(); row++) 
 	for (int col = 0; col <lastColSize; col++) 
-	  tmpOper.operator_element(j, unCollectedI)(row+1, col+1) = operatorMatrix(j, i)( row + 1, col+1+firstCol);
+	  tmpOper.operator_element(j, unCollectedI)(row+1, col+1) = nonZeroBlocksbkp[mapToNonZeroBlocksbkp.at(std::pair<int,int>(j,i))].second( row + 1, col+1+firstCol);
+	//operatorMatrix(j, i)( row + 1, col+1+firstCol);
 	      	      
 	rowCompressedForm[j].push_back(unCollectedI);
 	colCompressedForm[unCollectedI].push_back(j);
-	nonZeroBlocks.push_back(std::pair< std::pair<int, int> , StackMatrix>( std::pair<int,int>(j, unCollectedI), tmpOper.operatorMatrix(j, unCollectedI)));
+	nonZeroBlocks.push_back(std::pair< std::pair<int, int> , StackMatrix>( std::pair<int,int>(j, unCollectedI), tmpOper.operator_element(j, unCollectedI)));
 	mapToNonZeroBlocks.insert(std::pair< std::pair<int, int>, int>(std::pair<int, int>(j, unCollectedI), nonZeroBlocks.size()-1));
 	
       }
@@ -414,9 +454,10 @@ void  SpinAdapted::StackWavefunction::UnCollectQuantaAlongColumns (const StateIn
     }
   }
   allowedQuantaMatrix = tmpOper.allowedQuantaMatrix;
-  operatorMatrix = tmpOper.operatorMatrix;
+  //operatorMatrix = tmpOper.operatorMatrix;
   allocateWfnOperatorMatrix(); 
-  copy(tmpOper.operatorMatrix, operatorMatrix);
+  copyData(tmpOper);
+  //copy(tmpOper.operatorMatrix, operatorMatrix);
 
   
   tmpOper.deallocate();

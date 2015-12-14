@@ -67,7 +67,8 @@ void GuessWave::transpose_previous_wavefunction(StackWavefunction& trial, const 
     oldWave.LoadWavefunctionInfo (oldStateInfo, big.get_rightBlock()->get_sites(), state, true);
 
     temptrial.initialise(trial); temptrial.Clear();
-    copy(trial.get_operatorMatrix(), temptrial.get_operatorMatrix());
+    temptrial.copyData(trial);
+    //copy(trial.get_operatorMatrix(), temptrial.get_operatorMatrix());
 
     if (oldWave.get_onedot()) {
       temptrial.deallocate();
@@ -112,7 +113,8 @@ void GuessWave::transpose_previous_wavefunction(StackWavefunction& trial, const 
       }
     }
     else 
-      copy(temptrial.get_operatorMatrix(), trial.get_operatorMatrix());
+      trial.copyData(temptrial);
+    //copy(temptrial.get_operatorMatrix(), trial.get_operatorMatrix());
 
     oldStateInfo.Free();
     temptrial.deallocate();
@@ -418,7 +420,8 @@ void GuessWave::onedot_twoindex_to_threeindex_wavefunction(const StateInfo& stat
   threewavefunction.ReSize(NDimsys, NDimdot, NDimenv);
 
   StackWavefunction uncollectedwf; uncollectedwf.initialise(twowavefunction);
-  copy(twowavefunction.get_operatorMatrix(), uncollectedwf.get_operatorMatrix());
+  uncollectedwf.copyData(twowavefunction);
+  //copy(twowavefunction.get_operatorMatrix(), uncollectedwf.get_operatorMatrix());
   //DCOPY(uncollectedwf.memoryUsed(), const_cast<double*>(twowavefunction.get_data()), 1, uncollectedwf.get_data(), 1);
   uncollectedwf.UnCollectQuantaAlongRows(*stateinfo.leftStateInfo, *stateinfo.rightStateInfo);
 
@@ -463,7 +466,8 @@ void GuessWave::onedot_twoindex_to_threeindex_shufflesysdot(const StateInfo& sta
   threewavefunction.ReSize(NDimsys, NDimdot, NDimenv);
 
   StackWavefunction uncollectedwf; uncollectedwf.initialise(twowavefunction);
-  copy(twowavefunction.get_operatorMatrix(), uncollectedwf.get_operatorMatrix());
+  uncollectedwf.copyData(twowavefunction);
+  //copy(twowavefunction.get_operatorMatrix(), uncollectedwf.get_operatorMatrix());
   //DCOPY(uncollectedwf.memoryUsed(), const_cast<double*>(twowavefunction.get_data()), 1, uncollectedwf.get_data(), 1);
   uncollectedwf.UnCollectQuantaAlongColumns(*stateinfo.leftStateInfo, *stateinfo.rightStateInfo);
   const StateInfo& uncollectedstateinfo = *(stateinfo.rightStateInfo->unCollectedStateInfo);
@@ -885,7 +889,8 @@ void GuessWave::onedot_transform_wavefunction(const StateInfo& oldstateinfo, con
     }
 
   if (!transpose_guess_wave){
-    copy(tmpwavefunction.get_operatorMatrix(), newwavefunction.get_operatorMatrix());
+    newwavefunction.copyData(tmpwavefunction);
+    //copy(tmpwavefunction.get_operatorMatrix(), newwavefunction.get_operatorMatrix());
     //newwavefunction = tmpwavefunction;
     newwavefunction.set_onedot(oldwavefunction.get_onedot());
     tmpwavefunction.deallocate();

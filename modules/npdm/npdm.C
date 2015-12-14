@@ -231,7 +231,9 @@ void npdm_block_and_decimate( Npdm_driver_base& npdm_driver, SweepParams &sweepP
   p2out << str(boost::format("%-40s - %-10.4f\n") % "  |-->Memory used" % (Stackmem[0].memused*8/1.e9));
 
   //newSystem.transform_operators(rotateMatrix,rotateMatrixB);
-  p3out << "NPDM block and decimate and compute elements " << timer.elapsedwalltime() << " " << timer.elapsedcputime() << endl;
+  double cputime = timer.elapsedcputime();
+  double walltime = timer.elapsedwalltime();
+  p3out << "NPDM block and decimate and compute elements " << walltime << " " << cputime << endl;
 
 }
 
@@ -446,7 +448,8 @@ void npdm(NpdmOrder npdm_order, bool restartpdm, bool transitionpdm)
       dmrginp.setimplicitTranspose() = true;
 
     dmrginp.npdm_generate() = false;
-    p3out << "\t\t\t NPDM SweepGenblock time " << timer.elapsedwalltime() << " " << timer.elapsedcputime() << endl;
+    
+    //p3out << "\t\t\t NPDM SweepGenblock time " << timer.elapsedwalltime() << " " << timer.elapsedcputime() << endl;
     dmrginp.set_fullrestart() = false;
     
     

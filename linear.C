@@ -188,7 +188,8 @@ void SpinAdapted::Linear::block_davidson(vector<StackWavefunction>& b, DiagonalM
       vector<StackWavefunction> tmp(bsize);
       for (int i=0; i<bsize; i++) {
 	tmp[i].initialise(b[i]);
-	copy(b[i].get_operatorMatrix(), tmp[i].get_operatorMatrix());
+	tmp[i].copyData(b[i]);
+	//copy(b[i].get_operatorMatrix(), tmp[i].get_operatorMatrix());
       }
       for (int i = 0; i < bsize; ++i)
 	Scale(alpha.element(i, i), b[i]);
@@ -202,7 +203,8 @@ void SpinAdapted::Linear::block_davidson(vector<StackWavefunction>& b, DiagonalM
       }
 
       for (int i=0; i<bsize; i++) 
-	copy(sigma[i].get_operatorMatrix(), tmp[i].get_operatorMatrix());
+	tmp[i].copyData(sigma[i]);
+      //copy(sigma[i].get_operatorMatrix(), tmp[i].get_operatorMatrix());
 
 
       for (int i = 0; i < bsize; ++i)
@@ -221,7 +223,8 @@ void SpinAdapted::Linear::block_davidson(vector<StackWavefunction>& b, DiagonalM
 	
       // build residual 
       for (int i=0; i<converged_roots; i++) {
-	copy(sigma[i].get_operatorMatrix(), r.get_operatorMatrix());
+	r.copyData(sigma[i]);
+	//copy(sigma[i].get_operatorMatrix(), r.get_operatorMatrix());
 	ScaleAdd(-subspace_eigenvalues(i+1), b[i], r);
 	double rnorm = DotProduct(r,r);
 	if (rnorm > normtol) {
@@ -231,7 +234,8 @@ void SpinAdapted::Linear::block_davidson(vector<StackWavefunction>& b, DiagonalM
 	}
       }
 
-      copy(sigma[converged_roots].get_operatorMatrix(), r.get_operatorMatrix());
+      r.copyData(sigma[converged_roots]);
+      //copy(sigma[converged_roots].get_operatorMatrix(), r.get_operatorMatrix());
       ScaleAdd(-subspace_eigenvalues(converged_roots+1), b[converged_roots], r);
 
       if (lowerStates.size() != 0) {
@@ -309,7 +313,8 @@ void SpinAdapted::Linear::block_davidson(vector<StackWavefunction>& b, DiagonalM
 
       Normalise(r);
       
-      copy(r.get_operatorMatrix(), b[bsize].get_operatorMatrix());
+      b[bsize].copyData(r);
+      //copy(r.get_operatorMatrix(), b[bsize].get_operatorMatrix());
       bsize++;
     }
     
