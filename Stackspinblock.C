@@ -365,7 +365,6 @@ void StackSpinBlock::build_and_renormalise_operators(const std::vector<Matrix>& 
       }
     }
   }
-
   const int quantaSz = newStateInfo->quanta.size ();
   std::multimap<long, int> reorder;
   for (int i=0; i<quantaSz; i++)
@@ -388,6 +387,11 @@ void StackSpinBlock::build_and_renormalise_operators(const std::vector<Matrix>& 
   
   dmrginp.parallelrenorm->start();
   SplitStackmem();
+  //mpi::communicator world;
+
+  //world.barrier();
+  //for (int r = 0; r < mpigetsize(); ++r) {
+  //if (r == mpigetrank()) {
 #pragma omp parallel for schedule(dynamic)
   for (int i=0; i<allops.size()*reorderedVector.size(); i++) {
     int opindex = (i)%allops.size(), quantaindex = (i)/allops.size();
@@ -408,6 +412,9 @@ void StackSpinBlock::build_and_renormalise_operators(const std::vector<Matrix>& 
       Stackmem[omprank].deallocate(data, m.Storage());
     }
   }
+  //}
+  //world.barrier();
+  //}
 
   MergeStackmem();
   dmrginp.parallelrenorm->stop();

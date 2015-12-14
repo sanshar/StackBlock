@@ -746,9 +746,12 @@ void StackSpinBlock::formTwoIndexOps() {
   std::vector<int> cinds;
   std::vector<std::pair<int, int> > cdpair, ddpair;
   for (int idx = 0; idx < dotindice.size(); ++idx) 
-  for (int i=idx; i<complementary_sites.size(); i++) {
+  for (int i=0; i<complementary_sites.size(); i++) {
     int dotopindex = dotindice[idx];
     int compsite = complementary_sites[i];
+    if (find(dotindice.begin(), dotindice.end(), compsite) != dotindice.end() && dotopindex > compsite) {
+      continue;
+    }
     int I = (compsite > dotopindex) ? compsite : dotopindex;
     int J = (compsite > dotopindex) ? dotopindex : compsite;
     const double screen_tol = dmrginp.twoindex_screen_tol();
@@ -769,9 +772,12 @@ void StackSpinBlock::formTwoIndexOps() {
   // CDcomp
   //IJ operator where atleast I or J is on the dot site
   for (int idx = 0; idx < dotindice.size(); ++idx) 
-  for (int i=idx; i<complementary_sites.size(); i++) {
+  for (int i=0; i<complementary_sites.size(); i++) {
     int dotopindex = dotindice[idx];
     int compsite = complementary_sites[i];
+    if (find(dotindice.begin(), dotindice.end(), compsite) != dotindice.end() && dotopindex > compsite) {
+      continue;
+    }
     int I = (compsite > dotopindex) ? compsite : dotopindex;
     int J = (compsite > dotopindex) ? dotopindex : compsite;
 
@@ -818,9 +824,12 @@ void StackSpinBlock::formTwoIndexOps() {
 
   // DDcomp
   for (int idx = 0; idx < dotindice.size(); ++idx) 
-  for (int i=idx; i<complementary_sites.size(); i++) {
+  for (int i=0; i<complementary_sites.size(); i++) {
     int dotopindex = dotindice[idx];
     int compsite = complementary_sites[i];
+    if (find(dotindice.begin(), dotindice.end(), compsite) != dotindice.end() && dotopindex > compsite) {
+      continue;
+    }
     int I = (compsite > dotopindex) ? compsite : dotopindex;
     int J = (compsite > dotopindex) ? dotopindex : compsite;
 
@@ -871,9 +880,12 @@ void StackSpinBlock::formTwoIndexOps() {
   if (has(DES)) {
     // CCcomp
     for (int idx = 0; idx < dotindice.size(); ++idx) 
-    for (int i=idx; i<complementary_sites.size(); i++) {
+    for (int i=0; i<complementary_sites.size(); i++) {
     int dotopindex = dotindice[idx];
     int compsite = complementary_sites[i];
+    if (find(dotindice.begin(), dotindice.end(), compsite) != dotindice.end() && dotopindex > compsite) {
+      continue;
+    }
     int I = (compsite > dotopindex) ? compsite : dotopindex;
     int J = (compsite > dotopindex) ? dotopindex : compsite;
 
@@ -921,9 +933,12 @@ void StackSpinBlock::formTwoIndexOps() {
     
     // DCcomp
     for (int idx = 0; idx < dotindice.size(); ++idx) 
-    for (int i=idx; i<complementary_sites.size(); i++) {
+    for (int i=0; i<complementary_sites.size(); i++) {
     int dotopindex = dotindice[idx];
     int compsite = complementary_sites[i];
+    if (find(dotindice.begin(), dotindice.end(), compsite) != dotindice.end() && dotopindex > compsite) {
+      continue;
+    }
     int I = (compsite > dotopindex) ? compsite : dotopindex;
     int J = (compsite > dotopindex) ? dotopindex : compsite;
 
