@@ -324,7 +324,6 @@ void StackSpinBlock::build_operators(std::vector< Csf >& dets, std::vector< std:
 	}
     }
   }
-
   std::vector<vector<vector<Csf> > > ompladders(numthrds, ladders);
   vector<vector<Csf> > ompdets(numthrds, dets);
 #pragma omp parallel for schedule(dynamic)
@@ -403,8 +402,9 @@ void StackSpinBlock::build_and_renormalise_operators(const std::vector<Matrix>& 
       ::Clear(m);
 
       allops[opindex]->build(m, Q, QPrime, *this);
+
       MatrixRotate(rotateMatrix[Q], m, rotateMatrix[QPrime], 
-		   allops[opindex]->operator_element(quantaindex, qprime));
+		  allops[opindex]->operator_element(quantaindex, qprime));
       Stackmem[omprank].deallocate(data, m.Storage());
     }
   }
@@ -415,7 +415,6 @@ void StackSpinBlock::build_and_renormalise_operators(const std::vector<Matrix>& 
   for (int i=0; i<allops.size(); i++) {
     allops[i]->set_totalMemory() = backupMem[i];
   }
-
 
 }
 
@@ -832,8 +831,8 @@ void StackSpinBlock::multiplyH(StackWavefunction& c, StackWavefunction* v, int n
     f4b = boost::bind(&stackopxop::cxcddcomp_3indexElement, leftBlock, _1, this, boost::ref(C1), v_array, _2, dmrginp.effective_molecule_quantum() );
     for (int i=0; i<leftBlock->get_op_array(CRE).get_size(); i++)
       for (int j=0; j<leftBlock->get_op_array(CRE).get_local_element(i).size(); j++) {
-	allops.push_back(leftBlock->get_op_array(CRE).get_local_element(i)[j]);
-	allfuncs.push_back(f5);
+	      allops.push_back(leftBlock->get_op_array(CRE).get_local_element(i)[j]);
+	      allfuncs.push_back(f5);
       }
   }
   else {
@@ -845,8 +844,8 @@ void StackSpinBlock::multiplyH(StackWavefunction& c, StackWavefunction* v, int n
 
     for (int i=0; i<rightBlock->get_op_array(CRE).get_size(); i++)
       for (int j=0; j<rightBlock->get_op_array(CRE).get_local_element(i).size(); j++) {
-	allops.push_back(rightBlock->get_op_array(CRE).get_local_element(i)[j]);
-	allfuncs.push_back(f4);
+	      allops.push_back(rightBlock->get_op_array(CRE).get_local_element(i)[j]);
+	      allfuncs.push_back(f4);
       }    
   }
 
@@ -860,8 +859,8 @@ void StackSpinBlock::multiplyH(StackWavefunction& c, StackWavefunction* v, int n
   if (loopBlock == rightBlock) {
     for (int i=0; i<rightBlock->get_op_array(CRE).get_size(); i++)
       for (int j=0; j<rightBlock->get_op_array(CRE).get_local_element(i).size(); j++) {
-	allops2.push_back(rightBlock->get_op_array(CRE).get_local_element(i)[j]);
-	allfuncs2.push_back(f4b);
+	      allops2.push_back(rightBlock->get_op_array(CRE).get_local_element(i)[j]);
+	      allfuncs2.push_back(f4b);
       }
   }
   else {
@@ -1013,9 +1012,7 @@ void StackSpinBlock::multiplyH(StackWavefunction& c, StackWavefunction* v, int n
 
 void StackSpinBlock::multiplyH_2index(StackWavefunction& c, StackWavefunction* v, int num_threads) const
 {
-
   SpinQuantum hq(0,SpinSpace(0),IrrepSpace(0));
-
   StackSpinBlock* loopBlock=(leftBlock->is_loopblock()) ? leftBlock : rightBlock;
   StackSpinBlock* otherBlock = loopBlock == leftBlock ? rightBlock : leftBlock;
 
@@ -1040,8 +1037,8 @@ void StackSpinBlock::multiplyH_2index(StackWavefunction& c, StackWavefunction* v
     f4 = boost::bind(&stackopxop::cxcddcomp, leftBlock, _1, this, boost::ref(c), v_array, dmrginp.effective_molecule_quantum() );
     for (int i=0; i<leftBlock->get_op_array(CRE).get_size(); i++)
       for (int j=0; j<leftBlock->get_op_array(CRE).get_local_element(i).size(); j++) {
-	allops.push_back(leftBlock->get_op_array(CRE).get_local_element(i)[j]);
-	allfuncs.push_back(f5);
+	      allops.push_back(leftBlock->get_op_array(CRE).get_local_element(i)[j]);
+	      allfuncs.push_back(f5);
       }
   }
   else {
@@ -1050,8 +1047,8 @@ void StackSpinBlock::multiplyH_2index(StackWavefunction& c, StackWavefunction* v
 
     for (int i=0; i<rightBlock->get_op_array(CRE).get_size(); i++)
       for (int j=0; j<rightBlock->get_op_array(CRE).get_local_element(i).size(); j++) {
-	allops.push_back(rightBlock->get_op_array(CRE).get_local_element(i)[j]);
-	allfuncs.push_back(f4);
+        allops.push_back(rightBlock->get_op_array(CRE).get_local_element(i)[j]);
+	      allfuncs.push_back(f4);
       }    
   }
 
@@ -1069,39 +1066,32 @@ void StackSpinBlock::multiplyH_2index(StackWavefunction& c, StackWavefunction* v
 	allfuncs.push_back(f5);
       }
   }
-
   
   FUNCTOR2 f6 = boost::bind(&stackopxop::cdxcdcomp, otherBlock, _1, this, boost::ref(c), v_array, dmrginp.effective_molecule_quantum());
   FUNCTOR2 f7 = boost::bind(&stackopxop::ddxcccomp, otherBlock, _1, this, boost::ref(c), v_array, dmrginp.effective_molecule_quantum() );
-
 
   //all these will use the threeindex functions
   if (dmrginp.hamiltonian() != HUBBARD) {
     for (int i=0; i<loopBlock->get_op_array(CRE_DES).get_size(); i++)
       for (int j=1; j<loopBlock->get_op_array(CRE_DES).get_local_element(i).size(); j++) {
-	allops.push_back(loopBlock->get_op_array(CRE_DES).get_local_element(i)[j]);
-	allfuncs.push_back(f6);
+	      allops.push_back(loopBlock->get_op_array(CRE_DES).get_local_element(i)[j]);
+	      allfuncs.push_back(f6);
       }
 
     for (int i=0; i<loopBlock->get_op_array(CRE_CRE).get_size(); i++)
       for (int j=1; j<loopBlock->get_op_array(CRE_CRE).get_local_element(i).size(); j++) {
-	allops.push_back(loopBlock->get_op_array(CRE_CRE).get_local_element(i)[j]);
-	allfuncs.push_back(f7);
+	      allops.push_back(loopBlock->get_op_array(CRE_CRE).get_local_element(i)[j]);
+	      allfuncs.push_back(f7);
       }
+    for (int i=0; i<loopBlock->get_op_array(CRE_CRE).get_size(); i++) {
+	    allops.push_back(loopBlock->get_op_array(CRE_CRE).get_local_element(i)[0]);
+	    allfuncs.push_back(f7);
+    }
+    for (int i=0; i<loopBlock->get_op_array(CRE_DES).get_size(); i++) {
+	    allops.push_back(loopBlock->get_op_array(CRE_DES).get_local_element(i)[0]);
+      allfuncs.push_back(f6);
+    }
   }
-  if (dmrginp.hamiltonian() != HUBBARD) {
-    for (int i=0; i<loopBlock->get_op_array(CRE_CRE).get_size(); i++)
-      for (int j=0; j<1; j++) {
-	allops.push_back(loopBlock->get_op_array(CRE_CRE).get_local_element(i)[j]);
-	allfuncs.push_back(f7);
-      }
-    for (int i=0; i<loopBlock->get_op_array(CRE_DES).get_size(); i++)
-      for (int j=0; j<1; j++) {
-	allops.push_back(loopBlock->get_op_array(CRE_DES).get_local_element(i)[j]);
-	allfuncs.push_back(f6);
-      }
-  }
-
 
   dmrginp.matmultNum = 0;
 
@@ -1116,7 +1106,6 @@ void StackSpinBlock::multiplyH_2index(StackWavefunction& c, StackWavefunction* v
   for (int i = 0; i<allops.size(); i++)  {
       allfuncs[i](allops[i]);
   }
-
 
   dmrginp.tensormultiply->stop();  
 

@@ -717,7 +717,6 @@ void StackSpinBlock::messagePassTwoIndexOps()
   //In loop block you never have any comp ops, but we need a few
   //to make CCDcomp, these operators are created in parallel and passed around
 void StackSpinBlock::formTwoIndexOps() {
-
   boost::mpi::communicator world;
   //if dont have 2 index normal ops then return
   if (!has(CRE_DES)) return;
@@ -747,7 +746,7 @@ void StackSpinBlock::formTwoIndexOps() {
   std::vector<int> cinds;
   std::vector<std::pair<int, int> > cdpair, ddpair;
   for (int idx = 0; idx < dotindice.size(); ++idx) 
-  for (int i=0; i<complementary_sites.size(); i++) {
+  for (int i=idx; i<complementary_sites.size(); i++) {
     int dotopindex = dotindice[idx];
     int compsite = complementary_sites[i];
     int I = (compsite > dotopindex) ? compsite : dotopindex;
@@ -767,9 +766,10 @@ void StackSpinBlock::formTwoIndexOps() {
   }
 
 
+  // CDcomp
   //IJ operator where atleast I or J is on the dot site
   for (int idx = 0; idx < dotindice.size(); ++idx) 
-  for (int i=0; i<complementary_sites.size(); i++) {
+  for (int i=idx; i<complementary_sites.size(); i++) {
     int dotopindex = dotindice[idx];
     int compsite = complementary_sites[i];
     int I = (compsite > dotopindex) ? compsite : dotopindex;
@@ -777,9 +777,9 @@ void StackSpinBlock::formTwoIndexOps() {
 
     if (!ops[CRE_DESCOMP]->has(I, J)) continue;
     //add local index if not already present
-    if (processorindex(trimap_2d(I, J, length)) != mpigetrank())
+    if (processorindex(trimap_2d(I, J, length)) != mpigetrank()) {
       ops[CRE_DESCOMP]->add_local_indices(I,J);
-
+    }
     //get the vector of operators
     std::vector<boost::shared_ptr<StackSparseMatrix> > opvec = ops[CRE_DESCOMP]->get_element(I, J);
 
@@ -791,34 +791,34 @@ void StackSpinBlock::formTwoIndexOps() {
       op.buildfromCreDes(*this);
 
       if (find(dotindice.begin(), dotindice.end(), I) != dotindice.end() &&
-	  find(dotindice.begin(), dotindice.end(), J) != dotindice.end()) { //all proces should have it
-	MPI_Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM, Calc);
-	if (additionalMemory == 0)
-	  additionaldata = op.get_data();
-	additionalMemory += op.memoryUsed();
-      }
-      else {
-	//this process should have the operator
-	int toproc = processorindex(compsite);
-	MPI_Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM, Calc);
+	    find(dotindice.begin(), dotindice.end(), J) != dotindice.end()) { //all proces should have it
+	      MPI_Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM, Calc);
+	      if (additionalMemory == 0)
+	        additionaldata = op.get_data();
+	      additionalMemory += op.memoryUsed();
+      } else {
+	      //this process should have the operator
+	      int toproc = processorindex(compsite);
+	      MPI_Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM, Calc);
 
-	//remove the processor if not required
-	if (mpigetrank() != toproc) {
-	  op.deallocate();
-	  if (ops[CRE_DESCOMP]->has_local_index(I,J))
-	    ops[CRE_DESCOMP]->remove_local_indices(I,J);
-	}
-	else {
-	  if (additionalMemory == 0)
-	    additionaldata = op.get_data();
-	  additionalMemory += op.memoryUsed();
-	}
+	      //remove the processor if not required
+	      if (mpigetrank() != toproc) {
+	        op.deallocate();
+	        if (ops[CRE_DESCOMP]->has_local_index(I,J))
+	          ops[CRE_DESCOMP]->remove_local_indices(I,J);
+	      }
+	      else {
+	        if (additionalMemory == 0)
+	          additionaldata = op.get_data();
+	        additionalMemory += op.memoryUsed();
+	      }
       }
     }
   }
 
+  // DDcomp
   for (int idx = 0; idx < dotindice.size(); ++idx) 
-  for (int i=0; i<complementary_sites.size(); i++) {
+  for (int i=idx; i<complementary_sites.size(); i++) {
     int dotopindex = dotindice[idx];
     int compsite = complementary_sites[i];
     int I = (compsite > dotopindex) ? compsite : dotopindex;
@@ -841,12 +841,11 @@ void StackSpinBlock::formTwoIndexOps() {
       op.allocate(braStateInfo, ketStateInfo);
       op.buildfromDesDes(*this);
       
-      if (find(dotindice.begin(), dotindice.end(), I) != dotindice.end() &&
-	  find(dotindice.begin(), dotindice.end(), J) != dotindice.end()) { //all proces should have it
-	MPI_Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM, Calc);
-	if (additionalMemory == 0)
-	  additionaldata = op.get_data();
-	additionalMemory += op.memoryUsed();
+      if (find(dotindice.begin(), dotindice.end(), I) != dotindice.end() && find(dotindice.begin(), dotindice.end(), J) != dotindice.end()) { //all proces should have it
+	      MPI_Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM, Calc);
+	      if (additionalMemory == 0)
+	        additionaldata = op.get_data();
+	        additionalMemory += op.memoryUsed();
       }
       else {
 	//this process should have the operator
@@ -870,8 +869,9 @@ void StackSpinBlock::formTwoIndexOps() {
   }
 
   if (has(DES)) {
+    // CCcomp
     for (int idx = 0; idx < dotindice.size(); ++idx) 
-    for (int i=0; i<complementary_sites.size(); i++) {
+    for (int i=idx; i<complementary_sites.size(); i++) {
     int dotopindex = dotindice[idx];
     int compsite = complementary_sites[i];
     int I = (compsite > dotopindex) ? compsite : dotopindex;
@@ -919,9 +919,9 @@ void StackSpinBlock::formTwoIndexOps() {
 
   }
     
-    
+    // DCcomp
     for (int idx = 0; idx < dotindice.size(); ++idx) 
-    for (int i=0; i<complementary_sites.size(); i++) {
+    for (int i=idx; i<complementary_sites.size(); i++) {
     int dotopindex = dotindice[idx];
     int compsite = complementary_sites[i];
     int I = (compsite > dotopindex) ? compsite : dotopindex;

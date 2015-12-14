@@ -22,7 +22,7 @@ Formulas for making hamiltonian matrix while blocking a block with a dot block
 void SpinAdapted::stackopxop::cdxcdcomp(const StackSpinBlock* otherblock, std::vector<boost::shared_ptr<StackSparseMatrix> >& opvec1, const StackSpinBlock* b, StackSparseMatrix* o) {
   int ilock = 0;
   int numthreads = 1;//MAX_THRD;
-  const StackSpinBlock* loopblock = (otherblock==b->get_leftBlock()) ? b->get_rightBlock() : b->get_leftBlock();    
+  const StackSpinBlock* loopblock = (otherblock==b->get_leftBlock()) ? b->get_rightBlock() : b->get_leftBlock();
 
   for (int opind=0; opind<opvec1.size(); opind++) { // this is CreDes_{ij}
     boost::shared_ptr<StackSparseMatrix> op1 = opvec1.at(opind);
@@ -30,24 +30,20 @@ void SpinAdapted::stackopxop::cdxcdcomp(const StackSpinBlock* otherblock, std::v
     int j = op1->get_orbs(1);
     if (!otherblock->get_op_array(CRE_DESCOMP).has_local_index(i,j))
       return;
-    //pout << "building ham cd "<<i<<"  "<<j<<endl;
     boost::shared_ptr<StackSparseMatrix> op2 = otherblock->get_op_array(CRE_DESCOMP).get_element(i, j).at(opind);
     double factor = 1.0;
     SpinAdapted::operatorfunctions::TensorProduct(otherblock, *op2, *op1, b, &(b->get_stateInfo()), o[ilock], factor, numthreads);
     if (i != j) {
       //If we have all the operators we dont have to take transposes, useful for <bra|H|ket> evaluation
       if (otherblock->has(DES_CRECOMP)) {
-	op1 = loopblock->get_op_array(DES_CRE).get_element(i,j).at(opind);
-	double parity = 1.0;
-	if (dmrginp.spinAdapted() == true && dmrginp.hamiltonian() != BCS)
-	  parity = getCommuteParity(-getSpinQuantum(i), getSpinQuantum(j), op1->get_deltaQuantum()[0]);
-	op2 = otherblock->get_op_array(DES_CRECOMP).get_element(i,j).at(opind);
-	SpinAdapted::operatorfunctions::TensorProduct(otherblock, *op2, *op1, b, &(b->get_stateInfo()), o[ilock], factor*parity, numthreads);
+	      op1 = loopblock->get_op_array(DES_CRE).get_element(i,j).at(opind);
+	      double parity = 1.0;
+	      if (dmrginp.spinAdapted()  && dmrginp.hamiltonian() != BCS)
+	        parity = getCommuteParity(-getSpinQuantum(i), getSpinQuantum(j), op1->get_deltaQuantum()[0]);
+	      op2 = otherblock->get_op_array(DES_CRECOMP).get_element(i,j).at(opind);
+	      SpinAdapted::operatorfunctions::TensorProduct(otherblock, *op2, *op1, b, &(b->get_stateInfo()), o[ilock], factor*parity, numthreads);
       } else {
-	//op2->set_conjugacy('t');
-	//op1->set_conjugacy('t');
-	SpinAdapted::operatorfunctions::TensorProduct(otherblock, Transpose(*op2), Transpose(*op1), b, &(b->get_stateInfo()), o[ilock], factor, numthreads);
-	//op2->set_conjugacy('n');op1->set_conjugacy('n');
+	      SpinAdapted::operatorfunctions::TensorProduct(otherblock, Transpose(*op2), Transpose(*op1), b, &(b->get_stateInfo()), o[ilock], factor, numthreads);
       }
     }
   }
@@ -130,7 +126,6 @@ void SpinAdapted::stackopxop::cxcddcomp(const StackSpinBlock* otherblock, std::v
     } else {
       //StackTransposeview top1 = StackTransposeview(op1);  // DES_i
       boost::shared_ptr<StackSparseMatrix> op2 = otherblock->get_op_array(CRE_CRE_DESCOMP).get_element(i).at(opind);
-      
       double scale = 1.0;
       double parity = 1.0;
       
@@ -155,7 +150,6 @@ void SpinAdapted::stackopxop::cdxcdcomp_Element(const StackSpinBlock* otherblock
   int ilock = 0;
   int numthreads = 1;//MAX_THRD;
   const StackSpinBlock* loopblock = (otherblock==b->get_leftBlock()) ? b->get_rightBlock() : b->get_leftBlock();    
-
   for (int opind=0; opind<opvec1.size(); opind++) { // this is CreDes_{ij}
     boost::shared_ptr<StackSparseMatrix> op1 = opvec1.at(opind);
     int i = op1->get_orbs(0);
@@ -177,10 +171,7 @@ void SpinAdapted::stackopxop::cdxcdcomp_Element(const StackSpinBlock* otherblock
 	op2 = otherblock->get_op_array(DES_CRECOMP).get_element(i,j).at(opind);
 	SpinAdapted::operatorfunctions::TensorProduct(otherblock, *op2, *op1, b, &(b->get_stateInfo()), o[ilock], factor*parity, numthreads);
       } else {
-	//op2->set_conjugacy('t');
-	//op1->set_conjugacy('t');
 	SpinAdapted::operatorfunctions::TensorProductElement(otherblock, Transpose(*op2), Transpose(*op1), b, &(b->get_stateInfo()), o[ilock], m, row, col, factor);
-	//op2->set_conjugacy('n');op1->set_conjugacy('n');
       }
     }
   }
@@ -1136,7 +1127,6 @@ void SpinAdapted::stackopxop::cdxcdcomp(const StackSpinBlock* otherblock, boost:
       bool deallocate2 = op2->memoryUsed() == 0 ? true : false; 
       op2->allocate(otherblock->get_braStateInfo(), otherblock->get_ketStateInfo());
       op2->build(*otherblock);
-	
       double factor = 1.0;
       SpinAdapted::operatorfunctions::TensorMultiply(otherblock, *op2, *op1, b, c, v, hq, factor);
 
@@ -1156,7 +1146,7 @@ void SpinAdapted::stackopxop::cdxcdcomp(const StackSpinBlock* otherblock, boost:
       bool deallocate2 = op2->memoryUsed() == 0 ? true : false; 
       op2->allocate(otherblock->get_braStateInfo(), otherblock->get_ketStateInfo());
       op2->build(*otherblock);
-      
+
       SpinAdapted::operatorfunctions::TensorMultiply(otherblock, *op2, *op1, b, c, v, hq, parity);
       if (deallocate2) op2->deallocate();
       if (deallocate1) op1->deallocate();
@@ -1176,7 +1166,6 @@ void SpinAdapted::stackopxop::cdxcdcomp(const StackSpinBlock* otherblock, boost:
     bool deallocate2 = op2->memoryUsed() == 0 ? true : false; 
     op2->allocate(otherblock->get_braStateInfo(), otherblock->get_ketStateInfo());
     if (deallocate2) op2->build(*otherblock);
-    
     double factor = 1.0;
     SpinAdapted::operatorfunctions::TensorMultiply(otherblock, *op2, *op1, b, c, v, hq, factor);
     if (i != j) {
@@ -1184,7 +1173,7 @@ void SpinAdapted::stackopxop::cdxcdcomp(const StackSpinBlock* otherblock, boost:
       SpinAdapted::operatorfunctions::TensorMultiply(otherblock, Transpose(*op2), Transpose(*op1), b, c, v, hq, factor);
       //op2->set_conjugacy('n');op1->set_conjugacy('n');
     }
-    
+
     if (deallocate2) op2->deallocate();
     if (deallocate1) op1->deallocate();
     
@@ -1205,7 +1194,6 @@ void SpinAdapted::stackopxop::ddxcccomp(const StackSpinBlock* otherblock, boost:
     return;
   double factor = 2.0; if (i==j) factor = 1.0;
   boost::shared_ptr<StackSparseMatrix> op2 = otherblock->get_op_rep(DES_DESCOMP, -opq, i, j);
-  
   
   bool deallocate1 = op1->memoryUsed() == 0 ? true : false; 
   bool deallocate2 = op2->memoryUsed() == 0 ? true : false; 
@@ -1251,7 +1239,6 @@ void SpinAdapted::stackopxop::ddxcccomp(const StackSpinBlock* otherblock, boost:
     
     op2->allocate(otherblock->get_braStateInfo(), otherblock->get_ketStateInfo());
     op2->build(*otherblock);
-    
     double scale = 1.0;
     double parity = 1.0;
     if (otherblock == b->get_leftBlock())
@@ -1365,6 +1352,7 @@ void SpinAdapted::stackopxop::cxcddcomp(const StackSpinBlock* otherblock, boost:
 
 void SpinAdapted::stackopxop::hamandoverlap(const StackSpinBlock* otherblock, boost::shared_ptr<StackSparseMatrix> op1, const StackSpinBlock* b, StackWavefunction& c, StackWavefunction* v, const SpinQuantum& q, double scale, int proc)
 {
+
   SpinQuantum hq(0,SpinSpace(0),IrrepSpace(0));  // in get_parity, number part is not used
   const StackSpinBlock* loopblock = (otherblock==b->get_leftBlock()) ? b->get_rightBlock() : b->get_leftBlock();
 
@@ -1379,7 +1367,7 @@ void SpinAdapted::stackopxop::hamandoverlap(const StackSpinBlock* otherblock, bo
   op1ham->allocate(loopblock->get_braStateInfo(), loopblock->get_ketStateInfo());
   op1ham->build(*loopblock);
 
- SpinAdapted::operatorfunctions::TensorMultiply(otherblock, *op2, *op1ham, b, c, v, hq, 1.0);	    
+  SpinAdapted::operatorfunctions::TensorMultiply(otherblock, *op2, *op1ham, b, c, v, hq, 1.0);	    
   if (deallocate1ham) op1ham->deallocate();
 
 
@@ -1392,7 +1380,6 @@ void SpinAdapted::stackopxop::hamandoverlap(const StackSpinBlock* otherblock, bo
   bool deallocate2ham = op2ham->memoryUsed() == 0 ? true : false; 
   op2ham->allocate(otherblock->get_braStateInfo(), otherblock->get_ketStateInfo());
   op2ham->build(*otherblock);
-
   SpinAdapted::operatorfunctions::TensorMultiply(otherblock, *op2ham, *op1, b, c, v, hq, 1.0);	    
   if (deallocate2ham) op2ham->deallocate();
   SpinAdapted::operatorfunctions::TensorMultiply(otherblock, *op2, *op1, b, c, v, hq, scale);	    
@@ -1465,32 +1452,30 @@ void SpinAdapted::stackopxop::cxcdcompElement(const StackSpinBlock* otherBlock, 
   int numthreads = 1;
   const StackSpinBlock* loopblock = (otherBlock==b->get_leftBlock()) ? b->get_rightBlock() : b->get_leftBlock();
 
-  if (opvec1[0]->get_orbs(0) >= I) // opvec1 is CRE
-    {
-      for (int opind=0; opind<opvec1.size(); opind++) {    
-	boost::shared_ptr<StackSparseMatrix> op1 = opvec1.at(opind);
-	if (!otherBlock->get_op_array(CRE_DESCOMP).has_local_index(op1->get_orbs(0), I)) // we have c_J d_I *c_K d_L
-	  return;
-	
-	const std::vector<boost::shared_ptr<StackSparseMatrix> >& opvec2 = otherBlock->get_op_array(CRE_DESCOMP).get_element(op1->get_orbs(0), I); // CD_comp(j,i) have multiple matrices because of spin adaption
-	for (int opind2 = 0; opind2<opvec2.size(); opind2++) {
-	  boost::shared_ptr<StackSparseMatrix> op2 = opvec2.at(opind2); // CD
-	  vector<SpinQuantum> op2q = op2->get_deltaQuantum(), op1q = op1->get_deltaQuantum(), oq = o->get_deltaQuantum(); // o is the resulted CCD
-	  int j2 = op2q[0].get_s().getirrep(), j1 = op1q[0].get_s().getirrep(), j21 = oq[0].get_s().getirrep();
-	  int l2 = op2q[0].get_symm().getirrep(), l1 = op1q[0].get_symm().getirrep(), l21 = oq[0].get_symm().getirrep(), l3 = (-SymmetryOfOrb(I)).getirrep();
-	  double factor = dmrginp.spinAdapted() ? pow(-1.0, static_cast<int>((2+j2)/2)) * sixj(j2, j1, j21, 1, 0, j2) * sqrt((j21+1)*(j2+1)) : 1.0;
-	  if (NonabelianSym)
-	    factor *= Symmetry::spatial_sixj(l2, l1, l21, l3, 0, (-IrrepSpace(l2)).getirrep());
-	  
-	  double parity = 1.0;
-	  if (otherBlock == b->get_rightBlock())
-	    parity *= getCommuteParity(op1->get_deltaQuantum(0), op2->get_deltaQuantum(0), o->get_deltaQuantum(0)); // doesn't depend on nelec
-	  factor*= parity;
-	  SpinAdapted::operatorfunctions::TensorProductElement(otherBlock, *op2, *op1, b, &(b->get_stateInfo()), o[ilock], m, row, col, factor*scale); // CD*C
-	}
-      }
-    } 
-  else {
+  if (opvec1[0]->get_orbs(0) >= I) {// opvec1 is CRE
+    for (int opind=0; opind<opvec1.size(); opind++) {
+	    boost::shared_ptr<StackSparseMatrix> op1 = opvec1.at(opind);
+	    if (!otherBlock->get_op_array(CRE_DESCOMP).has_local_index(op1->get_orbs(0), I)) // we have c_J d_I *c_K d_L
+	      return;
+
+	    const std::vector<boost::shared_ptr<StackSparseMatrix> >& opvec2 = otherBlock->get_op_array(CRE_DESCOMP).get_element(op1->get_orbs(0), I); // CD_comp(j,i) have multiple matrices because of spin adaption
+	    for (int opind2 = 0; opind2<opvec2.size(); opind2++) {
+	      boost::shared_ptr<StackSparseMatrix> op2 = opvec2.at(opind2); // CD
+	      vector<SpinQuantum> op2q = op2->get_deltaQuantum(), op1q = op1->get_deltaQuantum(), oq = o->get_deltaQuantum(); // o is the resulted CCD
+	      int j2 = op2q[0].get_s().getirrep(), j1 = op1q[0].get_s().getirrep(), j21 = oq[0].get_s().getirrep();
+	      int l2 = op2q[0].get_symm().getirrep(), l1 = op1q[0].get_symm().getirrep(), l21 = oq[0].get_symm().getirrep(), l3 = (-SymmetryOfOrb(I)).getirrep();
+	      double factor = dmrginp.spinAdapted() ? pow(-1.0, static_cast<int>((2+j2)/2)) * sixj(j2, j1, j21, 1, 0, j2) * sqrt((j21+1)*(j2+1)) : 1.0;
+	      if (NonabelianSym)
+	        factor *= Symmetry::spatial_sixj(l2, l1, l21, l3, 0, (-IrrepSpace(l2)).getirrep());
+
+	      double parity = 1.0;
+	      if (otherBlock == b->get_rightBlock())
+	        parity *= getCommuteParity(op1->get_deltaQuantum(0), op2->get_deltaQuantum(0), o->get_deltaQuantum(0)); // doesn't depend on nelec
+	      factor*= parity;
+	      SpinAdapted::operatorfunctions::TensorProductElement(otherBlock, *op2, *op1, b, &(b->get_stateInfo()), o[ilock], m, row, col, factor*scale); // CD*C
+	    }
+    }
+  } else {
     for (int opind=0; opind<opvec1.size(); opind++) {    
       boost::shared_ptr<StackSparseMatrix> op1 = opvec1.at(opind);
       if (!otherBlock->get_op_array(CRE_DESCOMP).has_local_index(I, op1->get_orbs(0)))
@@ -1634,11 +1619,11 @@ void SpinAdapted::stackopxop::cxcdcomp(const StackSpinBlock* otherBlock, std::ve
 
   if (opvec1[0]->get_orbs(0) >= I) // opvec1 is CRE
     {
-      for (int opind=0; opind<opvec1.size(); opind++) {    
+      for (int opind=0; opind<opvec1.size(); opind++) {
 	boost::shared_ptr<StackSparseMatrix> op1 = opvec1.at(opind);
 	if (!otherBlock->get_op_array(CRE_DESCOMP).has_local_index(op1->get_orbs(0), I)) // we have c_J d_I *c_K d_L
 	  return;
-	
+
 	const std::vector<boost::shared_ptr<StackSparseMatrix> >& opvec2 = otherBlock->get_op_array(CRE_DESCOMP).get_element(op1->get_orbs(0), I); // CD_comp(j,i) have multiple matrices because of spin adaption
 	for (int opind2 = 0; opind2<opvec2.size(); opind2++) {
 	  boost::shared_ptr<StackSparseMatrix> op2 = opvec2.at(opind2); // CD

@@ -1367,7 +1367,6 @@ SpinAdapted::Input::Input(const string& config_name) {
   mpi::broadcast(world, NPROP, 0);
   mpi::broadcast(world, PROPBITLEN, 0);
 #endif
-
 }
 
 void SpinAdapted::Input::readreorderfile(ifstream& dumpFile, std::vector<int>& oldtonew) {
@@ -1551,38 +1550,33 @@ void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray&
     boost::split(tok, msg, is_any_of("=, \t"), token_compress_on);
     
     int readLine = 1, numRead = 1;
-    bool RHF = true;
     while (!(boost::iequals(tok[0], "ISYM") || boost::iequals(tok[0], "&END"))) {
       for (int i=0; i<tok.size(); i++) {
-	if (boost::iequals(tok[i], "ORBSYM") || tok[i].size() == 0) continue;
+	      if (boost::iequals(tok[i], "ORBSYM") || tok[i].size() == 0) continue;
 	
-	int reorderOrbInd =  reorder.at(orbindex/2);
+	      int reorderOrbInd =  reorder.at(orbindex/2);
 	
-	int ir;
-	if (atoi(tok[i].c_str()) >= 0 ) 
-	  ir = atoi(tok[i].c_str()) - offset;
-	else if (atoi(tok[i].c_str()) < -1)
-	  ir = atoi(tok[i].c_str()) + offset;
+	      int ir;
+	      if (atoi(tok[i].c_str()) >= 0 ) ir = atoi(tok[i].c_str()) - offset;
+	      else if (atoi(tok[i].c_str()) < -1) ir = atoi(tok[i].c_str()) + offset;
 	
-	if (sym == "trans") ir += 1; //for translational symmetry the lowest irrep is 0
-	if (sym == "lzsym") ir = atoi(tok[i].c_str());
+	      if (sym == "trans") ir += 1; //for translational symmetry the lowest irrep is 0
+	      if (sym == "lzsym") ir = atoi(tok[i].c_str());
 	
 	
-	m_spin_orbs_symmetry[2*reorderOrbInd] = ir;
-	m_spin_orbs_symmetry[2*reorderOrbInd+1] = ir;
+	      m_spin_orbs_symmetry[2*reorderOrbInd] = ir;
+	      m_spin_orbs_symmetry[2*reorderOrbInd+1] = ir;
 	
-	if (readLine == numRead) {
-	  m_num_spatial_orbs++;
-	  m_spatial_to_spin.push_back(orbindex);
-	  numRead = Symmetry::sizeofIrrep(ir);
-	  readLine = 0;
-	}
-	m_spin_to_spatial[orbindex] = m_num_spatial_orbs-1;
-	m_spin_to_spatial[orbindex+1] = m_num_spatial_orbs-1;
-	orbindex +=2;
-	readLine++;
-	
-	
+	      if (readLine == numRead) {
+	        m_num_spatial_orbs++;
+	        m_spatial_to_spin.push_back(orbindex);
+	        numRead = Symmetry::sizeofIrrep(ir);
+	        readLine = 0;
+	      }
+	      m_spin_to_spatial[orbindex] = m_num_spatial_orbs-1;
+	      m_spin_to_spatial[orbindex+1] = m_num_spatial_orbs-1;
+	      orbindex +=2;
+	      readLine++;
       }
       msg.resize(0);
       ReadMeaningfulLine(dumpFile, msg, msgsize);
@@ -1590,16 +1584,14 @@ void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray&
       if(boost::iequals(tok[0], "IUHF")) RHF=false;
     }
     
-    
     if(sym == "dinfh" ) {
       m_spatial_to_spin.clear();
       for (int i=0; i<m_spin_orbs_symmetry.size();) {
-	int ir = m_spin_orbs_symmetry[i];
-	m_spatial_to_spin.push_back(i);
-	i += 2*Symmetry::sizeofIrrep(ir); 
+	      int ir = m_spin_orbs_symmetry[i];
+	      m_spatial_to_spin.push_back(i);
+	      i += 2*Symmetry::sizeofIrrep(ir); 
       }
     }
-    
     
     m_spatial_to_spin.push_back(m_norbs);
     m_spin_to_spatial.push_back(m_norbs);
@@ -1607,15 +1599,13 @@ void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray&
     while (!((boost::iequals(tok[0], "&END")) || (boost::iequals(tok[0], "/")))) {
       int temp;
       if (boost::iequals(tok[0], "NPROP") ) {
-	NPROP.push_back( atoi(tok[1].c_str()));
-	NPROP.push_back( atoi(tok[2].c_str()));
-	NPROP.push_back( atoi(tok[3].c_str()));
-      }
-      else if (boost::iequals(tok[0], "PROPBITLEN") ) {
-	temp = atoi(tok[1].c_str());
-	PROPBITLEN=1;
-	for (int i=0; i<temp; i++)
-	  PROPBITLEN *= 2;
+	      NPROP.push_back( atoi(tok[1].c_str()));
+	      NPROP.push_back( atoi(tok[2].c_str()));
+	      NPROP.push_back( atoi(tok[3].c_str()));
+      } else if (boost::iequals(tok[0], "PROPBITLEN") ) {
+	      temp = atoi(tok[1].c_str());
+	      PROPBITLEN=1;
+	      for (int i=0; i<temp; i++) PROPBITLEN *= 2;
       }
       
       msg.resize(0);
@@ -1627,7 +1617,7 @@ void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray&
     //int AOrbOffset = 0, BOrbOffset = 0;
     if(!RHF) {
       v1.rhf = false;
-      v2.rhf = false;    
+      v2.rhf = false;
     }
     v1.ReSize(m_norbs);  
     v2.ReSize(m_norbs);
@@ -1641,9 +1631,8 @@ void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray&
 
   long oneIntegralMem, twoIntegralMem;
   long twoedim = v2.matDim;
-
   if (RHF) { oneIntegralMem = (m_norbs/2*(m_norbs/2+1))/2; twoIntegralMem = twoedim*(twoedim+1)/2;}
-  else { oneIntegralMem = (m_norbs*(m_norbs+1))/2; twoIntegralMem = twoedim*(twoedim+1)/2;}
+  else { oneIntegralMem = m_norbs/2*(m_norbs/2+1); twoIntegralMem = twoedim*(twoedim+1)/2;}
 
 #ifndef SERIAL
   mpi::broadcast(world,oneIntegralMem,0);
@@ -1658,11 +1647,9 @@ void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray&
   //wait for all procs to zero out the memory
   MPI::COMM_WORLD.Barrier();
 #endif
-
   v1.set_data() = static_cast<double*>(region.get_address()) + (oneIntegralMem+twoIntegralMem)*integralIndex;
   v2.set_data() = static_cast<double*>(region.get_address()) + oneIntegralMem + (oneIntegralMem+twoIntegralMem)*integralIndex;
-
-    
+  
   if (rank == 0) {
     msg.resize(0);
     ReadMeaningfulLine(dumpFile, msg, msgsize); //this if the first line with integrals
