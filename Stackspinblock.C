@@ -430,7 +430,7 @@ void StackSpinBlock::build_and_renormalise_operators(const std::vector<Matrix>& 
   //and have special build_and_renormalise_operators
   for (std::map<opTypes, boost::shared_ptr< StackOp_component_base> >::iterator it = ops.begin(); it != ops.end(); ++it) {
     opTypes ot = it->first;
-    if(! it->second->is_core() && ot >= CRE_CRE_CRE) {
+    if(! it->second->is_core() && ot >= CRE_CRE_CRE && !(ot == RI_3INDEX || ot == RI_4INDEX) ) {
       for (int i=0; i<it->second->get_size(); i++) {
 	for (int j=0; j<it->second->get_local_element(i).size(); j++) {
 	  allopsOnDisk.push_back(it->second->get_local_element(i)[j]);
@@ -442,7 +442,7 @@ void StackSpinBlock::build_and_renormalise_operators(const std::vector<Matrix>& 
   
   for (std::map<opTypes, boost::shared_ptr< StackOp_component_base> >::iterator it = ops.begin(); it != ops.end(); ++it) {
     opTypes ot = it->first;
-    if(! it->second->is_core() && ot < CRE_CRE_CRE) {
+    if(! it->second->is_core() && ot < CRE_CRE_CRE && !(ot == RI_3INDEX || ot == RI_4INDEX) ) {
       for (int i=0; i<it->second->get_size(); i++)
 	for (int j=0; j<it->second->get_local_element(i).size(); j++)
 	  allops.push_back(it->second->get_local_element(i)[j]);
@@ -495,14 +495,9 @@ void StackSpinBlock::build_and_renormalise_operators(const std::vector<Matrix>& 
 	if (omprank==0) {
 	  for (int thrd=0; thrd<numthrds; thrd++) {
 	    if (I*numthrds+thrd < allopsOnDisk.size()) {
-	      int ix = tmp[thrd].get_orbs(0);
-	      int jx = tmp[thrd].get_orbs(1);
-	      int kx = tmp[thrd].get_orbs(2);
-	      std::vector<SpinQuantum> sq = tmp[thrd].get_quantum_ladder()[tmp[thrd].get_build_pattern()];
-	      string ladderop = to_string(sq[0].get_s().getirrep())+ to_string(sq[1].get_s().getirrep())+to_string(ix)+to_string(jx)+to_string(kx);
-	      std::ofstream ofs( (fileNames[I*numthrds+thrd]+ladderop).c_str(), std::ios::binary );	  
-	      tmp[thrd].SaveThreadSafe(ofs);
-	      ofs.close();	  
+	      tmp[thrd].SaveThreadSafe();
+	      tmp[thrd].CleanUp();
+	      allopsOnDisk[I*numthrds+thrd]->CleanUp();
 	    }
 	  }
 	}

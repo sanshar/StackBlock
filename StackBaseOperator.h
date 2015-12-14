@@ -77,6 +77,7 @@ class StackSparseMatrix : public Baseoperator<StackMatrix>  // the sparse matrix
 	& nonZeroBlocks \
 	& mapToNonZeroBlocks \
 	& conj		     \
+	& filename \
 	& totalMemory;
     }
 
@@ -99,6 +100,7 @@ class StackSparseMatrix : public Baseoperator<StackMatrix>  // the sparse matrix
   // ...and for each way we record the spin ladder components
   std::map< std::string, std::vector<SpinQuantum> > quantum_ladder;
 
+  string filename; //if the operator is stored on disk what is the filename
   std::vector<std::vector<int> > rowCompressedForm;  //the ith vector corresponds to all the non zero blocks in the ith row
   std::vector<std::vector<int> > colCompressedForm;  //the ith vector corresponds to all the non zero blocks in the ith column
   std::vector< std::pair<std::pair<int, int>, StackMatrix> > nonZeroBlocks; //all the nonzero blocks, the first pair is the row and col index
@@ -111,12 +113,12 @@ class StackSparseMatrix : public Baseoperator<StackMatrix>  // the sparse matrix
     initialised(a.get_initialised()), allowedQuantaMatrix(a.get_allowedQuantaMatrix()), 
     Sign(a.get_sign()), totalMemory(a.totalMemory), data(a.data), conj('n'), built(a.built),
     operatorMatrix(a.operatorMatrix), rowCompressedForm(a.rowCompressedForm), built_on_disk(a.built_on_disk),
-    colCompressedForm(a.colCompressedForm), nonZeroBlocks(a.nonZeroBlocks), mapToNonZeroBlocks(a.mapToNonZeroBlocks) 
+    colCompressedForm(a.colCompressedForm), nonZeroBlocks(a.nonZeroBlocks), mapToNonZeroBlocks(a.mapToNonZeroBlocks), filename(a.filename) 
     {};
 
  StackSparseMatrix(double* pData, long pTotalMemory) : totalMemory(pTotalMemory), data(pData), fermion(false), orbs(2), initialised(false), built(false), built_on_disk(false), Sign(1), conj('n'){};
-  void SaveThreadSafe(std::ofstream &ofs) const;
-  void LoadThreadSafe(std::ifstream &ifs, bool allocate);
+  void SaveThreadSafe() const;
+  void LoadThreadSafe(bool allocate);
   virtual long memoryUsed() const {return totalMemory;}
   void allocate (const StateInfo& s);
   void allocate (const StateInfo& sl, const StateInfo& sr);
@@ -124,6 +126,8 @@ class StackSparseMatrix : public Baseoperator<StackMatrix>  // the sparse matrix
   double* allocate(const StateInfo& rowSI, const StateInfo& colSI, double* pData);
   void deallocate() ;
   double* allocateOperatorMatrix();
+  string get_filename() {return filename;}
+  string& set_filename() {return filename;}
   virtual void build(StackMatrix &m, int row, int col, const StackSpinBlock& block) {};
   virtual void build(const StackSpinBlock& block) {};
   double* get_data() {return data;}

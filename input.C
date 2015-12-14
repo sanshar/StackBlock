@@ -67,12 +67,13 @@ void SpinAdapted::Input::initialize_defaults()
 #ifndef SERIAL
   mpi::communicator world;
   m_thrds_per_node = vector<int>(world.size(),1);
-#else
-  m_thrds_per_node = vector<int>(1,1);
-#endif
   m_calc_procs = vector<int>(world.size(), 0);
   for (int i=0; i<world.size(); i++) 
     m_calc_procs[i] = i;
+#else
+  m_thrds_per_node = vector<int>(1,1);
+  m_calc_procs = vector<int>(1, 0);
+#endif
 
   m_quanta_thrds = 1;
   m_mkl_thrds = 1;
@@ -384,12 +385,16 @@ SpinAdapted::Input::Input(const string& config_name) {
 	m_calc_procs.resize(tok.size()-1, 0);
 	for (int i=0; i<tok.size()-1; i++) {
 	  m_calc_procs[i] = atoi(tok[i+1].c_str());
+#ifndef SERIAL
 	  if (m_calc_procs[i] >= world.size()) {
+#endif
 	    pout << "calcprocessor number is greater than total number of processors"<<endl;
 	    pout << "error found in line "<<endl;
 	    pout << msg<<endl;
 	    exit(0);
+#ifndef SERIAL
 	  }
+#endif
 	}
       }
       else if (boost::iequals(keyword,  "reorder")) {
@@ -1443,9 +1448,10 @@ void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray&
   char ReorderFileName[5000];
   std::vector<int> reorder;
 
+  int rank = 0;
 #ifndef SERIAL
   boost::mpi::communicator world;
-  int rank = world.rank();
+  rank = world.rank();
 #endif
   if (rank == 0) {
     ReadMeaningfulLine(dumpFile, msg, msgsize);
@@ -1466,7 +1472,7 @@ void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray&
     //this is the file to which the reordering is written
     sprintf(ReorderFileName, "%s%s", save_prefix().c_str(), "/RestartReorder.dat");
   }
-  boost::filesystem::path p(ReorderFileName);
+  //boost::filesystem::path p(ReorderFileName);
 
 #ifndef SERIAL
   mpi::broadcast(world,m_norbs,0);
@@ -1776,9 +1782,10 @@ void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray&
 
   int offset = m_orbformat == DMRGFORM ? 0 : 1;
 
+  int rank = 0;
 #ifndef SERIAL
   boost::mpi::communicator world; 
-  int rank = world.rank();
+  rank = world.rank();
 #endif
   if (rank == 0) {
     ReadMeaningfulLine(dumpFile, msg, msgsize);

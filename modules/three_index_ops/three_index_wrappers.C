@@ -56,15 +56,12 @@ bool Npdm_op_wrapper_CCC::set_local_ops( int idx )
     jx = opReps_tmp.at(0)->get_orbs(1);
     kx = opReps_tmp.at(0)->get_orbs(2);
     for (int i = 0; i < opReps_tmp.size(); i++) {
-      std::ifstream ifs;  
-      std::vector<SpinQuantum> sq = opReps_tmp[i]->get_quantum_ladder()[opReps_tmp[i]->get_build_pattern()];
-      string ladder = to_string(sq[0].get_s().getirrep())+ to_string(sq[1].get_s().getirrep())+to_string(ix)+to_string(jx)+to_string(kx);
-      string filename = spinBlock_->get_op_array(CRE_CRE_CRE).get_filename()+ladder;
-      if ( ! dmrginp.do_npdm_in_core() ) ifs.open( filename.c_str(), std::ios::binary );
+      //string filename = spinBlock_->get_op_array(CRE_CRE_CRE).get_filename()+to_string(i);
+      string filename = spinBlock_->get_op_array(CRE_CRE_CRE).get_local_element(idx)[i]->get_filename();
+      boost::shared_ptr<StackSparseMatrix> op (new StackCreCreCre);
+      op->set_filename() = filename;
+      op->LoadThreadSafe(true);
 
-      boost::shared_ptr<StackSparseMatrix> op (new StackCre);
-      op->LoadThreadSafe(ifs, true);
-      if ( ! dmrginp.do_npdm_in_core() ) ifs.close();
       op->allocateOperatorMatrix(); 
       opReps_.push_back(op);
     }
@@ -137,22 +134,16 @@ bool Npdm_op_wrapper_CCD::set_local_ops( int idx )
     kx = opReps_tmp.at(0)->get_orbs(2);
     // Read in full spin-set from disk
     for (int i = 0; i < opReps_tmp.size(); i++) {
-      //boost::archive::binary_iarchive load_op(ifs_);
 
-      std::ifstream ifs;  
-      std::vector<SpinQuantum> sq = opReps_tmp[i]->get_quantum_ladder()[opReps_tmp[i]->get_build_pattern()];
-      string ladder = to_string(sq[0].get_s().getirrep())+ to_string(sq[1].get_s().getirrep())+to_string(ix)+to_string(jx)+to_string(kx);
-      string filename = spinBlock_->get_op_array(CRE_CRE_DES).get_filename()+ladder;
-      if ( ! dmrginp.do_npdm_in_core() )      ifs.open( filename.c_str(), std::ios::binary );
-      //ifs.sync();
-       boost::shared_ptr<StackSparseMatrix> op (new StackCre);
-       op->LoadThreadSafe(ifs, true);
-       op->allocateOperatorMatrix(); 
-
-       opReps_.push_back(op);
-       if ( ! dmrginp.do_npdm_in_core() ) ifs.close();
+      string filename = spinBlock_->get_op_array(CRE_CRE_DES).get_local_element(idx)[i]->get_filename();
+      boost::shared_ptr<StackSparseMatrix> op (new StackCreCreDes);
+      op->set_filename() = filename;
+      op->LoadThreadSafe(true);
+      
+      op->allocateOperatorMatrix(); 
+      opReps_.push_back(op);
     }
-    //if ( ! check_file_close(idx) ) abort();
+
   }
 
   build_pattern_ = opReps_.at(0)->get_build_pattern();
@@ -207,24 +198,22 @@ bool Npdm_op_wrapper_CDD::set_local_ops( int idx )
     // Read in full spin-set from disk
     for (int i = 0; i < opReps_tmp.size(); i++) {
 
-      std::ifstream ifs;  
-      std::vector<SpinQuantum> sq = opReps_tmp[i]->get_quantum_ladder()[opReps_tmp[i]->get_build_pattern()];
-      string ladder = to_string(sq[0].get_s().getirrep())+ to_string(sq[1].get_s().getirrep())+to_string(ix)+to_string(jx)+to_string(kx);
-      string filename = spinBlock_->get_op_array(CRE_DES_DES).get_filename()+ladder;
-      if ( ! dmrginp.do_npdm_in_core() ) ifs.open( filename.c_str(), std::ios::binary );
 
-       boost::shared_ptr<StackSparseMatrix> op (new StackCre);
-       op->LoadThreadSafe(ifs, true);
-      if ( ! dmrginp.do_npdm_in_core() ) ifs.close();
-       op->allocateOperatorMatrix(); 
-       opReps_.push_back(op);
+      string filename = spinBlock_->get_op_array(CRE_DES_DES).get_local_element(idx)[i]->get_filename();
+      //string filename = spinBlock_->get_op_array(CRE_DES_DES).get_filename()+to_string(i);
+      boost::shared_ptr<StackSparseMatrix> op (new StackCreDesDes);
+      op->set_filename() = filename;
+      op->LoadThreadSafe(true);
+      
+      op->allocateOperatorMatrix(); 
+      opReps_.push_back(op);
     }
     //if ( ! check_file_close(idx) ) abort();
   }
 
-    ix = opReps_.at(0)->get_orbs(0);
-    jx = opReps_.at(0)->get_orbs(1);
-    kx = opReps_.at(0)->get_orbs(2);
+  ix = opReps_.at(0)->get_orbs(0);
+  jx = opReps_.at(0)->get_orbs(1);
+  kx = opReps_.at(0)->get_orbs(2);
   build_pattern_ = opReps_.at(0)->get_build_pattern();
 
 
@@ -276,17 +265,14 @@ bool Npdm_op_wrapper_CDC::set_local_ops( int idx )
     kx = opReps_tmp.at(0)->get_orbs(2);
     // Read in full spin-set from disk
     for (int i = 0; i < opReps_tmp.size(); i++) {
-      std::ifstream ifs;  
-      std::vector<SpinQuantum> sq = opReps_tmp[i]->get_quantum_ladder()[opReps_tmp[i]->get_build_pattern()];
-      string ladder = to_string(sq[0].get_s().getirrep())+ to_string(sq[1].get_s().getirrep())+to_string(ix)+to_string(jx)+to_string(kx);
-      string filename = spinBlock_->get_op_array(CRE_DES_CRE).get_filename()+ladder;
-      if ( ! dmrginp.do_npdm_in_core() ) ifs.open( filename.c_str(), std::ios::binary );
-
-       boost::shared_ptr<StackSparseMatrix> op (new StackCre);
-       op->LoadThreadSafe(ifs, true);
-      if ( ! dmrginp.do_npdm_in_core() ) ifs.close();
-       op->allocateOperatorMatrix(); 
-       opReps_.push_back(op);
+      string filename = spinBlock_->get_op_array(CRE_DES_CRE).get_local_element(idx)[i]->get_filename();
+      //string filename = spinBlock_->get_op_array(CRE_DES_CRE).get_filename()+to_string(i);
+      boost::shared_ptr<StackSparseMatrix> op (new StackCreDesCre);
+      op->set_filename() = filename;
+      op->LoadThreadSafe(true);
+      
+      op->allocateOperatorMatrix(); 
+      opReps_.push_back(op);
     }
     //if ( ! check_file_close(idx) ) abort();
   }
@@ -350,17 +336,14 @@ bool Npdm_op_wrapper_DCD::set_local_ops( int idx )
     kx = opReps_tmp.at(0)->get_orbs(2);
     // Read in full spin-set from disk
     for (int i = 0; i < opReps_tmp.size(); i++) {
-      std::ifstream ifs;  
-      std::vector<SpinQuantum> sq = opReps_tmp[i]->get_quantum_ladder()[opReps_tmp[i]->get_build_pattern()];
-      string ladder = to_string(sq[0].get_s().getirrep())+ to_string(sq[1].get_s().getirrep())+to_string(ix)+to_string(jx)+to_string(kx);
-      string filename = spinBlock_->get_op_array(DES_CRE_DES).get_filename()+ladder;
-      if ( ! dmrginp.do_npdm_in_core() ) ifs.open( filename.c_str(), std::ios::binary );
-
-       boost::shared_ptr<StackSparseMatrix> op (new StackCre);
-       op->LoadThreadSafe(ifs, true);
-      if ( ! dmrginp.do_npdm_in_core() ) ifs.close();
-       op->allocateOperatorMatrix(); 
-       opReps_.push_back(op);
+      string filename = spinBlock_->get_op_array(DES_CRE_DES).get_local_element(idx)[i]->get_filename();
+      //string filename = spinBlock_->get_op_array(DES_CRE_DES).get_filename()+to_string(i);
+      boost::shared_ptr<StackSparseMatrix> op (new StackDesCreDes);
+      op->set_filename() = filename;
+      op->LoadThreadSafe(true);
+      
+      op->allocateOperatorMatrix(); 
+      opReps_.push_back(op);
     }
     //if ( ! check_file_close(idx) ) abort();
   }
@@ -422,17 +405,14 @@ bool Npdm_op_wrapper_DDC::set_local_ops( int idx )
     jx = opReps_tmp.at(0)->get_orbs(1);
     kx = opReps_tmp.at(0)->get_orbs(2);
     for (int i = 0; i < opReps_tmp.size(); i++) {
-      std::ifstream ifs;  
-      std::vector<SpinQuantum> sq = opReps_tmp[i]->get_quantum_ladder()[opReps_tmp[i]->get_build_pattern()];
-      string ladder = to_string(sq[0].get_s().getirrep())+ to_string(sq[1].get_s().getirrep())+to_string(ix)+to_string(jx)+to_string(kx);
-      string filename = spinBlock_->get_op_array(DES_DES_CRE).get_filename()+ladder;
-      if ( ! dmrginp.do_npdm_in_core() ) ifs.open( filename.c_str(), std::ios::binary );
-
-       boost::shared_ptr<StackSparseMatrix> op (new StackCre);
-       op->LoadThreadSafe(ifs, true);
-      if ( ! dmrginp.do_npdm_in_core() ) ifs.close();
-       op->allocateOperatorMatrix(); 
-       opReps_.push_back(op);
+      string filename = spinBlock_->get_op_array(DES_DES_CRE).get_local_element(idx)[i]->get_filename();
+      //string filename = spinBlock_->get_op_array(DES_DES_CRE).get_filename()+to_string(i);
+      boost::shared_ptr<StackSparseMatrix> op (new StackDesDesCre);
+      op->set_filename() = filename;
+      op->LoadThreadSafe(true);
+      
+      op->allocateOperatorMatrix(); 
+      opReps_.push_back(op);
     }
     //if ( ! check_file_close(idx) ) abort();
   }
@@ -564,17 +544,14 @@ bool Npdm_op_wrapper_DCC::set_local_ops( int idx )
     jx = opReps_tmp.at(0)->get_orbs(1);
     kx = opReps_tmp.at(0)->get_orbs(2);
     for (int i = 0; i < opReps_tmp.size(); i++) {
-      std::ifstream ifs;  
-      std::vector<SpinQuantum> sq = opReps_tmp[i]->get_quantum_ladder()[opReps_tmp[i]->get_build_pattern()];
-      string ladder = to_string(sq[0].get_s().getirrep())+ to_string(sq[1].get_s().getirrep())+to_string(ix)+to_string(jx)+to_string(kx);
-      string filename = spinBlock_->get_op_array(DES_CRE_CRE).get_filename()+ladder;
-      if ( ! dmrginp.do_npdm_in_core() ) ifs.open( filename.c_str(), std::ios::binary );
-
-       boost::shared_ptr<StackSparseMatrix> op (new StackCre);
-       op->LoadThreadSafe(ifs, true);
-      if ( ! dmrginp.do_npdm_in_core() ) ifs.close();
-       op->allocateOperatorMatrix(); 
-       opReps_.push_back(op);
+      string filename = spinBlock_->get_op_array(DES_CRE_CRE).get_local_element(idx)[i]->get_filename();
+      //string filename = spinBlock_->get_op_array(DES_CRE_CRE).get_filename()+to_string(i);
+      boost::shared_ptr<StackSparseMatrix> op (new StackDesCreCre);
+      op->set_filename() = filename;
+      op->LoadThreadSafe(true);
+      
+      op->allocateOperatorMatrix(); 
+      opReps_.push_back(op);
     }
     //if ( ! check_file_close(idx) ) abort();
   }
@@ -700,12 +677,14 @@ bool Npdm_op_wrapper_DDD::set_local_ops( int idx )
     opReps_.clear();
     // Read in full spin-set from disk
     for (int i = 0; i < opReps_tmp.size(); i++) {
-      //boost::archive::binary_iarchive load_op(ifs_);
-       boost::shared_ptr<StackSparseMatrix> op (new StackCre);
-       //op->LoadThreadSafe(ifs_, true);
-       //op->allocateOperatorMatrix(); 
-       //load_op >> *op;
-       opReps_.push_back(op);
+      string filename = spinBlock_->get_op_array(DES_DES_DES).get_local_element(idx)[i]->get_filename();
+      //string filename = spinBlock_->get_op_array(DES_DES_DES).get_filename()+to_string(i);
+      boost::shared_ptr<StackSparseMatrix> op (new StackDesDesDes);
+      op->set_filename() = filename;
+      op->LoadThreadSafe(true);
+      
+      op->allocateOperatorMatrix(); 
+      opReps_.push_back(op);
     }
     //if ( ! check_file_close(idx) ) abort();
   }

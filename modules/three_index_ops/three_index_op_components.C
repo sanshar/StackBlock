@@ -362,6 +362,8 @@ long StackOp_component<StackDesDesDes>::build_iterators(StackSpinBlock& b, bool 
       op->set_deltaQuantum(1, op->get_quantum_ladder().at( op->get_build_pattern() ).at(1) );
       if (calcMem)
 	requiredMemory += SpinAdapted::getRequiredMemory(b.get_braStateInfo(), b.get_ketStateInfo(), op->get_deltaQuantum());
+      op->set_filename() = this->get_filename()+to_string(orbs[0])+to_string(orbs[1])+to_string(orbs[2])+to_string(q);
+      //op->set_filename() = this->get_filename()+to_string(q);
     }
 
     assert( m_op.get_local_element(i).size() == 3);
@@ -434,6 +436,8 @@ void StackOp_component<StackDesDesDes>::build_iterators(StackSpinBlock& b, std::
       op->set_quantum_ladder()["((DD)(D))"] = dd_d_quantum_ladder.at(q);
       op->set_quantum_ladder()["((D)(DD))"] = d_dd_quantum_ladder.at(q);
       op->set_deltaQuantum(1, op->get_quantum_ladder().at( op->get_build_pattern() ).at(1) );
+      op->set_filename() = this->get_filename()+to_string(orbs[0])+to_string(orbs[1])+to_string(orbs[2])+to_string(q);
+      //op->set_filename() = this->get_filename()+to_string(q);
     }
 
     assert( m_op.get_local_element(i).size() == 3);
@@ -549,6 +553,8 @@ long StackOp_component<StackCreCreCre>::build_iterators(StackSpinBlock& b, bool 
       op->set_deltaQuantum(1, op->get_quantum_ladder().at( op->get_build_pattern() ).at(1) );
       if (calcMem)
 	requiredMemory += SpinAdapted::getRequiredMemory(b.get_braStateInfo(), b.get_ketStateInfo(), op->get_deltaQuantum());
+      op->set_filename() = this->get_filename()+to_string(orbs[0])+to_string(orbs[1])+to_string(orbs[2])+to_string(q);
+      //op->set_filename() = this->get_filename()+to_string(q);
     }
 
     assert( m_op.get_local_element(i).size() == 3);
@@ -628,6 +634,8 @@ void StackOp_component<StackCreCreCre>::build_iterators(StackSpinBlock& b, std::
       op->set_quantum_ladder()["((C)(CC))"] = c_cc_quantum_ladder.at(q);
       // This is updated when the build_pattern changes
       op->set_deltaQuantum(1, op->get_quantum_ladder().at( op->get_build_pattern() ).at(1) );
+      op->set_filename() = this->get_filename()+to_string(orbs[0])+to_string(orbs[1])+to_string(orbs[2])+to_string(q);
+      //op->set_filename() = this->get_filename()+to_string(q);
     }
 
     assert( m_op.get_local_element(i).size() == 3);
@@ -731,6 +739,8 @@ long StackOp_component<StackCreCreDes>::build_iterators(StackSpinBlock& b, bool 
       op->set_deltaQuantum(1, op->get_quantum_ladder().at( op->get_build_pattern() ).at(1) );
       if (calcMem)
 	requiredMemory += SpinAdapted::getRequiredMemory(b.get_braStateInfo(), b.get_ketStateInfo(), op->get_deltaQuantum());
+      op->set_filename() = this->get_filename()+to_string(orbs[0])+to_string(orbs[1])+to_string(orbs[2])+to_string(q);
+      //op->set_filename() = this->get_filename()+to_string(q);
     }
 
     assert( m_op.get_local_element(i).size() == 3);
@@ -804,6 +814,8 @@ void StackOp_component<StackCreCreDes>::build_iterators(StackSpinBlock& b, std::
       op->set_quantum_ladder()["((CC)(D))"] = cc_d_quantum_ladder.at(q);
       op->set_quantum_ladder()["((C)(CD))"] = c_cd_quantum_ladder.at(q);
       op->set_deltaQuantum(1, op->get_quantum_ladder().at( op->get_build_pattern() ).at(1) );
+      op->set_filename() = this->get_filename()+to_string(orbs[0])+to_string(orbs[1])+to_string(orbs[2])+to_string(q);
+      //op->set_filename() = this->get_filename()+to_string(q);
     }
 
     assert( m_op.get_local_element(i).size() == 3);
@@ -907,6 +919,8 @@ long StackOp_component<StackCreDesDes>::build_iterators(StackSpinBlock& b, bool 
       op->set_deltaQuantum(1, op->get_quantum_ladder().at( op->get_build_pattern() ).at(1) );
       if (calcMem)
 	requiredMemory += SpinAdapted::getRequiredMemory(b.get_braStateInfo(), b.get_ketStateInfo(), op->get_deltaQuantum());
+      op->set_filename() = this->get_filename()+to_string(orbs[0])+to_string(orbs[1])+to_string(orbs[2])+to_string(q);
+      //op->set_filename() = this->get_filename()+to_string(q);
     }
 
     assert( m_op.get_local_element(i).size() == 3);
@@ -980,6 +994,8 @@ void StackOp_component<StackCreDesDes>::build_iterators(StackSpinBlock& b, std::
       op->set_quantum_ladder()["((CD)(D))"] = cd_d_quantum_ladder.at(q);
       op->set_quantum_ladder()["((C)(DD))"] = c_dd_quantum_ladder.at(q);
       op->set_deltaQuantum(1, op->get_quantum_ladder().at( op->get_build_pattern() ).at(1) );
+      op->set_filename() = this->get_filename()+to_string(orbs[0])+to_string(orbs[1])+to_string(orbs[2])+to_string(q);
+      //op->set_filename() = this->get_filename()+to_string(q);
     }
 
     assert( m_op.get_local_element(i).size() == 3);
@@ -1083,6 +1099,8 @@ long StackOp_component<StackCreDesCre>::build_iterators(StackSpinBlock& b, bool 
       op->set_deltaQuantum(1, op->get_quantum_ladder().at( op->get_build_pattern() ).at(1) );
       if (calcMem)
 	requiredMemory += SpinAdapted::getRequiredMemory(b.get_braStateInfo(), b.get_ketStateInfo(), op->get_deltaQuantum());
+      op->set_filename() = this->get_filename()+to_string(orbs[0])+to_string(orbs[1])+to_string(orbs[2])+to_string(q);
+      //op->set_filename() = this->get_filename()+to_string(q);
     }
 
     assert( m_op.get_local_element(i).size() == 3);
@@ -1156,6 +1174,8 @@ void StackOp_component<StackCreDesCre>::build_iterators(StackSpinBlock& b, std::
       op->set_quantum_ladder()["((CD)(C))"] = cd_c_quantum_ladder.at(q);
       op->set_quantum_ladder()["((C)(DC))"] = c_dc_quantum_ladder.at(q);
       op->set_deltaQuantum(1, op->get_quantum_ladder().at( op->get_build_pattern() ).at(1) );
+      op->set_filename() = this->get_filename()+to_string(orbs[0])+to_string(orbs[1])+to_string(orbs[2])+to_string(q);
+      //op->set_filename() = this->get_filename()+to_string(q);
     }
 
     assert( m_op.get_local_element(i).size() == 3);
@@ -1261,6 +1281,8 @@ long StackOp_component<StackDesCreDes>::build_iterators(StackSpinBlock& b, bool 
       op->set_deltaQuantum(1, op->get_quantum_ladder().at( op->get_build_pattern() ).at(1) );
       if (calcMem)
 	requiredMemory += SpinAdapted::getRequiredMemory(b.get_braStateInfo(), b.get_ketStateInfo(), op->get_deltaQuantum());
+      //op->set_filename() = this->get_filename()+to_string(q);
+      op->set_filename() = this->get_filename()+to_string(orbs[0])+to_string(orbs[1])+to_string(orbs[2])+to_string(q);
     }
 
     assert( m_op.get_local_element(i).size() == 3);
@@ -1362,6 +1384,8 @@ long StackOp_component<StackDesDesCre>::build_iterators(StackSpinBlock& b, bool 
       op->set_deltaQuantum(1, op->get_quantum_ladder().at( op->get_build_pattern() ).at(1) );
       if (calcMem)
 	requiredMemory += SpinAdapted::getRequiredMemory(b.get_braStateInfo(), b.get_ketStateInfo(), op->get_deltaQuantum());
+      //op->set_filename() = this->get_filename()+to_string(q);
+      op->set_filename() = this->get_filename()+to_string(orbs[0])+to_string(orbs[1])+to_string(orbs[2])+to_string(q);
     }
 
     assert( m_op.get_local_element(i).size() == 3);
@@ -1463,6 +1487,7 @@ long StackOp_component<StackDesCreCre>::build_iterators(StackSpinBlock& b, bool 
       op->set_deltaQuantum(1, op->get_quantum_ladder().at( op->get_build_pattern() ).at(1) );
       if (calcMem)
 	requiredMemory += SpinAdapted::getRequiredMemory(b.get_braStateInfo(), b.get_ketStateInfo(), op->get_deltaQuantum());
+      op->set_filename() = this->get_filename()+to_string(orbs[0])+to_string(orbs[1])+to_string(orbs[2])+to_string(q);
     }
 
     assert( m_op.get_local_element(i).size() == 3);

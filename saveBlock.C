@@ -722,7 +722,9 @@ void StackSpinBlock::messagePassTwoIndexOps()
   //to make CCDcomp, these operators are created in parallel and passed around
 void StackSpinBlock::formTwoIndexOps() {
 
+#ifndef SERIAL
   boost::mpi::communicator world;
+#endif
   //if dont have 2 index normal ops then return
   if (!has(CRE_DES)) return;
 
@@ -789,7 +791,9 @@ void StackSpinBlock::formTwoIndexOps() {
     std::vector<boost::shared_ptr<StackSparseMatrix> > opvec = ops[CRE_DESCOMP]->get_element(I, J);
 
     for (int opindex=0; opindex<opvec.size(); opindex++) {
+#ifndef SERIAL
       mpi::broadcast(calc, *(opvec[opindex]), processorindex(trimap_2d(I, J, length)));
+#endif
       StackCreDesComp& op = dynamic_cast<StackCreDesComp&>(*(opvec[opindex]));
       if (op.memoryUsed() != 0) continue;
       op.allocate(braStateInfo, ketStateInfo);
@@ -797,7 +801,9 @@ void StackSpinBlock::formTwoIndexOps() {
 
       if (find(dotindice.begin(), dotindice.end(), I) != dotindice.end() &&
 	  find(dotindice.begin(), dotindice.end(), J) != dotindice.end()) { //all proces should have it
+#ifndef SERIAL
 	MPI_Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM, Calc);
+#endif
 	if (additionalMemory == 0)
 	  additionaldata = op.get_data();
 	additionalMemory += op.memoryUsed();
@@ -805,8 +811,9 @@ void StackSpinBlock::formTwoIndexOps() {
       else {
 	//this process should have the operator
 	int toproc = processorindex(compsite);
+#ifndef SERIAL
 	MPI_Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM, Calc);
-
+#endif
 	//remove the processor if not required
 	if (mpigetrank() != toproc) {
 	  op.deallocate();
@@ -840,7 +847,9 @@ void StackSpinBlock::formTwoIndexOps() {
     std::vector<boost::shared_ptr<StackSparseMatrix> > opvec = ops[DES_DESCOMP]->get_element(I, J);
 
     for (int opindex=0; opindex<opvec.size(); opindex++) {
+#ifndef SERIAL
       mpi::broadcast(calc, *(opvec[opindex]), processorindex(trimap_2d(I, J, length)));
+#endif
       StackDesDesComp& op = dynamic_cast<StackDesDesComp&>(*(opvec[opindex]));
       if (op.memoryUsed() != 0) continue;
       op.allocate(braStateInfo, ketStateInfo);
@@ -848,7 +857,9 @@ void StackSpinBlock::formTwoIndexOps() {
       
       if (find(dotindice.begin(), dotindice.end(), I) != dotindice.end() &&
 	  find(dotindice.begin(), dotindice.end(), J) != dotindice.end()) { //all proces should have it
+#ifndef SERIAL
 	MPI_Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM, Calc);
+#endif
 	if (additionalMemory == 0)
 	  additionaldata = op.get_data();
 	additionalMemory += op.memoryUsed();
@@ -856,8 +867,9 @@ void StackSpinBlock::formTwoIndexOps() {
       else {
 	//this process should have the operator
 	int toproc = processorindex(compsite);
+#ifndef SERIAL
 	MPI_Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM, Calc);
-
+#endif
 	if (mpigetrank() != toproc) {
 	  op.deallocate();
 	  if (ops[DES_DESCOMP]->has_local_index(I,J))
@@ -892,13 +904,17 @@ void StackSpinBlock::formTwoIndexOps() {
     std::vector<boost::shared_ptr<StackSparseMatrix> > opvec = ops[CRE_CRECOMP]->get_element(I, J);
 
     for (int opindex=0; opindex<opvec.size(); opindex++) {
+#ifndef SERIAL
       mpi::broadcast(calc, *(opvec[opindex]), processorindex(trimap_2d(I, J, length)));
+#endif
       StackCreCreComp& op = dynamic_cast<StackCreCreComp&>(*(opvec[opindex]));
       op.allocate(braStateInfo, ketStateInfo);
       op.buildfromCreCre(*this);
       
       if (I == J) { //all proces should have it
+#ifndef SERIAL
 	MPI_Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM, Calc);
+#endif
 	if (additionalMemory == 0)
 	  additionaldata = op.get_data();
 	additionalMemory += op.memoryUsed();
@@ -906,8 +922,9 @@ void StackSpinBlock::formTwoIndexOps() {
       else {
 	//this process should have the operator
 	int toproc = processorindex(compsite);
+#ifndef SERIAL
 	MPI_Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM, Calc);
-
+#endif
 	if (mpigetrank() != toproc) {
 	  op.deallocate();
 	  if (ops[DES_DESCOMP]->has_local_index(I,J))
@@ -942,13 +959,17 @@ void StackSpinBlock::formTwoIndexOps() {
     std::vector<boost::shared_ptr<StackSparseMatrix> > opvec = ops[DES_CRECOMP]->get_element(I, J);
 
     for (int opindex=0; opindex<opvec.size(); opindex++) {
+#ifndef SERIAL
       mpi::broadcast(calc, *(opvec[opindex]), processorindex(trimap_2d(I, J, length)));
+#endif
       StackDesCreComp& op = dynamic_cast<StackDesCreComp&>(*(opvec[opindex]));
       op.allocate(braStateInfo, ketStateInfo);
       op.buildfromDesCre(*this);
       
       if (I == J) { //all proces should have it
+#ifndef SERIAL
 	MPI_Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM, Calc);
+#endif
 	if (additionalMemory == 0)
 	  additionaldata = op.get_data();
 	additionalMemory += op.memoryUsed();
@@ -956,8 +977,9 @@ void StackSpinBlock::formTwoIndexOps() {
       else {
 	//this process should have the operator
 	int toproc = processorindex(compsite);
+#ifndef SERIAL
 	MPI_Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM, Calc);
-
+#endif
 	if (mpigetrank() != toproc) {
 	  op.deallocate();
 	  if (ops[DES_CRECOMP]->has_local_index(I,J))
@@ -999,7 +1021,9 @@ void StackSpinBlock::addAdditionalOps()
   //comp ops and they are generated in thsi function
 void StackSpinBlock::addAllCompOps() {
 
+#ifndef SERIAL
   boost::mpi::communicator world;
+#endif
   //if dont have 2 index normal ops then return
   if (!has(CRE_DES)) return;
 
@@ -1041,14 +1065,18 @@ void StackSpinBlock::addAllCompOps() {
       std::vector<boost::shared_ptr<StackSparseMatrix> > opvec = ops[CRE_DESCOMP]->get_element(I, J);
       
       for (int opindex=0; opindex<opvec.size(); opindex++) {
+#ifndef SERIAL
 	mpi::broadcast(calc, *(opvec[opindex]), processorindex(trimap_2d(I, J, length)));
+#endif
 	StackCreDesComp& op = dynamic_cast<StackCreDesComp&>(*(opvec[opindex]));
 	op.allocate(braStateInfo, ketStateInfo);
 	op.buildfromCreDes(*this);
 	
 	//this process should have the operator
 	int toproc = processorindex(trimap_2d(I, J, length));
+#ifndef SERIAL
 	MPI_Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM, Calc);
+#endif
 	
 	//remove the processor if not required
 	if (mpigetrank() != toproc) {
@@ -1075,14 +1103,18 @@ void StackSpinBlock::addAllCompOps() {
       std::vector<boost::shared_ptr<StackSparseMatrix> > opvec = ops[DES_DESCOMP]->get_element(I, J);
       
       for (int opindex=0; opindex<opvec.size(); opindex++) {
+#ifndef SERIAL
 	mpi::broadcast(calc, *(opvec[opindex]), processorindex(trimap_2d(I, J, length)));
+#endif
 	StackDesDesComp& op = dynamic_cast<StackDesDesComp&>(*(opvec[opindex]));
 	op.allocate(braStateInfo, ketStateInfo);
 	op.buildfromDesDes(*this);
 	
 	//this process should have the operator
 	int toproc = processorindex( trimap_2d(I, J, length) );
+#ifndef SERIAL
 	MPI_Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM, Calc);
+#endif
 	
 	if (mpigetrank() != toproc) {
 	  op.deallocate();
@@ -1109,14 +1141,18 @@ void StackSpinBlock::addAllCompOps() {
 	std::vector<boost::shared_ptr<StackSparseMatrix> > opvec = ops[DES_CRECOMP]->get_element(I, J);
 	
 	for (int opindex=0; opindex<opvec.size(); opindex++) {
+#ifndef SERIAL
 	  mpi::broadcast(calc, *(opvec[opindex]), processorindex(trimap_2d(I, J, length)));
+#endif
 	  StackDesCreComp& op = dynamic_cast<StackDesCreComp&>(*(opvec[opindex]));
 	  op.allocate(braStateInfo, ketStateInfo);
 	  op.buildfromDesCre(*this);
 	  
 	  //this process should have the operator
 	  int toproc = processorindex( trimap_2d(I, J, length) );
+#ifndef SERIAL
 	  MPI_Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM, Calc);
+#endif
 	  
 	  if (mpigetrank() != toproc) {
 	    op.deallocate();
@@ -1141,14 +1177,18 @@ void StackSpinBlock::addAllCompOps() {
 	std::vector<boost::shared_ptr<StackSparseMatrix> > opvec = ops[CRE_CRECOMP]->get_element(I, J);
 	
 	for (int opindex=0; opindex<opvec.size(); opindex++) {
+#ifndef SERIAL
 	  mpi::broadcast(calc, *(opvec[opindex]), processorindex(trimap_2d(I, J, length)));
+#endif
 	  StackCreCreComp& op = dynamic_cast<StackCreCreComp&>(*(opvec[opindex]));
 	  op.allocate(braStateInfo, ketStateInfo);
 	  op.buildfromCreCre(*this);
 	  
 	  //this process should have the operator
 	  int toproc = processorindex( trimap_2d(I, J, length) );
+#ifndef SERIAL
 	  MPI_Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM, Calc);
+#endif
 	  
 	  if (mpigetrank() != toproc) {
 	    op.deallocate();

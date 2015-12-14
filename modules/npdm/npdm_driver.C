@@ -160,6 +160,14 @@ void Npdm_driver::loop_over_block_operators( Npdm::Npdm_expectations& npdm_expec
 	}
 	
 #pragma omp barrier
+	if (omprank == 0) {
+	  for (int i=0; i<numthrds; i++) {
+	    if (ilhs*numthrds+i < outerOps.size())
+	      for (int j=0; j<outeropsvector[i]->opReps_.size(); j++) 
+		outeropsvector[i]->opReps_[j]->CleanUp();
+	  }
+	}
+
 	Stackmem[omprank].deallocate(ptr, Stackmem[omprank].memused-mem);
 	
       }    
@@ -255,8 +263,8 @@ void Npdm_driver::loop_over_operator_patterns( Npdm::Npdm_patterns& patterns, Np
     pout.flush();
     world.barrier();
 #endif
-    pout << "-------------------------------------------------------------------------------------------\n";
-    pout << "Doing pattern " << count << " of " << patterns.size() << endl;
+    //pout << "-------------------------------------------------------------------------------------------\n";
+    pout << "Doing pattern " << count << " of " << patterns.size() <<"   ";
     patterns.print_cd_string( pattern->at('l') );
     patterns.print_cd_string( pattern->at('d') );
     patterns.print_cd_string( pattern->at('r') );

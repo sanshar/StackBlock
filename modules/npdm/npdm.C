@@ -225,8 +225,10 @@ void npdm_block_and_decimate( Npdm_driver_base& npdm_driver, SweepParams &sweepP
     //system.clear();
   }
 
-  pout << system <<endl;
-  system.printOperatorSummary();
+  pout << newSystem <<endl;
+  newSystem.printOperatorSummary();
+  p2out << str(boost::format("%-40s - %-10.4f\n") % "Total memory" % (Stackmem[0].size*8/1.e9));
+  p2out << str(boost::format("%-40s - %-10.4f\n") % "  |-->Memory used" % (Stackmem[0].memused*8/1.e9));
 
   //newSystem.transform_operators(rotateMatrix,rotateMatrixB);
   p3out << "NPDM block and decimate and compute elements " << timer.elapsedwalltime() << " " << timer.elapsedcputime() << endl;

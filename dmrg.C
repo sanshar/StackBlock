@@ -113,13 +113,16 @@ namespace SpinAdapted{
   boost::interprocess::mapped_region region;
 
   std::vector<StackAllocator<double> > Stackmem;
+#ifndef SERIAL
   boost::mpi::communicator calc;
   MPI_Comm Calc;
+#endif
 
 }
 
 using namespace SpinAdapted;
 
+#ifndef SERIAL
 void sleepBarrier(boost::mpi::communicator world, int tag, double psleep)
 {
   int size = world.size(), rank = world.rank();
@@ -143,6 +146,7 @@ void sleepBarrier(boost::mpi::communicator world, int tag, double psleep)
   }
 
 }
+#endif
 
 int calldmrg(char* input, char* output)
 {
@@ -157,13 +161,17 @@ int calldmrg(char* input, char* output)
   license();
 
 
+#ifndef SERIAL
   boost::mpi::communicator world;
+#endif
 
   ReadInput(input);
   dmrginp.matmultFlops.resize(numthrds, 0.);
 
-  int size = world.size(), rank = world.rank();
+  int size = 1, rank =0;
 
+#ifndef SERIAL
+  size = world.size(); rank = world.rank();
   MPI_Group orig_group, calc_group;
   MPI_Comm_group(MPI_COMM_WORLD, &orig_group);
   std::vector<int>& m_calc_procs = dmrginp.calc_procs();
@@ -200,11 +208,16 @@ int calldmrg(char* input, char* output)
       cout << world.rank()<<endl;
     }
   }
+#endif
 
+#ifndef SERIAL
   if (find(m_calc_procs.begin(), m_calc_procs.end(), rank)!=m_calc_procs.end()) {
+#endif
+
   MAX_THRD = dmrginp.thrds_per_node()[mpigetrank()];
   int mkl_thrd = dmrginp.mkl_thrds();
 
+#ifndef SERIAL
   char processor_name[MPI_MAX_PROCESSOR_NAME];
   int name_len;
   MPI_Get_processor_name(processor_name, &name_len);
@@ -215,12 +228,14 @@ int calldmrg(char* input, char* output)
     }
     calc.barrier();
   }
-
+#endif
 
 #ifdef _OPENMP
   omp_set_num_threads(MAX_THRD);
+#ifdef _HAS_INTEL_MKL 
   mkl_set_num_threads(mkl_thrd);
   mkl_set_dynamic(0);
+#endif
   omp_set_nested(1);
 #endif
   pout.precision (12);
@@ -231,7 +246,7 @@ int calldmrg(char* input, char* output)
   Stackmem[0].data = stackmemory;
   Stackmem[0].size = dmrginp.getMemory();
   //************
-  //memset(stackmemory, 0, dmrginp.getMemory()*sizeof(double));
+  memset(stackmemory, 0, dmrginp.getMemory()*sizeof(double));
   dmrginp.initCumulTimer();
 
 
@@ -457,12 +472,9 @@ int calldmrg(char* input, char* output)
   else if (dmrginp.calc_type() == TINYCALC) {
     Sweep::tiny(sweep_tol);
   }
-  /*
-  else if (dmrginp.calc_type() == NPDM_THREEPDM) {
+  else if (dmrginp.calc_type() == RESTART_THREEPDM) {
     Npdm::npdm(NPDM_THREEPDM);
-    break;
   }
-  */
   else {
     pout << "Invalid calculation types" << endl; abort();
   }
@@ -534,13 +546,17 @@ int calldmrg(char* input, char* output)
   double walltime = globaltimer.totalwalltime();
   pout << setprecision(3) <<"\n\n\t\t\t BLOCK CPU  Time (seconds): " << cputime << endl;
   pout << setprecision(3) <<"\t\t\t BLOCK Wall Time (seconds): " << walltime << endl;
-  }
 
+  delete [] stackmemory;
+#ifndef SERIAL
+  }
 
   //world.barrier();
   sleepBarrier(world, 0, 10);
   MPI_Comm_free(&Calc);
   sched_setaffinity(0, sizeof(oldmask), oldmask);
+#endif
+
   return 0;
 }
 

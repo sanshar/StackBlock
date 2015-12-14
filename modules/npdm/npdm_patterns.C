@@ -247,11 +247,11 @@ void Npdm_patterns::build_lhs_dot_rhs_types( int sweep_pos, int end_pos )
   else abort();
 
   // Print out
-  pout << "=================================================================\n";
-  pout << "Possible block partitions:\n";
-  for ( auto it = lhs_dot_rhs_types_.begin(); it != lhs_dot_rhs_types_.end(); ++it ) {
-    pout << get<0>(*it) << "," << get<1>(*it) << "," << get<2>(*it) << endl;
-  }
+  //pout << "=================================================================\n";
+  //pout << "Possible block partitions:\n";
+  //for ( auto it = lhs_dot_rhs_types_.begin(); it != lhs_dot_rhs_types_.end(); ++it ) {
+  //pout << get<0>(*it) << "," << get<1>(*it) << "," << get<2>(*it) << endl;
+  //}
   //if ( sweep_pos == 0 )
   //  pout << "Added extra partitions for initial sweep position\n";
   //else if ( sweep_pos == end_pos )

@@ -141,8 +141,9 @@ void StackSparseMatrix::build_and_renormalise_transform(StackSpinBlock *big, con
 	MatrixRotate(leftrotate_matrix[Q], tmp.operatorMatrix(Q, QPrime), rightrotate_matrix[QPrime], this->operatorMatrix(newQ, newQPrime));
       }
     }
-  
+
   tmp.deallocate();
+  tmp.CleanUp();
 }
 
 
@@ -196,6 +197,7 @@ void assignloopblock(StackSpinBlock*& loopblock, StackSpinBlock*& otherblock, St
 
 void StackSparseMatrix::operator=(const StackSparseMatrix& a) 
 {
+  filename = a.filename;
   deltaQuantum = a.get_deltaQuantum();
   quantum_ladder = a.quantum_ladder;
   build_pattern = a.build_pattern;
@@ -426,8 +428,9 @@ void LoadVecThreadSafe(std::ifstream &ifs, std::vector<int>& v)
     read(ifs, v[i]);
 }
 
-void StackSparseMatrix::SaveThreadSafe(std::ofstream &ofs) const
+void StackSparseMatrix::SaveThreadSafe() const
 {
+  std::ofstream ofs(filename.c_str(), ios::binary);
   //#pragma omp critical
   //{
   write(ofs, deltaQuantum.size());
@@ -502,11 +505,13 @@ void StackSparseMatrix::SaveThreadSafe(std::ofstream &ofs) const
   write(ofs, totalMemory);
   ofs.write((char*)(data), sizeof(*data)*totalMemory);
   //}
+  ofs.close();
 }
 
 
-void StackSparseMatrix::LoadThreadSafe(std::ifstream &ifs, bool allocate)
+void StackSparseMatrix::LoadThreadSafe(bool allocate)
 {
+  std::ifstream ifs(filename.c_str(), ios::binary);
   //#pragma omp critical
   //{
   size_t size=0;
@@ -602,6 +607,8 @@ void StackSparseMatrix::LoadThreadSafe(std::ifstream &ifs, bool allocate)
 
   if (allocate) data = Stackmem[omprank].allocate(totalMemory);
   ifs.read((char*)(data), sizeof(*data)*totalMemory);
+
+  ifs.close();
   //}
 }
 
