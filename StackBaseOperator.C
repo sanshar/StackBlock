@@ -296,6 +296,8 @@ long getRequiredMemory(const StateInfo& s, const std::vector<SpinQuantum>& q) {r
 
 void StackSparseMatrix::deallocate() 
 { 
+  //allowedQuantaMatrix.Clear();
+  //operatorMatrix.Clear();
   Stackmem[omprank].deallocate(data, totalMemory);
   totalMemory = 0;
   data = 0;
@@ -372,6 +374,45 @@ double* StackSparseMatrix::allocate(const StateInfo& rowSI, const StateInfo& col
   return &pData[index];
 }
 
+void StackSparseMatrix::allocateShell(const StateInfo& rowSI, const StateInfo& colSI)
+{
+  if (totalMemory != 0) {
+    perr << "Already have memory and allocating more memory"<<endl;
+    perr << "Possible memory bug in StackSparseMatrix "<<endl;
+    abort();
+  }
+  //the shell of the operator is already present
+  //so just need to allocate the operatormatrix
+  if (rowCompressedForm.size() != 0) {
+    return;
+  }
+
+  rowCompressedForm.clear();rowCompressedForm.resize(rowSI.quanta.size(), vector<int>());
+  colCompressedForm.clear();colCompressedForm.resize(colSI.quanta.size(), vector<int>());
+  nonZeroBlocks.resize(0);
+  mapToNonZeroBlocks.clear();
+
+  operatorMatrix.resize(rowSI.quanta.size(), colSI.quanta.size());
+  allowedQuantaMatrix.resize(rowSI.quanta.size(), colSI.quanta.size());
+
+  long index = 0;
+  for (int lQ = 0; lQ < rowSI.quanta.size (); ++lQ)
+    for (int rQ = 0; rQ < colSI.quanta.size (); ++rQ)
+    {
+      bool allowedcoupling = false;
+      for (int k = 0; k < deltaQuantum.size(); ++k) {
+        if (rowSI.quanta[lQ].allow(deltaQuantum[k], colSI.quanta[rQ])) {
+          allowedcoupling = true;
+	  rowCompressedForm[lQ].push_back(rQ);
+	  colCompressedForm[rQ].push_back(lQ);
+          break;
+        }
+      }
+      allowedQuantaMatrix (lQ,rQ) = allowedcoupling;
+    }
+  return;
+}
+
 
   
 void StackSparseMatrix::OperatorMatrixReference(ObjectMatrix<StackMatrix*>& m, const std::vector<int>& oldToNewStateI, const std::vector<int>& oldToNewStateJ)
@@ -396,6 +437,7 @@ double* StackSparseMatrix::allocateOperatorMatrix()
     operatorMatrix(lQ,rQ).allocate(&data[index], operatorMatrix(lQ, rQ).Nrows(), operatorMatrix(lQ, rQ).Ncols());
     index += operatorMatrix(lQ, rQ).Nrows()* operatorMatrix(lQ, rQ).Ncols()+ CACHEBUFFER;
     nonZeroBlocks[i].second= operatorMatrix(lQ,rQ);
+    mapToNonZeroBlocks.insert(std::pair< std::pair<int, int>, int>(std::pair<int, int>(lQ, rQ), i));
   }
   totalMemory = index;
   return &data[index];
@@ -655,8 +697,8 @@ long getRequiredMemory(const StateInfo& sr, const StateInfo& sc, const std::vect
 
 void StackSparseMatrix::CleanUp ()
 {
-  allowedQuantaMatrix.ReSize (0,0);
-  operatorMatrix.ReSize (0,0);
+  allowedQuantaMatrix.Clear();
+  operatorMatrix.Clear();
   nonZeroBlocks.resize(0);
   rowCompressedForm.resize(0);
   colCompressedForm.resize(0);

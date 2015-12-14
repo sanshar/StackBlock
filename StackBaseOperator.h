@@ -124,6 +124,7 @@ class StackSparseMatrix : public Baseoperator<StackMatrix>  // the sparse matrix
   void allocate (const StateInfo& sl, const StateInfo& sr);
   void allocate (const StateInfo& s, double* pData);
   double* allocate(const StateInfo& rowSI, const StateInfo& colSI, double* pData);
+  void allocateShell(const StateInfo& rowSI, const StateInfo& colSI);
   void deallocate() ;
   double* allocateOperatorMatrix();
   string get_filename() {return filename;}
@@ -148,36 +149,53 @@ class StackSparseMatrix : public Baseoperator<StackMatrix>  // the sparse matrix
   std::vector<std::vector<int> >& getrowCompressedForm() {return rowCompressedForm;}
   std::vector<std::vector<int> >& getcolCompressedForm() {return colCompressedForm;}
   const StackMatrix& operator_element(int i, int j) const { 
-    if (conj == 'n') return operatorMatrix(i, j); 
-    else return operatorMatrix(j, i);
+    const int index = mapToNonZeroBlocks.at( make_pair(i,j) );
+    if (conj == 'n') return nonZeroBlocks[index].second;
+    else return nonZeroBlocks[mapToNonZeroBlocks.at(std::pair<int,int>(j,i))].second;
+    //if (conj == 'n') return operatorMatrix(i, j); 
+    //else return operatorMatrix(j, i);
   }
   const StackMatrix& operator_element(int i, int j, char conj) const { 
-    if (conj == 'n') return operatorMatrix(i, j); 
-    else return operatorMatrix(j, i);
+    if (conj == 'n') return nonZeroBlocks[mapToNonZeroBlocks.at(std::pair<int,int>(i,j))].second;
+    else return nonZeroBlocks[mapToNonZeroBlocks.at(std::pair<int,int>(j,i))].second;
+    //if (conj == 'n') return operatorMatrix(i, j); 
+    //else return operatorMatrix(j, i);
   }
   const StackMatrix& operator()(int i, int j) const { 
-    if (conj == 'n') return operatorMatrix(i, j); 
-    else return operatorMatrix(j, i);
+    if (conj == 'n') return nonZeroBlocks[mapToNonZeroBlocks.at(std::pair<int,int>(i,j))].second;
+    else return nonZeroBlocks[mapToNonZeroBlocks.at(std::pair<int,int>(j,i))].second;
+    //if (conj == 'n') return operatorMatrix(i, j); 
+    //else return operatorMatrix(j, i);
   }
   const StackMatrix& operator()(int i, int j, char conj) const { 
-    if (conj == 'n') return operatorMatrix(i, j); 
-    else return operatorMatrix(j, i);
+    if (conj == 'n') return nonZeroBlocks[mapToNonZeroBlocks.at(std::pair<int,int>(i,j))].second;
+    else return nonZeroBlocks[mapToNonZeroBlocks.at(std::pair<int,int>(j,i))].second;
+    //if (conj == 'n') return operatorMatrix(i, j); 
+    //else return operatorMatrix(j, i);
   }
   StackMatrix& operator_element(int i, int j) { 
-    if (conj == 'n') return operatorMatrix(i, j); 
-    else return operatorMatrix(j, i);
+    if (conj == 'n') return nonZeroBlocks[mapToNonZeroBlocks.at(std::pair<int,int>(i,j))].second;
+    else return nonZeroBlocks[mapToNonZeroBlocks.at(std::pair<int,int>(j,i))].second;
+    //if (conj == 'n') return operatorMatrix(i, j); 
+    //else return operatorMatrix(j, i);
   }
   StackMatrix& operator_element(int i, int j, char conj) { 
-    if (conj == 'n') return operatorMatrix(i, j); 
-    else return operatorMatrix(j, i);
+    if (conj == 'n') return nonZeroBlocks[mapToNonZeroBlocks.at(std::pair<int,int>(i,j))].second;
+    else return nonZeroBlocks[mapToNonZeroBlocks.at(std::pair<int,int>(j,i))].second;
+    //if (conj == 'n') return operatorMatrix(i, j); 
+    //else return operatorMatrix(j, i);
   }
   StackMatrix& operator()(int i, int j) { 
-    if (conj == 'n') return operatorMatrix(i, j); 
-    else return operatorMatrix(j, i);
+    if (conj == 'n') return nonZeroBlocks[mapToNonZeroBlocks.at(std::pair<int,int>(i,j))].second;
+    else return nonZeroBlocks[mapToNonZeroBlocks.at(std::pair<int,int>(j,i))].second;
+    //if (conj == 'n') return operatorMatrix(i, j); 
+    //else return operatorMatrix(j, i);
   }
   StackMatrix& operator()(int i, int j, char conj) { 
-    if (conj == 'n') return operatorMatrix(i, j); 
-    else return operatorMatrix(j, i);
+    if (conj == 'n') return nonZeroBlocks[mapToNonZeroBlocks.at(std::pair<int,int>(i,j))].second;
+    else return nonZeroBlocks[mapToNonZeroBlocks.at(std::pair<int,int>(j,i))].second;
+    //if (conj == 'n') return operatorMatrix(i, j); 
+    //else return operatorMatrix(j, i);
   }
 
   ObjectMatrix<StackMatrix>& get_operatorMatrix() {return operatorMatrix;}

@@ -35,6 +35,19 @@ long SpinAdapted::getRequiredMemoryForWavefunction(const StateInfo& sr, const St
   return memory;
 }
 
+double* SpinAdapted::StackWavefunction::allocateWfnOperatorMatrix()
+{
+  long index = 0;
+  for (int i=0; i<nonZeroBlocks.size(); i++) {
+    int lQ = nonZeroBlocks[i].first.first, rQ = nonZeroBlocks[i].first.second;
+    operatorMatrix(lQ,rQ).allocate(&data[index], operatorMatrix(lQ, rQ).Nrows(), operatorMatrix(lQ, rQ).Ncols());
+    index += operatorMatrix(lQ, rQ).Nrows()* operatorMatrix(lQ, rQ).Ncols()+ CACHEBUFFER;
+    nonZeroBlocks[i].second= operatorMatrix(lQ,rQ);
+    mapToNonZeroBlocks.insert(std::pair< std::pair<int, int>, int>(std::pair<int, int>(lQ, rQ), i));
+  }
+  totalMemory = index;
+  return &data[index];
+}
 
 void SpinAdapted::StackWavefunction::initialise(const StackWavefunction& w)
 {
@@ -47,6 +60,7 @@ void SpinAdapted::StackWavefunction::initialise(const StackWavefunction& w)
     operatorMatrix(lQ,rQ).allocate(&data[index], operatorMatrix(lQ, rQ).Nrows(), operatorMatrix(lQ, rQ).Ncols());
     index += operatorMatrix(lQ, rQ).Nrows()* operatorMatrix(lQ, rQ).Ncols()+ CACHEBUFFER;
     nonZeroBlocks[i].second= operatorMatrix(lQ,rQ);
+    mapToNonZeroBlocks.insert(std::pair< std::pair<int, int>, int>(std::pair<int, int>(lQ, rQ), i));
   }
   if (index != totalMemory) exit(0);
 }
@@ -170,7 +184,7 @@ void SpinAdapted::StackWavefunction::LoadWavefunctionInfo (StateInfo &waveInfo, 
 
       this->Load (ifs, allocateData);
       ifs.close();
-      allocateOperatorMatrix(); 
+      allocateWfnOperatorMatrix(); 
     }
   dmrginp.diskwi->stop();
 }
@@ -212,7 +226,7 @@ void SpinAdapted::StackWavefunction::CollectQuantaAlongRows (const StateInfo& sR
       allowedQuantaMatrix = tmpOper.allowedQuantaMatrix;
       operatorMatrix = tmpOper.operatorMatrix;
 
-      allocateOperatorMatrix(); 
+      allocateWfnOperatorMatrix(); 
       copy(tmpOper.operatorMatrix, operatorMatrix);
       //DCOPY(totalMemory, tmpOper.data, 1, data, 1);
 
@@ -253,7 +267,7 @@ void SpinAdapted::StackWavefunction::UnCollectQuantaAlongRows (const StateInfo& 
 		if (tmpOper.allowedQuantaMatrix (unCollectedI, j)) {
 		  for (int row = 0; row<lastRowSize; row++) 
 		    for (int col = 0; col <tmpOper.operator_element(unCollectedI, j).Ncols(); col++) {
-		      tmpOper.operator_element(unCollectedI, j)(row+1, col+1) = operator_element(i, j)( row + firstRow + 1, col+1);
+		      tmpOper.operator_element(unCollectedI, j)(row+1, col+1) = operatorMatrix(i, j)( row + firstRow + 1, col+1);
 		    }
 
 
@@ -268,7 +282,7 @@ void SpinAdapted::StackWavefunction::UnCollectQuantaAlongRows (const StateInfo& 
       allowedQuantaMatrix = tmpOper.allowedQuantaMatrix;
       operatorMatrix = tmpOper.operatorMatrix;
 
-      allocateOperatorMatrix(); 
+      allocateWfnOperatorMatrix(); 
       copy(tmpOper.operatorMatrix, operatorMatrix);
       
       tmpOper.deallocate();
@@ -319,7 +333,7 @@ void SpinAdapted::StackWavefunction::CollectQuantaAlongColumns (const StateInfo&
       allowedQuantaMatrix = tmpOper.allowedQuantaMatrix;
       operatorMatrix = tmpOper.operatorMatrix;
 
-      allocateOperatorMatrix(); 
+      allocateWfnOperatorMatrix(); 
       copy(tmpOper.operatorMatrix, operatorMatrix);
       //DCOPY(totalMemory, tmpOper.data, 1, data, 1);
 
@@ -359,7 +373,7 @@ void  SpinAdapted::StackWavefunction::UnCollectQuantaAlongColumns (const StateIn
       if (tmpOper.allowed(j, unCollectedI)){
 	for (int row = 0; row<tmpOper.operator_element(j, unCollectedI).Nrows(); row++) 
 	for (int col = 0; col <lastColSize; col++) 
-	  tmpOper.operator_element(j, unCollectedI)(row+1, col+1) = operator_element(j, i)( row + 1, col+1+firstCol);
+	  tmpOper.operator_element(j, unCollectedI)(row+1, col+1) = operatorMatrix(j, i)( row + 1, col+1+firstCol);
 	      	      
 	rowCompressedForm[j].push_back(unCollectedI);
 	colCompressedForm[unCollectedI].push_back(j);
@@ -372,7 +386,7 @@ void  SpinAdapted::StackWavefunction::UnCollectQuantaAlongColumns (const StateIn
   }
   allowedQuantaMatrix = tmpOper.allowedQuantaMatrix;
   operatorMatrix = tmpOper.operatorMatrix;
-  allocateOperatorMatrix(); 
+  allocateWfnOperatorMatrix(); 
   copy(tmpOper.operatorMatrix, operatorMatrix);
 
   

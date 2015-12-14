@@ -45,7 +45,7 @@ public:
 
   void LoadWavefunctionInfo (StateInfo &waveInfo, const std::vector<int>& sites, const int wave_num, bool allocateData=false);
   void SaveWavefunctionInfo (const StateInfo &waveInfo, const std::vector<int>& sites, const int wave_num);
-  
+  double* allocateWfnOperatorMatrix();
 
   void UnCollectQuantaAlongRows(const StateInfo& sRow, const StateInfo& sCol);
   void CollectQuantaAlongRows(const StateInfo& sRow, const StateInfo& sCol); // FIXME what does this function do?

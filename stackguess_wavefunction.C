@@ -24,9 +24,8 @@ void GuessWave::TransformLeftBlock(StackWavefunction& oldwavefunction, const Sta
     for (int b=0; b<tempoldWave.ncols(); b++)
     {      
       int olda = newstateinfo.leftStateInfo->leftStateInfo->newQuantaMap[a];
-      StackMatrix& lM = oldwavefunction(olda, b);
-      if(lM.Ncols() != 0)
-      {
+      if (oldwavefunction.allowed(olda, b)) {
+	  StackMatrix& lM = oldwavefunction(olda, b);
 	Matrix tM = RotationMatrix[olda];
 	StackMatrix& nM = tempoldWave.operator_element(a, b);
 	MatrixMultiply(tM, 'n', lM, 'n', nM, 1.0);
@@ -41,10 +40,10 @@ void GuessWave::TransformRightBlock(const StackWavefunction& tempnewWave, const 
     for (int b=0; b<tempnewWave.ncols(); b++)
     {      
       int transB = oldStateInfo.rightStateInfo->leftStateInfo->newQuantaMap[b];
-      StackMatrix& nM = trial.operator_element(a, transB);
-      const StackMatrix& oM = tempnewWave.operator_element(a, b);
-      if(oM.Ncols() != 0)
-      {
+      if (tempnewWave.allowed(a,b)) {
+	StackMatrix& nM = trial.operator_element(a, transB);
+	const StackMatrix& oM = tempnewWave.operator_element(a, b);
+
 	Matrix rM = RotationMatrix[transB];
 	//rM = rM.t();
 	MatrixMultiply(oM, 'n', rM, 't', nM, 1.0);
@@ -845,9 +844,9 @@ void GuessWave::onedot_transform_wavefunction(const StateInfo& oldstateinfo, con
   for (int a = 0; a < oldASz; ++a)
     for (int c = 0; c < oldCSz; ++c) // oldCSz <= cSz
     {
-      const StackMatrix& oM = oldwavefunction.operator_element(a, c);
-      if (oM.Ncols () != 0) // this quanta combination is not allowed
-      {
+      if (oldwavefunction.allowed(a,c)) {
+	const StackMatrix& oM = oldwavefunction.operator_element(a, c);
+
 	int transC = oldstateinfo.rightStateInfo->newQuantaMap [c];
 
 	Matrix& tM = tmp (a, transC);
