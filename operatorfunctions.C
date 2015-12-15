@@ -1102,6 +1102,8 @@ void SpinAdapted::operatorfunctions::TensorMultiplyCDxCDsplitLeftElement(const S
 	  }
 	  
 	  int parity = rightOp.get_fermion() && IsFermion(unCollectedlketS->quanta[luncollectedQPrime]) ? -1 : 1;
+    if (!dmrginp.spinAdapted() && LEFTOP.get_fermion()) parity *= -1;
+
 	  //const_cast<StackSparseMatrix&>(rightOp).set_conjugacy('t');
 	  factor *=  getStandAlonescaling(-rightOp.get_deltaQuantum(0), rbraS->quanta[rQPrime], rketS->quanta[rQ]);
 	  //const_cast<StackSparseMatrix&>(rightOp).set_conjugacy('n');
@@ -1322,6 +1324,7 @@ void SpinAdapted::operatorfunctions::TensorMultiplyCDxCDsplitRightElement(const 
 	  }
 	  
 	  int parity = RIGHTOP.get_fermion() && IsFermion(lketS->quanta[lQ]) ? -1 : 1; //********
+    if (!dmrginp.spinAdapted() && RIGHTOP.get_fermion()) parity *= -1;
 	  char lc = RIGHTOP.conjugacy();
 	  //const_cast<StackSparseMatrix&>(RIGHTOP).set_conjugacy(TransposeOf(lc));
 	  if (lc == 'n') factor *=  getStandAlonescaling(-RIGHTOP.get_deltaQuantum(0), unCollectedrbraS->quanta[runcollectedQ], unCollectedrketS->quanta[runcollectedQPrime]);
