@@ -8,6 +8,24 @@
 using namespace std;
 using namespace boost::algorithm;
 
+void genetic::ReadKmatrix(ifstream& fdump, Matrix& K) {
+  ifstream::pos_type fp = fdump.tellg();
+  fdump.seekg(0, ios::beg);
+
+  int nOrbs = 0;
+  fdump >> nOrbs;
+  K.ReSize(nOrbs, nOrbs); K = 0.0;
+
+  for (int i = 0; i < nOrbs; ++i) {
+    for (int j = 0; j < nOrbs; ++j) {
+      fdump >> K.element(i,j);
+    }
+  }
+  // set file pointer to original position
+  fdump.clear();
+  fdump.seekg(fp);
+}
+
 void genetic::ReadIntegral(ifstream& fdump, Matrix& K)
 {
   // save file pointer
@@ -100,7 +118,7 @@ void genetic::ReadIntegral_BCS(ifstream& fdump, Matrix& K)
       K.element(i, j) += fabs(v);
       K.element(j, i) = K.element(i, j);
     }
-    if(i == l && j == k)
+    else if(i == l && j == k)
     {
       i--; j--;
       K.element(i, j) += fabs(v);

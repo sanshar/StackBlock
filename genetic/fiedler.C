@@ -17,9 +17,13 @@ Sandeep Sharma, Garnet K.-L. Chan and Roberto Olivares-Amaya
 #include "fiedler.h"
 #include "ReadIntegral.h"
 
-std::vector<int> get_fiedler(string& dumpname, ifstream& dumpFile){
-     Matrix fiedler; 
-     genetic::ReadIntegral(dumpFile, fiedler);
+std::vector<int> get_fiedler(string& dumpname, ifstream& dumpFile, bool simple){
+     Matrix fiedler;
+     if (simple) {
+       genetic::ReadKmatrix(dumpFile, fiedler);
+     } else {
+       genetic::ReadIntegral(dumpFile, fiedler);
+     }
      SymmetricMatrix fiedler_sym;
      fiedler_sym << fiedler;
      std::vector<int> findices = fiedler_reorder(fiedler_sym);
