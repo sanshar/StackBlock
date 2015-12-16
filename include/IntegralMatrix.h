@@ -237,26 +237,22 @@ class PairArray {
   private:
     friend class boost::serialization::access;
     template<class Archive> void serialize(Archive &ar, const unsigned int version) {
-      ar & rep;
-      ar & srep;
-      ar & dim;
-      ar & rhf;
-      ar & bin;
+      ar & dim & rhf & dummyZero & bin;
     }
-    Matrix rep;
-    SymmetricMatrix srep;
-    int dim;
+    double* rep;
     double dummyZero;
   public:
     bool rhf;
     bool bin;
+    long dim;
 
   public:
-    PairArray(): dim(0), rhf(false), bin(false), dummyZero(0.0) {}
-    PairArray(int n, bool rhf_=false, bool bin_=false): rhf(rhf_), bin(bin_), dummyZero(0.0) {
-      ReSize(n);
-    }
+    PairArray(): dim(0), rhf(false), bin(false), dummyZero(0.0), rep(0) {}
+    //PairArray(int n, bool rhf_=false, bool bin_=false): rhf(rhf_), bin(bin_), dummyZero(0.0), rep(0) {
+    //  ReSize(n);
+    //}
 
+    double*& set_data() {return rep;}    
     double operator() (int i, int j) const;    
     double& operator() (int i, int j);
     
@@ -264,11 +260,6 @@ class PairArray {
 
     int NOrbs() const {
       return dim;
-    }
-
-    Matrix& GetRepresentation() {
-      cerr << "PairArray::GetRepresentation not implemented yet!";
-      abort();
     }
 
     void ReadFromDumpFile(ifstream& dumpFile, int norbs) {
@@ -281,15 +272,6 @@ class PairArray {
       abort();
     }
 
-    friend ostream& operator<<(ostream& os, const PairArray& integral)
-    {
-      if (integral.rhf) {
-        os << integral.srep;        
-      } else {
-        os << integral.rep;
-      }
-      return os;
-    }
   };
 
 // ****************************************************
@@ -314,41 +296,38 @@ class PairArray {
 
 class CCCCArray {
   private:
-    SymmetricMatrix srep;
-    Matrix rep;
-    int dim; // dim is number of spin orbitals, i.e. 2*norbs
-    array_2d<int> indexMap;
+
+    double* rep;
+    double dummyZero;
 
     friend class boost::serialization::access;
     template<class Archive> void serialize(Archive& ar, const unsigned int version)
     {
-      ar & srep;
-      ar & rep;
       ar & dim;
       ar & indexMap;
       ar & rhf;
       ar & bin;
+      ar & matDim;
     }
 
   public:
+    long dim;
+    array_2d<int> indexMap;
+
     bool rhf;
     bool bin;
+    long matDim; 
 
     // constructors
-    CCCCArray(): dim(0), rhf(false), bin(false) {}
-    CCCCArray(bool _rhf): dim(0), rhf(_rhf), bin(false) {}
-    explicit CCCCArray(int n, bool _rhf) {
-      *this = CCCCArray(_rhf);
+    CCCCArray(): dim(0), rhf(false), bin(false), dummyZero(0.) {}
+    
+    explicit CCCCArray(int n, bool _rhf) : rhf(_rhf), bin(false), dummyZero(0.) {
       ReSize(n);
     }
 
     int NOrbs() const { return dim;}
     array_2d<int>& GetMap() {  return indexMap;}
-    Matrix& GetRepresentation() {
-      cerr << "CCCCArray::GetRepresentation not implemented yet!" << endl;
-      abort();
-    }
-
+    double*& set_data() {return rep;}
     void ReSize(int n);
 
     int MapIndices(int n);
@@ -366,17 +345,7 @@ class CCCCArray {
       cerr << "CCCCArray::DumpToFile not implemented yet!";
       abort();
     }
-    
-    friend ostream& operator<<(ostream& os, const CCCCArray& integral)
-        {
-          if (integral.rhf) {
-            os << integral.srep;
-          } else {
-            os << integral.rep;
-          }
-          return os;
-        }
-      };
+};
 
 // ****************************************************
 // class CCCDArray
@@ -400,40 +369,38 @@ class CCCCArray {
 
 class CCCDArray {
   private:
-    Matrix repA, repB;
-    int dim;
-    array_2d<int> indexMap;
+    //Matrix repA, repB;
+    double *rep;
+    double dummyZero;
 
     friend class boost::serialization::access;
     template<class Archive> void serialize(Archive& ar, const unsigned int version)
     {
-      ar & repA;
-      ar & repB;
       ar & dim;
       ar & indexMap;
       ar & rhf;
       ar & bin;
+      ar & matDim;
     }
   
   public:
+    long dim;
+    array_2d<int> indexMap;    
+    
     bool rhf;
     bool bin;
+    long matDim;
 
     // constructors
-    CCCDArray(): dim(0), rhf(false), bin(false) {}
-    CCCDArray(bool _rhf): dim(0), rhf(_rhf), bin(false) {}
-    explicit CCCDArray(int n, bool _rhf) {
-      *this = CCCDArray(_rhf);
+    CCCDArray(): dim(0), rhf(false), bin(false), dummyZero(0.) {}
+    
+    explicit CCCDArray(int n, bool _rhf) : rhf(_rhf), bin(false), dummyZero(0.) {
       ReSize(n);
     }
 
     int NOrbs() const { return dim;}
     array_2d<int>& GetMap() {  return indexMap;}
-    Matrix& GetRepresentation() {
-      cerr << "CCCDArray::GetRepresentation not implemented yet!";
-      abort();
-    }
-
+    double*& set_data() {return rep;}
     void ReSize(int n);
     
     int MapIndices(int n);
@@ -451,15 +418,7 @@ class CCCDArray {
       abort();
     }
     
-    friend ostream& operator<<(ostream& os, const CCCDArray& integral)
-    {
-      os << integral.repA;
-      if (!integral.rhf) {  
-        os << integral.repB;
-      }
-      return os;
-    }
-  };
+};
 
 } // namespace
 

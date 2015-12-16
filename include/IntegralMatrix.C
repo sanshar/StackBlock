@@ -547,6 +547,7 @@ double& SpinAdapted::PartialTwoElectronArray::operator () (int i, int j, int k, 
 
 double& SpinAdapted::PairArray::operator() (int i, int j) {
   assert(i >= 0 && i < dim && j >= 0 && j < dim);
+
   bool is_odd_i = (i & 1);
   bool is_odd_j = (j & 1);
   bool zero = is_odd_i || (!is_odd_j);
@@ -557,9 +558,9 @@ double& SpinAdapted::PairArray::operator() (int i, int j) {
   i=i/2;
   j=j/2;
   if (rhf) {
-    return srep(i+1, j+1);
+    return rep[i>=j ? i*(i+1)/2 + j : j*(j+1)/2 + i];
   } else {
-    return rep(i+1, j+1);
+    return rep[i*dim/2+j];
   }
 }
 
@@ -573,35 +574,20 @@ double SpinAdapted::PairArray::operator() (int i, int j) const {
   i=i/2;
   j=j/2;
   if (rhf) {
-    return srep(i+1, j+1);
+    return rep[i>=j ? i*(i+1)/2 + j : j*(j+1)/2 + i];
   } else {
-    return rep(i+1, j+1);
+    return rep[i*dim/2+j];
   }
 }
 
 void SpinAdapted::PairArray::ReSize(int n) {
   dim = n;
-  if (rhf) {
-    srep.ReSize(n/2);
-    srep = 0.;
-  } else {
-    rep.ReSize(n/2, n/2);
-    rep = 0.;
-  }
 }
 
 void SpinAdapted::CCCCArray::ReSize(int n) {
   dim = n;
-  int matDim;
   indexMap.resize(n/2, n/2);
   matDim = MapIndices(n/2);
-  if (rhf) {
-    srep.ReSize(matDim);
-    srep = 0.;
-  } else {
-    rep.ReSize(matDim, matDim);
-    rep = 0.;
-  }
 }
 
 int SpinAdapted::CCCCArray::MapIndices(int n) {
@@ -638,11 +624,13 @@ void SpinAdapted::CCCCArray::set(int i, int j, int k, int l, double value) {
   int m = indexMap(l, k);
   
   int sign = (n>0) == (m>0) ? 1:-1;
-
+  int nn = abs(n)-1, mm = abs(m)-1;
   if (rhf) {
-    srep(abs(n), abs(m)) = sign * value;
+    rep[nn>mm?nn*(nn+1)/2+mm:mm*(mm+1)/2+nn] = sign * value;
+    //srep(abs(n), abs(m)) = sign * value;    
   } else {
-    rep(abs(n), abs(m)) = sign * value;
+    rep[nn*matDim+mm] = sign * value;
+    //rep(abs(n), abs(m)) = sign * value;
   }
 }
 
@@ -688,24 +676,26 @@ double SpinAdapted::CCCCArray::operator()(int i, int j, int k, int l) const {
   }
 
   factor *= (n>0) == (m>0) ? 1:-1;
+  int nn = abs(n)-1, mm = abs(m)-1;
   if (rhf) {
-    return factor * srep(abs(n), abs(m));
+    //return factor * srep(abs(n), abs(m));
+    return factor * rep[nn>mm?nn*(nn+1)/2+mm:mm*(mm+1)/2+nn];
   } else {
-    return factor * rep(abs(n), abs(m));
+    //return factor * rep(abs(n), abs(m));
+    return factor * rep[nn*matDim+mm];
   }
 }
 
 void SpinAdapted::CCCDArray::ReSize(int n) {
   dim = n;
-  int matDim;
   indexMap.resize(n/2, n/2);
   matDim = MapIndices(n/2);
-  repA.ReSize(matDim, dim*dim/4);
-  repA = 0;
-  if (!rhf) {
-    repB.ReSize(matDim, dim*dim/4);
-    repB = 0.;        
-  }
+  //repA.ReSize(matDim, dim*dim/4);
+  //repA = 0;
+  //if (!rhf) {
+  //  repB.ReSize(matDim, dim*dim/4);
+  //  repB = 0.;        
+  //}
 }
 
 int SpinAdapted::CCCDArray::MapIndices(int n) {
@@ -739,18 +729,19 @@ void SpinAdapted::CCCDArray::set(int i, int j, int k, int l, double value) {
   l=l/2;
 
   int n = indexMap(i, j);
-  int m = k*(dim/2)+l+1;
+  int m = k*(dim/2)+l;
+  int stride = (dim/2)*(dim/2);
+
+  int sign = (n>0) ? 1:-1;
+
+  int nn = abs(n)-1;
 
   if (rhf) {
-    int sign = ((n>0) == is_odd_i)? -1:1;
-    repA(abs(n), m) = sign * value;
+    if (is_odd_i) sign *= -1;
+    rep[nn*stride+m] = sign * value;
   } else {
-    int sign = (n>0) ? 1:-1;    
-    if (is_odd_i) {
-      repB(abs(n), m) = sign * value;
-    } else {
-      repA(abs(n), m) = sign * value;
-    }
+    if (is_odd_i) rep[(nn+matDim)*stride+m] = sign * value;
+    else rep[nn*stride+m] = sign * value;
   }
 }
 
@@ -785,16 +776,19 @@ double SpinAdapted::CCCDArray::operator()(int i, int j, int k, int l) const {
   if (n == 0) {
     return 0.;
   }
-  int m = idx3*(dim/2)+l+1;
+  int m = idx3*(dim/2)+l;
+  int stride = (dim/2)*(dim/2);
+
+  if (n < 0) factor *= -1;
+
+  int nn = abs(n) - 1;
+
   if (rhf) {
-    factor *= ((n>0) == ( spin == -1)) ? 1:-1;
-    return factor * repA(abs(n), m);
+    if (spin == 1) factor *= -1; 
+    //return factor * repA(abs(n), m);
+    return factor * rep[nn*stride+m];
   } else {
-    factor *= (n>0) ? 1:-1;
-    if (spin == -1) {
-      return factor * repA(abs(n), m);
-    } else {
-      return factor * repB(abs(n), m);
-    }
+    if (spin == -1) return factor * rep[nn*stride+m];
+    else return factor * rep[(nn+matDim)*stride+m];
   }
 }

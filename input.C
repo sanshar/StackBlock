@@ -1361,12 +1361,59 @@ SpinAdapted::Input::Input(const string& config_name) {
     mpi::broadcast(world, v_2[i].bin, 0);
   }
   mpi::broadcast(world, coreEnergy,0);
-  mpi::broadcast(world, v_cc,0);
-  mpi::broadcast(world, v_cccc,0);
-  mpi::broadcast(world, v_cccd,0);
+  mpi::broadcast(world, v_cc.dim,0);
+  mpi::broadcast(world, v_cc.rhf,0);
+  mpi::broadcast(world, v_cc.bin,0);
+  mpi::broadcast(world, v_cccc.dim,0);
+  mpi::broadcast(world, v_cccc.indexMap,0);
+  mpi::broadcast(world, v_cccc.rhf,0);
+  mpi::broadcast(world, v_cccc.bin,0);
+  //mpi::broadcast(world, v_cccc,0);
+  mpi::broadcast(world, v_cccd.dim,0);
+  mpi::broadcast(world, v_cccd.indexMap,0);
+  mpi::broadcast(world, v_cccd.rhf,0);
+  mpi::broadcast(world, v_cccd.bin,0);
+  //mpi::broadcast(world, v_cccd,0);
   mpi::broadcast(world, NPROP, 0);
   mpi::broadcast(world, PROPBITLEN, 0);
 #endif
+  //if (mpigetrank() == 0) {
+  //cout << "v_1" << endl;
+  //for (int i = 0; i < m_norbs; ++i)
+  //  for (int j = 0; j < m_norbs; ++j)
+  //    cout << fixed << setprecision(12) << v_1[0](i,j) << " " << i << " " << j << endl;
+
+  //cout << "v_2" << endl;
+  //for (int i = 0; i < m_norbs; ++i)
+  //  for (int j = 0; j < m_norbs; ++j)
+  //    for (int k = 0; k < m_norbs; ++k)
+  //      for (int l = 0; l < m_norbs; ++l)
+  //        cout << fixed << setprecision(12) << v_2[0](i,j,k,l)  
+  //          << " " << i << " " << j << " " << k << " " << l << endl;
+
+  //cout << "v_cc" << endl;
+  //for (int i = 0; i < m_norbs; ++i)
+  //  for (int j = 0; j < m_norbs; ++j)
+  //    cout << fixed << setprecision(12) << v_cc(i,j) << " " << i << " " << j << endl;
+
+  //cout << "v_cccc" << endl;
+  //for (int i = 0; i < m_norbs; ++i)
+  //  for (int j = 0; j < m_norbs; ++j)
+  //    for (int k = 0; k < m_norbs; ++k)
+  //      for (int l = 0; l < m_norbs; ++l)
+  //        cout << fixed << setprecision(12) << v_cccc(i,j,k,l)  
+  //          << " " << i << " " << j << " " << k << " " << l << endl;
+
+  //cout << "v_cccd" << endl;
+  //for (int i = 0; i < m_norbs; ++i)
+  //  for (int j = 0; j < m_norbs; ++j)
+  //    for (int k = 0; k < m_norbs; ++k)
+  //      for (int l = 0; l < m_norbs; ++l)
+  //        cout << fixed << setprecision(12) << v_cccd(i,j,k,l)  
+  //          << " " << i << " " << j << " " << k << " " << l << endl;
+  //}
+  //world.barrier();
+  //exit(0);
 }
 
 void SpinAdapted::Input::readreorderfile(ifstream& dumpFile, std::vector<int>& oldtonew) {
@@ -1450,29 +1497,29 @@ void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray&
   if (integralIndex == 0) {
     if(get_restart() || get_fullrestart() || m_calc_type == COMPRESS || m_calc_type == RESPONSE || m_calc_type == RESPONSEBW) {
       if (rank == 0) {
-	ReorderFileInput.open(ReorderFileName);
-	boost::filesystem::path ReorderFilePath(ReorderFileName);
-	
-	if(!boost::filesystem::exists(ReorderFilePath)) {
-	  pout << "==============="<<endl;
-	  pout << "This is a restart job and the reorder file "<<ReorderFileName<<" should be present"<<endl;
-	  abort();
-	}
-	else {
-	  pout << "================"<<endl;
-	  pout << "The Fiedler routine for finding the orbital ordering has already been run." << endl;
-	  pout << "Using the reorder file " << ReorderFileName << endl;
-	  pout << "================"<<endl;
-	  m_reorder.resize(m_norbs/2);
-	  for (int i=0; i<m_norbs/2; i++)
-	    ReorderFileInput >> m_reorder[i];
-	  ReorderFileInput.close();
-	}
+	      ReorderFileInput.open(ReorderFileName);
+	      boost::filesystem::path ReorderFilePath(ReorderFileName);
+	      
+	      if(!boost::filesystem::exists(ReorderFilePath)) {
+	        pout << "==============="<<endl;
+	        pout << "This is a restart job and the reorder file "<<ReorderFileName<<" should be present"<<endl;
+	        abort();
+	      }
+	      else {
+	        pout << "================"<<endl;
+	        pout << "The Fiedler routine for finding the orbital ordering has already been run." << endl;
+	        pout << "Using the reorder file " << ReorderFileName << endl;
+	        pout << "================"<<endl;
+	        m_reorder.resize(m_norbs/2);
+	        for (int i=0; i<m_norbs/2; i++)
+	          ReorderFileInput >> m_reorder[i];
+	        ReorderFileInput.close();
+	      }
       }
     }
     else {
       if (rank == 0) {
-	ReorderFileOutput.open(ReorderFileName);
+	      ReorderFileOutput.open(ReorderFileName);
       }
       
       
@@ -1728,12 +1775,11 @@ void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray&
   
   string msg; int msgsize = 5000;
   vector<string> tok;
+  int offset = m_orbformat == DMRGFORM ? 0 : 1;
   std::ofstream ReorderFileOutput;
   std::ifstream ReorderFileInput;
   char ReorderFileName[5000];
   std::vector<int> reorder;
-
-  int offset = m_orbformat == DMRGFORM ? 0 : 1;
 
 #ifndef SERIAL
   boost::mpi::communicator world; 
@@ -1757,73 +1803,77 @@ void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray&
   boost::filesystem::path p(ReorderFileName);
 
 #ifndef SERIAL
+  mpi::broadcast(world,m_norbs,0);
   mpi::broadcast(world,m_restart,0);
   mpi::broadcast(world,m_fullrestart,0);
 #endif
 
   //do the reordering only if it is not a restart calculation
   //if it is then just read the reorder.dat from the scratch space
-  if(get_restart() || get_fullrestart()) {
-    if (rank == 0) {
-    ReorderFileInput.open(ReorderFileName);
-    if(!boost::filesystem::exists(p)) {
-      pout << "==============="<<endl;
-      pout << "This is a restart job and the reorder file "<<ReorderFileName<<" should be present"<<endl;
-      abort();
+  if (integralIndex == 0) {
+    if(get_restart() || get_fullrestart() || m_calc_type == COMPRESS || m_calc_type == RESPONSE || m_calc_type == RESPONSEBW) {
+      if (rank == 0) {
+        ReorderFileInput.open(ReorderFileName);
+	      boost::filesystem::path ReorderFilePath(ReorderFileName);
+        
+        if(!boost::filesystem::exists(ReorderFilePath)) {
+          pout << "==============="<<endl;
+          pout << "This is a restart job and the reorder file "<<ReorderFileName<<" should be present"<<endl;
+          abort();
+        } else {
+          pout << "================"<<endl;
+          pout << "The Fiedler routine for finding the orbital ordering has already been run." << endl;
+          pout << "Using the reorder file " << ReorderFileName << endl;
+          pout << "----------------"<<endl;
+          m_reorder.resize(m_norbs/2);
+          for (int i=0; i<m_norbs/2; i++)
+	          ReorderFileInput >> m_reorder[i];
+          ReorderFileInput.close();
+        }
+      }
     } else {
-      pout << "================"<<endl;
-      pout << "The Fiedler routine for finding the orbital ordering has already been run." << endl;
-      pout << "Using the reorder file " << ReorderFileName << endl;
-      pout << "----------------"<<endl;
-      m_reorder.resize(m_norbs/2);
-      for (int i=0; i<m_norbs/2; i++)
-	ReorderFileInput >> m_reorder[i];
-      ReorderFileInput.close();
-    }
-    }
-  } 
-  else {
-    if (rank == 0) {
-      ReorderFileOutput.open(ReorderFileName);
-    }
-    
-    // read the reorder file or calculate the reordering using one of the many options  
-    if (m_reorderType == FIEDLER) {
       if (rank == 0) {
-        m_reorder=get_fiedler_bcs(orbitalfile);
-        pout << "Fiedler-vector orbital ordering: ";
+        ReorderFileOutput.open(ReorderFileName);
       }
-    } else if (m_reorderType == GAOPT) {
+      
+      // read the reorder file or calculate the reordering using one of the many options  
+      if (m_reorderType == FIEDLER) {
+        if (rank == 0) {
+          m_reorder=get_fiedler_bcs(orbitalfile);
+          pout << "Fiedler-vector orbital ordering: ";
+        }
+      } else if (m_reorderType == GAOPT) {
 
-      ifstream gaconfFile;
+        ifstream gaconfFile;
 
-      if (rank == 0) {
-        if (m_gaconffile != "default") gaconfFile.open(m_gaconffile.c_str(), ios::in);
-        m_reorder = get_fiedler_bcs(orbitalfile);
+        if (rank == 0) {
+          if (m_gaconffile != "default") gaconfFile.open(m_gaconffile.c_str(), ios::in);
+          m_reorder = get_fiedler_bcs(orbitalfile);
+        }
+        //to provide as initial guess to gaopt
+        m_reorder = getgaorder_bcs(gaconfFile, orbitalfile, m_reorder);
+        pout << "Genetic algorithm orbital ordering: ";
+      } else if (m_reorderType == MANUAL) {
+        if (rank == 0) {
+          ifstream reorderFile(m_reorderfile.c_str());
+          CheckFileExistence(m_reorderfile, "Reorder file ");
+          readreorderfile(reorderFile, m_reorder);
+          pout << "Manually provided orbital ordering: ";
+        }
+      } else { //this is the no-reorder case
+        if (rank == 0) {
+          m_reorder.resize(m_norbs/2);
+          for (int i=0; i<m_reorder.size(); i++)
+	        m_reorder.at(i) = i;
+          pout << "No orbital reorder: ";
+        }
       }
-      //to provide as initial guess to gaopt
-      m_reorder = getgaorder_bcs(gaconfFile, orbitalfile, m_reorder);
-      pout << "Genetic algorithm orbital ordering: ";
-    } else if (m_reorderType == MANUAL) {
       if (rank == 0) {
-        ifstream reorderFile(m_reorderfile.c_str());
-        CheckFileExistence(m_reorderfile, "Reorder file ");
-        readreorderfile(reorderFile, m_reorder);
-        pout << "Manually provided orbital ordering: ";
-      }
-    } else { //this is the no-reorder case
-      if (rank == 0) {
-        m_reorder.resize(m_norbs/2);
+        // write the reorder file
         for (int i=0; i<m_reorder.size(); i++)
-	      m_reorder.at(i) = i;
-        pout << "No orbital reorder: ";
+          ReorderFileOutput << m_reorder[i]<<"  ";
+        ReorderFileOutput.close();
       }
-    }
-    if (rank == 0) {
-      // write the reorder file
-      for (int i=0; i<m_reorder.size(); i++)
-        ReorderFileOutput << m_reorder[i]<<"  ";
-      ReorderFileOutput.close();
     }
   }
 
@@ -1853,45 +1903,42 @@ void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray&
     int readLine = 1, numRead = 1;
     while (!(boost::iequals(tok[0], "ISYM") || boost::iequals(tok[0], "&END"))) {
       for (int i=0; i<tok.size(); i++) {
-	if (boost::iequals(tok[i], "ORBSYM") || tok[i].size() == 0) continue;
-	
-	int reorderOrbInd =  reorder.at(orbindex/2);
-	int ir;
-	if (atoi(tok[i].c_str()) >= 0 ) 
-	  ir = atoi(tok[i].c_str()) - offset;
-	else if (atoi(tok[i].c_str()) < -1)
-	  ir = atoi(tok[i].c_str()) + offset;
-	
-	if (sym == "trans") ir += 1; //for translational symmetry the lowest irrep is 0
-	if (sym == "lzsym") ir = atoi(tok[i].c_str());
-	
-	m_spin_orbs_symmetry[2*reorderOrbInd] = ir;
-	m_spin_orbs_symmetry[2*reorderOrbInd+1] = ir;
-	
-	if (readLine == numRead) {
-	  m_num_spatial_orbs++;
-	  m_spatial_to_spin.push_back(orbindex);
-	  numRead = Symmetry::sizeofIrrep(ir);
-	  readLine = 0;
-	}
-	m_spin_to_spatial[orbindex] = m_num_spatial_orbs-1;
-	m_spin_to_spatial[orbindex+1] = m_num_spatial_orbs-1;
-	orbindex +=2;
-	readLine++;
+	      if (boost::iequals(tok[i], "ORBSYM") || tok[i].size() == 0) continue;
+	      
+	      int reorderOrbInd =  reorder.at(orbindex/2);
+	      int ir;
+	      if (atoi(tok[i].c_str()) >= 0 ) ir = atoi(tok[i].c_str()) - offset;
+	      else if (atoi(tok[i].c_str()) < -1) ir = atoi(tok[i].c_str()) + offset;
+	      
+	      if (sym == "trans") ir += 1; //for translational symmetry the lowest irrep is 0
+	      if (sym == "lzsym") ir = atoi(tok[i].c_str());
+	      
+	      m_spin_orbs_symmetry[2*reorderOrbInd] = ir;
+	      m_spin_orbs_symmetry[2*reorderOrbInd+1] = ir;
+	      
+	      if (readLine == numRead) {
+	        m_num_spatial_orbs++;
+	        m_spatial_to_spin.push_back(orbindex);
+	        numRead = Symmetry::sizeofIrrep(ir);
+	        readLine = 0;
+	      }
+	      m_spin_to_spatial[orbindex] = m_num_spatial_orbs-1;
+	      m_spin_to_spatial[orbindex+1] = m_num_spatial_orbs-1;
+	      orbindex +=2;
+	      readLine++;
       }
       msg.resize(0);
       ReadMeaningfulLine(dumpFile, msg, msgsize);
       boost::split(tok, msg, is_any_of("=, \t"), token_compress_on);
-      if(boost::iequals(tok[0], "IUHF"))
-	RHF=false;
+      if(boost::iequals(tok[0], "IUHF")) RHF=false;
     }
     
     if(sym == "dinfh" ) {
       m_spatial_to_spin.clear();
-      for (int i=0; i<m_spin_orbs_symmetry.size(); i+=2) {
-	int ir = m_spin_orbs_symmetry[i];
-	if (ir < -1 || ir == 0 || ir == 1) 
-	  m_spatial_to_spin.push_back(i);
+      for (int i=0; i<m_spin_orbs_symmetry.size();) {
+	      int ir = m_spin_orbs_symmetry[i];
+	      m_spatial_to_spin.push_back(i);
+	      i += 2*Symmetry::sizeofIrrep(ir); 
       }
     }
     
@@ -1901,14 +1948,13 @@ void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray&
     while (!((boost::iequals(tok[0], "&END")) || (boost::iequals(tok[0], "/")))) {
       int temp;
       if (boost::iequals(tok[0], "NPROP") ) {
-	NPROP.push_back( atoi(tok[1].c_str()));
-	NPROP.push_back( atoi(tok[2].c_str()));
-	NPROP.push_back( atoi(tok[3].c_str()));
+	      NPROP.push_back( atoi(tok[1].c_str()));
+	      NPROP.push_back( atoi(tok[2].c_str()));
+	      NPROP.push_back( atoi(tok[3].c_str()));
       } else if (boost::iequals(tok[0], "PROPBITLEN") ) {
-	temp = atoi(tok[1].c_str());
-	PROPBITLEN=1;
-	for (int i=0; i<temp; i++)
-	  PROPBITLEN *= 2;
+	      temp = atoi(tok[1].c_str());
+	      PROPBITLEN=1;
+	      for (int i=0; i<temp; i++) PROPBITLEN *= 2;
       }
       msg.resize(0);
       ReadMeaningfulLine(dumpFile, msg, msgsize);
@@ -1933,32 +1979,51 @@ void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray&
 #ifndef SERIAL
   mpi::broadcast(world,RHF,0);
   mpi::broadcast(world,v1,0);
+  mpi::broadcast(world,vcc,0);
   mpi::broadcast(world,v2,0);
+  mpi::broadcast(world,vcccc,0);
+  mpi::broadcast(world,vcccd,0);
 #endif
 
-  long oneIntegralMem, twoIntegralMem;
-  long twoedim = v2.matDim;
-
-  if (RHF) { oneIntegralMem = (m_norbs/2*(m_norbs/2+1))/2; twoIntegralMem = twoedim*(twoedim+1)/2;}
-  else { oneIntegralMem = (m_norbs*(m_norbs+1))/2; twoIntegralMem = twoedim*(twoedim+1)/2;}
-
+  long oneIntegralMem, vccIntegralMem, twoIntegralMem, vccccIntegralMem, vcccdIntegralMem;
+  long twoedim = v2.matDim, vccccdim = vcccc.matDim, vcccddim = vcccd.matDim, vcccddim1 = vcccd.dim;
+  if (RHF) { 
+    oneIntegralMem = (m_norbs/2*(m_norbs/2+1))/2;
+    vccIntegralMem = (m_norbs/2*(m_norbs/2+1))/2;
+    twoIntegralMem = twoedim*(twoedim+1)/2;
+    vccccIntegralMem = vccccdim*(vccccdim+1)/2;
+    vcccdIntegralMem = vcccddim*(vcccddim1/2)*(vcccddim1/2);
+  } else {
+    oneIntegralMem = m_norbs/2*(m_norbs/2+1);
+    vccIntegralMem = m_norbs/2*m_norbs/2;
+    twoIntegralMem = twoedim*(twoedim+1)/2;
+    vccccIntegralMem = vccccdim*vccccdim;
+    vcccdIntegralMem = vcccddim*(vcccddim1/2)*(vcccddim1/2)*2;
+  }
 #ifndef SERIAL
   mpi::broadcast(world,oneIntegralMem,0);
+  mpi::broadcast(world,vccIntegralMem,0);
   mpi::broadcast(world,twoIntegralMem,0);
+  mpi::broadcast(world,vccccIntegralMem,0);
+  mpi::broadcast(world,vcccdIntegralMem,0);
 #endif
+
+  long intdim = oneIntegralMem+vccIntegralMem+twoIntegralMem+vccccIntegralMem+vcccdIntegralMem;
+
   if (integralIndex == 0) {
-    segment.truncate((oneIntegralMem+twoIntegralMem)*m_num_Integrals*sizeof(double)); 
+    segment.truncate(intdim*m_num_Integrals*sizeof(double)); 
     region = boost::interprocess::mapped_region{segment, boost::interprocess::read_write};
-    memset(region.get_address(), 0., (oneIntegralMem+twoIntegralMem)*m_num_Integrals*sizeof(double));
+    memset(region.get_address(), 0., intdim*m_num_Integrals*sizeof(double));
   }
 #ifndef SERIAL
   //wait for all procs to zero out the memory
   MPI::COMM_WORLD.Barrier();
 #endif
-
-  v1.set_data() = static_cast<double*>(region.get_address()) + (oneIntegralMem+twoIntegralMem)*integralIndex;
-  v2.set_data() = static_cast<double*>(region.get_address()) + oneIntegralMem + (oneIntegralMem+twoIntegralMem)*integralIndex;
-
+  v1.set_data() = static_cast<double*>(region.get_address()) + intdim*integralIndex;
+  vcc.set_data() = static_cast<double*>(region.get_address()) + oneIntegralMem + intdim*integralIndex;
+  v2.set_data() = static_cast<double*>(region.get_address()) + oneIntegralMem + vccIntegralMem + intdim*integralIndex;
+  vcccc.set_data() = static_cast<double*>(region.get_address()) + oneIntegralMem + vccIntegralMem + twoIntegralMem + intdim*integralIndex;
+  vcccd.set_data() = static_cast<double*>(region.get_address()) + oneIntegralMem + vccIntegralMem + twoIntegralMem + vccccIntegralMem + intdim*integralIndex;
 
   if (rank == 0) {
     int section = 0;
@@ -1970,92 +2035,104 @@ void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray&
     while(msg.size() != 0) {
       boost::split(tok, msg, is_any_of(" \t"), token_compress_on);
       if (tok.size() != 5) {
-	pout << "error in reading orbital file"<<endl;
-	pout << "error encountered at line "<<endl;
-	pout << msg<<endl;
-	abort();
+	      pout << "error in reading orbital file"<<endl;
+	      pout << "error encountered at line "<<endl;
+	      pout << msg<<endl;
+	      abort();
       }
       value = atof(tok[0].c_str());
       i = atoi(tok[1].c_str())-offset;j = atoi(tok[2].c_str())-offset;k = atoi(tok[3].c_str())-offset;l = atoi(tok[4].c_str())-offset;
       if (i==-1 && j==-1 && k==-1 && l==-1) {
-	coreEnergy = value;
-	section += 1;
+	      coreEnergy = value;
+	      section += 1;
       } else if (RHF) {
-	if (section == 0) { // ccdd
-	  v2(2*reorder.at(i), 2*reorder.at(k), 2*reorder.at(j),2*reorder.at(l)) = value;
-	} else if (section == 1) { // cccd
-	  vcccd.set(2*reorder.at(i), 2*reorder.at(j), 2*reorder.at(k)+1, 2*reorder.at(l), value);
-	} else if (section == 2) { // cccc
-	  vcccc.set(2*reorder.at(i), 2*reorder.at(j), 2*reorder.at(l)+1, 2*reorder.at(k)+1, value);
-	} else if (section == 3) { // cd
-	  if (!(k==-1 && l==-1)) {
-	    pout << "Orbital file error" << endl;
-	    abort();
-	  }
-	  v1(2*reorder.at(i), 2*reorder.at(j)) = value;
-	} else if (section == 4) { // cc
-	  if (!(k==-1 && l==-1)) {
-	    pout << "Orbital file error" << endl;
-	    abort();
-	  }
-	  vcc(2*reorder.at(i), 2*reorder.at(j)+1) = value;
-	} else {
-	  pout << "read orbital file error" << endl;
-	  abort();
-	}
+	      if (section == 0) { // ccdd
+	        v2(2*reorder.at(i), 2*reorder.at(k), 2*reorder.at(j),2*reorder.at(l)) = value;
+	      } else if (section == 1) { // cccd
+	        vcccd.set(2*reorder.at(i), 2*reorder.at(j), 2*reorder.at(k)+1, 2*reorder.at(l), value);
+	      } else if (section == 2) { // cccc
+	        vcccc.set(2*reorder.at(i), 2*reorder.at(j), 2*reorder.at(l)+1, 2*reorder.at(k)+1, value);
+	      } else if (section == 3) { // cd
+	        if (!(k==-1 && l==-1)) {
+	          pout << "Orbital file error" << endl;
+	          abort();
+	        }
+	        v1(2*reorder.at(i), 2*reorder.at(j)) = value;
+	      } else if (section == 4) { // cc
+	        if (!(k==-1 && l==-1)) {
+	          pout << "Orbital file error" << endl;
+	          abort();
+	        }
+	        vcc(2*reorder.at(i), 2*reorder.at(j)+1) = value;
+	      } else {
+	        pout << "read orbital file error" << endl;
+	        abort();
+	      }
       } else {
-	if (section == 0) { // ccdd_aa
-	  v2(2*reorder.at(i), 2*reorder.at(k), 2*reorder.at(j),2*reorder.at(l)) = value;
-	} else if (section == 1) { // ccdd_bb
-	  v2(2*reorder.at(i)+1, 2*reorder.at(k)+1, 2*reorder.at(j)+1,2*reorder.at(l)+1) = value;
-	} else if (section == 2) { // ccdd_ab
-	  v2(2*reorder.at(i), 2*reorder.at(k)+1, 2*reorder.at(j),2*reorder.at(l)+1) = value;
-	} else if (section == 3) { // cccd_a
-	  vcccd.set(2*reorder.at(i), 2*reorder.at(j), 2*reorder.at(k)+1, 2*reorder.at(l), value);
-	} else if (section == 4) { // cccd_b
-	  vcccd.set(2*reorder.at(i)+1, 2*reorder.at(j)+1, 2*reorder.at(k), 2*reorder.at(l)+1, value);
-	} else if (section == 5) { // cccc  w_{ijkl}C_ia C_ja C_kb C_lb
-	  vcccc.set(2*reorder.at(i), 2*reorder.at(j), 2*reorder.at(l)+1, 2*reorder.at(k)+1, value);
-	} else if (section == 6) { // cd_a
-	  if (!(k==-1 && l==-1)) {
-	    pout << "Orbital file error" << endl;
-	    abort();
-	  }
-	  v1(2*reorder.at(i), 2*reorder.at(j)) = value;
-	} else if (section == 7) { // cd_b
-	  if (!(k==-1 && l==-1)) {
-	    pout << "Orbital file error" << endl;
-	    abort();
-	  }
-	  v1(2*reorder.at(i)+1, 2*reorder.at(j)+1) = value;
-	} else if (section == 8) { // cc
-	  if (!(k==-1 && l==-1)) {
-	    pout << "Orbital file error" << endl;
-	    abort();
-	  }
-	  vcc(2*reorder.at(i), 2*reorder.at(j)+1) = value;
-	} else {
-	  pout << "read orbital file error" << endl;
-	  abort();
-	}
+	      if (section == 0) { // ccdd_aa
+	        v2(2*reorder.at(i), 2*reorder.at(k), 2*reorder.at(j),2*reorder.at(l)) = value;
+	      } else if (section == 1) { // ccdd_bb
+	        v2(2*reorder.at(i)+1, 2*reorder.at(k)+1, 2*reorder.at(j)+1,2*reorder.at(l)+1) = value;
+	      } else if (section == 2) { // ccdd_ab
+	        v2(2*reorder.at(i), 2*reorder.at(k)+1, 2*reorder.at(j),2*reorder.at(l)+1) = value;
+	      } else if (section == 3) { // cccd_a
+	        vcccd.set(2*reorder.at(i), 2*reorder.at(j), 2*reorder.at(k)+1, 2*reorder.at(l), value);
+	      } else if (section == 4) { // cccd_b
+	        vcccd.set(2*reorder.at(i)+1, 2*reorder.at(j)+1, 2*reorder.at(k), 2*reorder.at(l)+1, value);
+	      } else if (section == 5) { // cccc  w_{ijkl}C_ia C_ja C_kb C_lb
+	        vcccc.set(2*reorder.at(i), 2*reorder.at(j), 2*reorder.at(l)+1, 2*reorder.at(k)+1, value);
+	      } else if (section == 6) { // cd_a
+	        if (!(k==-1 && l==-1)) {
+	          pout << "Orbital file error" << endl;
+	          abort();
+	        }
+	        v1(2*reorder.at(i), 2*reorder.at(j)) = value;
+	      } else if (section == 7) { // cd_b
+	        if (!(k==-1 && l==-1)) {
+	          pout << "Orbital file error" << endl;
+	          abort();
+	        }
+	        v1(2*reorder.at(i)+1, 2*reorder.at(j)+1) = value;
+	      } else if (section == 8) { // cc
+	        if (!(k==-1 && l==-1)) {
+	          pout << "Orbital file error" << endl;
+	          abort();
+	        }
+	        vcc(2*reorder.at(i), 2*reorder.at(j)+1) = value;
+	      } else {
+	        pout << "read orbital file error" << endl;
+	        abort();
+	      }
       }
       msg.resize(0);
       ReadMeaningfulLine(dumpFile, msg, msgsize); //this if the first line with integrals
     }
     if (m_norbs/2 >= m_integral_disk_storage_thresh) {
       for (int i=0; i<m_spatial_to_spin.size()-1; i++) {
-	std::vector<int> orb;
-	for (int j=m_spatial_to_spin[i]; j<m_spatial_to_spin[i+1]; j+=2) {
-	  orb.push_back(j/2);
-	}
-	PartialTwoElectronArray vpart(orb);
-	vpart.populate(v2);
-	vpart.Save(m_save_prefix);
+	      std::vector<int> orb;
+	      for (int j=m_spatial_to_spin[i]; j<m_spatial_to_spin[i+1]; j+=2) {
+	        orb.push_back(j/2);
+	      }
+	      PartialTwoElectronArray vpart(orb);
+	      vpart.populate(v2);
+	      vpart.Save(m_save_prefix);
       }
       v2.ReSize(0);
     }
     dumpFile.close();
   }
+#ifndef SERIAL
+  MPI::COMM_WORLD.Barrier();
+  long maxint = 26843540; //mpi cannot transfer more than these number of doubles
+  long maxIter = intdim/maxint; 
+  for (int i=0; i<maxIter; i++) {
+    MPI::COMM_WORLD.Bcast(v1.set_data()+i*maxint, maxint, MPI_DOUBLE, 0);
+    MPI::COMM_WORLD.Barrier();
+  }
+  MPI::COMM_WORLD.Bcast(v1.set_data()+(maxIter)*maxint, intdim - maxIter*maxint, MPI_DOUBLE, 0);
+  MPI::COMM_WORLD.Barrier();
+
+#endif
 }
 
 std::vector<int> SpinAdapted::Input::get_fiedler(string& dumpname){
