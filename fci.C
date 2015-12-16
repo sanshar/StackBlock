@@ -163,7 +163,7 @@ void SpinAdapted::Sweep::tiny(double sweep_tol)
   SpinQuantum hq(0,SpinSpace(0),IrrepSpace(0));
   for (int i=0; i<sinfo.totalStates; i++) {
     if (sinfo.quanta[i] == dmrginp.molecule_quantum()) {
-      StackMatrix& h = system.get_op_rep(HAM, hq)->operator_element(i,i);
+      StackMatrix& h = system.get_op_array(HAM).get_element(0).at(0)->operator_element(i,i);
       DiagonalMatrix energies(h.Nrows()); energies = 0.0;
       diagonalise(h, energies);
       

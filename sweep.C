@@ -662,11 +662,11 @@ void SpinAdapted::Sweep::Startup (SweepParams &sweepParams, StackSpinBlock& syst
   std::vector<double> data(requiredData, 0.0);
   transformmatrix.allocate(newSystem.get_stateInfo(), &data[0]);
 
-  SpinQuantum q(0,SpinSpace(0),IrrepSpace(0));
+  //SpinQuantum q(0,SpinSpace(0),IrrepSpace(0));
 
   //if (mpigetrank() == 0) {
   double minval = 1e12;
-  boost::shared_ptr<StackSparseMatrix> h = newSystem.get_op_rep(HAM, q);
+  boost::shared_ptr<StackSparseMatrix> h = newSystem.get_op_array(HAM).get_element(0).at(0);
   for (int i=0; i<nquanta; i++) {
     Matrix m;
     copy(h->operator_element(i,i), transformmatrix(i,i));
