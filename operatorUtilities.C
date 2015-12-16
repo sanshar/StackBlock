@@ -190,7 +190,7 @@ double SpinAdapted::StackSparseMatrix::calcCompfactor(TensorOp& op1, TensorOp& o
 	    factor += 0.5*v_1[integralIndex](Ind1[0], Ind2[0])*iSz1.at(i1)*iSz2.at(i2)/cleb;
 	  } 
 	  else { // D
-	    factor += 0.5*(v_cc(Ind2[0], Ind1[0]) - v_cc(Ind1[0], Ind2[0]))*iSz1.at(i1)*iSz2.at(i2)/cleb;
+	    factor += 0.5*(v_cc[integralIndex](Ind2[0], Ind1[0]) - v_cc[integralIndex](Ind1[0], Ind2[0]))*iSz1.at(i1)*iSz2.at(i2)/cleb;
 	  }
 	}
       }
@@ -244,7 +244,7 @@ double SpinAdapted::StackSparseMatrix::calcCompfactor(TensorOp& op1, TensorOp& o
 	    factor += 0.5*v_1[integralIndex](Ind1[0], Ind2[0])*iSz1.at(i1)*iSz2.at(i2)/cleb;
 	  } 
 	  else { // D
-	    factor += 0.5*(v_cc(Ind2[0], Ind1[0]) - v_cc(Ind1[0], Ind2[0]))*iSz1.at(i1)*iSz2.at(i2)/cleb;
+	    factor += 0.5*(v_cc[integralIndex](Ind2[0], Ind1[0]) - v_cc[integralIndex](Ind1[0], Ind2[0]))*iSz1.at(i1)*iSz2.at(i2)/cleb;
 	  }
 	}
 	else {

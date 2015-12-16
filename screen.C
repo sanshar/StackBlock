@@ -504,7 +504,7 @@ bool screen_cd_interaction(int ci, int dj, const std::vector<int, std::allocator
     for (int l = 0; l < ninter; ++l) {
       int kx = interactingix[k];
 	  int lx = interactingix[l];
-	  if (fabs(twoe(ci, kx, lx, dj))>= thresh || fabs(twoe(kx, ci, lx, dj)) >= thresh || fabs(v_cccd(ci, kx, lx, dj)) >= thresh || fabs(v_cccd(dj, kx, lx, ci)) >= thresh)
+	  if (fabs(twoe(ci, kx, lx, dj))>= thresh || fabs(twoe(kx, ci, lx, dj)) >= thresh || fabs(vcccd(ci, kx, lx, dj)) >= thresh || fabs(vcccd(dj, kx, lx, ci)) >= thresh)
         return true;
     }
     return (ninter == 0);

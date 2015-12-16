@@ -60,12 +60,12 @@ extern Timer globaltimer;
 
 extern std::vector<OneElectronArray> v_1;
 extern std::vector<TwoElectronArray> v_2;
+extern std::vector<PairArray> v_cc;
+extern std::vector<CCCCArray> v_cccc;
+extern std::vector<CCCDArray> v_cccd;
 extern std::vector<double> coreEnergy;
 extern std::vector< std::vector<StackSpinBlock> > singleSiteBlocks;
 extern double BWPTenergy;
-extern PairArray v_cc;
-extern CCCCArray v_cccc;
-extern CCCDArray v_cccd;
 
 extern Input dmrginp;
 

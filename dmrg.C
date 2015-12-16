@@ -84,6 +84,9 @@ namespace SpinAdapted{
   double BWPTenergy = 0.0;
   std::vector<OneElectronArray> v_1;
   std::vector<TwoElectronArray> v_2;
+  std::vector<PairArray> v_cc;
+  std::vector<CCCCArray> v_cccc;
+  std::vector<CCCDArray> v_cccd;
   std::vector<std::vector<StackSpinBlock> > singleSiteBlocks;
   std::vector<double> coreEnergy;
   std::vector<std::vector<std::vector<int> > > screened_cre;
@@ -93,9 +96,6 @@ namespace SpinAdapted{
   std::vector< std::vector<std::vector<pair<int,int> > > > screened_desdes;
   std::vector< std::vector<std::vector<pair<int,int> > > > screened_desdescomp;
 
-  PairArray v_cc;
-  CCCCArray v_cccc;
-  CCCDArray v_cccd;
   Input dmrginp;
   int CACHEBUFFER = 0;
   int MAX_THRD = 1;

@@ -87,6 +87,9 @@ void SpinAdapted::Input::initialize_defaults()
   m_num_Integrals = 1;
   v_2.resize(1, TwoElectronArray(TwoElectronArray::restrictedNonPermSymm));
   v_1.resize(1);
+  v_cc.resize(1);
+  v_cccc.resize(1);
+  v_cccd.resize(1);
   coreEnergy.resize(1);
   m_baseState.resize(1,0);
   m_projectorState.resize(0);
@@ -1208,12 +1211,18 @@ SpinAdapted::Input::Input(const string& config_name) {
     v_2.resize(m_num_Integrals, TwoElectronArray(TwoElectronArray::restrictedNonPermSymm));
     v_1.resize(m_num_Integrals);
     coreEnergy.resize(m_num_Integrals);
+    v_cc.resize(m_num_Integrals);
+    v_cccc.resize(m_num_Integrals);
+    v_cccd.resize(m_num_Integrals);
   }
   else {
     v_2.resize(m_num_Integrals, TwoElectronArray(true, true));
     v_1.resize(m_num_Integrals, OneElectronArray(true, true));
     v_1[1].set_isH0() = false; 
     v_2[1].isH0 = false;
+    v_cc.resize(m_num_Integrals);
+    v_cccc.resize(m_num_Integrals);
+    v_cccd.resize(m_num_Integrals);
     coreEnergy.resize(m_num_Integrals);
   }
 
@@ -1249,9 +1258,9 @@ SpinAdapted::Input::Input(const string& config_name) {
     
     if (m_Bogoliubov) {
       v_2[integral].permSymm = false;
-      v_cc.rhf = true;
-      v_cccc.rhf = true;
-      v_cccd.rhf = true;
+      v_cc[integral].rhf = true;
+      v_cccc[integral].rhf = true;
+      v_cccd[integral].rhf = true;
     }
     
     // Kij-based ordering by GA opt.
@@ -1261,10 +1270,10 @@ SpinAdapted::Input::Input(const string& config_name) {
 #endif
     
     if (m_Bogoliubov) {
-      v_cc.rhf=true;
-      v_cccc.rhf=true;
-      v_cccd.rhf=true;
-      readorbitalsfile(orbitalfile[integral], v_1[integral], v_2[integral], coreEnergy[integral], v_cc, v_cccc, v_cccd, integral);
+      v_cc[integral].rhf=true;
+      v_cccc[integral].rhf=true;
+      v_cccd[integral].rhf=true;
+      readorbitalsfile(orbitalfile[integral], v_1[integral], v_2[integral], coreEnergy[integral], v_cc[integral], v_cccc[integral], v_cccd[integral], integral);
       assert(!m_add_noninteracting_orbs);
     } 
     else {
@@ -1359,21 +1368,23 @@ SpinAdapted::Input::Input(const string& config_name) {
     mpi::broadcast(world, v_2[i].rhf, 0);
     mpi::broadcast(world, v_2[i].permSymm, 0);
     mpi::broadcast(world, v_2[i].bin, 0);
+
+    mpi::broadcast(world, v_cc[i].dim,0);
+    mpi::broadcast(world, v_cc[i].rhf,0);
+    mpi::broadcast(world, v_cc[i].bin,0);
+
+    mpi::broadcast(world, v_cccc[i].dim,0);
+    mpi::broadcast(world, v_cccc[i].indexMap,0);
+    mpi::broadcast(world, v_cccc[i].rhf,0);
+    mpi::broadcast(world, v_cccc[i].bin,0);
+
+    mpi::broadcast(world, v_cccd[i].dim,0);
+    mpi::broadcast(world, v_cccd[i].indexMap,0);
+    mpi::broadcast(world, v_cccd[i].rhf,0);
+    mpi::broadcast(world, v_cccd[i].bin,0);
   }
   mpi::broadcast(world, coreEnergy,0);
-  mpi::broadcast(world, v_cc.dim,0);
-  mpi::broadcast(world, v_cc.rhf,0);
-  mpi::broadcast(world, v_cc.bin,0);
-  mpi::broadcast(world, v_cccc.dim,0);
-  mpi::broadcast(world, v_cccc.indexMap,0);
-  mpi::broadcast(world, v_cccc.rhf,0);
-  mpi::broadcast(world, v_cccc.bin,0);
-  //mpi::broadcast(world, v_cccc,0);
-  mpi::broadcast(world, v_cccd.dim,0);
-  mpi::broadcast(world, v_cccd.indexMap,0);
-  mpi::broadcast(world, v_cccd.rhf,0);
-  mpi::broadcast(world, v_cccd.bin,0);
-  //mpi::broadcast(world, v_cccd,0);
+
   mpi::broadcast(world, NPROP, 0);
   mpi::broadcast(world, PROPBITLEN, 0);
 #endif
@@ -1394,14 +1405,14 @@ SpinAdapted::Input::Input(const string& config_name) {
   //cout << "v_cc" << endl;
   //for (int i = 0; i < m_norbs; ++i)
   //  for (int j = 0; j < m_norbs; ++j)
-  //    cout << fixed << setprecision(12) << v_cc(i,j) << " " << i << " " << j << endl;
+  //    cout << fixed << setprecision(12) << v_cc[0](i,j) << " " << i << " " << j << endl;
 
   //cout << "v_cccc" << endl;
   //for (int i = 0; i < m_norbs; ++i)
   //  for (int j = 0; j < m_norbs; ++j)
   //    for (int k = 0; k < m_norbs; ++k)
   //      for (int l = 0; l < m_norbs; ++l)
-  //        cout << fixed << setprecision(12) << v_cccc(i,j,k,l)  
+  //        cout << fixed << setprecision(12) << v_cccc[0](i,j,k,l)  
   //          << " " << i << " " << j << " " << k << " " << l << endl;
 
   //cout << "v_cccd" << endl;
@@ -1409,7 +1420,7 @@ SpinAdapted::Input::Input(const string& config_name) {
   //  for (int j = 0; j < m_norbs; ++j)
   //    for (int k = 0; k < m_norbs; ++k)
   //      for (int l = 0; l < m_norbs; ++l)
-  //        cout << fixed << setprecision(12) << v_cccd(i,j,k,l)  
+  //        cout << fixed << setprecision(12) << v_cccd[0](i,j,k,l)  
   //          << " " << i << " " << j << " " << k << " " << l << endl;
   //}
   //world.barrier();
