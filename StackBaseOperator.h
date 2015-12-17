@@ -338,7 +338,7 @@ public:
   const StackMatrix& operator_element(int i, int j, char conj) const { if (conj == 'n') return opdata->operator_element(j, i); else return opdata->operator_element(i,j);}
   StackMatrix& operator_element(int i, int j, char conj) { if (conj == 'n') return opdata->operator_element(j, i); else return opdata->operator_element(i,j);}
 
-  SpinSpace get_spin(int i=0) const  { return opdata->get_deltaQuantum(i).get_s();}
+  SpinSpace get_spin(int i=0) const  { return -opdata->get_deltaQuantum(i).get_s();}
   IrrepSpace get_symm(int i=0) const  { return -opdata->get_deltaQuantum(i).get_symm();}
   int get_orbs(int i) const {return opdata->get_orbs(i);}
   const std::vector<int>& get_orbs() const { return opdata->get_orbs(); }
