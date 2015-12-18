@@ -153,20 +153,68 @@ public:
   onedot_noise_f(StackDensityMatrix*& dm_, const StackWavefunction& wavefunction_, const StackSpinBlock& big_, const double scale_)
     : distributed(false), synced(true), wavefunction(wavefunction_), dm(dm_), big(big_), scale(scale_) { }
   
-  void operator()(const boost::shared_ptr<StackSparseMatrix> op) const
-  {
+  void operator()(const boost::shared_ptr<StackSparseMatrix> op) const {
     vector<SpinQuantum> wQ = wavefunction.get_deltaQuantum();
     vector<SpinQuantum> oQ = op->get_deltaQuantum();
     vector<IrrepSpace> vec = wQ[0].get_symm() + oQ[0].get_symm();
     vector<SpinSpace> spinvec = wQ[0].get_s()+oQ[0].get_s();
-    for (int k=0; k<wQ.size(); ++k)
+    if (dmrginp.hamiltonian() == BCS) {
+      for (int n = 0; n <= dmrginp.effective_molecule_quantum().get_n(); ++n) {
+        bool valid_cre = false, valid_des = false;
+        for (int k = 0; k < wQ.size(); ++k) {
+          for (int l = 0; l < oQ.size(); ++l) {
+            if (wQ[k].get_n() + oQ[l].get_n() == n) valid_cre = true;
+            if (!big.get_leftBlock()->has(DES) && wQ[k].get_n() - oQ[l].get_n() == n) valid_des = true;
+          }
+        }
+        if (!valid_cre && !valid_des) continue;
+        if (!op->memoryUsed()) {
+          op->allocate(big.get_leftBlock()->get_braStateInfo(), big.get_leftBlock()->get_ketStateInfo());
+	        op->build(*big.get_leftBlock());
+        }
+        for (int j = 0; j < vec.size(); ++j) {
+          for (int i = 0; i < spinvec.size(); ++i) {
+            if (valid_cre) {
+	            SpinQuantum q = SpinQuantum(n, spinvec[i], vec[j]);
+	            StackWavefunction opxwave;
+	            opxwave.initialise(std::vector<SpinQuantum>(1,q), *big.get_braStateInfo().leftStateInfo, *big.get_ketStateInfo().rightStateInfo, wavefunction.get_onedot());
+	            opxwave.set_onedot(wavefunction.get_onedot());
+	            opxwave.Clear();
+	            TensorMultiply(big.get_leftBlock(), *op, &big, const_cast<StackWavefunction&> (wavefunction), opxwave, dmrginp.molecule_quantum(), 1.0);
+	            double norm = DotProduct(opxwave, opxwave);
+	            if (abs(norm) > NUMERICAL_ZERO) {
+		            Scale(1./sqrt(norm), opxwave);
+		            MultiplyWithOwnTranspose (opxwave, dm[omprank], scale);  
+	            }
+	            opxwave.deallocate();
+            }
+            if (valid_des) {
+	            SpinQuantum q = SpinQuantum(n, spinvec[i], vec[j]);
+	            StackWavefunction opxwave2;
+		          opxwave2.initialise(std::vector<SpinQuantum>(1,q), *big.get_braStateInfo().leftStateInfo, *big.get_ketStateInfo().rightStateInfo, wavefunction.get_onedot());
+		          opxwave2.set_onedot(wavefunction.get_onedot());
+		          opxwave2.Clear();
+		          TensorMultiply(big.get_leftBlock(), Transpose(*op), &big, const_cast<StackWavefunction&> (wavefunction), opxwave2, dmrginp.molecule_quantum(), 1.0);
+		          double norm = DotProduct(opxwave2, opxwave2);
+		          if (abs(norm) >NUMERICAL_ZERO) {
+		            Scale(1./sqrt(norm), opxwave2);
+		            MultiplyWithOwnTranspose (opxwave2, dm[omprank], scale);  
+		            //MultiplyProduct(opxwave2, Transpose(opxwave2), dm[0], scale);
+		          } 
+		          opxwave2.deallocate();
+            }
+          }
+        }
+      }
+	    op->deallocate();      
+    } else {
+      for (int k=0; k<wQ.size(); ++k)
       for (int l=0; l<oQ.size(); ++l)
-	for (int j=0; j<vec.size(); j++)
-	  for (int i=0; i<spinvec.size(); i++) {
-	    SpinQuantum q = SpinQuantum(wQ[k].get_n()+oQ[l].get_n(), spinvec[i], vec[j]);
-	    op->allocate(big.get_leftBlock()->get_braStateInfo(), big.get_leftBlock()->get_ketStateInfo());
-	    op->build(*big.get_leftBlock());
-	    if (dmrginp.hamiltonian() != BCS || q.get_n() <= dmrginp.effective_molecule_quantum().get_n()) {
+	    for (int j=0; j<vec.size(); j++)
+	    for (int i=0; i<spinvec.size(); i++) {
+	      SpinQuantum q = SpinQuantum(wQ[k].get_n()+oQ[l].get_n(), spinvec[i], vec[j]);
+	      op->allocate(big.get_leftBlock()->get_braStateInfo(), big.get_leftBlock()->get_ketStateInfo());
+	      op->build(*big.get_leftBlock());
 	      StackWavefunction opxwave;
 	      opxwave.initialise(std::vector<SpinQuantum>(1,q), *big.get_braStateInfo().leftStateInfo, *big.get_ketStateInfo().rightStateInfo, wavefunction.get_onedot());
 	      opxwave.set_onedot(wavefunction.get_onedot());
@@ -174,34 +222,32 @@ public:
 	      TensorMultiply(big.get_leftBlock(), *op, &big, const_cast<StackWavefunction&> (wavefunction), opxwave, dmrginp.molecule_quantum(), 1.0);
 	      double norm = DotProduct(opxwave, opxwave);
 	      if (abs(norm) > NUMERICAL_ZERO) {
-		Scale(1./sqrt(norm), opxwave);
-		MultiplyWithOwnTranspose (opxwave, dm[omprank], scale);  
-		//MultiplyProduct(opxwave, Transpose(opxwave), dm[0], scale);
+		      Scale(1./sqrt(norm), opxwave);
+		      MultiplyWithOwnTranspose (opxwave, dm[omprank], scale);  
+		      //MultiplyProduct(opxwave, Transpose(opxwave), dm[0], scale);
 	      }
 	      opxwave.deallocate();
+	      
+	      //this block has explicit transpose operators, so dont do this step
+	      if (!big.get_leftBlock()->has(DES)) {
+	        q = SpinQuantum(wQ[k].get_n()-oQ[l].get_n(), spinvec[i], vec[j]);
+		      StackWavefunction opxwave2; //= Wavefunction(q, &big, wavefunction.get_onedot());
+		      opxwave2.initialise(std::vector<SpinQuantum>(1,q), *big.get_braStateInfo().leftStateInfo, *big.get_ketStateInfo().rightStateInfo, wavefunction.get_onedot());
+		      opxwave2.set_onedot(wavefunction.get_onedot());
+		      opxwave2.Clear();
+		      TensorMultiply(big.get_leftBlock(), Transpose(*op), &big, const_cast<StackWavefunction&> (wavefunction), opxwave2, dmrginp.molecule_quantum(), 1.0);
+		      double norm = DotProduct(opxwave2, opxwave2);
+		      if (abs(norm) >NUMERICAL_ZERO) {
+		        Scale(1./sqrt(norm), opxwave2);
+		        MultiplyWithOwnTranspose (opxwave2, dm[omprank], scale);  
+		        //MultiplyProduct(opxwave2, Transpose(opxwave2), dm[0], scale);
+		      } 
+		      opxwave2.deallocate();
+	      }
+	      
+	      op->deallocate();
 	    }
-	    
-	    //this block has explicit transpose operators, so dont do this step
-	    if (!big.get_leftBlock()->has(DES)) {
-	      q = SpinQuantum(wQ[k].get_n()-oQ[l].get_n(), spinvec[i], vec[j]);
-	      if (dmrginp.hamiltonian() != BCS || q.get_n() >= 0) {
-		StackWavefunction opxwave2; //= Wavefunction(q, &big, wavefunction.get_onedot());
-		opxwave2.initialise(std::vector<SpinQuantum>(1,q), *big.get_braStateInfo().leftStateInfo, *big.get_ketStateInfo().rightStateInfo, wavefunction.get_onedot());
-		opxwave2.set_onedot(wavefunction.get_onedot());
-		opxwave2.Clear();
-		TensorMultiply(big.get_leftBlock(), Transpose(*op), &big, const_cast<StackWavefunction&> (wavefunction), opxwave2, dmrginp.molecule_quantum(), 1.0);
-		double norm = DotProduct(opxwave2, opxwave2);
-		if (abs(norm) >NUMERICAL_ZERO) {
-		  Scale(1./sqrt(norm), opxwave2);
-		  MultiplyWithOwnTranspose (opxwave2, dm[omprank], scale);  
-		  //MultiplyProduct(opxwave2, Transpose(opxwave2), dm[0], scale);
-		} 
-		opxwave2.deallocate();
-	      }   
-	    }
-	    
-	    op->deallocate();
-	  }
+    }
   }
 };
 
