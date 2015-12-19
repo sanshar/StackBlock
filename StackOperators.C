@@ -777,18 +777,40 @@ void SpinAdapted::StackCreDesComp::buildUsingCre(const StackSpinBlock* b) {
     int k = b->get_sites()[kx];
     int l = b->get_sites()[lx];
 
+    if (!(b->get_op_array(CRE).has(k) && b->get_op_array(CRE).has(l))) continue;
+
+    if (dmrginp.hamiltonian() == BCS) {
+      // CC
+      {
+        TensorOp CK(k,1), CL(l,1);
+        TensorOp CC2 = CK.product(CL, spin, sym.getirrep(), k==l);
+        if (!CC2.empty) {
+          double scaleV = calcCompfactor(CD1, CC2, CD, v_cccd[b->get_integralIndex()]);
+	        const boost::shared_ptr<StackSparseMatrix> op1 = b->get_op_rep(CRE, getSpinQuantum(k), k);
+	        const boost::shared_ptr<StackSparseMatrix> op2 = b->get_op_rep(CRE, getSpinQuantum(l), l);
+	        SpinAdapted::operatorfunctions::Product(b, *op1, *op2, *this, scaleV);
+        }
+      }
+      // DD
+      {
+        TensorOp DK(k,-1), DL(l,-1);
+        TensorOp DD2 = DK.product(DL, spin, sym.getirrep(), k==l);
+        if (!DD2.empty) {
+          double scaleV = calcCompfactor(CD1, DD2, CD, v_cccd[b->get_integralIndex()]);
+	        const boost::shared_ptr<StackSparseMatrix> op1 = b->get_op_rep(CRE, getSpinQuantum(k), k);
+	        const boost::shared_ptr<StackSparseMatrix> op2 = b->get_op_rep(CRE, getSpinQuantum(l), l);
+	        SpinAdapted::operatorfunctions::Product(b, Transpose(*op1), Transpose(*op2), *this, scaleV);
+        }
+      }
+    }
+
     TensorOp CK(k,1), DL(l,-1);      
     TensorOp CD2 = CK.product(DL, spin, sym.getirrep());
     if (!CD2.empty) {
       double scaleV = calcCompfactor(CD1, CD2, CD,*(b->get_twoInt()), b->get_integralIndex());
-      if (b->get_op_array(CRE).has(k) && b->get_op_array(CRE).has(l)) {
-	const boost::shared_ptr<StackSparseMatrix> op1 = b->get_op_rep(CRE, getSpinQuantum(k), k);
-	const boost::shared_ptr<StackSparseMatrix> op2 = b->get_op_rep(CRE, getSpinQuantum(l), l);
-	SpinAdapted::operatorfunctions::Product(b, *op1, Transpose(*op2), *this, scaleV);
-	pout <<k<<"  "<<l<<"  "<< scaleV<<endl;
-
-	pout <<*this<<endl;
-      }
+	    const boost::shared_ptr<StackSparseMatrix> op1 = b->get_op_rep(CRE, getSpinQuantum(k), k);
+	    const boost::shared_ptr<StackSparseMatrix> op2 = b->get_op_rep(CRE, getSpinQuantum(l), l);
+	    SpinAdapted::operatorfunctions::Product(b, *op1, Transpose(*op2), *this, scaleV);
     }
   }
 
@@ -808,15 +830,16 @@ void SpinAdapted::StackCreDesComp::buildfromCreDes(StackSpinBlock& b)
   StackCreDesComp* op_array; 
   initiateMultiThread(this, op_array, numthrds);
 
-
   TensorOp C(i,1), D(j,-1);
   TensorOp CD1 = C.product(D, (-deltaQuantum[0].get_s()).getirrep(), (-sym).getirrep()); // the operator to be complimentaried
 
   std::vector<boost::shared_ptr<StackSparseMatrix> >  allops1;
-  int numCD = 0;
+  int numCD = 0, numDC = 0;
+  std::vector<double> scaleCD, scaleCC;
+  if (dmrginp.hamiltonian() == BCS) scaleCC.resize(b.get_op_array(CRE_CRE).get_size()*2, 0.0);
   //for each CD there is spin0, spin 1 and normal and transpose
-  std::vector<double> scaleCD(b.get_op_array(CRE_DES).get_size()*8, 0.0);
-
+  if (dmrginp.spinAdapted()) scaleCD.resize(b.get_op_array(CRE_DES).get_size()*8, 0.0);
+  else scaleCD.resize(b.get_op_array(CRE_DES).get_size()*4, 0.0);
   for (int ii=0; ii<b.get_op_array(CRE_DES).get_size(); ii++)
     for (int ji=0; ji<b.get_op_array(CRE_DES).get_local_element(ii).size(); ji++) 
       if (b.get_op_array(CRE_DES).get_local_element(ii)[ji]->get_deltaQuantum(0) == deltaQuantum[0] || 
@@ -840,27 +863,74 @@ void SpinAdapted::StackCreDesComp::buildfromCreDes(StackSpinBlock& b)
 	        scaleCD[2*(allops1.size()-1) + 1] = scaleV;
 	      }
       }
-
   numCD = allops1.size();
+
   if(b.has(DES)) {
     for (int ii=0; ii<b.get_op_array(DES_CRE).get_size(); ii++)
       for (int ji=0; ji<b.get_op_array(DES_CRE).get_local_element(ii).size(); ji++) 
 	      if (b.get_op_array(DES_CRE).get_local_element(ii)[ji]->get_deltaQuantum(0) == -deltaQuantum[0]) {
 	        allops1.push_back(b.get_op_array(DES_CRE).get_local_element(ii)[ji]);
 
-	        const int l = b.get_op_array(DES_CRE).get_local_element(ii)[ji]->get_orbs()[0];
-	        const int k = b.get_op_array(DES_CRE).get_local_element(ii)[ji]->get_orbs()[1];
+	        const int l = allops1.back()->get_orbs()[0];
+	        const int k = allops1.back()->get_orbs()[1];
 
 	        if (k!=l) {
 	          TensorOp CK(k,1), DL(l,-1);      
 	          TensorOp CD2 = CK.product(DL, spin, sym.getirrep());
 	          if (!CD2.empty) {
 	            double scaleV = calcCompfactor(CD1, CD2, CD,*(b.get_twoInt()), b.get_integralIndex());
-	            scaleV *= getCommuteParity(getSpinQuantum(l), getSpinQuantum(k), get_deltaQuantum()[0]);
+              if (dmrginp.spinAdapted()) {
+	              scaleV *= getCommuteParity(getSpinQuantum(l), getSpinQuantum(k), get_deltaQuantum()[0]);
+              }
 	            scaleCD[2*(allops1.size()-1)] = scaleV;
 	          }
 	        }
 	      }
+  }
+  numDC = allops1.size();
+
+  if (dmrginp.hamiltonian() == BCS) {
+    for (int ii = 0; ii < b.get_op_array(CRE_CRE).get_size(); ++ii)
+      for (int ji = 0; ji < b.get_op_array(CRE_DES).get_local_element(ii).size(); ++ji)
+        if (b.get_op_array(CRE_CRE).get_local_element(ii)[ji]->get_deltaQuantum(0).get_s() == deltaQuantum[0].get_s() || 
+            b.get_op_array(CRE_CRE).get_local_element(ii)[ji]->get_deltaQuantum(0).get_s() == -deltaQuantum[0].get_s()) {
+          allops1.push_back(b.get_op_array(CRE_CRE).get_local_element(ii)[ji]);
+
+          const int k = allops1.back()->get_orbs()[0];
+          const int l = allops1.back()->get_orbs()[1];
+          TensorOp CK(k,1), CL(l,1);
+          TensorOp CC2 = CK.product(CL, spin, sym.getirrep(), k == l);
+
+          if (!CC2.empty) {
+            // also consider CL*CK
+            CL = TensorOp(l,1);
+            CK = TensorOp(k,1);
+            TensorOp CC2_commute = CL.product(CK, spin, sym.getirrep(), k==l);
+            int parity = getCommuteParity(getSpinQuantum(l),getSpinQuantum(k),get_deltaQuantum()[0]);              
+            scaleCC[2*(allops1.size()-numDC-1)] = calcCompfactor(CD1, CC2, CD, v_cccd[b.get_integralIndex()]);
+            if (k != l)
+              scaleCC[2*(allops1.size()-numDC-1)] += parity * calcCompfactor(CD1, CC2_commute, CD, v_cccd[b.get_integralIndex()]);
+          }
+
+          // now consider DL*DK
+          TensorOp DL(l,-1), DK(k,-1);
+          TensorOp DD2 = DL.product(DK, spin, sym.getirrep(), k == l);
+
+          if (!b.has(DES) && !DD2.empty) {
+            DK = TensorOp(k,-1);
+            DL = TensorOp(l,-1);
+            TensorOp DD2_commute = DK.product(DL, spin, sym.getirrep(), k == l);
+            int parity = getCommuteParity(getSpinQuantum(l),getSpinQuantum(k),get_deltaQuantum()[0]);
+            scaleCC[2*(allops1.size()-numCD-1)+1] = calcCompfactor(CD1, DD2, CD, v_cccd[b.get_integralIndex()]);
+            if (k != l)
+              scaleCC[2*(allops1.size()-numCD-1)+1] += parity * calcCompfactor(CD1, DD2_commute, CD, v_cccd[b.get_integralIndex()]);
+          }
+        }
+
+    if (b.has(DES)) {
+      pout << "not implemented" << endl;
+      abort();
+    }
   }
 
   const int quantaSz = b.get_braStateInfo().quanta.size () * b.get_ketStateInfo().quanta.size();
@@ -875,7 +945,6 @@ void SpinAdapted::StackCreDesComp::buildfromCreDes(StackSpinBlock& b)
     reorderedVector[index] = it->second;
     index--;
   }  
-
 #pragma omp parallel for schedule(dynamic)
   for (int ii = 0; ii<allops1.size()*reorderedVector.size(); ii++) {
     int opindex = (ii)%allops1.size(), quantaindex = (ii)/allops1.size();
@@ -883,7 +952,6 @@ void SpinAdapted::StackCreDesComp::buildfromCreDes(StackSpinBlock& b)
 
     const int k = allops1[opindex]->get_orbs()[0];
     const int l = allops1[opindex]->get_orbs()[1];
-
     //this is a cd operator
     if (opindex <numCD) {
       if (allops1[opindex]->allowed(lQ, rQ) && allowed(lQ, rQ) && fabs(scaleCD[2*opindex]) >TINY) 
@@ -898,12 +966,24 @@ void SpinAdapted::StackCreDesComp::buildfromCreDes(StackSpinBlock& b)
 	          DAXPY(ncols, scaling*scaleCD[2*opindex+1], &(allops1[opindex]->operator_element(rQ, lQ)(1, row+1)), nrows, &(op_array[omprank].operator_element(lQ, rQ)(row+1, 1)), 1); 
 	      }
       }
-    } else {
+    } else if (opindex < numDC) {
       if (k!=l && allops1[opindex]->allowed(lQ, rQ) && allowed(lQ, rQ) && fabs(scaleCD[2*opindex]) > TINY)  
 	      MatrixScaleAdd(scaleCD[2*opindex], allops1[opindex]->operator_element(lQ, rQ), op_array[omprank].operator_element(lQ, rQ));
+    } else { // CC
+      if (allops1[opindex]->allowed(lQ, rQ) && allowed(lQ, rQ) && fabs(scaleCC[2*(opindex-numDC)]) > TINY)
+        MatrixScaleAdd(scaleCC[2*(opindex-numDC)], allops1[opindex]->operator_element(lQ, rQ), op_array[omprank].operator_element(lQ, rQ));
+
+      if (!b.has(DES) &&  fabs(scaleCC[2*(opindex-numDC)+1]) > TINY) {
+        if (allowed(lQ, rQ) && allops1[opindex]->allowed(rQ, lQ)) {
+	        double scaling = getStandAlonescaling(-(allops1[opindex]->get_deltaQuantum(0)), b.get_braStateInfo().quanta[lQ], b.get_ketStateInfo().quanta[rQ]);
+          int nrows = operator_element(lQ, rQ).Nrows();
+          int ncols = operator_element(lQ, rQ).Ncols();
+          for (int row=0; row<nrows; ++row)
+            DAXPY(ncols, scaling*scaleCC[2*(opindex-numDC)+1], &(allops1[opindex]->operator_element(rQ, lQ)(1, row+1)), nrows, &(op_array[omprank].operator_element(lQ, rQ)(row+1, 1)), 1);
+        }
+      }
     }
   }
-
   accumulateMultiThread(this, op_array, numthrds);
 }
 
@@ -1216,11 +1296,12 @@ double SpinAdapted::StackCreDesComp::redMatrixElement(Csf c1, vector<Csf>& ladde
   vector<bool> backupSlater1(Slaterlength,0), backupSlater2(Slaterlength,0);
 
     if (dmrginp.hamiltonian() != BCS && c1.n_is() != ladder[0].n_is()) return 0.0;
+    if (dmrginp.hamiltonian() == BCS && abs(dn) > 2) return 0.0;
     if (dmrginp.spinAdapted() && (c1.S_is().getirrep() > ladder[0].S_is().getirrep()+spin || c1.S_is().getirrep() <ladder[0].S_is().getirrep() -spin)) return 0.0;
+    if (!dmrginp.spinAdapted() && c1.S_is().getirrep() != ladder[0].S_is().getirrep()+spin) return 0.0;
 
   for (int j = 0; j < deltaQuantum.size(); ++j) {
-    for (int i=0; i<ladder.size(); i++)
-    {
+    for (int i=0; i<ladder.size(); i++) {
       int index = 0; double cleb=0.0;
       if (nonZeroTensorComponent(c1, deltaQuantum[j], ladder[i], index, cleb)) {
         for (int kl =0; kl<b->get_sites().size(); kl++) 
@@ -1231,8 +1312,66 @@ double SpinAdapted::StackCreDesComp::redMatrixElement(Csf c1, vector<Csf>& ladde
 
 	    
 	          bool isZero = true;
-	          if (dmrginp.spinAdapted()) {
-	            for (map<Slater, double>::iterator it1 = c1.det_rep.begin(); it1!= c1.det_rep.end(); it1++) {
+            if (dmrginp.hamiltonian() == BCS) { // BCS
+              if (dn == 0) {
+                for (auto it1 = c1.det_rep.begin(); it1 != c1.det_rep.end(); ++it1) {
+                  const Slater &s1 = it1->first;
+                  if (s1.get_orbstring().get_occ_rep()[k] == 1) {
+                    isZero = false;
+                    break;
+                  }
+                }
+                if (isZero) continue;
+                isZero = true;
+                for (auto it1 = ladder[i].det_rep.begin(); it1 != ladder[i].det_rep.end(); ++it1) {
+                  const Slater &s1 = it1->first;
+                  if (s1.get_orbstring().get_occ_rep()[l] == 1) {
+                    isZero = false;
+                    break;
+                  }
+                }
+                if (isZero) continue;
+              } else if (dn == 2) {
+                if (k == l) continue;
+                for (auto it1 = c1.det_rep.begin(); it1 != c1.det_rep.end(); ++it1) {
+                  const Slater &s1 = it1->first;
+                  if (s1.get_orbstring().get_occ_rep()[k] == 1 && s1.get_orbstring().get_occ_rep()[l] == 1) {
+                    isZero = false;
+                    break;
+                  }
+                }
+                if (isZero) continue;
+                isZero = true;
+                for (auto it1 = ladder[i].det_rep.begin(); it1 != ladder[i].det_rep.end(); ++it1) {
+                  const Slater &s1 = it1->first;
+                  if (s1.get_orbstring().get_occ_rep()[k] == 0 && s1.get_orbstring().get_occ_rep()[l] == 0) {
+                    isZero = false;
+                    break;
+                  }
+                }
+                if (isZero) continue;
+              } else if (dn == -2) {
+                if (k == l) continue;
+                for (auto it1 = c1.det_rep.begin(); it1 != c1.det_rep.end(); ++it1) {
+                  const Slater &s1 = it1->first;
+                  if (s1.get_orbstring().get_occ_rep()[k] == 0 && s1.get_orbstring().get_occ_rep()[l] == 0) {
+                    isZero = false;
+                    break;
+                  }
+                }
+                if (isZero) continue;
+                isZero = true;
+                for (auto it1 = ladder[i].det_rep.begin(); it1 != ladder[i].det_rep.end(); ++it1) {
+                  const Slater &s1 = it1->first;
+                  if (s1.get_orbstring().get_occ_rep()[k] == 1 && s1.get_orbstring().get_occ_rep()[l] == 1) {
+                    isZero = false;
+                    break;
+                  }
+                }
+                if (isZero) continue;
+              }
+            } else if (dmrginp.spinAdapted()) { // spin-adapted
+	            for (auto it1 = c1.det_rep.begin(); it1!= c1.det_rep.end(); it1++) {
 		            const Slater &s1 = it1->first;
 		            if ( s1.get_orbstring().get_occ_rep()[2*k] == 1 || s1.get_orbstring().get_occ_rep()[2*k+1] == 1) {
 		              isZero = false;
@@ -1242,7 +1381,7 @@ double SpinAdapted::StackCreDesComp::redMatrixElement(Csf c1, vector<Csf>& ladde
 	            if (isZero) continue;
 
 	            isZero = true;
-	            for (map<Slater, double>::iterator it1 = ladder[i].det_rep.begin(); it1!= ladder[i].det_rep.end(); it1++) {
+	            for (auto it1 = ladder[i].det_rep.begin(); it1!= ladder[i].det_rep.end(); it1++) {
 		            const Slater &s1 = it1->first;
 		            if ( s1.get_orbstring().get_occ_rep()[2*l] == 1 || s1.get_orbstring().get_occ_rep()[2*l+1] == 1) {
 		              isZero = false;
@@ -1250,7 +1389,26 @@ double SpinAdapted::StackCreDesComp::redMatrixElement(Csf c1, vector<Csf>& ladde
 		            }
 	            }
 	            if (isZero) continue;
-	          }
+            } else { // non-spinadapted
+              for (auto it1 = c1.det_rep.begin(); it1 != c1.det_rep.end(); ++it1) {
+                const Slater &s1 = it1->first;
+                if (s1.get_orbstring().get_occ_rep()[k] == 1) {
+                  isZero = false;
+                  break;
+                }
+              }
+              if (isZero) continue;
+              
+              isZero = true;
+              for(auto it1 = ladder[i].det_rep.begin(); it1 != ladder[i].det_rep.end(); ++it1) {
+                const Slater &s1 = it1->first;
+                if (s1.get_orbstring().get_occ_rep()[l] == 1) {
+                  isZero = false;
+                  break;
+                }
+              }
+              if (isZero) continue;
+            }
             
             if (dmrginp.hamiltonian() == BCS && dn == 2) {
               TensorOp CK(k,1), CL(l,1);
@@ -1260,8 +1418,7 @@ double SpinAdapted::StackCreDesComp::redMatrixElement(Csf c1, vector<Csf>& ladde
                 double factor = calcCompfactor(CD1, CC2, CD, v_cccd[b->get_integralIndex()]);
                 element += MatElements[index]*factor/cleb;
               }
-            } 
-	          else if (dmrginp.hamiltonian() == BCS && dn == -2) {
+            } else if (dmrginp.hamiltonian() == BCS && dn == -2) {
               TensorOp DK(k,-1), DL(l,-1);
               TensorOp DD2 = DK.product(DL, spin, sym.getirrep(), k==l);
               if (!DD2.empty) {
@@ -1269,8 +1426,7 @@ double SpinAdapted::StackCreDesComp::redMatrixElement(Csf c1, vector<Csf>& ladde
                 double factor = calcCompfactor(CD1, DD2, CD, v_cccd[b->get_integralIndex()]);
                 element += MatElements[index]*factor/cleb;
               }
-            } 
-	          else {
+            } else {
               TensorOp CK(k,1), DL(l,-1);
               TensorOp CD2 = CK.product(DL, spin, sym.getirrep());
               if (!CD2.empty) {
@@ -1545,72 +1701,208 @@ double SpinAdapted::StackDesCreComp::redMatrixElement(Csf c1, vector<Csf>& ladde
 
 void SpinAdapted::StackDesDesComp::buildfromDesDes(StackSpinBlock& b) 
 {
- int spin = deltaQuantum[0].get_s().getirrep();
- IrrepSpace sym = deltaQuantum[0].get_symm();
- 
- const int i = get_orbs()[0];
- const int j = get_orbs()[1];
- memset(data, 0, totalMemory * sizeof(double));
+  int spin = deltaQuantum[0].get_s().getirrep();
+  IrrepSpace sym = deltaQuantum[0].get_symm();
+  
+  const int i = get_orbs()[0];
+  const int j = get_orbs()[1];
+  memset(data, 0, totalMemory * sizeof(double));
 
- StackDesDesComp* op_array; 
- initiateMultiThread(this, op_array, numthrds);
- 
- TensorOp C(i,1), C2(j,1);
- TensorOp CC1 = C.product(C2, (-deltaQuantum[0].get_s()).getirrep(), (-sym).getirrep(), i==j);
- 
- std::vector<boost::shared_ptr<StackSparseMatrix> >  allops;
- if(!b.has(DES))  {
-   for (int ii=0; ii<b.get_op_array(CRE_CRE).get_size(); ii++)
-     for (int ji=0; ji<b.get_op_array(CRE_CRE).get_local_element(ii).size(); ji++) 
-       if (b.get_op_array(CRE_CRE).get_local_element(ii)[ji]->get_deltaQuantum(0) == -deltaQuantum[0])
-	 allops.push_back(b.get_op_array(CRE_CRE).get_local_element(ii)[ji]);
- }
- else {
-   for (int ii=0; ii<b.get_op_array(DES_DES).get_size(); ii++)
-     for (int ji=0; ji<b.get_op_array(DES_DES).get_local_element(ii).size(); ji++) 
-       if (b.get_op_array(DES_DES).get_local_element(ii)[ji]->get_deltaQuantum(0) == deltaQuantum[0])
-	 allops.push_back(b.get_op_array(DES_DES).get_local_element(ii)[ji]);
- }
+  StackDesDesComp* op_array; 
+  initiateMultiThread(this, op_array, numthrds);
+  
+  TensorOp C(i,1), C2(j,1);
+  TensorOp CC1 = C.product(C2, (-deltaQuantum[0].get_s()).getirrep(), (-sym).getirrep(), i==j);
+  
+  std::vector<boost::shared_ptr<StackSparseMatrix> >  allops;
+  int numCC = 0;
+  std::vector<double> scaleDD, scaleCD, scaleCC;
+  // TODO resize scaleCC and scaleCD
+  if (dmrginp.hamiltonian() == BCS) {
+    scaleCC.resize(b.get_op_array(CRE_CRE).get_size(), 0.);
+    scaleCD.resize(b.get_op_array(CRE_DES).get_size()*2, 0.);
+  }
+  if (dmrginp.spinAdapted()) scaleDD.resize(b.get_op_array(CRE_CRE).get_size()*2, 0.);
+  else scaleDD.resize(b.get_op_array(CRE_CRE).get_size(), 0.);
+
+  if(!b.has(DES))  {
+    for (int ii=0; ii<b.get_op_array(CRE_CRE).get_size(); ii++)
+      for (int ji=0; ji<b.get_op_array(CRE_CRE).get_local_element(ii).size(); ji++) {
+        bool nonzero = false;
+
+        if (b.get_op_array(CRE_CRE).get_local_element(ii)[ji]->get_deltaQuantum(0) == -deltaQuantum[0]) {
+          const int k = b.get_op_array(CRE_CRE).get_local_element(ii)[ji]->get_orbs()[0];
+          const int l = b.get_op_array(CRE_CRE).get_local_element(ii)[ji]->get_orbs()[1]; 
+
+          TensorOp DK(k,-1), DL(l,-1);
+          TensorOp DD2 = DK.product(DL, spin, sym.getirrep(), k==l);
+          if (!DD2.empty) {
+            nonzero = true;
+            double parity = -1;
+            scaleDD[allops.size()] = parity * calcCompfactor(CC1, DD2, DD, *(b.get_twoInt()), b.get_integralIndex());
+            DK = TensorOp(k,-1); DL = TensorOp(l,-1);
+            DD2 = DL.product(DK, spin, sym.getirrep(), k==l);
+            double parity2 = getCommuteParity(-getSpinQuantum(k), -getSpinQuantum(l), get_deltaQuantum()[0]);
+            if (k != l)
+              scaleDD[allops.size()] += parity * parity2 * calcCompfactor(CC1, DD2, DD, *(b.get_twoInt()), b.get_integralIndex());
+          }
+        }
+
+        if (dmrginp.hamiltonian() == BCS && b.get_op_array(CRE_CRE).get_local_element(ii)[ji]->get_deltaQuantum(0).get_s() == deltaQuantum[0].get_s()) { // then we need CC
+          const int k = b.get_op_array(CRE_CRE).get_local_element(ii)[ji]->get_orbs()[0];
+          const int l = b.get_op_array(CRE_CRE).get_local_element(ii)[ji]->get_orbs()[1]; 
+          TensorOp CK(k,1), CL(l,1);
+          TensorOp CC2 = CK.product(CL, spin, sym.getirrep(), k == l);
+          if (!CC2.empty) {
+            nonzero = true;
+            scaleCC[allops.size()] = calcCompfactor(CC1, CC2, DD, v_cccc[b.get_integralIndex()]);
+            CK = TensorOp(k,1); CL = TensorOp(l,1);
+            CC2 = CL.product(CK, spin, sym.getirrep(), k == l);
+            double parity = getCommuteParity(getSpinQuantum(k), getSpinQuantum(l), get_deltaQuantum()[0]);
+            if (k != l)
+              scaleCC[allops.size()] += parity * calcCompfactor(CC1, CC2, DD, v_cccc[b.get_integralIndex()]);
+          }
+        }
+
+        if (nonzero) allops.push_back(b.get_op_array(CRE_CRE).get_local_element(ii)[ji]);
+      }
+  } else {
+    for (int ii=0; ii<b.get_op_array(DES_DES).get_size(); ii++)
+      for (int ji=0; ji<b.get_op_array(DES_DES).get_local_element(ii).size(); ji++) 
+        if (b.get_op_array(DES_DES).get_local_element(ii)[ji]->get_deltaQuantum(0) == deltaQuantum[0]) {
+          allops.push_back(b.get_op_array(DES_DES).get_local_element(ii)[ji]);
+          const int k = allops.back()->get_orbs()[0];
+          const int l = allops.back()->get_orbs()[1];
+          TensorOp DK(k,-1), DL(l,-1);
+          TensorOp DD2 = DK.product(DL, spin, sym.getirrep(), k==l);
+          if (!DD2.empty) {
+            scaleDD[allops.size()-1] = calcCompfactor(CC1, DD2, DD,  *(b.get_twoInt()), b.get_integralIndex());
+            DK = TensorOp(k,-1); DL = TensorOp(l, -1);
+            TensorOp DD2 = DL.product(DK, spin, sym.getirrep(), k==l);
+            double parity = getCommuteParity(-getSpinQuantum(k), -getSpinQuantum(l), get_deltaQuantum()[0]);
+            if (k != l)
+              scaleDD[allops.size()-1] += parity * calcCompfactor(CC1, DD2, DD, *(b.get_twoInt()), b.get_integralIndex());
+          }
+        }
+    if (dmrginp.hamiltonian() == BCS) {
+      pout << "not implemented" << endl;
+      abort();
+    }
+  }
+  numCC = allops.size();
+
+  if (dmrginp.hamiltonian() == BCS) {
+    for (int ii=0; ii<b.get_op_array(CRE_DES).get_size(); ii++)
+      for (int ji=0; ji<b.get_op_array(CRE_DES).get_local_element(ii).size(); ji++)
+        if (b.get_op_array(CRE_DES).get_local_element(ii)[ji]->get_deltaQuantum(0).get_s() == deltaQuantum[0].get_s() || 
+           b.get_op_array(CRE_DES).get_local_element(ii)[ji]->get_deltaQuantum(0).get_s() == -deltaQuantum[0].get_s()) {
+          allops.push_back(b.get_op_array(CRE_DES).get_local_element(ii)[ji]);
+          const int k = allops.back()->get_orbs()[0];
+          const int l = allops.back()->get_orbs()[1];
+
+          TensorOp CK(k,1), DL(l,-1);
+          TensorOp CD2 = CK.product(DL, spin, sym.getirrep());
+          if (!CD2.empty)
+            scaleCD[2*(allops.size()-1)] = calcCompfactor(CC1, CD2, DD, v_cccd[b.get_integralIndex()]);
+
+          TensorOp CL(l,1), DK(k,-1);
+          CD2 = CL.product(DK, spin, sym.getirrep());
+          if (k!=l && !CD2.empty)
+            scaleCD[2*(allops.size()-1)+1] = calcCompfactor(CC1, CD2, DD, v_cccd[b.get_integralIndex()]);
+        }
+  }
+
+  const int quantaSz = b.get_braStateInfo().quanta.size () * b.get_ketStateInfo().quanta.size();
+  std::multimap<long, std::pair<int, int> > reorder;
+  for (int i=0; i<b.get_braStateInfo().quanta.size(); i++)
+    for (int j=0; j<b.get_ketStateInfo().quanta.size(); j++)
+      reorder.insert( std::pair<long, pair<int,int> >(b.get_braStateInfo().getquantastates(i)*b.get_ketStateInfo().getquantastates(j), std::pair<int, int>(i, j) ));
+
+  std::vector<pair<int, int> > reorderedVector(quantaSz);
+  int index = quantaSz-1;
+  for (std::multimap<long, std::pair<int,int> >::iterator it = reorder.begin(); it!=reorder.end(); it++) {
+    reorderedVector[index] = it->second;
+    index--;
+  }
 
 #pragma omp parallel for schedule(dynamic)
- for (int ii = 0; ii<allops.size(); ii++) {
-   const int k = allops[ii]->get_orbs()[0];
-   const int l = allops[ii]->get_orbs()[1];
-   
-   TensorOp DK(k,-1), DL(l,-1);      
-   TensorOp DD2 = DK.product(DL, spin, sym.getirrep(), k==l);
-   if (!DD2.empty) {
-     double scaleV = calcCompfactor(CC1, DD2, DD,*(b.get_twoInt()), b.get_integralIndex());      
-     
-     DK=TensorOp(k,-1); DL=TensorOp(l,-1);
-     DD2 = DL.product(DK, spin, sym.getirrep(), k==l);
-     double scaleV2 = calcCompfactor(CC1, DD2, DD, *(b.get_twoInt()), b.get_integralIndex());
-     
-     double parity = getCommuteParity(-getSpinQuantum(k), -getSpinQuantum(l), get_deltaQuantum()[0]);
-     if (k != l)
-       scaleV += parity*scaleV2;
+  for (int ii = 0; ii < allops.size()*reorderedVector.size(); ++ii) {
+    int opindex = (ii)%allops.size(), quantaindex = (ii)/allops.size();
+    int lQ = reorderedVector[quantaindex].first, rQ = reorderedVector[quantaindex].second;
 
-     if(!b.has(DES))  {
-       allops[ii]->set_conjugacy('t');
-       for (int lQ = 0; lQ<nrows(); lQ++)
-	 for (int rQ = 0; rQ<ncols(); rQ++) 
-	   if (allowed(lQ, rQ) && allops[ii]->allowed(lQ, rQ)) {
-	     double scaling = allops[ii]->get_scaling(b.get_braStateInfo().quanta[lQ], b.get_ketStateInfo().quanta[rQ]);
-	     int nrows = operator_element(lQ, rQ).Nrows();
-	     int ncols = operator_element(lQ, rQ).Ncols();
-	     for (int row=0; row<nrows; row++) {
-	       DAXPY(ncols, -scaleV*scaling, &(allops[ii]->operator_element(lQ, rQ)(1, row+1)), nrows, &(op_array[omprank].operator_element(lQ, rQ)(row+1, 1)), 1); 
-	     }
-	   }
-       allops[ii]->set_conjugacy('n');
-     }   
-     else {
-       ScaleAdd(scaleV, *allops[ii], op_array[omprank]);
-     }
-   }
- }
+    if (opindex < numCC) {
+      if (!b.has(DES)) { // operator is CC
+        if (allowed(lQ, rQ) && allops[opindex]->allowed(rQ,lQ) && fabs(scaleDD[opindex]) > TINY) {
+          double scaling = getStandAlonescaling(-(allops[opindex]->get_deltaQuantum(0)), b.get_braStateInfo().quanta[lQ], b.get_ketStateInfo().quanta[rQ]);
+          int nrows = operator_element(lQ, rQ).Nrows();
+          int ncols = operator_element(lQ, rQ).Ncols();
+          for (int row=0; row < nrows; ++row)
+            DAXPY(ncols, scaling*scaleDD[opindex], &(allops[opindex]->operator_element(rQ,lQ)(1, row+1)), nrows, &(op_array[omprank].operator_element(lQ, rQ)(row+1, 1)), 1);
+        }
+      } else { // operator DD
+        if (allowed(lQ, rQ) && allops[opindex]->allowed(lQ,rQ) && fabs(scaleDD[opindex])> TINY) {
+          MatrixScaleAdd(scaleDD[opindex], allops[opindex]->operator_element(lQ,rQ), op_array[omprank].operator_element(lQ, rQ));
+        }
+      }
 
- accumulateMultiThread(this, op_array, numthrds);
+      if (dmrginp.hamiltonian() == BCS && allowed(lQ, rQ) 
+          && allops[opindex]->allowed(lQ,rQ) && fabs(scaleCC[opindex]) > TINY) {
+        MatrixScaleAdd(scaleCC[opindex], allops[opindex]->operator_element(lQ,rQ), op_array[omprank].operator_element(lQ, rQ));
+      }
+    } else { // CkDl and ClDk
+      const int k = allops[opindex]->get_orbs()[0];    
+      const int l = allops[opindex]->get_orbs()[1];
+      if (allowed(lQ,rQ) && allops[opindex]->allowed(lQ,rQ) && fabs(scaleCD[2*opindex]) > TINY)
+        MatrixScaleAdd(scaleCD[2*opindex], allops[opindex]->operator_element(lQ,rQ), op_array[omprank].operator_element(lQ, rQ));
+
+      if (!b.has(DES) && k != l && allowed(lQ,rQ) && allops[opindex]->allowed(rQ,lQ) && fabs(scaleCD[2*opindex+1]) > TINY) {
+        double scaling = getStandAlonescaling(-(allops[opindex]->get_deltaQuantum(0)), b.get_braStateInfo().quanta[lQ], b.get_ketStateInfo().quanta[rQ]);
+        int nrows = operator_element(lQ, rQ).Nrows();
+        int ncols = operator_element(lQ, rQ).Ncols();
+        for (int row=0; row < nrows; ++row)
+          DAXPY(ncols, scaling*scaleCD[2*opindex+1], &(allops[opindex]->operator_element(rQ,lQ)(1, row+1)), nrows, &(op_array[omprank].operator_element(lQ, rQ)(row+1, 1)), 1);
+      }
+    }
+  }
+
+//#pragma omp parallel for schedule(dynamic)
+//  for (int ii = 0; ii<allops.size(); ii++) {
+//    const int k = allops[ii]->get_orbs()[0];
+//    const int l = allops[ii]->get_orbs()[1];
+//    
+//    TensorOp DK(k,-1), DL(l,-1);      
+//    TensorOp DD2 = DK.product(DL, spin, sym.getirrep(), k==l);
+//    if (!DD2.empty) {
+//      double scaleV = calcCompfactor(CC1, DD2, DD,*(b.get_twoInt()), b.get_integralIndex());      
+//      
+//      DK=TensorOp(k,-1); DL=TensorOp(l,-1);
+//      DD2 = DL.product(DK, spin, sym.getirrep(), k==l);
+//      double scaleV2 = calcCompfactor(CC1, DD2, DD, *(b.get_twoInt()), b.get_integralIndex());
+//      
+//      double parity = getCommuteParity(-getSpinQuantum(k), -getSpinQuantum(l), get_deltaQuantum()[0]);
+//      if (k != l)
+//        scaleV += parity*scaleV2;
+//
+//      if(!b.has(DES))  {
+//        for (int lQ = 0; lQ<nrows(); lQ++)
+//    for (int rQ = 0; rQ<ncols(); rQ++) 
+//      if (allowed(lQ, rQ) && allops[ii]->allowed(rQ, lQ)) {
+//	        double scaling = getStandAlonescaling(-(allops[ii]->get_deltaQuantum(0)), b.get_braStateInfo().quanta[lQ], b.get_ketStateInfo().quanta[rQ]);
+//
+//        int nrows = operator_element(lQ, rQ).Nrows();
+//        int ncols = operator_element(lQ, rQ).Ncols();
+//        for (int row=0; row<nrows; row++) {
+//          DAXPY(ncols, -scaleV*scaling, &(allops[ii]->operator_element(rQ, lQ)(1, row+1)), nrows, &(op_array[omprank].operator_element(lQ, rQ)(row+1, 1)), 1); 
+//        }
+//      }
+//      }   
+//      else {
+//        ScaleAdd(scaleV, *allops[ii], op_array[omprank]);
+//      }
+//    }
+//  }
+
+  accumulateMultiThread(this, op_array, numthrds);
 
 }
 
@@ -1942,15 +2234,16 @@ double SpinAdapted::StackDesDesComp::redMatrixElement(Csf c1, vector<Csf>& ladde
 
   TensorOp C(I,1), C2(J,1);
   TensorOp CC1 = C.product(C2, (-deltaQuantum[0].get_s()).getirrep(), (-sym).getirrep(), I==J);
-   int Slaterlength = c1.det_rep.begin()->first.size();
+  int Slaterlength = c1.det_rep.begin()->first.size();
   vector<bool> backupSlater1(Slaterlength,0), backupSlater2(Slaterlength,0);
 
   if (dmrginp.hamiltonian() != BCS && c1.n_is() != ladder[0].n_is()-2) return 0.0;
-  if (dmrginp.spinAdapted() && (c1.S_is().getirrep() > ladder[0].S_is().getirrep()+spin || c1.S_is().getirrep() <ladder[0].S_is().getirrep() -spin)) return 0.0;
+  if (dmrginp.hamiltonian() == BCS && abs(dn) > 2) return 0.0;
+  if (dmrginp.spinAdapted() && (c1.S_is().getirrep() > ladder[0].S_is().getirrep()+spin || c1.S_is().getirrep() <ladder[0].S_is().getirrep()-spin)) return 0.0;
+  if (!dmrginp.spinAdapted() && c1.S_is().getirrep() != ladder[0].S_is().getirrep()+spin) return 0.0;
 
   for (int j = 0; j < deltaQuantum.size(); ++j) {
     for (int i=0; i<ladder.size(); i++) {
-
 
       int index = 0; double cleb=0.0;
       if (nonZeroTensorComponent(c1, deltaQuantum[j], ladder[i], index, cleb)) {
@@ -1960,53 +2253,129 @@ double SpinAdapted::StackDesDesComp::redMatrixElement(Csf c1, vector<Csf>& ladde
             int k = b->get_sites()[kk];
             int l = b->get_sites()[kl];	
 
-	    if (dmrginp.spinAdapted()) {
-	      bool isZero = true;
-	      for (map<Slater, double>::iterator it1 = c1.det_rep.begin(); it1!= c1.det_rep.end(); it1++) {
-		const Slater &s1 = it1->first;
-		if ( (s1.get_orbstring().get_occ_rep()[2*k] == 0 || s1.get_orbstring().get_occ_rep()[2*k+1] == 0) && 
-		     (s1.get_orbstring().get_occ_rep()[2*l] == 0 || s1.get_orbstring().get_occ_rep()[2*l+1] == 0 )) {
-		  isZero = false;
-		  break;
-		}
-	      }
-	      if (isZero) continue;
-	      isZero = true;
-	      for (map<Slater, double>::iterator it1 = ladder[i].det_rep.begin(); it1!= ladder[i].det_rep.end(); it1++) {
-		const Slater &s1 = it1->first;
-		if ( (s1.get_orbstring().get_occ_rep()[2*k] == 1 || s1.get_orbstring().get_occ_rep()[2*k+1] == 1) && 
-		     (s1.get_orbstring().get_occ_rep()[2*l] == 1 || s1.get_orbstring().get_occ_rep()[2*l+1] == 1 ) ){
-		  isZero = false;
-		  break;
-		}
-	      }
-	      if (isZero) continue;
-	    }
+            bool isZero = true;
+            if (dmrginp.hamiltonian() == BCS) {
+              if (dn == 0) {
+                for (auto it1 = c1.det_rep.begin(); it1 != c1.det_rep.end(); ++it1) {
+                  const Slater &s1 = it1->first;
+                  if (s1.get_orbstring().get_occ_rep()[k] == 1) {
+                    isZero = false;
+                    break;
+                  }
+                }
+                if (isZero) continue;
+                isZero = true;
+                for (auto it1 = ladder[i].det_rep.begin(); it1 != ladder[i].det_rep.end(); ++it1) {
+                  const Slater &s1 = it1->first;
+                  if (s1.get_orbstring().get_occ_rep()[l] == 1) {
+                    isZero = false;
+                    break;
+                  }
+                }
+                if (isZero) continue;
+              } else if (dn == 2) {
+                if (k == l) continue;
+                for (auto it1 = c1.det_rep.begin(); it1 != c1.det_rep.end(); ++it1) {
+                  const Slater &s1 = it1->first;
+                  if (s1.get_orbstring().get_occ_rep()[k] == 1 && s1.get_orbstring().get_occ_rep()[l] == 1) {
+                    isZero = false;
+                    break;
+                  }
+                }
+                if (isZero) continue;
+                isZero = true;
+                for (auto it1 = ladder[i].det_rep.begin(); it1 != ladder[i].det_rep.end(); ++it1) {
+                  const Slater &s1 = it1->first;
+                  if (s1.get_orbstring().get_occ_rep()[k] == 0 && s1.get_orbstring().get_occ_rep()[l] == 0) {
+                    isZero = false;
+                    break;
+                  }
+                }
+                if (isZero) continue;
+              } else if (dn == -2) {
+                if (k == l) continue;
+                for (auto it1 = c1.det_rep.begin(); it1 != c1.det_rep.end(); ++it1) {
+                  const Slater &s1 = it1->first;
+                  if (s1.get_orbstring().get_occ_rep()[k] == 0 && s1.get_orbstring().get_occ_rep()[l] == 0) {
+                    isZero = false;
+                    break;
+                  }
+                }
+                if (isZero) continue;
+                isZero = true;
+                for (auto it1 = ladder[i].det_rep.begin(); it1 != ladder[i].det_rep.end(); ++it1) {
+                  const Slater &s1 = it1->first;
+                  if (s1.get_orbstring().get_occ_rep()[k] == 1 && s1.get_orbstring().get_occ_rep()[l] == 1) {
+                    isZero = false;
+                    break;
+                  }
+                }
+                if (isZero) continue;
+              }
+            } else if (dmrginp.spinAdapted()) {
+	            for (auto it1 = c1.det_rep.begin(); it1!= c1.det_rep.end(); it1++) {
+		            const Slater &s1 = it1->first;
+		            if ( (s1.get_orbstring().get_occ_rep()[2*k] == 0 || s1.get_orbstring().get_occ_rep()[2*k+1] == 0) && 
+		                (s1.get_orbstring().get_occ_rep()[2*l] == 0 || s1.get_orbstring().get_occ_rep()[2*l+1] == 0 )) {
+		              isZero = false;
+		              break;
+		            }
+	            }
+	            if (isZero) continue;
+	            isZero = true;
+	            for (auto it1 = ladder[i].det_rep.begin(); it1!= ladder[i].det_rep.end(); it1++) {
+		            const Slater &s1 = it1->first;
+		            if ( (s1.get_orbstring().get_occ_rep()[2*k] == 1 || s1.get_orbstring().get_occ_rep()[2*k+1] == 1) && 
+		                 (s1.get_orbstring().get_occ_rep()[2*l] == 1 || s1.get_orbstring().get_occ_rep()[2*l+1] == 1 ) ){
+		              isZero = false;
+		              break;
+		            }
+	            }
+	            if (isZero) continue;
+	          } else {
+              if (k == l) continue;
+	            bool isZero = true;
+	            for (auto it1 = c1.det_rep.begin(); it1!= c1.det_rep.end(); it1++) {
+		            const Slater &s1 = it1->first;
+		            if (s1.get_orbstring().get_occ_rep()[k] == 0 && s1.get_orbstring().get_occ_rep()[l] == 0) {
+		              isZero = false;
+		              break;
+		            }
+	            }
+	            if (isZero) continue;
+	            isZero = true;
+	            for (auto it1 = ladder[i].det_rep.begin(); it1!= ladder[i].det_rep.end(); it1++) {
+		            const Slater &s1 = it1->first;
+		            if (s1.get_orbstring().get_occ_rep()[k] == 1 && s1.get_orbstring().get_occ_rep()[l] == 1){
+		              isZero = false;
+		              break;
+		            }
+	            }
+	            if (isZero) continue;
+            }
            
             if (dmrginp.hamiltonian() == BCS && dn == 2) {
               TensorOp CK(k,1), CL(l,1);
               TensorOp CC2 = CK.product(CL, spin, sym.getirrep(), k==l);
               if (!CC2.empty) {
-                std::vector<double> MatElements = calcMatrixElements(c1, CC2, ladder[i], backupSlater1, backupSlater2) ;
+                double MatElements = calcMatrixElements(c1, CC2, ladder[i], backupSlater1, backupSlater2, index) ;
                 double scale = calcCompfactor(CC1, CC2, DD, v_cccc[b->get_integralIndex()]);
-                element += MatElements[index]*scale/cleb;                
+                element += MatElements*scale/cleb;                
               }
-            } 
-	    else if (dmrginp.hamiltonian() == BCS && dn == 0) {
+            } else if (dmrginp.hamiltonian() == BCS && dn == 0) {
               TensorOp CK(k,1), DL(l,-1);
               TensorOp CD2 = CK.product(DL, spin, sym.getirrep());
               if (!CD2.empty) {
-                std::vector<double> MatElements = calcMatrixElements(c1, CD2, ladder[i], backupSlater1, backupSlater2) ;
+                double MatElements = calcMatrixElements(c1, CD2, ladder[i], backupSlater1, backupSlater2, index) ;
                 double scale = calcCompfactor(CC1, CD2, DD, v_cccd[b->get_integralIndex()]);
-                element += MatElements[index]*scale/cleb;
+                element += MatElements*scale/cleb;
               }
-            } 
-	    else {
+            } else {
               TensorOp DK(k,-1), DL(l,-1);
               TensorOp DD2 = DK.product(DL, spin, sym.getirrep(), k==l);
 
               if (!DD2.empty) {
-		double MatElements = calcMatrixElements(c1, DD2, ladder[i], backupSlater1, backupSlater2, index) ;
+		            double MatElements = calcMatrixElements(c1, DD2, ladder[i], backupSlater1, backupSlater2, index) ;
                 double scale = calcCompfactor(CC1, DD2, DD, index, *(b->get_twoInt()), b->get_integralIndex());
                 element += MatElements*scale/cleb;
               }
