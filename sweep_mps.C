@@ -153,6 +153,203 @@ void SpinAdapted::Sweep::CanonicalizeWavefunction(SweepParams &sweepParams, cons
 }
 
 
+//Canonicalize wavefunction, takes the wavefunction and does a sweep to update all the roation matrices so that we get a consistent wavefunction along the whole sweep
+void SpinAdapted::Sweep::CanonicalizeWavefunctionPartialSweep(SweepParams &sweepParams, const bool &forward, int currentstate)
+{
+  sweepParams.set_sweep_parameters();
+  sweepParams.set_block_iter() = 0;
+
+  if (dmrginp.spinAdapted()) {
+    sweepParams.set_n_iters() =  sweepParams.set_n_iters()+(dmrginp.getPartialSweep() - dmrginp.last_site())/sweepParams.get_sys_add();
+  }
+  else {
+    sweepParams.set_n_iters() =  sweepParams.set_n_iters()+(dmrginp.getPartialSweep() - dmrginp.last_site())/(2*sweepParams.get_sys_add());
+  }
+  
+  sweepParams.set_backward_starting_size() = dmrginp.last_site()-dmrginp.getPartialSweep()+1;
+    
+  std::vector<int> sites;
+  int new_site, wave_site;
+  StateInfo stateInfo1;
+  if (forward) {
+    pout << "\t\t\t Starting sweep "<< sweepParams.set_sweep_iter()<<" in forwards direction"<<endl;
+    new_site = 0;
+    sites.push_back(new_site);
+    //only need statinfos
+    makeStateInfo(stateInfo1, new_site);
+  }
+  else {
+    pout << "\t\t\t Starting sweep "<< sweepParams.set_sweep_iter()<<" in backwards direction" << endl;
+    for (int i=dmrginp.getPartialSweep()-1; i<dmrginp.last_site(); i++)
+      sites.push_back(i);
+    std::sort(sites.begin(), sites.end());
+    //only need statinfos
+    new_site = dmrginp.getPartialSweep()-1;
+    StateInfo::restore(false, sites, stateInfo1, currentstate);
+  }
+  pout << "\t\t\t ============================================================================ " << 
+    endl;
+
+  
+  for (; sweepParams.get_block_iter() < sweepParams.get_n_iters(); ) {
+      
+    pout << "\n\t\t\t Block Iteration :: " << sweepParams.get_block_iter() << endl;
+    pout << "\t\t\t ----------------------------" << endl;
+    
+    if (forward) {
+      new_site++;
+      wave_site = new_site+1;
+      p1out << "\t\t\t Current direction is :: Forwards " << endl;
+    }
+    else {
+      new_site--;
+      wave_site = new_site-1;
+      p1out << "\t\t\t Current direction is :: Backwards " << endl;
+    }
+    std::vector<int> complementarySites, spindotsites(1, new_site), oldsites = sites, oldcomplement;
+
+    if (dmrginp.spinAdapted())
+      sites.push_back(new_site);
+    else {
+      sites.push_back(2*new_site);
+      sites.push_back(2*new_site+1);
+    }
+    std::sort(sites.begin(), sites.end());
+
+    getComplementarySites(sites, complementarySites);
+    getComplementarySites(oldsites, oldcomplement);
+    
+    StateInfo siteState, newState1, bigstate, envstate; 
+    makeStateInfo(siteState, new_site);
+    TensorProduct(stateInfo1, siteState, newState1, NO_PARTICLE_SPIN_NUMBER_CONSTRAINT);
+    newState1.CollectQuanta();
+
+    StackWavefunction w; w.set_deltaQuantum() = dmrginp.effective_molecule_quantum_vec();
+    w.set_onedot(true);
+
+    if (!dmrginp.spinAdapted()) {
+      std::vector<int> spinSites(complementarySites.size()/2, 0);
+      for (int s=0; s<spinSites.size(); s++)
+	spinSites[s] = complementarySites[2*s]/2;
+      StateInfo::restore(!forward, spinSites, envstate, currentstate);
+    }
+    else
+      StateInfo::restore(!forward, complementarySites, envstate, currentstate);
+
+    TensorProduct(newState1, envstate, bigstate, PARTICLE_SPIN_NUMBER_CONSTRAINT);
+
+    w.initialise(dmrginp.effective_molecule_quantum_vec(), newState1, envstate, true);    w.Clear();
+
+    if (sweepParams.get_block_iter() == 0) 
+      GuessWave::transpose_previous_wavefunction(w, bigstate, complementarySites, spindotsites, currentstate, true, true);
+    else 
+      GuessWave::transform_previous_wavefunction(w, bigstate, oldsites, oldcomplement, currentstate, true, true);
+
+    w.SaveWavefunctionInfo(bigstate, sites, currentstate);
+      
+    //make the newstate
+    std::vector<Matrix> rotation1; 
+      
+      
+    StackDensityMatrix tracedMatrix(*bigstate.leftStateInfo);
+    tracedMatrix.allocate(*bigstate.leftStateInfo);
+    operatorfunctions::MultiplyWithOwnTranspose (w, tracedMatrix, 1.0);  
+
+    int largeNumber = 1000000;
+    if (!mpigetrank())
+      double error = makeRotateMatrix(tracedMatrix, rotation1, largeNumber, sweepParams.get_keep_qstates());
+    SaveRotationMatrix (sites, rotation1, currentstate);
+
+    StateInfo renormState1;
+    SpinAdapted::StateInfo::transform_state(rotation1, newState1, renormState1);
+    StateInfo::store(forward, sites, renormState1, currentstate);
+    stateInfo1 = renormState1;
+    ++sweepParams.set_block_iter();
+
+
+    tracedMatrix.deallocate();
+    w.deallocate();
+  }
+  
+}
+
+//Initialize stateinfo using the rotation matrices
+void SpinAdapted::Sweep::InitializeStateInfoPartialSweep(SweepParams &sweepParams, const bool &forward, int currentstate)
+{
+  sweepParams.set_sweep_parameters();
+  sweepParams.set_block_iter() = 0;
+
+  if (dmrginp.spinAdapted()) {
+    sweepParams.set_n_iters() =  sweepParams.set_n_iters()+(dmrginp.getPartialSweep() - dmrginp.last_site())/sweepParams.get_sys_add();
+  }
+  else {
+    sweepParams.set_n_iters() =  sweepParams.set_n_iters()+(dmrginp.getPartialSweep() - dmrginp.last_site())/(2*sweepParams.get_sys_add());
+  }
+  
+  sweepParams.set_backward_starting_size() = dmrginp.last_site()-dmrginp.getPartialSweep()+1;
+    
+  std::vector<int> sites;
+  int new_site, wave_site;
+  if (forward) {
+    new_site = 0;
+    sites.push_back(new_site);
+  }
+  else {
+    new_site = dmrginp.getPartialSweep()-1;
+    for (int j=dmrginp.getPartialSweep()-1; j<dmrginp.last_site(); j++)
+      sites.push_back(j);
+    std::sort(sites.begin(), sites.end());
+  }
+
+    
+  //only need statinfos
+  StateInfo stateInfo1; 
+  if (forward)
+    makeStateInfo(stateInfo1, new_site);
+  else 
+    StateInfo::restore(false, sites, stateInfo1, currentstate);
+
+  cout << stateInfo1<<endl;
+  StateInfo::store(forward, sites, stateInfo1, currentstate);
+  
+  for (; sweepParams.get_block_iter() < sweepParams.get_n_iters(); ) {
+      
+    if (forward) 
+      new_site++;
+    else 
+      new_site--;
+
+    if (dmrginp.spinAdapted())
+      sites.push_back(new_site);
+    else {
+      sites.push_back(2*new_site);
+      sites.push_back(2*new_site+1);
+    }
+    std::sort(sites.begin(), sites.end());
+
+    
+    StateInfo siteState, newState1; 
+    makeStateInfo(siteState, new_site);
+    TensorProduct(stateInfo1, siteState, newState1, NO_PARTICLE_SPIN_NUMBER_CONSTRAINT);
+    newState1.CollectQuanta();
+  
+      
+    //make the newstate
+    std::vector<Matrix> rotation1; 
+      
+    LoadRotationMatrix (sites, rotation1, currentstate);
+    
+    StateInfo renormState1;
+    SpinAdapted::StateInfo::transform_state(rotation1, newState1, renormState1);
+
+    cout << renormState1<<endl;
+    StateInfo::store(forward, sites, renormState1, currentstate);
+    stateInfo1 = renormState1;
+    ++sweepParams.set_block_iter();
+  }
+  
+}
+
 //Initialize stateinfo using the rotation matrices
 void SpinAdapted::Sweep::InitializeStateInfo(SweepParams &sweepParams, const bool &forward, int currentstate)
 {

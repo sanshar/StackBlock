@@ -45,6 +45,7 @@ class Input {
   int m_partialSweep;
   bool m_spinAdapted;
   bool m_Bogoliubov;
+  bool m_performResponseSolution;
   int m_permSymm;
   bool m_lowMemoryAlgorithm;
   std::size_t m_memory;
@@ -182,7 +183,7 @@ class Input {
     ar & m_sweep_iter_schedule & m_sweep_state_schedule & m_sweep_qstate_schedule & m_sweep_tol_schedule & m_sweep_noise_schedule &m_sweep_additional_noise_schedule & m_reorder;
     ar & m_molecule_quantum & m_total_symmetry_number & m_total_spin & m_orbenergies & m_add_noninteracting_orbs;
     ar & m_bra_symmetry_number & m_permSymm & m_activeorbs & m_excitation & m_openorbs & m_closedorbs;
-    ar & m_save_prefix & m_load_prefix & m_direct & m_max_lanczos_dimension;
+    ar & m_save_prefix & m_load_prefix & m_direct & m_max_lanczos_dimension &  m_performResponseSolution;
     ar & m_deflation_min_size & m_deflation_max_size & m_outputlevel & m_reorderfile;
     ar & m_algorithm_type & m_twodot_to_onedot_iter & m_orbformat & m_calc_procs;
     ar & m_nquanta & m_sys_add & m_env_add & m_do_fci & m_no_transform ;
@@ -274,6 +275,7 @@ class Input {
   void readorbitalsfile(string& dumpFile, OneElectronArray& v1, TwoElectronArray& v2, double& coreEnergy, PairArray& vcc, CCCCArray& vcccc, CCCDArray& vcccd, int integralIndex);  
   int getNumIntegrals() { return m_num_Integrals;}
   void readreorderfile(ifstream& dumpFile, std::vector<int>& reorder);
+  bool& performResponseSolution() {return m_performResponseSolution;}
   std::vector<int> getgaorder(ifstream& gaconfFile, string& orbitalfile, std::vector<int>& fiedlerorder);
   std::vector<int> get_fiedler(string& dumpname);
   std::vector<int> get_fiedler_bcs(string& dumpname);  
@@ -371,6 +373,7 @@ class Input {
   bool get_lowMemoryAlgorithm() { return m_lowMemoryAlgorithm;}
   bool use_partial_two_integrals() const {return (m_norbs/2 >= m_integral_disk_storage_thresh);}
   int getPartialSweep() const {return m_partialSweep;}
+  int& setPartialSweep() {return m_partialSweep;}
   bool& set_fullrestart() {return m_fullrestart;}
   const bool& get_fullrestart() const {return m_fullrestart;}
   const bool& get_backward() const {return m_backward;}
@@ -392,7 +395,9 @@ class Input {
   int mkl_thrds() const { return m_mkl_thrds; }
   int quanta_thrds() const { return m_quanta_thrds; }
   const calcType &calc_type() const { return m_calc_type; }
+  calcType &set_calc_type() { return m_calc_type; }
   const solveTypes &solve_method() const { return m_solve_type; }
+  solveTypes &set_solve_method() { return m_solve_type; }
   const noiseTypes &noise_type() const {return m_noise_type;}
   const bool &set_Sz() const {return m_set_Sz;}
   const algorithmTypes &algorithm_method() const { return m_algorithm_type; }

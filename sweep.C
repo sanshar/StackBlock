@@ -92,6 +92,14 @@ void SpinAdapted::Sweep::makeSystemEnvironmentBigOverlapBlocks(const std::vector
       dmrginp.set_molecule_quantum() = SpinQuantum(1, SpinSpace(1), IrrepSpace(0)); 
       newSystem.BuildSumBlock (PARTICLE_NUMBER_CONSTRAINT, system, systemDot);
     }
+    else if ((dmrginp.calc_type() == RESPONSEAAAC) && system.get_sites() [0] == 0 ) {//response and forward and after active sites
+      int coreOrbs = dmrginp.get_closedorbs().size();
+      int totalN = moleculeQ.particleNumber+moleculeQ.totalSpin.getirrep();
+      //int totalN = moleculeQ.particleNumber;
+      int closedN = coreOrbs*2;
+      dmrginp.set_molecule_quantum() = SpinQuantum(totalN - closedN + 1, SpinSpace(1), IrrepSpace(0));
+      newSystem.BuildSumBlock (PARTICLE_NUMBER_CONSTRAINT, system, systemDot);
+    }
     else
       newSystem.BuildSumBlock (NO_PARTICLE_SPIN_NUMBER_CONSTRAINT, system, systemDot);
 
@@ -112,6 +120,16 @@ void SpinAdapted::Sweep::makeSystemEnvironmentBigOverlapBlocks(const std::vector
     }
     else if ((dmrginp.calc_type() == RESPONSEAAAV) && system.get_sites() [0] == 0 && *system.get_sites().rbegin()  >= dmrginp.num_occupied_orbitals()){ //response and forward and after active sites
       dmrginp.set_molecule_quantum() = SpinQuantum(1, SpinSpace(1), IrrepSpace(0));
+      InitBlocks::InitNewOverlapEnvironmentBlock(environment, environmentDot, newEnvironment, system , systemDot,
+						 braState, ketState, sweepParams.get_sys_add(), sweepParams.get_env_add(), 
+						 forward, integralIndex, sweepParams.get_onedot(), dot_with_sys, PARTICLE_NUMBER_CONSTRAINT);
+    }
+    else if ((dmrginp.calc_type() == RESPONSEAAAC) && system.get_sites() [0] != 0 ) {//response and forward and after active sites
+      int coreOrbs = dmrginp.get_closedorbs().size();
+      int totalN = moleculeQ.particleNumber+moleculeQ.totalSpin.getirrep();
+      //int totalN = moleculeQ.particleNumber;
+      int closedN = coreOrbs*2;
+      dmrginp.set_molecule_quantum() = SpinQuantum(totalN - closedN + 1, SpinSpace(1), IrrepSpace(0));
       InitBlocks::InitNewOverlapEnvironmentBlock(environment, environmentDot, newEnvironment, system , systemDot,
 						 braState, ketState, sweepParams.get_sys_add(), sweepParams.get_env_add(), 
 						 forward, integralIndex, sweepParams.get_onedot(), dot_with_sys, PARTICLE_NUMBER_CONSTRAINT);
@@ -162,6 +180,14 @@ void SpinAdapted::Sweep::makeSystemEnvironmentBigBlocks(StackSpinBlock& system, 
       InitBlocks::InitNewSystemBlock(system, systemDot, newSystem, braState, ketState, sweepParams.get_sys_add(), dmrginp.direct(), 
 				     integralIndex, DISTRIBUTED_STORAGE, haveNormOps, haveCompOps, PARTICLE_NUMBER_CONSTRAINT);
     }
+    else if ((dmrginp.calc_type() == RESPONSEAAAC) && system.get_sites() [0] == 0 ) {//response and forward and after active sites
+      int coreOrbs = dmrginp.get_closedorbs().size();
+      int totalN = moleculeQ.particleNumber+moleculeQ.totalSpin.getirrep();
+      int closedN = coreOrbs*2;
+      dmrginp.set_molecule_quantum() = SpinQuantum(totalN - closedN + 1, SpinSpace(1), IrrepSpace(0));
+      InitBlocks::InitNewSystemBlock(system, systemDot, newSystem, braState, ketState, sweepParams.get_sys_add(), dmrginp.direct(), 
+				     integralIndex, DISTRIBUTED_STORAGE, haveNormOps, haveCompOps, PARTICLE_NUMBER_CONSTRAINT);
+    }
     else 
       InitBlocks::InitNewSystemBlock(system, systemDot, newSystem, braState, ketState, sweepParams.get_sys_add(), dmrginp.direct(), 
 				     integralIndex, DISTRIBUTED_STORAGE, haveNormOps, haveCompOps);
@@ -191,6 +217,17 @@ void SpinAdapted::Sweep::makeSystemEnvironmentBigBlocks(StackSpinBlock& system, 
 					  sweepParams.get_onedot(), nexact, useSlater, integralIndex, 
 					  envnormops, envcompops, dot_with_sys, PARTICLE_NUMBER_CONSTRAINT);
     }
+    else if ((dmrginp.calc_type() == RESPONSEAAAC) && system.get_sites() [0] != 0 ) {//response and forward and after active sites
+      int coreOrbs = dmrginp.get_closedorbs().size();
+      int totalN = moleculeQ.particleNumber+moleculeQ.totalSpin.getirrep();
+      //int totalN = moleculeQ.particleNumber;
+      int closedN = coreOrbs*2;
+      dmrginp.set_molecule_quantum() = SpinQuantum(totalN - closedN + 1, SpinSpace(1), IrrepSpace(0));
+      InitBlocks::InitNewEnvironmentBlock(environment, environmentDot, newEnvironment, system, systemDot, braState, ketState,
+					  sweepParams.get_sys_add(), sweepParams.get_env_add(), forward, dmrginp.direct(),
+					  sweepParams.get_onedot(), nexact, useSlater, integralIndex, 
+					  envnormops, envcompops, dot_with_sys, PARTICLE_NUMBER_CONSTRAINT);
+    }    
     else
       InitBlocks::InitNewEnvironmentBlock(environment, environmentDot, newEnvironment, system, systemDot, braState, ketState,
 					  sweepParams.get_sys_add(), sweepParams.get_env_add(), forward, dmrginp.direct(),

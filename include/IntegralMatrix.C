@@ -38,6 +38,9 @@ double& SpinAdapted::OneElectronArray::operator()(int i, int j) {
       else if (dmrginp.calc_type() == RESPONSEAAAV && !( (dmrginp.excitation()[i]==12 && dmrginp.excitation()[j] != 12) ||
 							 (dmrginp.excitation()[i]!=12 && dmrginp.excitation()[j] == 12) ) )
 	return dummyZero;  //more than one v is not present
+      else if (dmrginp.calc_type() == RESPONSEAAAC && !( (dmrginp.excitation()[i]==1 && dmrginp.excitation()[j] != 1) ||
+							 (dmrginp.excitation()[i]!=1 && dmrginp.excitation()[j] == 1) ) )
+	return dummyZero;  //more than one v is not present
     }
   }
   //i should be greater than j
@@ -72,6 +75,9 @@ double SpinAdapted::OneElectronArray::operator()(int i, int j) const {
       else if (dmrginp.calc_type() == RESPONSEAAAV && !( (dmrginp.excitation()[i]==12 && dmrginp.excitation()[j] != 12) ||
 							 (dmrginp.excitation()[i]!=12 && dmrginp.excitation()[j] == 12) ) )
 	return dummyZero;  //more than one v is not present
+      else if (dmrginp.calc_type() == RESPONSEAAAC && !( (dmrginp.excitation()[i]==1 && dmrginp.excitation()[j] != 1) ||
+							 (dmrginp.excitation()[i]!=1 && dmrginp.excitation()[j] == 1) ) )
+	return dummyZero;
     }
 
   }

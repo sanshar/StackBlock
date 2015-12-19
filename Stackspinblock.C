@@ -134,6 +134,71 @@ ostream& operator<< (ostream& os, const StackSpinBlock& b)
   return os;
 }
 
+  //thus is used to build the edge block for responseaaav and responseaaac
+StackSpinBlock StackSpinBlock::buildBigEdgeBlock(int start, int end, bool haveNorm, bool haveComp, int p_integralIndex, bool implicitTranspose)
+{
+    StackSpinBlock system(start,start, p_integralIndex, implicitTranspose);
+    if (dmrginp.calc_type() == RESPONSEAAAV) {
+      SpinQuantum moleculeQ = dmrginp.molecule_quantum();
+      dmrginp.set_molecule_quantum() = SpinQuantum(1, SpinSpace(0), IrrepSpace(0)); 
+
+      for (int i=start+1; i < end; i++) {
+	StackSpinBlock newSystem;
+	pout << i <<"  ";
+	StackSpinBlock site(i, i, p_integralIndex, implicitTranspose);
+	system.addAdditionalOps();
+	newSystem.default_op_components(false, haveNorm, haveComp, implicitTranspose);
+	newSystem.set_integralIndex() = p_integralIndex;
+	newSystem.setstoragetype(DISTRIBUTED_STORAGE);
+	newSystem.BuildSumBlock (PARTICLE_NUMBER_CONSTRAINT, system, site);
+	
+	{
+	  long memoryToFree = newSystem.getdata() - system.getdata();
+	  long newsysmem = newSystem.memoryUsed();
+	  newSystem.moveToNewMemory(system.getdata());
+	  Stackmem[omprank].deallocate(newSystem.getdata()+newsysmem, memoryToFree);
+	}
+	system.clear();
+	system = newSystem;
+      }
+      pout << endl;
+      dmrginp.set_molecule_quantum() = moleculeQ; 
+
+      
+      return system;
+      
+    }
+    else {
+      SpinQuantum moleculeQ = dmrginp.molecule_quantum();
+      dmrginp.set_molecule_quantum() = SpinQuantum(3, SpinSpace(0), IrrepSpace(0)); 
+
+      for (int i=start+1; i < end; i++) {
+	StackSpinBlock newSystem;
+	pout << i <<"  ";
+	StackSpinBlock site(i, i, p_integralIndex, implicitTranspose);
+	system.addAdditionalOps();
+	newSystem.default_op_components(false, haveNorm, haveComp, implicitTranspose);
+	newSystem.set_integralIndex() = p_integralIndex;
+	newSystem.setstoragetype(DISTRIBUTED_STORAGE);
+	newSystem.BuildSumBlock (HOLE_NUMBER_CONSTRAINT, system, site);
+	{
+	  long memoryToFree = newSystem.getdata() - system.getdata();
+	  long newsysmem = newSystem.memoryUsed();
+	  newSystem.moveToNewMemory(system.getdata());
+	  Stackmem[omprank].deallocate(newSystem.getdata()+newsysmem, memoryToFree);
+	}
+	system.clear();
+	system = newSystem;
+	dmrginp.set_molecule_quantum().particleNumber+=2;
+      }
+      pout << endl;
+      dmrginp.set_molecule_quantum() = moleculeQ; 
+
+      return system;      
+    }
+
+}
+
 
 StackSpinBlock::StackSpinBlock () : 
   additionalMemory(0),
@@ -764,9 +829,9 @@ void StackSpinBlock::BuildSumBlockSkeleton(int condition, StackSpinBlock& lBlock
   copy (rBlock.sites.begin(), rBlock.sites.end (), back_inserter (sites));
   sort(sites.begin(), sites.end());
   complementary_sites = make_complement(sites);
-  p2out << "\t\t\t ";
-  for (int i = 0; i < sites.size(); ++i) p2out << sites[i] << " ";
-  p2out << endl;
+  //p2out << "\t\t\t ";
+  //for (int i = 0; i < sites.size(); ++i) p2out << sites[i] << " ";
+  //p2out << endl;
   dmrginp.blocksites -> stop();
 
   dmrginp.statetensorproduct -> start();

@@ -51,6 +51,9 @@ public:
   void CollectFrom(const RowVector& C);
   void FlattenInto(Matrix& C);
 
+  static bool exists(int state);
+  static void CopyState(int from, int to);
+  static void ChangeLastSite(int newLast, int oldLast, int state);
   void LoadWavefunctionInfo (StateInfo &waveInfo, const std::vector<int>& sites, const int wave_num, bool allocateData=false);
   void SaveWavefunctionInfo (const StateInfo &waveInfo, const std::vector<int>& sites, const int wave_num);
   double* allocateWfnOperatorMatrix();

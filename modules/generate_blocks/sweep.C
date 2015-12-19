@@ -268,4 +268,95 @@ void SweepGenblock::do_one(SweepParams &sweepParams, const bool &forward, int st
 }
 
 
+void SweepGenblock::do_one_partialSweep(SweepParams &sweepParams, const bool &forward, int stateA, int stateB, int integralIndex)
+{
+  Timer sweeptimer;
+  StackSpinBlock system;
+
+  sweepParams.set_sweep_parameters();
+  if (dmrginp.get_sweep_type() == PARTIAL) {
+    if (dmrginp.spinAdapted()) {
+      sweepParams.set_n_iters() =  sweepParams.set_n_iters()+(dmrginp.getPartialSweep() - dmrginp.last_site())/sweepParams.get_sys_add();
+    }
+    else {
+      sweepParams.set_n_iters() =  sweepParams.set_n_iters()+(dmrginp.getPartialSweep() - dmrginp.last_site())/(2*sweepParams.get_sys_add());
+    }
+  
+    sweepParams.set_backward_starting_size() = dmrginp.last_site()-dmrginp.getPartialSweep()+1;
+  }
+
+  // a new renormalisation sweep routine
+  pout << ((forward) ? "\t\t\t Starting renormalisation sweep in forwards direction" : "\t\t\t Starting renormalisation sweep in backwards direction") << endl;
+  pout << "\t\t\t ============================================================================ " << endl;
+  
+  if (dmrginp.get_sweep_type() == PARTIAL && !forward) {
+    int len = forward? sweepParams.get_forward_starting_size() : sweepParams.get_backward_starting_size();
+    std::vector<int> sites(len);  
+    if (forward)
+      for (int i=0; i<len; i++)
+	sites[i] = i;
+    else
+      for (int i=0; i<len; i++)
+	sites[i] = dmrginp.last_site() - len + i;
+
+    StackSpinBlock::restore (forward, sites, system, stateA, stateB);
+  }
+  else
+    InitBlocks::InitStartingBlock (system,forward, stateA, stateB, sweepParams.get_forward_starting_size(), sweepParams.get_backward_starting_size(), 0, false, false, integralIndex);
+
+  sweepParams.set_block_iter() = 0;
+
+  p2out << "\t\t\t Starting block is :: " << endl << system << endl;
+
+  bool dot_with_sys = true;
+  StackSpinBlock::store (forward, system.get_sites(), system, stateA, stateB); 
+
+  for (; sweepParams.get_block_iter() < sweepParams.get_n_iters(); )
+    {
+      pout << "\n\t\t\t Block Iteration :: " << sweepParams.get_block_iter() << endl;
+      pout << "\t\t\t ----------------------------" << endl;
+      if (forward)
+	p1out << "\t\t\t Current direction is :: Forwards " << endl;
+      else
+	p1out << "\t\t\t Current direction is :: Backwards " << endl;
+
+  
+      if (dmrginp.no_transform())
+	      sweepParams.set_guesstype() = BASIC;
+      else if ( sweepParams.get_block_iter() != 0) 
+  	    sweepParams.set_guesstype() = TRANSFORM;
+      else if ( sweepParams.get_block_iter() == 0 )
+        sweepParams.set_guesstype() = TRANSPOSE;
+      else
+        sweepParams.set_guesstype() = BASIC;
+      
+      p1out << "\t\t\t Blocking and Decimating " << endl;
+	  
+      StackSpinBlock newSystem;
+
+      BlockAndDecimate (sweepParams, system, newSystem, false, dot_with_sys, stateA, stateB);
+
+      system = newSystem;
+
+      StackSpinBlock::store(forward, system.get_sites(), system, stateA, stateB);
+
+      Sweep::set_dot_with_sys(dot_with_sys, system, sweepParams, forward);
+
+      ++sweepParams.set_block_iter();
+    }
+  pout << "\t\t\t Finished Generate-Blocks Sweep. " << endl;
+  pout << "\t\t\t ============================================================================ " << endl;
+
+  // update the static number of iterations
+
+  ++sweepParams.set_sweep_iter();
+
+  double cputime = sweeptimer.elapsedcputime();
+  double walltime = sweeptimer.elapsedwalltime();
+  pout << "\t\t\t Elapsed Sweep CPU  Time (seconds): " << cputime << endl;
+  pout << "\t\t\t Elapsed Sweep Wall Time (seconds): " << walltime << endl;
+
+}
+
+
 }

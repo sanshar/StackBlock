@@ -296,6 +296,21 @@ void TensorProduct (StateInfo& a, StateInfo& b, const SpinQuantum q, const int c
             c.rightUnMapQuanta.push_back(j);
           }
         } 
+        else if (constraint == LessThanH) {
+          vector<SpinQuantum> v = a.quanta[i] + b.quanta[j];
+          for (int vq=0; vq<v.size(); vq++) {
+            if (v[vq].get_n() < q.get_n())
+              continue;
+
+            c.quanta.push_back(v[vq]);
+            c.quantaStates.push_back(a.quantaStates[i] * b.quantaStates[j]);
+            c.totalStates += a.quantaStates[i]*b.quantaStates[j];
+            c.allowedQuanta(i,j) = true;
+            c.quantaMap(i,j).push_back(c.quanta.size() - 1);
+            c.leftUnMapQuanta.push_back(i);
+            c.rightUnMapQuanta.push_back(j);
+          }
+        } 
         else if (constraint == LessThanQ) {
               vector<SpinQuantum> v = a.quanta[i] + b.quanta[j];
               for (int vq=0; vq< v.size(); vq++) {
@@ -341,6 +356,8 @@ void TensorProduct (StateInfo& a, StateInfo& b, StateInfo& c, const int constrai
     TensorProduct (a, b, dmrginp.effective_molecule_quantum(), EqualQ, c);
   } else if (constraint == PARTICLE_NUMBER_CONSTRAINT) {
     TensorProduct (a, b, dmrginp.effective_molecule_quantum(), LessThanN, c);
+  } else if (constraint == HOLE_NUMBER_CONSTRAINT) {
+    TensorProduct (a, b, dmrginp.effective_molecule_quantum(), LessThanH, c);
   } else if (constraint == SPIN_NUMBER_CONSTRAINT) {
     TensorProduct (a, b, dmrginp.effective_molecule_quantum(), EqualS, c);
   }

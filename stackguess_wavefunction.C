@@ -122,16 +122,43 @@ void GuessWave::transpose_previous_wavefunction(StackWavefunction& trial, const 
   }
   else
   {
-    vector<int> wfsites = big.get_rightBlock()->get_sites();
-    wfsites.insert(wfsites.end(), big.get_leftBlock()->get_rightBlock()->get_sites().begin(), big.get_leftBlock()->get_rightBlock()->get_sites().end());
-    sort(wfsites.begin(), wfsites.end());
-    oldWave.LoadWavefunctionInfo(oldStateInfo, wfsites, state, true);
-    if(ket)
-      onedot_transpose_wavefunction(oldStateInfo, big.get_stateInfo(), oldWave, trial);
-    else
-      onedot_transpose_wavefunction(oldStateInfo, big.get_braStateInfo(), oldWave, trial);
-    oldStateInfo.Free();
-    oldWave.deallocate();
+    //this is because we are doing transpose before the middle of the sweep (usually it is done at the very end)
+    //this can happen when one is doing partial sweep
+    if (big.get_leftBlock()->get_leftBlock() == 0) {
+      vector<int> wfsites = big.get_rightBlock()->get_sites();
+      wfsites.insert(wfsites.end(), big.get_rightBlock()->get_rightBlock()->get_sites().begin(), big.get_rightBlock()->get_rightBlock()->get_sites().end());
+      sort(wfsites.begin(), wfsites.end());
+      oldWave.LoadWavefunctionInfo(oldStateInfo, wfsites, state, true); 
+
+      //the oldwav is  [s.] [e]
+      //we want to convert it to [e][s.]
+      for (int i=0; i<oldWave.nrows(); i++)
+	for (int j=0; j<oldWave.ncols(); j++)
+	  if (oldWave.allowed(i,j)) {
+	    assert(trial.allowed(j,i));
+	    int parity = getCommuteParity(oldStateInfo.leftStateInfo->quanta[i], oldStateInfo.rightStateInfo->quanta[j], oldWave.get_deltaQuantum(0));
+	    for (int x=0; x<oldWave(i,j).Nrows(); x++)
+	      for (int y=0; y<oldWave(i,j).Ncols(); y++)
+		trial(j,i)(y+1,x+1) = parity*oldWave(i,j)(x+1,y+1);
+		  //MatrixScaleAdd(parity*1.0, oldWave(i,j), trial(j,i));
+
+	  }
+      oldStateInfo.Free();
+      oldWave.deallocate();
+
+    }
+    else {
+      vector<int> wfsites = big.get_rightBlock()->get_sites();
+      wfsites.insert(wfsites.end(), big.get_leftBlock()->get_rightBlock()->get_sites().begin(), big.get_leftBlock()->get_rightBlock()->get_sites().end());
+      sort(wfsites.begin(), wfsites.end());
+      oldWave.LoadWavefunctionInfo(oldStateInfo, wfsites, state, true);
+      if(ket)
+	onedot_transpose_wavefunction(oldStateInfo, big.get_stateInfo(), oldWave, trial);
+      else
+	onedot_transpose_wavefunction(oldStateInfo, big.get_braStateInfo(), oldWave, trial);
+      oldStateInfo.Free();
+      oldWave.deallocate();
+    }
   }
 
 }
@@ -150,7 +177,14 @@ void GuessWave::transpose_previous_wavefunction(StackWavefunction& trial, const 
   }
   sort(wfsites.begin(), wfsites.end());
   oldWave.LoadWavefunctionInfo(oldStateInfo, wfsites, state, true);
-  onedot_transpose_wavefunction(oldStateInfo, stateInfo, oldWave, trial);
+
+  oldWave.set_deltaQuantum() = trial.set_deltaQuantum();
+
+  StateInfo intermediate1, intermediate2;
+  TensorProduct(*stateInfo.rightStateInfo, *stateInfo.leftStateInfo->rightStateInfo, intermediate1, NO_PARTICLE_SPIN_NUMBER_CONSTRAINT);
+  intermediate1.CollectQuanta();
+  TensorProduct(intermediate1, *stateInfo.leftStateInfo->leftStateInfo, intermediate2, PARTICLE_SPIN_NUMBER_CONSTRAINT);
+  onedot_transpose_wavefunction(intermediate2, stateInfo, oldWave, trial);
   oldStateInfo.Free();
   oldWave.deallocate();
 }
@@ -261,6 +295,7 @@ void GuessWave::onedot_threeindex_to_twoindex_wavefunction(const StateInfo& twos
 	      int cb = prevUnCollectedSI.quantaMap(c,b)[j];
 	      CB = prevUnCollectedSI.quanta[cb].get_s().getirrep();
 	      CBl = prevUnCollectedSI.quanta[cb].get_symm().getirrep();
+
 	      int insertionNum = prevUnCollectedSI.quanta[cb].insertionNum(twostateinfo.leftStateInfo->rightStateInfo->quanta[b], twostateinfo.rightStateInfo->quanta[c]);
 	      double scale = 1.0;
 	      if(dmrginp.spinAdapted()) {

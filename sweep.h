@@ -27,7 +27,9 @@ namespace Sweep
   void fullci(double sweep_tol);
   void tiny(double sweep_tol);
 
+  void CanonicalizeWavefunctionPartialSweep(SweepParams &sweepParams, const bool &forward, int currentstate);
   void CanonicalizeWavefunction(SweepParams &sweepParams, const bool &forward, int currentstate);
+  void InitializeStateInfoPartialSweep(SweepParams &sweepParams, const bool &forward, int currentstate);
   void InitializeStateInfo(SweepParams &sweepParams, const bool &forward, int currentstate);
   void InitializeOverlapSpinBlocks(SweepParams &sweepParams, const bool &forward, int stateA, int stateB, int integralIndex);
   void calculateAllOverlap(Matrix& overlap);

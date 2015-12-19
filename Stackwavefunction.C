@@ -13,6 +13,7 @@ Sandeep Sharma and Garnet K.-L. Chan
 #include "MatrixBLAS.h"
 #include <boost/serialization/vector.hpp>
 #include "pario.h"
+#include <boost/filesystem.hpp>
 
 
 long SpinAdapted::getRequiredMemoryForWavefunction(const StateInfo& sr, const StateInfo& sc, const std::vector<SpinQuantum>& q) {
@@ -180,6 +181,134 @@ void SpinAdapted::StackWavefunction::copyData(const StackWavefunction& a) {
    dmrginp.diskwo->stop();
 
  }
+
+bool SpinAdapted::StackWavefunction::exists(int state) {
+  char file[5000];
+  int first = 0, last = 1;
+  sprintf (file, "%s%s%d%s%d%s%d%s%d%s", dmrginp.load_prefix().c_str(), "/wave-", first, "-", last, ".", mpigetrank(), ".", state, ".tmp");
+  boost::filesystem::path wavefile(file);
+  return boost::filesystem::exists(wavefile);
+}
+
+void SpinAdapted::StackWavefunction::CopyState(int from, int to) {
+  std::vector<int> sites;
+  int new_site, wave_site;
+  char file[5000];
+  int first = 0, last = 1;
+  sprintf (file, "%s", dmrginp.load_prefix().c_str());
+  //using namepsace boost::filesystem;
+  boost::filesystem::path dir_path(file);
+
+  boost::filesystem::directory_iterator end_itr;
+  for ( boost::filesystem::directory_iterator itr( dir_path );
+        itr != end_itr;
+        ++itr )
+    {
+      if ( is_directory(itr->status()) )
+	  continue;
+      else {
+	string filename =itr->path().filename().string();
+	int len = filename.length();
+	string wavesubstrfrom = "."+to_string(from)+".tmp";
+	string wavesubstrto = "."+to_string(to)+".tmp";
+	std::size_t found = filename.find(wavesubstrfrom);
+	if (found != std::string::npos && filename.compare(0,4, "wave")==0) {
+	  string outfile = filename;
+	  outfile.replace(found, wavesubstrfrom.length(), wavesubstrto.c_str());
+
+	  char filein[5000];
+	  sprintf (filein, "%s/%s", dmrginp.load_prefix().c_str() , filename.c_str());
+	  boost::filesystem::path frompath(filein);
+	  char fileout[5000];
+	  sprintf (fileout, "%s/%s", dmrginp.load_prefix().c_str() , outfile.c_str());
+	  boost::filesystem::path topath(fileout);
+
+	  copy_file(frompath, topath,boost::filesystem::copy_option::overwrite_if_exists);
+	}
+
+	string filename2 = itr->path().filename().string();
+	string rotsubstrfrom = ".state"+to_string(from)+".tmp";
+	string rotsubstrto = ".state"+to_string(to)+".tmp";
+	std::size_t found2 = filename2.find(rotsubstrfrom);
+	if (found2 != std::string::npos && filename2.compare(0,8, "Rotation")==0) {
+	  string outfile = filename2;
+	  outfile.replace(found2, rotsubstrfrom.length(), rotsubstrto.c_str());
+
+	  char filein[5000];
+	  sprintf (filein, "%s/%s", dmrginp.load_prefix().c_str() , filename2.c_str());
+	  boost::filesystem::path frompath(filein);
+	  char fileout[5000];
+	  sprintf (fileout, "%s/%s", dmrginp.load_prefix().c_str() , outfile.c_str());
+	  boost::filesystem::path topath(fileout);
+
+	  copy_file(frompath, topath,boost::filesystem::copy_option::overwrite_if_exists);
+	}
+
+      }
+    }
+
+
+}
+
+void SpinAdapted::StackWavefunction::ChangeLastSite(int newLast, int oldLast, int state) {
+  std::vector<int> sites;
+  int new_site, wave_site;
+  char file[5000];
+  int first = 0, last = 1;
+  sprintf (file, "%s", dmrginp.load_prefix().c_str());
+  //using namepsace boost::filesystem;
+  boost::filesystem::path dir_path(file);
+
+  boost::filesystem::directory_iterator end_itr;
+  for ( boost::filesystem::directory_iterator itr( dir_path );
+        itr != end_itr;
+        ++itr )
+    {
+      if ( is_directory(itr->status()) )
+	  continue;
+      else {
+	string filename =itr->path().filename().string();
+	int len = filename.length();
+	string wavesubstrfrom = to_string(oldLast)+"."+to_string(mpigetrank())+"."+to_string(state)+".tmp";
+	string wavesubstrto   = to_string(newLast)+"."+to_string(mpigetrank())+"."+to_string(state)+".tmp";
+	std::size_t found = filename.find(wavesubstrfrom);
+	if (found != std::string::npos && filename.compare(0,4, "wave")==0) {
+	  string outfile = filename;
+	  outfile.replace(found, wavesubstrfrom.length(), wavesubstrto.c_str());
+
+	  char filein[5000];
+	  sprintf (filein, "%s/%s", dmrginp.load_prefix().c_str() , filename.c_str());
+	  boost::filesystem::path frompath(filein);
+	  char fileout[5000];
+	  sprintf (fileout, "%s/%s", dmrginp.load_prefix().c_str() , outfile.c_str());
+	  boost::filesystem::path topath(fileout);
+
+	  copy_file(frompath, topath,boost::filesystem::copy_option::overwrite_if_exists);
+	}
+
+	string filename2 = itr->path().filename().string();
+	string rotsubstrfrom = to_string(oldLast)+"."+to_string(mpigetrank())+".state"+to_string(state)+".tmp";
+	string rotsubstrto   = to_string(newLast)+"."+to_string(mpigetrank())+".state"+to_string(state)+".tmp";
+	std::size_t found2 = filename2.find(rotsubstrfrom);
+	if (found2 != std::string::npos && filename2.compare(0,8, "Rotation")==0) {
+	  string outfile = filename2;
+	  outfile.replace(found2, rotsubstrfrom.length(), rotsubstrto.c_str());
+
+	  char filein[5000];
+	  sprintf (filein, "%s/%s", dmrginp.load_prefix().c_str() , filename2.c_str());
+	  boost::filesystem::path frompath(filein);
+	  char fileout[5000];
+	  sprintf (fileout, "%s/%s", dmrginp.load_prefix().c_str() , outfile.c_str());
+	  boost::filesystem::path topath(fileout);
+
+	  copy_file(frompath, topath,boost::filesystem::copy_option::overwrite_if_exists);
+	}
+
+      }
+    }
+
+
+}
 
  void SpinAdapted::StackWavefunction::LoadWavefunctionInfo (StateInfo &waveInfo, const std::vector<int>& sites, const int wave_num, bool allocateData)
  {
