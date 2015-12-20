@@ -200,8 +200,8 @@ double SpinAdapted::StackDes::redMatrixElement(Csf c1, vector<Csf>& ladder, cons
   {
     int index = 0; double cleb=0.0;
     if (nonZeroTensorComponent(c1, deltaQuantum[iq], ladder[i], index, cleb)) {
-      std::vector<double> MatElements = calcMatrixElements(c1, D, ladder[i], backupSlater1, backupSlater2) ;
-      element = MatElements[index]/cleb;
+      double MatElements = calcMatrixElements(c1, D, ladder[i], backupSlater1, backupSlater2, index) ;
+      element = MatElements/cleb;
       break;
     }
     else
@@ -399,8 +399,8 @@ double SpinAdapted::StackCreDes::redMatrixElement(Csf c1, vector<Csf>& ladder, c
     {
       int index = 0; double cleb=0.0;
       if (nonZeroTensorComponent(c1, deltaQuantum[j], ladder[i], index, cleb)) {
-        std::vector<double> MatElements = calcMatrixElements(c1, CD, ladder[i], backupSlater1, backupSlater2) ;
-        element += MatElements[index]/cleb;
+        double MatElements = calcMatrixElements(c1, CD, ladder[i], backupSlater1, backupSlater2, index) ;
+        element += MatElements/cleb;
         break;
       }
       else
@@ -496,8 +496,8 @@ double SpinAdapted::StackDesCre::redMatrixElement(Csf c1, vector<Csf>& ladder, c
     {
       int index = 0; double cleb=0.0;
       if (nonZeroTensorComponent(c1, deltaQuantum[j], ladder[i], index, cleb)) {
-        std::vector<double> MatElements = calcMatrixElements(c1, CD, ladder[i], backupSlater1, backupSlater2) ;
-        element += MatElements[index]/cleb;
+        double MatElements = calcMatrixElements(c1, CD, ladder[i], backupSlater1, backupSlater2, index) ;
+        element += MatElements/cleb;
         break;
       }
       else
@@ -653,8 +653,8 @@ double SpinAdapted::StackCreCre::redMatrixElement(Csf c1, vector<Csf>& ladder, c
     {
       int index = 0; double cleb=0.0;
       if (nonZeroTensorComponent(c1, deltaQuantum[j], ladder[i], index, cleb)) {
-        std::vector<double> MatElements = calcMatrixElements(c1, CC, ladder[i], backupSlater1, backupSlater2) ;
-        element += MatElements[index]/cleb;
+        double MatElements = calcMatrixElements(c1, CC, ladder[i], backupSlater1, backupSlater2, index) ;
+        element += MatElements/cleb;
         break;
       }
       else
@@ -748,8 +748,8 @@ double SpinAdapted::StackDesDes::redMatrixElement(Csf c1, vector<Csf>& ladder, c
     {
       int index = 0; double cleb=0.0;
       if (nonZeroTensorComponent(c1, deltaQuantum[j], ladder[i], index, cleb)) {
-        std::vector<double> MatElements = calcMatrixElements(c1, DD, ladder[i], backupSlater1, backupSlater2) ;
-        element += MatElements[index]/cleb;
+        double MatElements = calcMatrixElements(c1, DD, ladder[i], backupSlater1, backupSlater2, index) ;
+        element += MatElements/cleb;
         break;
       }
       else
@@ -1680,9 +1680,9 @@ double SpinAdapted::StackDesCreComp::redMatrixElement(Csf c1, vector<Csf>& ladde
 	          TensorOp CK(k, 1), DL(l, -1);
 	          TensorOp CD2 = CK.product(DL, spin, sym.getirrep());
 	          if (!CD2.empty) {
-	            std::vector<double> MatElements = calcMatrixElements(c1, CD2, ladder[i], backupSlater1, backupSlater2) ;
+	            double MatElements = calcMatrixElements(c1, CD2, ladder[i], backupSlater1, backupSlater2, index) ;
 	            double factor = calcCompfactor(CD1, CD2, CD, *(b->get_twoInt()), b->get_integralIndex());
-	            element += MatElements[index]*factor/cleb;  // FIXME a factor of half?
+	            element += MatElements*factor/cleb;  // FIXME a factor of half?
 	          }
             }
           }
@@ -2601,18 +2601,18 @@ double SpinAdapted::StackCreCreComp::redMatrixElement(Csf c1, vector<Csf>& ladde
               TensorOp DD2 = DK.product(DL, spin, sym.getirrep(), k==l);
 
               if (!DD2.empty) {
-                std::vector<double> MatElements = calcMatrixElements(c1, DD2, ladder[i], backupSlater1, backupSlater2) ;
+                double MatElements = calcMatrixElements(c1, DD2, ladder[i], backupSlater1, backupSlater2, index) ;
                 double scale = calcCompfactor(DD1, DD2, DD, v_cccc[b->get_integralIndex()]);
-                element += MatElements[index]*scale/cleb;                
+                element += MatElements*scale/cleb;                
               }
             } 
 	    else if (dmrginp.hamiltonian() == BCS && dn == 0) {
               TensorOp CK(k,1), DL(l,-1);
               TensorOp CD2 = CK.product(DL, spin, sym.getirrep());
               if (!CD2.empty) {
-                std::vector<double> MatElements = calcMatrixElements(c1, CD2, ladder[i], backupSlater1, backupSlater2) ;
+                double MatElements = calcMatrixElements(c1, CD2, ladder[i], backupSlater1, backupSlater2, index) ;
                 double scale = calcCompfactor(DD1, CD2, DD, v_cccd[b->get_integralIndex()]);
-                element += MatElements[index]*scale/cleb;                
+                element += MatElements*scale/cleb;                
               }
             } 
 	    else {
@@ -2620,9 +2620,9 @@ double SpinAdapted::StackCreCreComp::redMatrixElement(Csf c1, vector<Csf>& ladde
 	      TensorOp CC2 = CK.product(CL, spin, sym.getirrep(), k==l);
 	      
 	      if (!CC2.empty) {
-		std::vector<double> MatElements = calcMatrixElements(c1, CC2, ladder[i], backupSlater1, backupSlater2) ;
+		double MatElements = calcMatrixElements(c1, CC2, ladder[i], backupSlater1, backupSlater2, index) ;
 		double scale = calcCompfactor(CC2, DD1, DD, index, *(b->get_twoInt()), b->get_integralIndex());
-		element += MatElements[index]*scale/cleb;
+		element += MatElements*scale/cleb;
 	      }
             }
           }
