@@ -2747,10 +2747,10 @@ double SpinAdapted::StackCreDesDesComp::redMatrixElement(Csf c1, vector<Csf>& la
               TensorOp DDIJ = DI.product(DJ, symij.get_s().getirrep(), symij.get_symm().getirrep(), _i==_j);
               TensorOp DDDIJL = DDIJ.product(DL, symijl.get_s().getirrep(), symijl.get_symm().getirrep());
               if (DDDIJL.empty) continue;
-              std::vector<double> MatElements = calcMatrixElements(c1, DDDIJL, ladder[i], backupSlater1, backupSlater2) ;
+              double MatElements = calcMatrixElements(c1, DDDIJL, ladder[i], backupSlater1, backupSlater2, index) ;
               double scale = calcCompfactor(DDDIJL, CK, CDD, v_cccd[b->get_integralIndex()]);
               if (fabs(scale) > dmrginp.oneindex_screen_tol())
-                element += MatElements[index]*scale/cleb;
+                element += MatElements*scale/cleb;
             }
           }
         } 
@@ -2766,10 +2766,10 @@ double SpinAdapted::StackCreDesDesComp::redMatrixElement(Csf c1, vector<Csf>& la
               TensorOp CCIJ = CI.product(CJ, symij.get_s().getirrep(), symij.get_symm().getirrep(), _i==_j);
               TensorOp CCDIJL = CCIJ.product(DL, symijl.get_s().getirrep(), symijl.get_symm().getirrep());
               if (CCDIJL.empty) continue;
-              std::vector<double> MatElements = calcMatrixElements(c1, CCDIJL, ladder[i], backupSlater1, backupSlater2) ;
+              double MatElements = calcMatrixElements(c1, CCDIJL, ladder[i], backupSlater1, backupSlater2, index) ;
               double scale = calcCompfactor(CCDIJL, CK, CDD, v_cccd[b->get_integralIndex()]);
               if (fabs(scale) > dmrginp.oneindex_screen_tol())
-                element += MatElements[index]*scale/cleb;
+                element += MatElements*scale/cleb;
             }            
           }
         } 
@@ -2785,10 +2785,10 @@ double SpinAdapted::StackCreDesDesComp::redMatrixElement(Csf c1, vector<Csf>& la
               TensorOp CCIJ = CI.product(CJ, symij.get_s().getirrep(), symij.get_symm().getirrep(), _i==_j);
               TensorOp CCCIJL = CCIJ.product(CL, symijl.get_s().getirrep(), symijl.get_symm().getirrep());
               if (CCCIJL.empty) continue;
-              std::vector<double> MatElements = calcMatrixElements(c1, CCCIJL, ladder[i], backupSlater1, backupSlater2) ;
+              double MatElements = calcMatrixElements(c1, CCCIJL, ladder[i], backupSlater1, backupSlater2, index) ;
               double scale = calcCompfactor(CCCIJL, CK, CDD, v_cccc[b->get_integralIndex()]);
               if (fabs(scale) > dmrginp.oneindex_screen_tol())
-                element += MatElements[index]*scale/cleb;
+                element += MatElements*scale/cleb;
             }
           }
         } 
@@ -2807,11 +2807,11 @@ double SpinAdapted::StackCreDesDesComp::redMatrixElement(Csf c1, vector<Csf>& la
 
 	          TensorOp CDDIJL = CDIJ.product(DL, symijl.get_s().getirrep(), symijl.get_symm().getirrep());
 	          if (CDDIJL.empty) continue;
-	          std::vector<double> MatElements = calcMatrixElements(c1, CDDIJL, ladder[i], backupSlater1, backupSlater2) ;
+	          double MatElements = calcMatrixElements(c1, CDDIJL, ladder[i], backupSlater1, backupSlater2, index) ;
 	          double scale = calcCompfactor(CDDIJL, CK, CDD, *(b->get_twoInt()), b->get_integralIndex());
 	          if (dmrginp.spinAdapted()) scale*=-1; //terrible hack
 	          if (fabs(scale) > dmrginp.oneindex_screen_tol()) 
-	            element += MatElements[index]*scale/cleb;
+	            element += MatElements*scale/cleb;
 	        }
 	      }
         }
@@ -2820,17 +2820,17 @@ double SpinAdapted::StackCreDesDesComp::redMatrixElement(Csf c1, vector<Csf>& la
 	int _i = b->get_sites()[ki];
         if (dmrginp.hamiltonian() == BCS && dn == 1) {
           TensorOp CI(_i, 1);
-          std::vector<double> MatElements = calcMatrixElements(c1, CI, ladder[i], backupSlater1, backupSlater2) ;
+          double MatElements = calcMatrixElements(c1, CI, ladder[i], backupSlater1, backupSlater2, index) ;
           double factor = calcCompfactor(CI, CK, C, *(b->get_twoInt()), b->get_integralIndex());
           if (fabs(factor) > dmrginp.oneindex_screen_tol())
-            element += factor*MatElements[index]/cleb;
+            element += factor*MatElements/cleb;
         } 
 	else {
 	      TensorOp DI(_i, -1);
-	      std::vector<double> MatElements = calcMatrixElements(c1, DI, ladder[i], backupSlater1, backupSlater2) ;
+	      double MatElements = calcMatrixElements(c1, DI, ladder[i], backupSlater1, backupSlater2, index) ;
 	      double factor = calcCompfactor(CK, DI, C, *(b->get_twoInt()), b->get_integralIndex());
 	      if (fabs(factor) > dmrginp.oneindex_screen_tol())
-	        element += factor*MatElements[index]/cleb;
+	        element += factor*MatElements/cleb;
         }
       }
       break;
@@ -2999,6 +2999,21 @@ double SpinAdapted::StackCreCreDesComp::redMatrixElement(Csf c1, vector<Csf>& la
   if (dmrginp.spinAdapted() && (c1.S_is().getirrep() > ladder[0].S_is().getirrep()+1 || c1.S_is().getirrep() <ladder[0].S_is().getirrep() -1)) return 0.0;
 
   if (dmrginp.hamiltonian() != BCS) {
+    int ladidx;
+    if (!dmrginp.spinAdapted()) {
+      ladidx = -1;
+      for (int i = 0; i < ladder.size(); ++i)
+        if (ladder[i].S_is().getirrep() + spin == c1.S_is().getirrep()) {
+          ladidx = i; break;
+        }
+      if (ladidx < 0) return 0.;
+    } else {
+      ladidx = 0;
+    }
+
+    Csf& detladder = ladder[ladidx];
+
+
     for (int ki =0; ki<b->get_sites().size(); ki++) 
     for (int kj =0; kj<b->get_sites().size(); kj++)
     for (int kl =0; kl<b->get_sites().size(); kl++) {
@@ -3011,7 +3026,7 @@ double SpinAdapted::StackCreCreDesComp::redMatrixElement(Csf c1, vector<Csf>& la
           const Slater &s1 = it1->first;
           if (s1.get_orbstring().get_occ_rep()[_i] == 1 && s1.get_orbstring().get_occ_rep()[_j] == 1) {
             if (_l != _i && _l != _j && s1.get_orbstring().get_occ_rep()[_l] == 0) {
-              for (auto it2 = ladder[0].det_rep.begin(); it2 != ladder[0].det_rep.end(); ++it2) {
+              for (auto it2 = detladder.det_rep.begin(); it2 != detladder.det_rep.end(); ++it2) {
                 const Slater &s2 = it2 -> first;
                 if (s2.get_orbstring().get_occ_rep()[_i] == 0 && s2.get_orbstring().get_occ_rep()[_j] == 0 
                     && s2.get_orbstring().get_occ_rep()[_l] == 1) {
@@ -3019,7 +3034,7 @@ double SpinAdapted::StackCreCreDesComp::redMatrixElement(Csf c1, vector<Csf>& la
                 }
               }
             } else {
-              for (auto it2 = ladder[0].det_rep.begin(); it2 != ladder[0].det_rep.end(); ++it2) {
+              for (auto it2 = detladder.det_rep.begin(); it2 != detladder.det_rep.end(); ++it2) {
                 const Slater &s2 = it2->first;
                 if (s2.get_orbstring().get_occ_rep()[_l] == 1) {
                   goto dontstop;
@@ -3038,7 +3053,7 @@ double SpinAdapted::StackCreCreDesComp::redMatrixElement(Csf c1, vector<Csf>& la
 	                if (_l != _i && _l != _j) {
 	  	              for (int lxx1 = dmrginp.spatial_to_spin(_l); lxx1 <dmrginp.spatial_to_spin(_l+1); lxx1++)
 	  	                if ( s1.get_orbstring().get_occ_rep()[lxx1] == 0) 
-	  	                  for (map<Slater, double>::iterator it2 = ladder[0].det_rep.begin(); it2!= ladder[0].det_rep.end(); it2++) {
+	  	                  for (map<Slater, double>::iterator it2 = detladder.det_rep.begin(); it2!= detladder.det_rep.end(); it2++) {
 	  	                    const Slater &s2 = it2->first;
 	  	                    for (int ixx2 = dmrginp.spatial_to_spin(_i); ixx2 <dmrginp.spatial_to_spin(_i+1); ixx2++)
 	  	              	      if ( (s2.get_orbstring().get_occ_rep()[ixx2] == 0) )
@@ -3048,7 +3063,7 @@ double SpinAdapted::StackCreCreDesComp::redMatrixElement(Csf c1, vector<Csf>& la
 	  	              		            if ( s2.get_orbstring().get_occ_rep()[lxx] == 1) goto dontstop;
 	  	                  }
 	                } else {      
-	  	              for (map<Slater, double>::iterator it2 = ladder[0].det_rep.begin(); it2!= ladder[0].det_rep.end(); it2++) {
+	  	              for (map<Slater, double>::iterator it2 = detladder.det_rep.begin(); it2!= detladder.det_rep.end(); it2++) {
 	  	                const Slater &s2 = it2->first;
 	  	                for (int lxx = dmrginp.spatial_to_spin(_l); lxx <dmrginp.spatial_to_spin(_l+1); lxx++)
 	  	                  if ( s2.get_orbstring().get_occ_rep()[lxx] == 1) 
@@ -3106,12 +3121,18 @@ double SpinAdapted::StackCreCreDesComp::redMatrixElement(Csf c1, vector<Csf>& la
       } 
     }
   } else { // BCS
-    if (dmrginp.spinAdapted() || ladder.size() != 1) {
-      pout << "CreCreDesComp redMatrixElement failed" << endl;
-      abort();
-    }
+    if (dmrginp.spinAdapted()) abort();
 
-    Csf& detladder = ladder[0];
+    int ladidx = -1;
+    for (int i = 0; i < ladder.size(); ++i)
+      if (ladder[i].S_is().getirrep() + spin == c1.S_is().getirrep()) {
+        ladidx = i; break;
+      }
+
+    if (ladidx < 0) return 0.;
+
+    Csf& detladder = ladder[ladidx];
+
     for (int ki =0; ki<b->get_sites().size(); ki++) 
     for (int kj =0; kj<b->get_sites().size(); kj++)
     for (int kl =0; kl<b->get_sites().size(); kl++) {
