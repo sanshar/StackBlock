@@ -1298,10 +1298,10 @@ double SpinAdapted::StackCreDesComp::redMatrixElement(Csf c1, vector<Csf>& ladde
     if (dmrginp.hamiltonian() != BCS && c1.n_is() != ladder[0].n_is()) return 0.0;
     if (dmrginp.hamiltonian() == BCS && abs(dn) > 2) return 0.0;
     if (dmrginp.spinAdapted() && (c1.S_is().getirrep() > ladder[0].S_is().getirrep()+spin || c1.S_is().getirrep() <ladder[0].S_is().getirrep() -spin)) return 0.0;
-    if (!dmrginp.spinAdapted() && c1.S_is().getirrep() != ladder[0].S_is().getirrep()+spin) return 0.0;
 
   for (int j = 0; j < deltaQuantum.size(); ++j) {
     for (int i=0; i<ladder.size(); i++) {
+      if (!dmrginp.spinAdapted() && c1.S_is().getirrep() != ladder[i].S_is().getirrep()+spin) continue;
       int index = 0; double cleb=0.0;
       if (nonZeroTensorComponent(c1, deltaQuantum[j], ladder[i], index, cleb)) {
         for (int kl =0; kl<b->get_sites().size(); kl++) 
@@ -1313,6 +1313,10 @@ double SpinAdapted::StackCreDesComp::redMatrixElement(Csf c1, vector<Csf>& ladde
 	    
 	          bool isZero = true;
             if (dmrginp.hamiltonian() == BCS) { // BCS
+              if (ladder[i].det_rep.size() > 1) {
+                pout << "StackCreDesComp::redMatrixElement failed" << endl;
+                abort();
+              }
               if (dn == 0) {
                 for (auto it1 = c1.det_rep.begin(); it1 != c1.det_rep.end(); ++it1) {
                   const Slater &s1 = it1->first;
@@ -1390,6 +1394,10 @@ double SpinAdapted::StackCreDesComp::redMatrixElement(Csf c1, vector<Csf>& ladde
 	            }
 	            if (isZero) continue;
             } else { // non-spinadapted
+              if (ladder[i].det_rep.size() > 1) {
+                pout << "StackCreDesComp::redMatrixElement failed" << endl;
+                abort();
+              }
               for (auto it1 = c1.det_rep.begin(); it1 != c1.det_rep.end(); ++it1) {
                 const Slater &s1 = it1->first;
                 if (s1.get_orbstring().get_occ_rep()[k] == 1) {
@@ -1865,43 +1873,6 @@ void SpinAdapted::StackDesDesComp::buildfromDesDes(StackSpinBlock& b)
     }
   }
 
-//#pragma omp parallel for schedule(dynamic)
-//  for (int ii = 0; ii<allops.size(); ii++) {
-//    const int k = allops[ii]->get_orbs()[0];
-//    const int l = allops[ii]->get_orbs()[1];
-//    
-//    TensorOp DK(k,-1), DL(l,-1);      
-//    TensorOp DD2 = DK.product(DL, spin, sym.getirrep(), k==l);
-//    if (!DD2.empty) {
-//      double scaleV = calcCompfactor(CC1, DD2, DD,*(b.get_twoInt()), b.get_integralIndex());      
-//      
-//      DK=TensorOp(k,-1); DL=TensorOp(l,-1);
-//      DD2 = DL.product(DK, spin, sym.getirrep(), k==l);
-//      double scaleV2 = calcCompfactor(CC1, DD2, DD, *(b.get_twoInt()), b.get_integralIndex());
-//      
-//      double parity = getCommuteParity(-getSpinQuantum(k), -getSpinQuantum(l), get_deltaQuantum()[0]);
-//      if (k != l)
-//        scaleV += parity*scaleV2;
-//
-//      if(!b.has(DES))  {
-//        for (int lQ = 0; lQ<nrows(); lQ++)
-//    for (int rQ = 0; rQ<ncols(); rQ++) 
-//      if (allowed(lQ, rQ) && allops[ii]->allowed(rQ, lQ)) {
-//	        double scaling = getStandAlonescaling(-(allops[ii]->get_deltaQuantum(0)), b.get_braStateInfo().quanta[lQ], b.get_ketStateInfo().quanta[rQ]);
-//
-//        int nrows = operator_element(lQ, rQ).Nrows();
-//        int ncols = operator_element(lQ, rQ).Ncols();
-//        for (int row=0; row<nrows; row++) {
-//          DAXPY(ncols, -scaleV*scaling, &(allops[ii]->operator_element(rQ, lQ)(1, row+1)), nrows, &(op_array[omprank].operator_element(lQ, rQ)(row+1, 1)), 1); 
-//        }
-//      }
-//      }   
-//      else {
-//        ScaleAdd(scaleV, *allops[ii], op_array[omprank]);
-//      }
-//    }
-//  }
-
   accumulateMultiThread(this, op_array, numthrds);
 
 }
@@ -2240,11 +2211,10 @@ double SpinAdapted::StackDesDesComp::redMatrixElement(Csf c1, vector<Csf>& ladde
   if (dmrginp.hamiltonian() != BCS && c1.n_is() != ladder[0].n_is()-2) return 0.0;
   if (dmrginp.hamiltonian() == BCS && abs(dn) > 2) return 0.0;
   if (dmrginp.spinAdapted() && (c1.S_is().getirrep() > ladder[0].S_is().getirrep()+spin || c1.S_is().getirrep() <ladder[0].S_is().getirrep()-spin)) return 0.0;
-  if (!dmrginp.spinAdapted() && c1.S_is().getirrep() != ladder[0].S_is().getirrep()+spin) return 0.0;
 
   for (int j = 0; j < deltaQuantum.size(); ++j) {
     for (int i=0; i<ladder.size(); i++) {
-
+      if (!dmrginp.spinAdapted() && c1.S_is().getirrep() != ladder[i].S_is().getirrep()+spin) continue;
       int index = 0; double cleb=0.0;
       if (nonZeroTensorComponent(c1, deltaQuantum[j], ladder[i], index, cleb)) {
         for (int kl =0; kl<b->get_sites().size(); kl++) 
@@ -2255,6 +2225,10 @@ double SpinAdapted::StackDesDesComp::redMatrixElement(Csf c1, vector<Csf>& ladde
 
             bool isZero = true;
             if (dmrginp.hamiltonian() == BCS) {
+              if (ladder[i].det_rep.size() > 1) {
+                pout << "StackDesDesComp::redMatrixElement failed" << endl;
+                abort();
+              }
               if (dn == 0) {
                 for (auto it1 = c1.det_rep.begin(); it1 != c1.det_rep.end(); ++it1) {
                   const Slater &s1 = it1->first;
@@ -2333,6 +2307,10 @@ double SpinAdapted::StackDesDesComp::redMatrixElement(Csf c1, vector<Csf>& ladde
 	            }
 	            if (isZero) continue;
 	          } else {
+              if (ladder[i].det_rep.size() > 1) {
+                pout << "StackDesDesComp::redMatrixElement failed" << endl;
+                abort();
+              }
               if (k == l) continue;
 	            bool isZero = true;
 	            for (auto it1 = c1.det_rep.begin(); it1!= c1.det_rep.end(); it1++) {
@@ -3012,8 +2990,11 @@ double SpinAdapted::StackCreCreDesComp::redMatrixElement(Csf c1, vector<Csf>& la
     }
 
     Csf& detladder = ladder[ladidx];
-
-
+    if (!dmrginp.spinAdapted() && detladder.det_rep.size() > 1) {
+      pout << detladder << endl;
+      pout << "ccdcomp redmatrixelement failed" << endl;
+      abort();
+    }
     for (int ki =0; ki<b->get_sites().size(); ki++) 
     for (int kj =0; kj<b->get_sites().size(); kj++)
     for (int kl =0; kl<b->get_sites().size(); kl++) {
@@ -3132,6 +3113,12 @@ double SpinAdapted::StackCreCreDesComp::redMatrixElement(Csf c1, vector<Csf>& la
     if (ladidx < 0) return 0.;
 
     Csf& detladder = ladder[ladidx];
+
+    if (detladder.det_rep.size() > 1) {
+      pout << detladder << endl;
+      pout << "ccdcomp redmatrixelement failed" << endl;
+      abort();
+    }
 
     for (int ki =0; ki<b->get_sites().size(); ki++) 
     for (int kj =0; kj<b->get_sites().size(); kj++)
