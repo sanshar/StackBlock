@@ -196,7 +196,7 @@ void Fourpdm_container::external_sort_index(const int &i, const int &j)
     }
     long outputbuffsize=sorting_buff*4;
     long outputbuff_position = 0;
-    Sortpdm::batch_index outputbuff[outputbuffsize];
+    Sortpdm::batch_index* outputbuff = new Sortpdm::batch_index[outputbuffsize];
     for(;;){
       // select the smallest one in the current positions of different caches.
       int smallest = 0;
