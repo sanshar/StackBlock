@@ -30,7 +30,9 @@ template<class T> class para_array_triang_2d;
 template<class T> class para_array_2d;
 
 namespace SpinAdapted {
+#ifndef SERIAL
 extern boost::mpi::communicator calc;
+#endif
 }
 // utility functions for communication
 inline int processorindex(int i)

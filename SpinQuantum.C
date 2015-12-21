@@ -16,6 +16,20 @@ namespace SpinAdapted{
 SpinQuantum::SpinQuantum () : particleNumber (0), totalSpin (0), orbitalSymmetry (0) {}
 SpinQuantum::SpinQuantum (const int p, const SpinSpace s, const IrrepSpace orbS) : particleNumber (p), totalSpin (s), orbitalSymmetry(orbS) {}
 
+void SpinQuantum::SaveThreadSafe(std::ofstream& ofs) const
+{
+  ofs.write((char*)(&particleNumber), sizeof(particleNumber));
+  totalSpin.SaveThreadSafe(ofs);
+  orbitalSymmetry.SaveThreadSafe(ofs);
+}
+
+void SpinQuantum::LoadThreadSafe(std::ifstream& ifs)
+{
+  ifs.read((char*)(&particleNumber), sizeof(particleNumber));
+  totalSpin.LoadThreadSafe(ifs);
+  orbitalSymmetry.LoadThreadSafe(ifs);
+}
+
 int SpinQuantum::insertionNum(const SpinQuantum& ql, const SpinQuantum& qr) const
 {
   int index = 0;

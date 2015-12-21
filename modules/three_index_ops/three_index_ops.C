@@ -13,45 +13,53 @@ Sandeep Sharma and Garnet K.-L. Chan
 //
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-#include "op_components.h"
-#include "BaseOperator.h"
-#include "spinblock.h"
+#include "Stack_op_components.h"
+#include "StackBaseOperator.h"
+#include "Stackspinblock.h"
 #include "operatorfunctions.h"
 #include "tensor_operator.h"
 #include "three_index_ops.h"
 #include "pario.h"
+#include "build_3index_ops.h"
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 //  (Des,Des,Des)
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
-void SpinAdapted::DesDesDes::build(const SpinBlock& b) { 
+void SpinAdapted::StackDesDesDes::build(const StackSpinBlock& b) { 
   dmrginp.makeopsT -> start();
   built = true;
-  allocate(b.get_braStateInfo(), b.get_ketStateInfo());
+  //allocate(b.get_braStateInfo(), b.get_ketStateInfo());
+  memset(data, 0, totalMemory * sizeof(double));
 
   const int i = get_orbs()[0];
   const int j = get_orbs()[1];
   const int k = get_orbs()[2];
-  SpinBlock* leftBlock = b.get_leftBlock();
-  SpinBlock* rightBlock = b.get_rightBlock();
+  StackSpinBlock* leftBlock = b.get_leftBlock();
+  StackSpinBlock* rightBlock = b.get_rightBlock();
 
-  if (leftBlock->get_op_array(DES_DES_DES).has(i,j,k) && rightBlock->get_sites().size() == 0)
-  {      
-    const boost::shared_ptr<SparseMatrix>& op = leftBlock->get_op_rep(DES_DES_DES, quantum_ladder, i,j,k);
-    SpinAdapted::operatorfunctions::TensorTrace(leftBlock, *op, &b, &(b.get_stateInfo()), *this);
-    dmrginp.makeopsT -> stop();
-    return;
+  if (rightBlock->get_sites().size() == 0) {
+    if (leftBlock->get_op_array(DES_DES_DES).has(i,j,k) && rightBlock->get_sites().size() == 0)
+    {      
+      const boost::shared_ptr<StackSparseMatrix>& op = leftBlock->get_op_rep(DES_DES_DES, quantum_ladder, i,j,k);
+      SpinAdapted::operatorfunctions::TensorTrace(leftBlock, *op, &b, &(b.get_stateInfo()), *this);
+      dmrginp.makeopsT -> stop();
+      return;
+    }
   }
-  assert(false && "Only build DESDESDES in the starting block when spin-embeding is used");
+  else {
+    Three_index_ops::build_3index_single_op( DES_DES_DES, b, DES, DES_DES, DES, DES_DES, *this );
+  }
 }
 
-double SpinAdapted::DesDesDes::redMatrixElement(Csf c1, vector<Csf>& ladder, const SpinBlock* b)
+double SpinAdapted::StackDesDesDes::redMatrixElement(Csf c1, vector<Csf>& ladder, const StackSpinBlock* b)
 {
   assert( build_pattern == "((DD)(D))" );
   double element = 0.0;
   int I = get_orbs()[0]; 
   int J = get_orbs()[1];
   int K = get_orbs()[2];
+  int Slaterlength = c1.det_rep.begin()->first.size();
+  vector<bool> backupSlater1(Slaterlength,0), backupSlater2(Slaterlength,0);
 
   // Must take into account how the 3-index is built from a combination of 2-index and 1-index
   std::vector<SpinQuantum> quantum_ladder = get_quantum_ladder().at("((DD)(D))");
@@ -82,7 +90,7 @@ double SpinAdapted::DesDesDes::redMatrixElement(Csf c1, vector<Csf>& ladder, con
   {
     int index = 0; double cleb=0.0;
     if (nonZeroTensorComponent(c1, deltaQuantum[0], ladder[i], index, cleb)) {
-      std::vector<double> MatElements = calcMatrixElements(c1, DDD, ladder[i]) ;
+      std::vector<double> MatElements = calcMatrixElements(c1, DDD, ladder[i], backupSlater1, backupSlater2) ;
       element = MatElements[index]/cleb;
       break;
     }
@@ -92,23 +100,6 @@ double SpinAdapted::DesDesDes::redMatrixElement(Csf c1, vector<Csf>& ladder, con
   return element;
 }
 
-//-------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-boost::shared_ptr<SpinAdapted::SparseMatrix> SpinAdapted::DesDesDes::getworkingrepresentation(const SpinBlock* block)
-{
-  assert(this->get_initialised());
-  if (this->get_built()) {
-    return boost::shared_ptr<DesDesDes>(this, boostutils::null_deleter()); // boost::shared_ptr does not own op
-  }
-  else {
-    boost::shared_ptr<SparseMatrix> rep(new DesDesDes);
-    *rep = *this;
-    rep->build(*block);
-
-    return rep;
-  }
-}
-
 //===========================================================================================================================================================
 // 3PDM operators
 //===========================================================================================================================================================
@@ -116,28 +107,34 @@ boost::shared_ptr<SpinAdapted::SparseMatrix> SpinAdapted::DesDesDes::getworkingr
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 //  (Cre,Cre,Des)
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
-void SpinAdapted::CreCreDes::build(const SpinBlock& b) { 
+void SpinAdapted::StackCreCreDes::build(const StackSpinBlock& b) { 
   dmrginp.makeopsT -> start();
   built = true;
-  allocate(b.get_braStateInfo(), b.get_ketStateInfo());
+  //allocate(b.get_braStateInfo(), b.get_ketStateInfo());
+  memset(data, 0, totalMemory * sizeof(double));
 
   const int i = get_orbs()[0];
   const int j = get_orbs()[1];
   const int k = get_orbs()[2];
-  SpinBlock* leftBlock = b.get_leftBlock();
-  SpinBlock* rightBlock = b.get_rightBlock();
+  StackSpinBlock* leftBlock = b.get_leftBlock();
+  StackSpinBlock* rightBlock = b.get_rightBlock();
 
-  if (leftBlock->get_op_array(CRE_CRE_DES).has(i,j,k) && rightBlock->get_sites().size() == 0)
-  {      
-    const boost::shared_ptr<SparseMatrix>& op = leftBlock->get_op_rep(CRE_CRE_DES, quantum_ladder, i,j,k);
-    SpinAdapted::operatorfunctions::TensorTrace(leftBlock, *op, &b, &(b.get_stateInfo()), *this);
-    dmrginp.makeopsT -> stop();
-    return;
+  if (rightBlock->get_sites().size() == 0) {
+    if (leftBlock->get_op_array(CRE_CRE_DES).has(i,j,k) && rightBlock->get_sites().size() == 0)
+    {      
+      const boost::shared_ptr<StackSparseMatrix>& op = leftBlock->get_op_rep(CRE_CRE_DES, quantum_ladder, i,j,k);
+      SpinAdapted::operatorfunctions::TensorTrace(leftBlock, *op, &b, &(b.get_stateInfo()), *this);
+      dmrginp.makeopsT -> stop();
+      return;
+    }
   }
-  assert(false && "Only build CRECREDES in the starting block when spin-embeding is used");
+  else {
+    Three_index_ops::build_3index_single_op( CRE_CRE_DES, b, CRE, CRE_CRE, DES, CRE_DES, *this );
+  }
+
 }
 
-double SpinAdapted::CreCreDes::redMatrixElement(Csf c1, vector<Csf>& ladder, const SpinBlock* b)
+double SpinAdapted::StackCreCreDes::redMatrixElement(Csf c1, vector<Csf>& ladder, const StackSpinBlock* b)
 {
 //pout << "building CreCreDes explicitly from CSF..\n";
   assert( build_pattern == "((CC)(D))" );
@@ -145,6 +142,8 @@ double SpinAdapted::CreCreDes::redMatrixElement(Csf c1, vector<Csf>& ladder, con
   int I = get_orbs()[0]; 
   int J = get_orbs()[1];
   int K = get_orbs()[2];
+  int Slaterlength = c1.det_rep.begin()->first.size();
+  vector<bool> backupSlater1(Slaterlength,0), backupSlater2(Slaterlength,0);
 
   // Must take into account how the 3-index is built from a combination of 2-index and 1-index
   std::vector<SpinQuantum> quantum_ladder = get_quantum_ladder().at("((CC)(D))");
@@ -180,7 +179,7 @@ double SpinAdapted::CreCreDes::redMatrixElement(Csf c1, vector<Csf>& ladder, con
   {
     int index = 0; double cleb=0.0;
     if (nonZeroTensorComponent(c1, deltaQuantum[0], ladder[i], index, cleb)) {
-      std::vector<double> MatElements = calcMatrixElements(c1, CCD, ladder[i]) ;
+      std::vector<double> MatElements = calcMatrixElements(c1, CCD, ladder[i], backupSlater1, backupSlater2) ;
       element = MatElements[index]/cleb;
       break;
     }
@@ -190,47 +189,39 @@ double SpinAdapted::CreCreDes::redMatrixElement(Csf c1, vector<Csf>& ladder, con
   return element;
 }
 
-//-------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-boost::shared_ptr<SpinAdapted::SparseMatrix> SpinAdapted::CreCreDes::getworkingrepresentation(const SpinBlock* block)
-{
-  assert(this->get_initialised());
-  if (this->get_built()) {
-    return boost::shared_ptr<CreCreDes>(this, boostutils::null_deleter()); // boost::shared_ptr does not own op
-  }
-  else {
-    boost::shared_ptr<SparseMatrix> rep(new CreCreDes);
-    *rep = *this;
-    rep->build(*block);
-    return rep;
-  }
-}
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 //  (Cre,Des,Des)
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
-void SpinAdapted::CreDesDes::build(const SpinBlock& b) { 
+void SpinAdapted::StackCreDesDes::build(const StackSpinBlock& b) { 
   dmrginp.makeopsT -> start();
   built = true;
-  allocate(b.get_braStateInfo(), b.get_ketStateInfo());
+  //allocate(b.get_braStateInfo(), b.get_ketStateInfo());
+  memset(data, 0, totalMemory * sizeof(double));
 
   const int i = get_orbs()[0];
   const int j = get_orbs()[1];
   const int k = get_orbs()[2];
-  SpinBlock* leftBlock = b.get_leftBlock();
-  SpinBlock* rightBlock = b.get_rightBlock();
+  StackSpinBlock* leftBlock = b.get_leftBlock();
+  StackSpinBlock* rightBlock = b.get_rightBlock();
 
-  if (leftBlock->get_op_array(CRE_DES_DES).has(i,j,k) && rightBlock->get_sites().size() == 0)
-  {      
-    const boost::shared_ptr<SparseMatrix>& op = leftBlock->get_op_rep(CRE_DES_DES, quantum_ladder, i,j,k);
-    SpinAdapted::operatorfunctions::TensorTrace(leftBlock, *op, &b, &(b.get_stateInfo()), *this);
-    dmrginp.makeopsT -> stop();
-    return;
+  if (rightBlock->get_sites().size() == 0) {
+    if (leftBlock->get_op_array(CRE_DES_DES).has(i,j,k) && rightBlock->get_sites().size() == 0)
+    {      
+      const boost::shared_ptr<StackSparseMatrix>& op = leftBlock->get_op_rep(CRE_DES_DES, quantum_ladder, i,j,k);
+      SpinAdapted::operatorfunctions::TensorTrace(leftBlock, *op, &b, &(b.get_stateInfo()), *this);
+      dmrginp.makeopsT -> stop();
+      return;
+    }
   }
-  assert(false && "Only build CREDESDES in the starting block when spin-embeding is used");
+  else {
+    Three_index_ops::build_3index_single_op( CRE_DES_DES, b, CRE, CRE_DES, DES, DES_DES, *this );
+  }
+
+  //assert(false && "Only build CREDESDES in the starting block when spin-embeding is used");
 }
 
-double SpinAdapted::CreDesDes::redMatrixElement(Csf c1, vector<Csf>& ladder, const SpinBlock* b)
+double SpinAdapted::StackCreDesDes::redMatrixElement(Csf c1, vector<Csf>& ladder, const StackSpinBlock* b)
 {
 //pout << "building CreDesDes explicitly from CSF..\n";
   assert( build_pattern == "((CD)(D))" );
@@ -238,6 +229,8 @@ double SpinAdapted::CreDesDes::redMatrixElement(Csf c1, vector<Csf>& ladder, con
   int I = get_orbs()[0]; 
   int J = get_orbs()[1];
   int K = get_orbs()[2];
+  int Slaterlength = c1.det_rep.begin()->first.size();
+  vector<bool> backupSlater1(Slaterlength,0), backupSlater2(Slaterlength,0);
 
   // Must take into account how the 3-index is built from a combination of 2-index and 1-index
   std::vector<SpinQuantum> quantum_ladder = get_quantum_ladder().at("((CD)(D))");
@@ -273,7 +266,7 @@ double SpinAdapted::CreDesDes::redMatrixElement(Csf c1, vector<Csf>& ladder, con
   {
     int index = 0; double cleb=0.0;
     if (nonZeroTensorComponent(c1, deltaQuantum[0], ladder[i], index, cleb)) {
-      std::vector<double> MatElements = calcMatrixElements(c1, CDD, ladder[i]) ;
+      std::vector<double> MatElements = calcMatrixElements(c1, CDD, ladder[i], backupSlater1, backupSlater2) ;
       element = MatElements[index]/cleb;
       break;
     }
@@ -283,48 +276,39 @@ double SpinAdapted::CreDesDes::redMatrixElement(Csf c1, vector<Csf>& ladder, con
   return element;
 }
 
-//-------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-boost::shared_ptr<SpinAdapted::SparseMatrix> SpinAdapted::CreDesDes::getworkingrepresentation(const SpinBlock* block)
-{
-  assert(this->get_initialised());
-  if (this->get_built()) {
-    return boost::shared_ptr<CreDesDes>(this, boostutils::null_deleter()); // boost::shared_ptr does not own op
-  }
-  else {
-    boost::shared_ptr<SparseMatrix> rep(new CreDesDes);
-    *rep = *this;
-    rep->build(*block);
-
-    return rep;
-  }
-}
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 //  (Cre,Des,Cre)
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
-void SpinAdapted::CreDesCre::build(const SpinBlock& b) { 
+void SpinAdapted::StackCreDesCre::build(const StackSpinBlock& b) { 
   dmrginp.makeopsT -> start();
   built = true;
-  allocate(b.get_braStateInfo(), b.get_ketStateInfo());
+  //allocate(b.get_braStateInfo(), b.get_ketStateInfo());
+  memset(data, 0, totalMemory * sizeof(double));
 
   const int i = get_orbs()[0];
   const int j = get_orbs()[1];
   const int k = get_orbs()[2];
-  SpinBlock* leftBlock = b.get_leftBlock();
-  SpinBlock* rightBlock = b.get_rightBlock();
+  StackSpinBlock* leftBlock = b.get_leftBlock();
+  StackSpinBlock* rightBlock = b.get_rightBlock();
 
-  if (leftBlock->get_op_array(CRE_DES_CRE).has(i,j,k) && rightBlock->get_sites().size() == 0)
-  {      
-    const boost::shared_ptr<SparseMatrix>& op = leftBlock->get_op_rep(CRE_DES_CRE, quantum_ladder, i,j,k);
-    SpinAdapted::operatorfunctions::TensorTrace(leftBlock, *op, &b, &(b.get_stateInfo()), *this);
-    dmrginp.makeopsT -> stop();
-    return;
+  if (rightBlock->get_sites().size() == 0) {
+    if (leftBlock->get_op_array(CRE_DES_CRE).has(i,j,k) && rightBlock->get_sites().size() == 0)
+    {      
+      const boost::shared_ptr<StackSparseMatrix>& op = leftBlock->get_op_rep(CRE_DES_CRE, quantum_ladder, i,j,k);
+      SpinAdapted::operatorfunctions::TensorTrace(leftBlock, *op, &b, &(b.get_stateInfo()), *this);
+      dmrginp.makeopsT -> stop();
+      return;
+    }
   }
-  assert(false && "Only build CREDESCRE in the starting block when spin-embeding is used");
+  else {
+    Three_index_ops::build_3index_single_op( CRE_DES_CRE, b, CRE, CRE_DES, CRE, DES_CRE, *this );
+  }
+
+  //assert(false && "Only build CREDESCRE in the starting block when spin-embeding is used");
 }
 
-double SpinAdapted::CreDesCre::redMatrixElement(Csf c1, vector<Csf>& ladder, const SpinBlock* b)
+double SpinAdapted::StackCreDesCre::redMatrixElement(Csf c1, vector<Csf>& ladder, const StackSpinBlock* b)
 {
 //pout << "building CreDesCre in CSF space explicitly..\n";
   assert( build_pattern == "((CD)(C))" );
@@ -332,6 +316,8 @@ double SpinAdapted::CreDesCre::redMatrixElement(Csf c1, vector<Csf>& ladder, con
   int I = get_orbs()[0]; 
   int J = get_orbs()[1];
   int K = get_orbs()[2];
+  int Slaterlength = c1.det_rep.begin()->first.size();
+  vector<bool> backupSlater1(Slaterlength,0), backupSlater2(Slaterlength,0);
 
   // Must take into account how the 3-index is built from a combination of 2-index and 1-index
   std::vector<SpinQuantum> quantum_ladder = get_quantum_ladder().at("((CD)(C))");
@@ -366,7 +352,7 @@ double SpinAdapted::CreDesCre::redMatrixElement(Csf c1, vector<Csf>& ladder, con
   {
     int index = 0; double cleb=0.0;
     if (nonZeroTensorComponent(c1, deltaQuantum[0], ladder[i], index, cleb)) {
-      std::vector<double> MatElements = calcMatrixElements(c1, CDC, ladder[i]) ;
+      std::vector<double> MatElements = calcMatrixElements(c1, CDC, ladder[i], backupSlater1, backupSlater2) ;
       element = MatElements[index]/cleb;
       break;
     }
@@ -377,46 +363,37 @@ double SpinAdapted::CreDesCre::redMatrixElement(Csf c1, vector<Csf>& ladder, con
 }
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-boost::shared_ptr<SpinAdapted::SparseMatrix> SpinAdapted::CreDesCre::getworkingrepresentation(const SpinBlock* block)
-{
-  assert(this->get_initialised());
-  if (this->get_built()) {
-    return boost::shared_ptr<CreDesCre>(this, boostutils::null_deleter()); // boost::shared_ptr does not own op
-  }
-  else {
-    boost::shared_ptr<SparseMatrix> rep(new CreDesCre);
-    *rep = *this;
-    rep->build(*block);
-    return rep;
-  }
-}
-
-//-------------------------------------------------------------------------------------------------------------------------------------------------------------
 //  (Cre,Cre,Cre)
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
-void SpinAdapted::CreCreCre::build(const SpinBlock& b) { 
+void SpinAdapted::StackCreCreCre::build(const StackSpinBlock& b) { 
   dmrginp.makeopsT -> start();
   built = true;
-  allocate(b.get_braStateInfo(), b.get_ketStateInfo());
+  //allocate(b.get_braStateInfo(), b.get_ketStateInfo());
+  memset(data, 0, totalMemory * sizeof(double));
 
   const int i = get_orbs()[0];
   const int j = get_orbs()[1];
   const int k = get_orbs()[2];
-  SpinBlock* leftBlock = b.get_leftBlock();
-  SpinBlock* rightBlock = b.get_rightBlock();
+  StackSpinBlock* leftBlock = b.get_leftBlock();
+  StackSpinBlock* rightBlock = b.get_rightBlock();
 
-  if (leftBlock->get_op_array(CRE_CRE_CRE).has(i,j,k) && rightBlock->get_sites().size() == 0)
-  {      
-    const boost::shared_ptr<SparseMatrix>& op = leftBlock->get_op_rep(CRE_CRE_CRE, quantum_ladder, i,j,k);
-    SpinAdapted::operatorfunctions::TensorTrace(leftBlock, *op, &b, &(b.get_stateInfo()), *this);
-    dmrginp.makeopsT -> stop();
-    return;
+  if (rightBlock->get_sites().size() == 0) {
+    if (leftBlock->get_op_array(CRE_CRE_CRE).has(i,j,k) && rightBlock->get_sites().size() == 0)
+    {      
+      const boost::shared_ptr<StackSparseMatrix>& op = leftBlock->get_op_rep(CRE_CRE_CRE, quantum_ladder, i,j,k);
+      SpinAdapted::operatorfunctions::TensorTrace(leftBlock, *op, &b, &(b.get_stateInfo()), *this);
+      dmrginp.makeopsT -> stop();
+      return;
+    }
   }
-  assert(false && "Only build CRECRECRE in the starting block when spin-embeding is used");
+  else {
+    Three_index_ops::build_3index_single_op( CRE_CRE_CRE, b, CRE, CRE_CRE, CRE, CRE_CRE, *this );
+  }
+
+  //assert(false && "Only build CRECRECRE in the starting block when spin-embeding is used");
 }
 
-double SpinAdapted::CreCreCre::redMatrixElement(Csf c1, vector<Csf>& ladder, const SpinBlock* b)
+double SpinAdapted::StackCreCreCre::redMatrixElement(Csf c1, vector<Csf>& ladder, const StackSpinBlock* b)
 {
 //pout << "building CreCreCre explicitly from CSF..\n";
 //pout << "mpirank = " << mpigetrank() << endl;
@@ -426,6 +403,8 @@ double SpinAdapted::CreCreCre::redMatrixElement(Csf c1, vector<Csf>& ladder, con
   int J = get_orbs()[1];
   int K = get_orbs()[2];
 //pout << "i,j,k = " << I << " " << J << " " << K << endl;
+  int Slaterlength = c1.det_rep.begin()->first.size();
+  vector<bool> backupSlater1(Slaterlength,0), backupSlater2(Slaterlength,0);
 
   // Must take into account how the 3-index is built from a combination of 2-index and 1-index
   std::vector<SpinQuantum> quantum_ladder = get_quantum_ladder().at("((CC)(C))");
@@ -460,7 +439,7 @@ double SpinAdapted::CreCreCre::redMatrixElement(Csf c1, vector<Csf>& ladder, con
   {
     int index = 0; double cleb=0.0;
     if (nonZeroTensorComponent(c1, deltaQuantum[j], ladder[i], index, cleb)) {
-      std::vector<double> MatElements = calcMatrixElements(c1, CCC, ladder[i]) ;
+      std::vector<double> MatElements = calcMatrixElements(c1, CCC, ladder[i], backupSlater1, backupSlater2) ;
       element = MatElements[index]/cleb;
       break;
     }
@@ -470,25 +449,6 @@ double SpinAdapted::CreCreCre::redMatrixElement(Csf c1, vector<Csf>& ladder, con
   return element;
 }
 
-//-------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-boost::shared_ptr<SpinAdapted::SparseMatrix> SpinAdapted::CreCreCre::getworkingrepresentation(const SpinBlock* block)
-{
-//pout << "CreCreCre::getworkingrepresentation\n";
-  assert(this->get_initialised());
-  if (this->get_built()) {
-//pout << "get CCC from memory\n";
-    return boost::shared_ptr<CreCreCre>(this, boostutils::null_deleter()); // boost::shared_ptr does not own op
-  }
-  else {
-//pout << "build CCC\n";
-    boost::shared_ptr<SparseMatrix> rep(new CreCreCre);
-    *rep = *this;
-    rep->build(*block);
-
-    return rep;
-  }
-}
 
 //===========================================================================================================================================================
 // 4PDM operators
@@ -497,20 +457,21 @@ boost::shared_ptr<SpinAdapted::SparseMatrix> SpinAdapted::CreCreCre::getworkingr
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 //  (Des,Cre,Des)
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
-void SpinAdapted::DesCreDes::build(const SpinBlock& b) { 
+void SpinAdapted::StackDesCreDes::build(const StackSpinBlock& b) { 
   dmrginp.makeopsT -> start();
   built = true;
-  allocate(b.get_braStateInfo(), b.get_ketStateInfo());
+  //allocate(b.get_braStateInfo(), b.get_ketStateInfo());
+  memset(data, 0, totalMemory * sizeof(double));
 
   const int i = get_orbs()[0];
   const int j = get_orbs()[1];
   const int k = get_orbs()[2];
-  SpinBlock* leftBlock = b.get_leftBlock();
-  SpinBlock* rightBlock = b.get_rightBlock();
+  StackSpinBlock* leftBlock = b.get_leftBlock();
+  StackSpinBlock* rightBlock = b.get_rightBlock();
 
   if (leftBlock->get_op_array(DES_CRE_DES).has(i,j,k) && rightBlock->get_sites().size() == 0)
   {      
-    const boost::shared_ptr<SparseMatrix>& op = leftBlock->get_op_rep(DES_CRE_DES, quantum_ladder, i,j,k);
+    const boost::shared_ptr<StackSparseMatrix>& op = leftBlock->get_op_rep(DES_CRE_DES, quantum_ladder, i,j,k);
     SpinAdapted::operatorfunctions::TensorTrace(leftBlock, *op, &b, &(b.get_stateInfo()), *this);
     dmrginp.makeopsT -> stop();
     return;
@@ -518,13 +479,15 @@ void SpinAdapted::DesCreDes::build(const SpinBlock& b) {
   assert(false && "Only build DESCREDES in the starting block when spin-embeding is used");
 }
 
-double SpinAdapted::DesCreDes::redMatrixElement(Csf c1, vector<Csf>& ladder, const SpinBlock* b)
+double SpinAdapted::StackDesCreDes::redMatrixElement(Csf c1, vector<Csf>& ladder, const StackSpinBlock* b)
 {
   assert( build_pattern == "((DC)(D))" );
   double element = 0.0;
   int I = get_orbs()[0]; 
   int J = get_orbs()[1];
   int K = get_orbs()[2];
+  int Slaterlength = c1.det_rep.begin()->first.size();
+  vector<bool> backupSlater1(Slaterlength,0), backupSlater2(Slaterlength,0);
 
   // Must take into account how the 3-index is built from a combination of 2-index and 1-index
   std::vector<SpinQuantum> quantum_ladder = get_quantum_ladder().at("((DC)(D))");
@@ -555,7 +518,7 @@ double SpinAdapted::DesCreDes::redMatrixElement(Csf c1, vector<Csf>& ladder, con
   {
     int index = 0; double cleb=0.0;
     if (nonZeroTensorComponent(c1, deltaQuantum[0], ladder[i], index, cleb)) {
-      std::vector<double> MatElements = calcMatrixElements(c1, DCD, ladder[i]) ;
+      std::vector<double> MatElements = calcMatrixElements(c1, DCD, ladder[i], backupSlater1, backupSlater2) ;
       element = MatElements[index]/cleb;
       break;
     }
@@ -565,40 +528,25 @@ double SpinAdapted::DesCreDes::redMatrixElement(Csf c1, vector<Csf>& ladder, con
   return element;
 }
 
-//-------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-boost::shared_ptr<SpinAdapted::SparseMatrix> SpinAdapted::DesCreDes::getworkingrepresentation(const SpinBlock* block)
-{
-  assert(this->get_initialised());
-  if (this->get_built()) {
-    return boost::shared_ptr<DesCreDes>(this, boostutils::null_deleter()); // boost::shared_ptr does not own op
-  }
-  else {
-    boost::shared_ptr<SparseMatrix> rep(new DesCreDes);
-    *rep = *this;
-    rep->build(*block);
-
-    return rep;
-  }
-}
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 //  (Des,Des,Cre)
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
-void SpinAdapted::DesDesCre::build(const SpinBlock& b) { 
+void SpinAdapted::StackDesDesCre::build(const StackSpinBlock& b) { 
   dmrginp.makeopsT -> start();
   built = true;
-  allocate(b.get_braStateInfo(), b.get_ketStateInfo());
+  //allocate(b.get_braStateInfo(), b.get_ketStateInfo());
+  memset(data, 0, totalMemory * sizeof(double));
 
   const int i = get_orbs()[0];
   const int j = get_orbs()[1];
   const int k = get_orbs()[2];
-  SpinBlock* leftBlock = b.get_leftBlock();
-  SpinBlock* rightBlock = b.get_rightBlock();
+  StackSpinBlock* leftBlock = b.get_leftBlock();
+  StackSpinBlock* rightBlock = b.get_rightBlock();
 
   if (leftBlock->get_op_array(DES_DES_CRE).has(i,j,k) && rightBlock->get_sites().size() == 0)
   {      
-    const boost::shared_ptr<SparseMatrix>& op = leftBlock->get_op_rep(DES_DES_CRE, quantum_ladder, i,j,k);
+    const boost::shared_ptr<StackSparseMatrix>& op = leftBlock->get_op_rep(DES_DES_CRE, quantum_ladder, i,j,k);
     SpinAdapted::operatorfunctions::TensorTrace(leftBlock, *op, &b, &(b.get_stateInfo()), *this);
     dmrginp.makeopsT -> stop();
     return;
@@ -606,13 +554,15 @@ void SpinAdapted::DesDesCre::build(const SpinBlock& b) {
   assert(false && "Only build DESDESCRE in the starting block when spin-embeding is used");
 }
 
-double SpinAdapted::DesDesCre::redMatrixElement(Csf c1, vector<Csf>& ladder, const SpinBlock* b)
+double SpinAdapted::StackDesDesCre::redMatrixElement(Csf c1, vector<Csf>& ladder, const StackSpinBlock* b)
 {
   assert( build_pattern == "((DD)(C))" );
   double element = 0.0;
   int I = get_orbs()[0]; 
   int J = get_orbs()[1];
   int K = get_orbs()[2];
+  int Slaterlength = c1.det_rep.begin()->first.size();
+  vector<bool> backupSlater1(Slaterlength,0), backupSlater2(Slaterlength,0);
 
   // Must take into account how the 3-index is built from a combination of 2-index and 1-index
   std::vector<SpinQuantum> quantum_ladder = get_quantum_ladder().at("((DD)(C))");
@@ -644,7 +594,7 @@ double SpinAdapted::DesDesCre::redMatrixElement(Csf c1, vector<Csf>& ladder, con
   {
     int index = 0; double cleb=0.0;
     if (nonZeroTensorComponent(c1, deltaQuantum[0], ladder[i], index, cleb)) {
-      std::vector<double> MatElements = calcMatrixElements(c1, DDC, ladder[i]) ;
+      std::vector<double> MatElements = calcMatrixElements(c1, DDC, ladder[i], backupSlater1, backupSlater2) ;
       element = MatElements[index]/cleb;
       break;
     }
@@ -654,40 +604,25 @@ double SpinAdapted::DesDesCre::redMatrixElement(Csf c1, vector<Csf>& ladder, con
   return element;
 }
 
-//-------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-boost::shared_ptr<SpinAdapted::SparseMatrix> SpinAdapted::DesDesCre::getworkingrepresentation(const SpinBlock* block)
-{
-  assert(this->get_initialised());
-  if (this->get_built()) {
-    return boost::shared_ptr<DesDesCre>(this, boostutils::null_deleter()); // boost::shared_ptr does not own op
-  }
-  else {
-    boost::shared_ptr<SparseMatrix> rep(new DesDesCre);
-    *rep = *this;
-    rep->build(*block);
-
-    return rep;
-  }
-}
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 //  (Des,Cre,Cre)
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
-void SpinAdapted::DesCreCre::build(const SpinBlock& b) { 
+void SpinAdapted::StackDesCreCre::build(const StackSpinBlock& b) { 
   dmrginp.makeopsT -> start();
   built = true;
-  allocate(b.get_braStateInfo(), b.get_ketStateInfo());
+  //allocate(b.get_braStateInfo(), b.get_ketStateInfo());
+  memset(data, 0, totalMemory * sizeof(double));
 
   const int i = get_orbs()[0];
   const int j = get_orbs()[1];
   const int k = get_orbs()[2];
-  SpinBlock* leftBlock = b.get_leftBlock();
-  SpinBlock* rightBlock = b.get_rightBlock();
+  StackSpinBlock* leftBlock = b.get_leftBlock();
+  StackSpinBlock* rightBlock = b.get_rightBlock();
 
   if (leftBlock->get_op_array(DES_CRE_CRE).has(i,j,k) && rightBlock->get_sites().size() == 0)
   {      
-    const boost::shared_ptr<SparseMatrix>& op = leftBlock->get_op_rep(DES_CRE_CRE, quantum_ladder, i,j,k);
+    const boost::shared_ptr<StackSparseMatrix>& op = leftBlock->get_op_rep(DES_CRE_CRE, quantum_ladder, i,j,k);
     SpinAdapted::operatorfunctions::TensorTrace(leftBlock, *op, &b, &(b.get_stateInfo()), *this);
     dmrginp.makeopsT -> stop();
     return;
@@ -695,13 +630,15 @@ void SpinAdapted::DesCreCre::build(const SpinBlock& b) {
   assert(false && "Only build DESCRECRE in the starting block when spin-embeding is used");
 }
 
-double SpinAdapted::DesCreCre::redMatrixElement(Csf c1, vector<Csf>& ladder, const SpinBlock* b)
+double SpinAdapted::StackDesCreCre::redMatrixElement(Csf c1, vector<Csf>& ladder, const StackSpinBlock* b)
 {
   assert( build_pattern == "((D)(CC))" );
   double element = 0.0;
   int I = get_orbs()[0]; 
   int J = get_orbs()[1];
   int K = get_orbs()[2];
+  int Slaterlength = c1.det_rep.begin()->first.size();
+  vector<bool> backupSlater1(Slaterlength,0), backupSlater2(Slaterlength,0);
 
   // Must take into account how the 3-index is built from a combination of 2-index and 1-index
   std::vector<SpinQuantum> quantum_ladder = get_quantum_ladder().at("((D)(CC))");
@@ -733,7 +670,7 @@ double SpinAdapted::DesCreCre::redMatrixElement(Csf c1, vector<Csf>& ladder, con
   {
     int index = 0; double cleb=0.0;
     if (nonZeroTensorComponent(c1, deltaQuantum[0], ladder[i], index, cleb)) {
-      std::vector<double> MatElements = calcMatrixElements(c1, DCC, ladder[i]) ;
+      std::vector<double> MatElements = calcMatrixElements(c1, DCC, ladder[i], backupSlater1, backupSlater2) ;
       element = MatElements[index]/cleb;
       break;
     }
@@ -743,22 +680,6 @@ double SpinAdapted::DesCreCre::redMatrixElement(Csf c1, vector<Csf>& ladder, con
   return element;
 }
 
-//-------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-boost::shared_ptr<SpinAdapted::SparseMatrix> SpinAdapted::DesCreCre::getworkingrepresentation(const SpinBlock* block)
-{
-  assert(this->get_initialised());
-  if (this->get_built()) {
-    return boost::shared_ptr<DesCreCre>(this, boostutils::null_deleter()); // boost::shared_ptr does not own op
-  }
-  else {
-    boost::shared_ptr<SparseMatrix> rep(new DesCreCre);
-    *rep = *this;
-    rep->build(*block);
-
-    return rep;
-  }
-}
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 

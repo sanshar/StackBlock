@@ -67,17 +67,19 @@ void SpinAdapted::Input::initialize_defaults()
 #ifndef SERIAL
   mpi::communicator world;
   m_thrds_per_node = vector<int>(world.size(),1);
-#else
-  m_thrds_per_node = vector<int>(1,1);
-#endif
   m_calc_procs = vector<int>(world.size(), 0);
   for (int i=0; i<world.size(); i++) 
     m_calc_procs[i] = i;
+#else
+  m_thrds_per_node = vector<int>(1,1);
+  m_calc_procs = vector<int>(1, 0);
+#endif
 
   m_quanta_thrds = 1;
   m_mkl_thrds = 1;
   m_ham_type = QUANTUM_CHEMISTRY;
   m_algorithm_type = TWODOT_TO_ONEDOT;
+  m_sweep_type = FULL;
   m_noise_type = RANDOM;
   m_calc_type = DMRG;
   m_solve_type = DAVIDSON;
@@ -97,6 +99,7 @@ void SpinAdapted::Input::initialize_defaults()
   m_guessState = 1;
   m_permSymm = 2;
   m_lowMemoryAlgorithm = true;
+  m_performResponseSolution = true;
 
   m_memory = 2e9/sizeof(double); //about 2GB of memory by default
 
@@ -113,6 +116,7 @@ void SpinAdapted::Input::initialize_defaults()
   m_max_lanczos_dimension = 5000;
 
   m_norbs = 0;
+  m_partialSweep = 0;
   m_alpha = 0;
   m_beta = 0;
   m_hf_occ_user = "";
@@ -385,12 +389,16 @@ SpinAdapted::Input::Input(const string& config_name) {
 	m_calc_procs.resize(tok.size()-1, 0);
 	for (int i=0; i<tok.size()-1; i++) {
 	  m_calc_procs[i] = atoi(tok[i+1].c_str());
+#ifndef SERIAL
 	  if (m_calc_procs[i] >= world.size()) {
+#endif
 	    pout << "calcprocessor number is greater than total number of processors"<<endl;
 	    pout << "error found in line "<<endl;
 	    pout << msg<<endl;
 	    exit(0);
+#ifndef SERIAL
 	  }
+#endif
 	}
       }
       else if (boost::iequals(keyword,  "reorder")) {
@@ -528,6 +536,16 @@ SpinAdapted::Input::Input(const string& config_name) {
 	m_mkl_thrds = atoi(tok[1].c_str());
       else if (boost::iequals(keyword, "quanta_thrds") || boost::iequals(keyword, "threads_quanta")) 
 	m_quanta_thrds = atoi(tok[1].c_str());
+      else if (boost::iequals(keyword, "partialsweep")) {
+	if (tok.size() !=  2) {
+	  pout << "keyword partialSweep should be followed by a single integer!"<<endl;
+	  pout << "error found in the following line "<<endl;
+	  pout << msg<<endl;
+	  abort();
+	}	
+	m_partialSweep = atoi(tok[1].c_str());
+        m_sweep_type = PARTIAL;
+      }
       else if (boost::iequals(keyword, "num_thrds")) {
 	if (tok.size() !=  2) {
 	  pout << "keyword num_thrds should be followed by a single integer!"<<endl;
@@ -632,6 +650,27 @@ SpinAdapted::Input::Input(const string& config_name) {
 	if(m_targetState == -1)
 	  m_targetState = 2;
 	
+      }
+      else if (boost::iequals(keyword,  "responseaaav")) {
+	if (tok.size() != 1) {
+	  pout << "The keyword response should not be followed by anything!"<<endl;
+	  abort();
+	}
+	m_calc_type = RESPONSEAAAV;
+	m_solve_type = CONJUGATE_GRADIENT;
+	if(m_targetState == -1)
+	  m_targetState = 2;
+	
+      }
+      else if (boost::iequals(keyword,  "responseaaac")) {
+	if (tok.size() != 1) {
+	  pout << "The keyword response should not be followed by anything!"<<endl;
+	  abort();
+	}
+	m_calc_type = RESPONSEAAAC;
+	m_solve_type = CONJUGATE_GRADIENT;
+	if(m_targetState == -1)
+	  m_targetState = 2;	
       }
       else if (boost::iequals(keyword,  "responselcc")) {
 	if (tok.size() != 1) {
@@ -1174,7 +1213,7 @@ SpinAdapted::Input::Input(const string& config_name) {
      }
     }
 
-    if (m_calc_type == RESPONSELCC) {
+    if (m_calc_type == RESPONSELCC || m_calc_type == RESPONSEAAAV || m_calc_type == RESPONSEAAAC) {
       if (m_num_Integrals != 1) {
 	pout <<"LCC calculations should be performed with only one integral file."<<endl;
 	exit(0);
@@ -1207,7 +1246,7 @@ SpinAdapted::Input::Input(const string& config_name) {
   boost::filesystem::path p(m_load_prefix);
   bool success = boost::filesystem::create_directory(p);
 
-  if (m_calc_type != RESPONSELCC) {
+  if (m_calc_type != RESPONSELCC && m_calc_type != RESPONSEAAAV && m_calc_type != RESPONSEAAAC) {
     v_2.resize(m_num_Integrals, TwoElectronArray(TwoElectronArray::restrictedNonPermSymm));
     v_1.resize(m_num_Integrals);
     coreEnergy.resize(m_num_Integrals);
@@ -1220,6 +1259,8 @@ SpinAdapted::Input::Input(const string& config_name) {
     v_1.resize(m_num_Integrals, OneElectronArray(true, true));
     v_1[1].set_isH0() = false; 
     v_2[1].isH0 = false;
+    v_1[0].set_isH0() = true; 
+    v_2[0].isH0 = true;
     v_cc.resize(m_num_Integrals);
     v_cccc.resize(m_num_Integrals);
     v_cccd.resize(m_num_Integrals);
@@ -1277,7 +1318,7 @@ SpinAdapted::Input::Input(const string& config_name) {
       assert(!m_add_noninteracting_orbs);
     } 
     else {
-      if (m_calc_type == RESPONSELCC) {
+      if (m_calc_type == RESPONSELCC || m_calc_type == RESPONSEAAAV || m_calc_type == RESPONSEAAAC) {
 	if (integral == 0) {
 	  m_num_Integrals = 1;
 	  v_1[integral].isCalcLCC = false; 
@@ -1297,6 +1338,8 @@ SpinAdapted::Input::Input(const string& config_name) {
 	  v_1[integral].ReSize(m_norbs);
 	  v_2[integral].set_data() = v_2[0].set_data();
 	  v_1[integral].set_data() = v_1[0].set_data();
+	  v_1[integral].isCalcLCC = true; 
+	  v_2[integral].isCalcLCC = true; 
 	  coreEnergy[integral] = 0.0;
 	  std::vector<int> reorder;
 	  reorder.resize(m_norbs/2);
@@ -1328,7 +1371,7 @@ SpinAdapted::Input::Input(const string& config_name) {
 
   if (rank == 0) {
     reorderOpenAndClosed();
-    if (m_calc_type != RESPONSELCC)
+    if (m_calc_type != RESPONSELCC && m_calc_type != RESPONSEAAAV && m_calc_type != RESPONSEAAAC)
       makeInitialHFGuess();
 
     pout << "Checking input for errors"<<endl;
@@ -1475,9 +1518,10 @@ void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray&
   char ReorderFileName[5000];
   std::vector<int> reorder;
 
+  int rank = 0;
 #ifndef SERIAL
   boost::mpi::communicator world;
-  int rank = world.rank();
+  rank = world.rank();
 #endif
   if (rank == 0) {
     ReadMeaningfulLine(dumpFile, msg, msgsize);
@@ -1487,6 +1531,9 @@ void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray&
       m_norbs = 2*atoi(tok[2].c_str());
     else
       m_norbs = 2*atoi(tok[1].c_str());
+
+    if (m_partialSweep == 0)
+      m_partialSweep = m_norbs;
     
     m_num_spatial_orbs = 0;
     m_spin_orbs_symmetry.resize(m_norbs);
@@ -1495,7 +1542,7 @@ void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray&
     //this is the file to which the reordering is written
     sprintf(ReorderFileName, "%s%s", save_prefix().c_str(), "/RestartReorder.dat");
   }
-  boost::filesystem::path p(ReorderFileName);
+  //boost::filesystem::path p(ReorderFileName);
 
 #ifndef SERIAL
   mpi::broadcast(world,m_norbs,0);
@@ -1786,15 +1833,16 @@ void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray&
   
   string msg; int msgsize = 5000;
   vector<string> tok;
-  int offset = m_orbformat == DMRGFORM ? 0 : 1;
   std::ofstream ReorderFileOutput;
   std::ifstream ReorderFileInput;
   char ReorderFileName[5000];
   std::vector<int> reorder;
 
+  int offset = m_orbformat == DMRGFORM ? 0 : 1;
+  int rank = 0;
 #ifndef SERIAL
   boost::mpi::communicator world; 
-  int rank = world.rank();
+  rank = world.rank();
 #endif
   if (rank == 0) {
     ReadMeaningfulLine(dumpFile, msg, msgsize);
@@ -1804,7 +1852,10 @@ void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray&
       m_norbs = 2*atoi(tok[2].c_str());
     else
       m_norbs = 2*atoi(tok[1].c_str());
-  
+
+    if (m_partialSweep == 0)
+      m_partialSweep = m_norbs;
+
     m_num_spatial_orbs = 0;
     m_spin_orbs_symmetry.resize(m_norbs);
     m_spin_to_spatial.resize(m_norbs);
@@ -2356,6 +2407,12 @@ void SpinAdapted::Input::performSanityTest()
     pout<< "No of spin orbitals has to be greater than total number of electrons"<<endl;
     abort();
   }
+  if ( m_calc_type==RESPONSEAAAC || m_calc_type==RESPONSEAAAV) {
+    if (get_sweep_type() == FULL) {
+      pout << "Responseaaac and Responseaaav should be used with partial sweep"<<endl;
+      abort();
+    }
+  }
   for (int i=0; i<m_spin_orbs_symmetry.size(); i+=2) {
     Symmetry::irrepAllowed(m_spin_orbs_symmetry[i]);
   }
@@ -2369,7 +2426,7 @@ void SpinAdapted::Input::performSanityTest()
   else
     Symmetry::irrepAllowed(m_total_symmetry_number.getirrep());
 
-  if ((m_calc_type == RESPONSE  || m_calc_type == RESPONSEBW )&& m_occupied_orbitals == -1) {
+  if ((m_calc_type == RESPONSE || m_calc_type == RESPONSELCC || m_calc_type == RESPONSEAAAV || m_calc_type == RESPONSEAAAC || m_calc_type == RESPONSEBW )&& m_occupied_orbitals == -1) {
     pout << "For response type of calculation, number of occupied orbitals must be specified"<<endl;
     abort();
   }

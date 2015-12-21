@@ -13,6 +13,8 @@
 using namespace std;
 using namespace SpinAdapted;
 
+void print_trace(int sig);
+
 #ifdef _OPENMP
 #define omprank omp_get_thread_num()
 #define numthrds dmrginp.thrds_per_node()[mpigetrank()]
@@ -60,6 +62,7 @@ class blockerr {
        }
       }
 };
+
 
 #endif
 

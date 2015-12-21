@@ -18,7 +18,7 @@ namespace Npdm{
 // 3PDM operators
 //===========================================================================================================================================================
 
-Npdm_op_wrapper_CCC::Npdm_op_wrapper_CCC( SpinBlock * spinBlock )
+Npdm_op_wrapper_CCC::Npdm_op_wrapper_CCC( StackSpinBlock * spinBlock )
 {
   opReps_.clear();
   indices_.clear();
@@ -28,8 +28,9 @@ Npdm_op_wrapper_CCC::Npdm_op_wrapper_CCC( SpinBlock * spinBlock )
   factor_ = 1.0;
   transpose_ = false;
   build_pattern_ = "0";
+  opIndices_=3;
   // For disk-based storage
-  ifile_ = spinBlock_->get_op_array(CRE_CRE_CRE).get_filename();
+
 }
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -42,28 +43,35 @@ bool Npdm_op_wrapper_CCC::set_local_ops( int idx )
   int ix, jx, kx;
 
   // Read in operator representations from disk or memory
-  if ( dmrginp.do_npdm_in_core() )
+  if ( dmrginp.do_npdm_in_core()  || spinBlock_->size() <= 1)
     opReps_ = spinBlock_->get_op_array(CRE_CRE_CRE).get_local_element(idx);
   else {
-    if ( ! check_file_open(idx) ) abort();
-    std::vector< boost::shared_ptr<SparseMatrix> > opReps_tmp;
+    //if ( ! check_file_open(idx) ) abort();
+    std::vector< boost::shared_ptr<StackSparseMatrix> > opReps_tmp;
     opReps_tmp = spinBlock_->get_op_array(CRE_CRE_CRE).get_local_element(idx);
-    assert( opReps_tmp.at(0)->get_built_on_disk() );
+    //assert( opReps_tmp.at(0)->get_built_on_disk() );
     opReps_.clear();
     // Read in full spin-set from disk
+    ix = opReps_tmp.at(0)->get_orbs(0);
+    jx = opReps_tmp.at(0)->get_orbs(1);
+    kx = opReps_tmp.at(0)->get_orbs(2);
     for (int i = 0; i < opReps_tmp.size(); i++) {
-       boost::archive::binary_iarchive load_op(ifs_);
-       boost::shared_ptr<SparseMatrix> op (new Cre);
-       load_op >> *op;
-       opReps_.push_back(op);
+      //string filename = spinBlock_->get_op_array(CRE_CRE_CRE).get_filename()+to_string(i);
+      string filename = spinBlock_->get_op_array(CRE_CRE_CRE).get_local_element(idx)[i]->get_filename();
+      boost::shared_ptr<StackSparseMatrix> op (new StackCreCreCre);
+      op->set_filename() = filename;
+      op->LoadThreadSafe(true);
+
+      op->allocateOperatorMatrix(); 
+      opReps_.push_back(op);
     }
-    if ( ! check_file_close(idx) ) abort();
+    //if ( ! check_file_close(idx) ) abort();
   }
 
-  build_pattern_ = opReps_.at(0)->get_build_pattern();
   ix = opReps_.at(0)->get_orbs(0);
   jx = opReps_.at(0)->get_orbs(1);
   kx = opReps_.at(0)->get_orbs(2);
+  build_pattern_ = opReps_.at(0)->get_build_pattern();
 //pout << "indices  " << ix << " " << jx << " " << kx << std::endl;
 //pout << "build pattern " << opReps_.at(0)->get_build_pattern() << std::endl;
 //pout << "2a CCC operator elements:\n";
@@ -72,7 +80,7 @@ bool Npdm_op_wrapper_CCC::set_local_ops( int idx )
 //pout << *(opReps_[1]);
 //pout << "4  CCC operator elements:\n";
 //pout << *(opReps_[2]);
-//  assert( build_pattern_ == opReps_.at(0)->get_build_pattern() );
+//  //assert( build_pattern_ == opReps_.at(0)->get_build_pattern() );
 
   indices_.push_back( ix );
   indices_.push_back( jx );
@@ -87,7 +95,7 @@ bool Npdm_op_wrapper_CCC::set_local_ops( int idx )
 
 //===========================================================================================================================================================
 
-Npdm_op_wrapper_CCD::Npdm_op_wrapper_CCD( SpinBlock * spinBlock )
+Npdm_op_wrapper_CCD::Npdm_op_wrapper_CCD( StackSpinBlock * spinBlock )
 {
   opReps_.clear();
   indices_.clear();
@@ -97,8 +105,9 @@ Npdm_op_wrapper_CCD::Npdm_op_wrapper_CCD( SpinBlock * spinBlock )
   factor_ = 1.0;
   transpose_ = false;
   build_pattern_ = "0";
+  opIndices_=3;
   // For disk-based storage
-  ifile_ = spinBlock_->get_op_array(CRE_CRE_DES).get_filename();
+
 }
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -110,37 +119,37 @@ bool Npdm_op_wrapper_CCD::set_local_ops( int idx )
   int ix, jx, kx;
 
   // Read in operator representations from disk or memory
-  if ( dmrginp.do_npdm_in_core() )
+  if ( dmrginp.do_npdm_in_core() || spinBlock_->size() <= 1)
     opReps_ = spinBlock_->get_op_array(CRE_CRE_DES).get_local_element(idx);
   else {
-    if ( ! check_file_open(idx) ) abort();
-    std::vector< boost::shared_ptr<SparseMatrix> > opReps_tmp;
+    //if ( ! check_file_open(idx) ) abort();
+    std::vector< boost::shared_ptr<StackSparseMatrix> > opReps_tmp;
+
     opReps_tmp = spinBlock_->get_op_array(CRE_CRE_DES).get_local_element(idx);
-    assert( opReps_tmp.at(0)->get_built_on_disk() );
+    //assert( opReps_tmp.at(0)->get_built_on_disk() );
     opReps_.clear();
+    
+    ix = opReps_tmp.at(0)->get_orbs(0);
+    jx = opReps_tmp.at(0)->get_orbs(1);
+    kx = opReps_tmp.at(0)->get_orbs(2);
     // Read in full spin-set from disk
     for (int i = 0; i < opReps_tmp.size(); i++) {
-       boost::archive::binary_iarchive load_op(ifs_);
-       boost::shared_ptr<SparseMatrix> op (new Cre);
-       load_op >> *op;
-       opReps_.push_back(op);
+
+      string filename = spinBlock_->get_op_array(CRE_CRE_DES).get_local_element(idx)[i]->get_filename();
+      boost::shared_ptr<StackSparseMatrix> op (new StackCreCreDes);
+      op->set_filename() = filename;
+      op->LoadThreadSafe(true);
+      
+      op->allocateOperatorMatrix(); 
+      opReps_.push_back(op);
     }
-    if ( ! check_file_close(idx) ) abort();
+
   }
 
   build_pattern_ = opReps_.at(0)->get_build_pattern();
   ix = opReps_.at(0)->get_orbs(0);
   jx = opReps_.at(0)->get_orbs(1);
   kx = opReps_.at(0)->get_orbs(2);
-//pout << "indices  " << ix << " " << jx << " " << kx << std::endl;
-//pout << "build pattern " << opReps_.at(0)->get_build_pattern() << std::endl;
-//pout << "2a CCD operator elements:\n";
-//pout << *(opReps_[0]);
-//pout << "2b CCD operator elements:\n";
-//pout << *(opReps_[1]);
-//pout << "4  CCD operator elements:\n";
-//pout << *(opReps_[2]);
-//  assert( build_pattern_ == opReps_.at(0)->get_build_pattern() );
 
   indices_.push_back( ix );
   indices_.push_back( jx );
@@ -150,7 +159,7 @@ bool Npdm_op_wrapper_CCD::set_local_ops( int idx )
 
 //===========================================================================================================================================================
 
-Npdm_op_wrapper_CDD::Npdm_op_wrapper_CDD( SpinBlock * spinBlock )
+Npdm_op_wrapper_CDD::Npdm_op_wrapper_CDD( StackSpinBlock * spinBlock )
 {
   opReps_.clear();
   indices_.clear();
@@ -161,7 +170,8 @@ Npdm_op_wrapper_CDD::Npdm_op_wrapper_CDD( SpinBlock * spinBlock )
   transpose_ = false;
   build_pattern_ = "0";
   // For disk-based storage
-  ifile_ = spinBlock_->get_op_array(CRE_DES_DES).get_filename();
+  opIndices_=3;
+
 }
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -174,29 +184,38 @@ bool Npdm_op_wrapper_CDD::set_local_ops( int idx )
   int ix, jx, kx;
 
   // Read in operator representations from disk or memory
-  if ( dmrginp.do_npdm_in_core() )
+  if ( dmrginp.do_npdm_in_core()  || spinBlock_->size() <= 1)
     opReps_ = spinBlock_->get_op_array(CRE_DES_DES).get_local_element(idx);
   else {
-    if ( ! check_file_open(idx) ) abort();
-    std::vector< boost::shared_ptr<SparseMatrix> > opReps_tmp;
+    //if ( ! check_file_open(idx) ) abort();
+    std::vector< boost::shared_ptr<StackSparseMatrix> > opReps_tmp;
     opReps_tmp = spinBlock_->get_op_array(CRE_DES_DES).get_local_element(idx);
-    assert( opReps_tmp.at(0)->get_built_on_disk() );
+    //assert( opReps_tmp.at(0)->get_built_on_disk() );
     opReps_.clear();
+    ix = opReps_tmp.at(0)->get_orbs(0);
+    jx = opReps_tmp.at(0)->get_orbs(1);
+    kx = opReps_tmp.at(0)->get_orbs(2);
     // Read in full spin-set from disk
     for (int i = 0; i < opReps_tmp.size(); i++) {
-       boost::archive::binary_iarchive load_op(ifs_);
-       boost::shared_ptr<SparseMatrix> op (new Cre);
-       load_op >> *op;
-       opReps_.push_back(op);
-    }
-    if ( ! check_file_close(idx) ) abort();
-  }
 
-  build_pattern_ = opReps_.at(0)->get_build_pattern();
+
+      string filename = spinBlock_->get_op_array(CRE_DES_DES).get_local_element(idx)[i]->get_filename();
+      //string filename = spinBlock_->get_op_array(CRE_DES_DES).get_filename()+to_string(i);
+      boost::shared_ptr<StackSparseMatrix> op (new StackCreDesDes);
+      op->set_filename() = filename;
+      op->LoadThreadSafe(true);
+      
+      op->allocateOperatorMatrix(); 
+      opReps_.push_back(op);
+    }
+    //if ( ! check_file_close(idx) ) abort();
+  }
 
   ix = opReps_.at(0)->get_orbs(0);
   jx = opReps_.at(0)->get_orbs(1);
   kx = opReps_.at(0)->get_orbs(2);
+  build_pattern_ = opReps_.at(0)->get_build_pattern();
+
 
   indices_.push_back( ix );
   indices_.push_back( jx );
@@ -208,7 +227,7 @@ bool Npdm_op_wrapper_CDD::set_local_ops( int idx )
 
 //===========================================================================================================================================================
 
-Npdm_op_wrapper_CDC::Npdm_op_wrapper_CDC( SpinBlock * spinBlock )
+Npdm_op_wrapper_CDC::Npdm_op_wrapper_CDC( StackSpinBlock * spinBlock )
 {
   opReps_.clear();
   indices_.clear();
@@ -218,8 +237,9 @@ Npdm_op_wrapper_CDC::Npdm_op_wrapper_CDC( SpinBlock * spinBlock )
   factor_ = 1.0;
   transpose_ = false;
   build_pattern_ = "0";
+  opIndices_=3;
   // For disk-based storage
-  ifile_ = spinBlock_->get_op_array(CRE_DES_CRE).get_filename();
+
 }
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -232,28 +252,35 @@ bool Npdm_op_wrapper_CDC::set_local_ops( int idx )
   int ix, jx, kx;
 
   // Read in operator representations from disk or memory
-  if ( dmrginp.do_npdm_in_core() )
+  if ( dmrginp.do_npdm_in_core()  || spinBlock_->size() <= 1)
     opReps_ = spinBlock_->get_op_array(CRE_DES_CRE).get_local_element(idx);
   else {
-    if ( ! check_file_open(idx) ) abort();
-    std::vector< boost::shared_ptr<SparseMatrix> > opReps_tmp;
+    //if ( ! check_file_open(idx) ) abort();
+    std::vector< boost::shared_ptr<StackSparseMatrix> > opReps_tmp;
     opReps_tmp = spinBlock_->get_op_array(CRE_DES_CRE).get_local_element(idx);
-    assert( opReps_tmp.at(0)->get_built_on_disk() );
+    //assert( opReps_tmp.at(0)->get_built_on_disk() );
     opReps_.clear();
+    ix = opReps_tmp.at(0)->get_orbs(0);
+    jx = opReps_tmp.at(0)->get_orbs(1);
+    kx = opReps_tmp.at(0)->get_orbs(2);
     // Read in full spin-set from disk
     for (int i = 0; i < opReps_tmp.size(); i++) {
-       boost::archive::binary_iarchive load_op(ifs_);
-       boost::shared_ptr<SparseMatrix> op (new Cre);
-       load_op >> *op;
-       opReps_.push_back(op);
+      string filename = spinBlock_->get_op_array(CRE_DES_CRE).get_local_element(idx)[i]->get_filename();
+      //string filename = spinBlock_->get_op_array(CRE_DES_CRE).get_filename()+to_string(i);
+      boost::shared_ptr<StackSparseMatrix> op (new StackCreDesCre);
+      op->set_filename() = filename;
+      op->LoadThreadSafe(true);
+      
+      op->allocateOperatorMatrix(); 
+      opReps_.push_back(op);
     }
-    if ( ! check_file_close(idx) ) abort();
+    //if ( ! check_file_close(idx) ) abort();
   }
 
+    ix = opReps_.at(0)->get_orbs(0);
+    jx = opReps_.at(0)->get_orbs(1);
+    kx = opReps_.at(0)->get_orbs(2);
   build_pattern_ = opReps_.at(0)->get_build_pattern();
-  ix = opReps_.at(0)->get_orbs(0);
-  jx = opReps_.at(0)->get_orbs(1);
-  kx = opReps_.at(0)->get_orbs(2);
 //pout << "indices  " << ix << " " << jx << " " << kx << std::endl;
 
   indices_.push_back( ix );
@@ -271,7 +298,7 @@ bool Npdm_op_wrapper_CDC::set_local_ops( int idx )
 // 4PDM operators
 //===========================================================================================================================================================
 
-Npdm_op_wrapper_DCD::Npdm_op_wrapper_DCD( SpinBlock * spinBlock )
+Npdm_op_wrapper_DCD::Npdm_op_wrapper_DCD( StackSpinBlock * spinBlock )
 {
   opReps_.clear();
   indices_.clear();
@@ -281,8 +308,9 @@ Npdm_op_wrapper_DCD::Npdm_op_wrapper_DCD( SpinBlock * spinBlock )
   factor_ = 1.0;
   transpose_ = false;
   build_pattern_ = "0";
+  opIndices_=3;
   // For disk-based storage
-  ifile_ = spinBlock_->get_op_array(DES_CRE_DES).get_filename();
+
 }
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -295,28 +323,35 @@ bool Npdm_op_wrapper_DCD::set_local_ops( int idx )
   int ix, jx, kx;
 
   // Read in operator representations from disk or memory
-  if ( dmrginp.do_npdm_in_core() )
+  if ( dmrginp.do_npdm_in_core()  || spinBlock_->size() <= 1)
     opReps_ = spinBlock_->get_op_array(DES_CRE_DES).get_local_element(idx);
   else {
-    if ( ! check_file_open(idx) ) abort();
-    std::vector< boost::shared_ptr<SparseMatrix> > opReps_tmp;
+    //if ( ! check_file_open(idx) ) abort();
+    std::vector< boost::shared_ptr<StackSparseMatrix> > opReps_tmp;
     opReps_tmp = spinBlock_->get_op_array(DES_CRE_DES).get_local_element(idx);
-    assert( opReps_tmp.at(0)->get_built_on_disk() );
+    //assert( opReps_tmp.at(0)->get_built_on_disk() );
     opReps_.clear();
+    ix = opReps_tmp.at(0)->get_orbs(0);
+    jx = opReps_tmp.at(0)->get_orbs(1);
+    kx = opReps_tmp.at(0)->get_orbs(2);
     // Read in full spin-set from disk
     for (int i = 0; i < opReps_tmp.size(); i++) {
-       boost::archive::binary_iarchive load_op(ifs_);
-       boost::shared_ptr<SparseMatrix> op (new Cre);
-       load_op >> *op;
-       opReps_.push_back(op);
+      string filename = spinBlock_->get_op_array(DES_CRE_DES).get_local_element(idx)[i]->get_filename();
+      //string filename = spinBlock_->get_op_array(DES_CRE_DES).get_filename()+to_string(i);
+      boost::shared_ptr<StackSparseMatrix> op (new StackDesCreDes);
+      op->set_filename() = filename;
+      op->LoadThreadSafe(true);
+      
+      op->allocateOperatorMatrix(); 
+      opReps_.push_back(op);
     }
-    if ( ! check_file_close(idx) ) abort();
+    //if ( ! check_file_close(idx) ) abort();
   }
 
+    ix = opReps_.at(0)->get_orbs(0);
+    jx = opReps_.at(0)->get_orbs(1);
+    kx = opReps_.at(0)->get_orbs(2);
   build_pattern_ = opReps_.at(0)->get_build_pattern();
-  ix = opReps_.at(0)->get_orbs(0);
-  jx = opReps_.at(0)->get_orbs(1);
-  kx = opReps_.at(0)->get_orbs(2);
 //pout << "indices  " << ix << " " << jx << " " << kx << std::endl;
 
   indices_.push_back( ix );
@@ -332,7 +367,7 @@ bool Npdm_op_wrapper_DCD::set_local_ops( int idx )
 
 //===========================================================================================================================================================
 
-Npdm_op_wrapper_DDC::Npdm_op_wrapper_DDC( SpinBlock * spinBlock )
+Npdm_op_wrapper_DDC::Npdm_op_wrapper_DDC( StackSpinBlock * spinBlock )
 {
   opReps_.clear();
   indices_.clear();
@@ -342,8 +377,9 @@ Npdm_op_wrapper_DDC::Npdm_op_wrapper_DDC( SpinBlock * spinBlock )
   factor_ = 1.0;
   transpose_ = false;
   build_pattern_ = "0";
+  opIndices_=3;
   // For disk-based storage
-  ifile_ = spinBlock_->get_op_array(DES_DES_CRE).get_filename();
+
 }
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -356,29 +392,36 @@ bool Npdm_op_wrapper_DDC::set_local_ops( int idx )
   int ix, jx, kx;
 
   // Read in operator representations from disk or memory
-  if ( dmrginp.do_npdm_in_core() )
+  if ( dmrginp.do_npdm_in_core()  || spinBlock_->size() <= 1)
     opReps_ = spinBlock_->get_op_array(DES_DES_CRE).get_local_element(idx);
   else {
-    if ( ! check_file_open(idx) ) abort();
-    std::vector< boost::shared_ptr<SparseMatrix> > opReps_tmp;
+    //if ( ! check_file_open(idx) ) abort();
+    std::vector< boost::shared_ptr<StackSparseMatrix> > opReps_tmp;
     opReps_tmp = spinBlock_->get_op_array(DES_DES_CRE).get_local_element(idx);
-    assert( opReps_tmp.at(0)->get_built_on_disk() );
+    //assert( opReps_tmp.at(0)->get_built_on_disk() );
     opReps_.clear();
     // Read in full spin-set from disk
+    ix = opReps_tmp.at(0)->get_orbs(0);
+    jx = opReps_tmp.at(0)->get_orbs(1);
+    kx = opReps_tmp.at(0)->get_orbs(2);
     for (int i = 0; i < opReps_tmp.size(); i++) {
-       boost::archive::binary_iarchive load_op(ifs_);
-       boost::shared_ptr<SparseMatrix> op (new Cre);
-       load_op >> *op;
-       opReps_.push_back(op);
+      string filename = spinBlock_->get_op_array(DES_DES_CRE).get_local_element(idx)[i]->get_filename();
+      //string filename = spinBlock_->get_op_array(DES_DES_CRE).get_filename()+to_string(i);
+      boost::shared_ptr<StackSparseMatrix> op (new StackDesDesCre);
+      op->set_filename() = filename;
+      op->LoadThreadSafe(true);
+      
+      op->allocateOperatorMatrix(); 
+      opReps_.push_back(op);
     }
-    if ( ! check_file_close(idx) ) abort();
+    //if ( ! check_file_close(idx) ) abort();
   }
 
+    ix = opReps_.at(0)->get_orbs(0);
+    jx = opReps_.at(0)->get_orbs(1);
+    kx = opReps_.at(0)->get_orbs(2);
   build_pattern_ = opReps_.at(0)->get_build_pattern();
 
-  ix = opReps_.at(0)->get_orbs(0);
-  jx = opReps_.at(0)->get_orbs(1);
-  kx = opReps_.at(0)->get_orbs(2);
 //pout << "indices  " << ix << " " << jx << " " << kx << std::endl;
 
   indices_.push_back( ix );
@@ -395,7 +438,7 @@ bool Npdm_op_wrapper_DDC::set_local_ops( int idx )
 //===========================================================================================================================================================
 // FIXME This DCC operator wrapper using tranpose of DDC seems to need extra minus sign 
 //
-////Npdm_op_wrapper_DCC::Npdm_op_wrapper_DCC( SpinBlock * spinBlock )
+////Npdm_op_wrapper_DCC::Npdm_op_wrapper_DCC( StackSpinBlock * spinBlock )
 ////{
 ////  opReps_.clear();
 ////  indices_.clear();
@@ -422,29 +465,29 @@ bool Npdm_op_wrapper_DDC::set_local_ops( int idx )
 ////  if ( dmrginp.do_npdm_in_core() )
 ////    opReps_ = spinBlock_->get_op_array(DES_DES_CRE).get_local_element(idx);
 ////  else {
-////    assert( check_file_open( idx ) );
-////    std::vector< boost::shared_ptr<SparseMatrix> > opReps_tmp;
+////    //assert( check_file_open( idx ) );
+////    std::vector< boost::shared_ptr<StackSparseMatrix> > opReps_tmp;
 ////    opReps_tmp = spinBlock_->get_op_array(DES_DES_CRE).get_local_element(idx);
-////    assert( opReps_tmp.at(0)->get_built_on_disk() );
+////    //assert( opReps_tmp.at(0)->get_built_on_disk() );
 ////    opReps_.clear();
 ////    // Read in full spin-set from disk
 ////    for (int i = 0; i < opReps_tmp.size(); i++) {
 ////       boost::archive::binary_iarchive load_op(ifs_);
-////       boost::shared_ptr<SparseMatrix> op (new Cre);
+////       boost::shared_ptr<StackSparseMatrix> op (new StackCre);
 ////       load_op >> *op;
 ////       opReps_.push_back(op);
 ////    }
-////    assert( check_file_close( idx ) );
+////    //assert( check_file_close( idx ) );
 ////  }
 ////
-////  std::string tmp = opReps_.at(0)->get_build_pattern();
+////  std::string tmp = opReps_tmp.at(0)->get_build_pattern();
 ////  if ( tmp == "((DD)C)" ) build_pattern_ = "(D(CC))"; //  <--------- seem to need minus sign here, don't know why
 ////  else if ( tmp == "(D(DC))" ) build_pattern_ = "((DC)C)";
 ////  else abort();
 ////
-////  ix = opReps_.at(0)->get_orbs(0);
-////  jx = opReps_.at(0)->get_orbs(1);
-////  kx = opReps_.at(0)->get_orbs(2);
+////  ix = opReps_tmp.at(0)->get_orbs(0);
+////  jx = opReps_tmp.at(0)->get_orbs(1);
+////  kx = opReps_tmp.at(0)->get_orbs(2);
 ////
 ////  // Note use of transpose means we store this as (k,j,i) not (i,j,k)
 ////  indices_.push_back( kx );
@@ -460,7 +503,7 @@ bool Npdm_op_wrapper_DDC::set_local_ops( int idx )
 ////
 //===========================================================================================================================================================
 
-Npdm_op_wrapper_DCC::Npdm_op_wrapper_DCC( SpinBlock * spinBlock )
+Npdm_op_wrapper_DCC::Npdm_op_wrapper_DCC( StackSpinBlock * spinBlock )
 {
   opReps_.clear();
   indices_.clear();
@@ -470,8 +513,9 @@ Npdm_op_wrapper_DCC::Npdm_op_wrapper_DCC( SpinBlock * spinBlock )
   factor_ = 1.0;
   transpose_ = false;
   build_pattern_ = "0";
+  opIndices_=3;
   // For disk-based storage
-  ifile_ = spinBlock_->get_op_array(DES_CRE_CRE).get_filename();
+
 }
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -487,28 +531,35 @@ bool Npdm_op_wrapper_DCC::set_local_ops( int idx )
 //return true;
 
   // Read in operator representations from disk or memory
-  if ( dmrginp.do_npdm_in_core() )
+  if ( dmrginp.do_npdm_in_core()  || spinBlock_->size() <= 1)
     opReps_ = spinBlock_->get_op_array(DES_CRE_CRE).get_local_element(idx);
   else {
-    if ( ! check_file_open(idx) ) abort();
-    std::vector< boost::shared_ptr<SparseMatrix> > opReps_tmp;
+    //if ( ! check_file_open(idx) ) abort();
+    std::vector< boost::shared_ptr<StackSparseMatrix> > opReps_tmp;
     opReps_tmp = spinBlock_->get_op_array(DES_CRE_CRE).get_local_element(idx);
-    assert( opReps_tmp.at(0)->get_built_on_disk() );
+    //assert( opReps_tmp.at(0)->get_built_on_disk() );
     opReps_.clear();
     // Read in full spin-set from disk
+    ix = opReps_tmp.at(0)->get_orbs(0);
+    jx = opReps_tmp.at(0)->get_orbs(1);
+    kx = opReps_tmp.at(0)->get_orbs(2);
     for (int i = 0; i < opReps_tmp.size(); i++) {
-       boost::archive::binary_iarchive load_op(ifs_);
-       boost::shared_ptr<SparseMatrix> op (new Cre);
-       load_op >> *op;
-       opReps_.push_back(op);
+      string filename = spinBlock_->get_op_array(DES_CRE_CRE).get_local_element(idx)[i]->get_filename();
+      //string filename = spinBlock_->get_op_array(DES_CRE_CRE).get_filename()+to_string(i);
+      boost::shared_ptr<StackSparseMatrix> op (new StackDesCreCre);
+      op->set_filename() = filename;
+      op->LoadThreadSafe(true);
+      
+      op->allocateOperatorMatrix(); 
+      opReps_.push_back(op);
     }
-    if ( ! check_file_close(idx) ) abort();
+    //if ( ! check_file_close(idx) ) abort();
   }
 
+    ix = opReps_.at(0)->get_orbs(0);
+    jx = opReps_.at(0)->get_orbs(1);
+    kx = opReps_.at(0)->get_orbs(2);
   build_pattern_ = opReps_.at(0)->get_build_pattern();
-  ix = opReps_.at(0)->get_orbs(0);
-  jx = opReps_.at(0)->get_orbs(1);
-  kx = opReps_.at(0)->get_orbs(2);
 
   indices_.push_back( ix );
   indices_.push_back( jx );
@@ -525,7 +576,7 @@ bool Npdm_op_wrapper_DCC::set_local_ops( int idx )
 //===========================================================================================================================================================
 // Build using Transpose(CCC) -- check rationale of minus signs!
 ////
-////Npdm_op_wrapper_DDD::Npdm_op_wrapper_DDD( SpinBlock * spinBlock )
+////Npdm_op_wrapper_DDD::Npdm_op_wrapper_DDD( StackSpinBlock * spinBlock )
 ////{
 ////  opReps_.clear();
 ////  indices_.clear();
@@ -554,19 +605,19 @@ bool Npdm_op_wrapper_DCC::set_local_ops( int idx )
 ////    opReps_ = spinBlock_->get_op_array(CRE_CRE_CRE).get_local_element(idx);
 ////  else {
 ////abort();
-////    assert( check_file_open( idx ) );
-////    std::vector< boost::shared_ptr<SparseMatrix> > opReps_tmp;
+////    //assert( check_file_open( idx ) );
+////    std::vector< boost::shared_ptr<StackSparseMatrix> > opReps_tmp;
 ////    opReps_tmp = spinBlock_->get_op_array(CRE_CRE_CRE).get_local_element(idx);
-////    assert( opReps_tmp.at(0)->get_built_on_disk() );
+////    //assert( opReps_tmp.at(0)->get_built_on_disk() );
 ////    opReps_.clear();
 ////    // Read in full spin-set from disk
 ////    for (int i = 0; i < opReps_tmp.size(); i++) {
 ////       boost::archive::binary_iarchive load_op(ifs_);
-////       boost::shared_ptr<SparseMatrix> op (new Cre);
+////       boost::shared_ptr<StackSparseMatrix> op (new StackCre);
 ////       load_op >> *op;
 ////       opReps_.push_back(op);
 ////    }
-////    assert( check_file_close( idx ) );
+////    //assert( check_file_close( idx ) );
 ////  }
 ////
 ////  std::string tmp = opReps_.at(0)->get_build_pattern();
@@ -574,9 +625,9 @@ bool Npdm_op_wrapper_DCC::set_local_ops( int idx )
 ////  else if ( tmp == "(C(CC))" ) build_pattern_ = "((DD)D)";
 ////  else abort();
 ////
-////  ix = opReps_.at(0)->get_orbs(0);
-////  jx = opReps_.at(0)->get_orbs(1);
-////  kx = opReps_.at(0)->get_orbs(2);
+////  ix = opReps_tmp.at(0)->get_orbs(0);
+////  jx = opReps_tmp.at(0)->get_orbs(1);
+////  kx = opReps_tmp.at(0)->get_orbs(2);
 ////
 ////  // Note use of transpose means we store this as (k,j,i) not (i,j,k)
 ////  indices_.push_back( kx );
@@ -591,7 +642,7 @@ bool Npdm_op_wrapper_DCC::set_local_ops( int idx )
 ////
 //===========================================================================================================================================================
 
-Npdm_op_wrapper_DDD::Npdm_op_wrapper_DDD( SpinBlock * spinBlock )
+Npdm_op_wrapper_DDD::Npdm_op_wrapper_DDD( StackSpinBlock * spinBlock )
 {
   opReps_.clear();
   indices_.clear();
@@ -601,8 +652,9 @@ Npdm_op_wrapper_DDD::Npdm_op_wrapper_DDD( SpinBlock * spinBlock )
   factor_ = 1.0;
   transpose_ = false;
   build_pattern_ = "0";
+  opIndices_=3;
   // For disk-based storage
-  ifile_ = spinBlock_->get_op_array(DES_DES_DES).get_filename();
+
 }
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -615,22 +667,26 @@ bool Npdm_op_wrapper_DDD::set_local_ops( int idx )
   int ix, jx, kx;
 
   // Read in operator representations from disk or memory
-  if ( dmrginp.do_npdm_in_core() )
+  if ( dmrginp.do_npdm_in_core()  || spinBlock_->size() <= 1)
     opReps_ = spinBlock_->get_op_array(DES_DES_DES).get_local_element(idx);
   else {
-    if ( ! check_file_open(idx) ) abort();
-    std::vector< boost::shared_ptr<SparseMatrix> > opReps_tmp;
+    //if ( ! check_file_open(idx) ) abort();
+    std::vector< boost::shared_ptr<StackSparseMatrix> > opReps_tmp;
     opReps_tmp = spinBlock_->get_op_array(DES_DES_DES).get_local_element(idx);
-    assert( opReps_tmp.at(0)->get_built_on_disk() );
+    //assert( opReps_tmp.at(0)->get_built_on_disk() );
     opReps_.clear();
     // Read in full spin-set from disk
     for (int i = 0; i < opReps_tmp.size(); i++) {
-       boost::archive::binary_iarchive load_op(ifs_);
-       boost::shared_ptr<SparseMatrix> op (new Cre);
-       load_op >> *op;
-       opReps_.push_back(op);
+      string filename = spinBlock_->get_op_array(DES_DES_DES).get_local_element(idx)[i]->get_filename();
+      //string filename = spinBlock_->get_op_array(DES_DES_DES).get_filename()+to_string(i);
+      boost::shared_ptr<StackSparseMatrix> op (new StackDesDesDes);
+      op->set_filename() = filename;
+      op->LoadThreadSafe(true);
+      
+      op->allocateOperatorMatrix(); 
+      opReps_.push_back(op);
     }
-    if ( ! check_file_close(idx) ) abort();
+    //if ( ! check_file_close(idx) ) abort();
   }
 
   build_pattern_ = opReps_.at(0)->get_build_pattern();

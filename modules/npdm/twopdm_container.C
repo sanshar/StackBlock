@@ -202,7 +202,7 @@ void Twopdm_container::update_full_spin_array( std::vector< std::pair< std::vect
   const std::vector<int>& ro = dmrginp.reorder_vector();
   for (auto it = spin_batch.begin(); it != spin_batch.end(); ++it) {
     double val = it->second;
-    if ( abs(val) < NUMERICAL_ZERO ) continue;
+    //if ( abs(val) < NUMERICAL_ZERO ) continue;
     int i0 = (it->first)[0];
     int j0 = (it->first)[1];
     int k0 = (it->first)[2];
@@ -212,7 +212,10 @@ void Twopdm_container::update_full_spin_array( std::vector< std::pair< std::vect
     int k = ro.at(k0/2)*2 + k0%2;
     int l = ro.at(l0/2)*2 + l0%2;
 
+    if (i == 8 && j == 3 && k == 6 && l==3)
+      cout << val <<endl;
     //if ( abs(val) > 1e-8 ) pout << "so-twopdm val: i,j,k,l = " << i << "," << j << "," << k << "," << l << "\t\t" << val << endl;
+    //cout<<setprecision(5);
     //pout << "so-twopdm val: i,j,k,l = " << i << "," << j << "," << k << "," << l << "\t\t" << val << endl;
 
     // Test for duplicates

@@ -15,10 +15,10 @@ class Npdm_spin_adaptation {
     void npdm_set_up_linear_equations( const int dim, const std::string& op_string, const std::vector<int>& indices, const std::vector<double>& b0, 
                                        Matrix& A, ColumnVector& b, std::vector< std::vector<int> >& so_indices );
 
+    std::vector<std::map< std::string, Matrix > > stored_A_mats_;
+    std::vector<std::map< std::string, std::vector<int> > > stored_singlet_rows_;
+    std::vector<std::map< std::string, std::vector< std::vector<int> > > > stored_so_indices_;
   private:
-    std::map< std::string, Matrix > stored_A_mats_;
-    std::map< std::string, std::vector<int> > stored_singlet_rows_;
-    std::map< std::string, std::vector< std::vector<int> > > stored_so_indices_;
 
     void parse_result_into_matrix( const std::vector<TensorOp>& tensor_ops, 
                                    Matrix& matrix, std::vector< std::vector<int> >& so_indices, std::vector<int>& singlet_rows);

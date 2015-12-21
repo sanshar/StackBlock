@@ -15,7 +15,7 @@ namespace Npdm{
 
 //===========================================================================================================================================================
 
-Npdm_op_compound_CCDD::Npdm_op_compound_CCDD( SpinBlock * spinBlock )
+Npdm_op_compound_CCDD::Npdm_op_compound_CCDD( StackSpinBlock * spinBlock )
 {
   opReps_.clear();
   indices_.clear();
@@ -46,8 +46,8 @@ bool Npdm_op_compound_CCDD::set_local_ops( int idx )
     //because of ix>=jx>=kx>=lx, no C1C0D1D0. 
     //C1C0D1D0 is calculation in C1D1C0D0 in CDCD pattern
     //build_pattern_ = "((CD)(CD))";
-    std::vector< boost::shared_ptr<SparseMatrix> > ijOps = spinBlock_->get_op_array(CRE_CRE).get_element(ix,jx);
-    std::vector< boost::shared_ptr<SparseMatrix> > klOps = spinBlock_->get_op_array(DES_DES).get_element(kx,lx);
+    std::vector< boost::shared_ptr<StackSparseMatrix> > ijOps = spinBlock_->get_op_array(CRE_CRE).get_element(ix,jx);
+    std::vector< boost::shared_ptr<StackSparseMatrix> > klOps = spinBlock_->get_op_array(DES_DES).get_element(kx,lx);
 
   opReps_.clear();
   //non spin, only at(0) is needed.
@@ -57,9 +57,9 @@ bool Npdm_op_compound_CCDD::set_local_ops( int idx )
 //pout << "indices: " << ix << ", " << jx << ", " << kx << ", " << lx << endl;
 
   // Get 2-index ops as RI building blocks
-  std::vector< boost::shared_ptr<SparseMatrix> > ijOps = spinBlock_->get_op_array(CRE_CRE).get_element(ix,jx);
-  std::vector< boost::shared_ptr<SparseMatrix> > klOps = spinBlock_->get_op_array(DES_DES).get_element(kx,lx);
-//  std::vector< boost::shared_ptr<SparseMatrix> > klOps = spinBlock_->get_op_array(CRE_CRE).get_element(kx,lx);
+  std::vector< boost::shared_ptr<StackSparseMatrix> > ijOps = spinBlock_->get_op_array(CRE_CRE).get_element(ix,jx);
+  std::vector< boost::shared_ptr<StackSparseMatrix> > klOps = spinBlock_->get_op_array(DES_DES).get_element(kx,lx);
+//  std::vector< boost::shared_ptr<StackSparseMatrix> > klOps = spinBlock_->get_op_array(CRE_CRE).get_element(kx,lx);
 //  // Take into account transpose
 //  indices_[2] = lx;
 //  indices_[3] = kx;
@@ -87,11 +87,11 @@ bool Npdm_op_compound_CCDD::set_local_ops( int idx )
 ////  //-----------------------------
 ////  // Use RI 3-index operator
 ////  //-----------------------------
-////  std::vector< boost::shared_ptr<SparseMatrix> > ijkOps;
+////  std::vector< boost::shared_ptr<StackSparseMatrix> > ijkOps;
 ////
 ////  // Get 2-index and 1-index ops as RI building blocks
-////  std::vector< boost::shared_ptr<SparseMatrix> > twoOps = spinBlock_->get_op_array(CRE_CRE).get_element(ix,jx);
-////  std::vector< boost::shared_ptr<SparseMatrix> > oneOp = spinBlock_->get_op_array(CRE).get_element(kx);
+////  std::vector< boost::shared_ptr<StackSparseMatrix> > twoOps = spinBlock_->get_op_array(CRE_CRE).get_element(ix,jx);
+////  std::vector< boost::shared_ptr<StackSparseMatrix> > oneOp = spinBlock_->get_op_array(CRE).get_element(kx);
 ////
 ////  // Allocate and build operator representation on the fly as RI tensor product for each spin component
 ////  std::string build_pattern_3 = "((CC)D)";
@@ -108,10 +108,10 @@ bool Npdm_op_compound_CCDD::set_local_ops( int idx )
 ////  //-----------------------------
 ////  // Use exact 3-index operator
 ////  //-----------------------------
-//////  std::vector< boost::shared_ptr<SparseMatrix> > ijkOps = spinBlock_->get_op_array(CRE_CRE_DES).get_element(ix,jx,kx);
+//////  std::vector< boost::shared_ptr<StackSparseMatrix> > ijkOps = spinBlock_->get_op_array(CRE_CRE_DES).get_element(ix,jx,kx);
 //////  std::string build_pattern_3 = ijkOps.at(0)->get_build_pattern();
 ////
-////  std::vector< boost::shared_ptr<SparseMatrix> > lOps = spinBlock_->get_op_array(CRE).get_element(lx);
+////  std::vector< boost::shared_ptr<StackSparseMatrix> > lOps = spinBlock_->get_op_array(CRE).get_element(lx);
 ////
 ////  if ( build_pattern_3 == "((CC)D)" ) build_pattern_ = "(((CC)D)(D))";
 ////  else if ( build_pattern_3 == "(C(CD))" ) build_pattern_ = "(((C)(CD))(D))";
@@ -141,7 +141,7 @@ bool Npdm_op_compound_CCDD::set_local_ops( int idx )
 
 //===========================================================================================================================================================
 
-Npdm_op_compound_CCCD::Npdm_op_compound_CCCD( SpinBlock * spinBlock )
+Npdm_op_compound_CCCD::Npdm_op_compound_CCCD( StackSpinBlock * spinBlock )
 {
   opReps_.clear();
   indices_.clear();
@@ -167,8 +167,8 @@ bool Npdm_op_compound_CCCD::set_local_ops( int idx )
   int lx = indices_[3];
 
   // Get 2-index ops as RI building blocks
-  std::vector< boost::shared_ptr<SparseMatrix> > ijOps = spinBlock_->get_op_array(CRE_CRE).get_element(ix,jx);
-  std::vector< boost::shared_ptr<SparseMatrix> > klOps = spinBlock_->get_op_array(CRE_DES).get_element(kx,lx);
+  std::vector< boost::shared_ptr<StackSparseMatrix> > ijOps = spinBlock_->get_op_array(CRE_CRE).get_element(ix,jx);
+  std::vector< boost::shared_ptr<StackSparseMatrix> > klOps = spinBlock_->get_op_array(CRE_DES).get_element(kx,lx);
 
   // Allocate and build operator representation on the fly as RI tensor product for each spin component
   // multiplicities = { 1, 3, 3, 1, 3, 5 };
@@ -192,7 +192,7 @@ bool Npdm_op_compound_CCCD::set_local_ops( int idx )
 
 //===========================================================================================================================================================
 
-Npdm_op_compound_CCDC::Npdm_op_compound_CCDC( SpinBlock * spinBlock )
+Npdm_op_compound_CCDC::Npdm_op_compound_CCDC( StackSpinBlock * spinBlock )
 {
   opReps_.clear();
   indices_.clear();
@@ -221,8 +221,8 @@ bool Npdm_op_compound_CCDC::set_local_ops( int idx )
   }
 
   // Get 2-index ops as RI building blocks
-  std::vector< boost::shared_ptr<SparseMatrix> > ijOps = spinBlock_->get_op_array(CRE_CRE).get_element(ix,jx);
-  std::vector< boost::shared_ptr<SparseMatrix> > klOps = spinBlock_->get_op_array(DES_CRE).get_element(kx,lx);
+  std::vector< boost::shared_ptr<StackSparseMatrix> > ijOps = spinBlock_->get_op_array(CRE_CRE).get_element(ix,jx);
+  std::vector< boost::shared_ptr<StackSparseMatrix> > klOps = spinBlock_->get_op_array(DES_CRE).get_element(kx,lx);
 
   // Allocate and build operator representation on the fly as RI tensor product for each spin component
   // multiplicities = { 1, 3, 3, 1, 3, 5 };
@@ -246,7 +246,7 @@ bool Npdm_op_compound_CCDC::set_local_ops( int idx )
 
 //===========================================================================================================================================================
 
-Npdm_op_compound_CDCC::Npdm_op_compound_CDCC( SpinBlock * spinBlock )
+Npdm_op_compound_CDCC::Npdm_op_compound_CDCC( StackSpinBlock * spinBlock )
 {
   opReps_.clear();
   indices_.clear();
@@ -275,8 +275,8 @@ bool Npdm_op_compound_CDCC::set_local_ops( int idx )
   }
 
   // Get 2-index ops as RI building blocks
-  std::vector< boost::shared_ptr<SparseMatrix> > ijOps = spinBlock_->get_op_array(CRE_DES).get_element(ix,jx);
-  std::vector< boost::shared_ptr<SparseMatrix> > klOps = spinBlock_->get_op_array(CRE_CRE).get_element(kx,lx);
+  std::vector< boost::shared_ptr<StackSparseMatrix> > ijOps = spinBlock_->get_op_array(CRE_DES).get_element(ix,jx);
+  std::vector< boost::shared_ptr<StackSparseMatrix> > klOps = spinBlock_->get_op_array(CRE_CRE).get_element(kx,lx);
 
   // Allocate and build operator representation on the fly as RI tensor product for each spin component
   // multiplicities = { 1, 3, 3, 1, 3, 5 };
@@ -300,7 +300,7 @@ bool Npdm_op_compound_CDCC::set_local_ops( int idx )
 
 //===========================================================================================================================================================
 
-Npdm_op_compound_CDCD::Npdm_op_compound_CDCD( SpinBlock * spinBlock )
+Npdm_op_compound_CDCD::Npdm_op_compound_CDCD( StackSpinBlock * spinBlock )
 {
   opReps_.clear();
   indices_.clear();
@@ -334,8 +334,8 @@ bool Npdm_op_compound_CDCD::set_local_ops( int idx )
     // creator is before the destructor on a site
     if(jx==kx) return true;
 
-  std::vector< boost::shared_ptr<SparseMatrix> > ijOps = spinBlock_->get_op_array(CRE_DES).get_element(ix,jx);
-  std::vector< boost::shared_ptr<SparseMatrix> > klOps = spinBlock_->get_op_array(CRE_DES).get_element(kx,lx);
+  std::vector< boost::shared_ptr<StackSparseMatrix> > ijOps = spinBlock_->get_op_array(CRE_DES).get_element(ix,jx);
+  std::vector< boost::shared_ptr<StackSparseMatrix> > klOps = spinBlock_->get_op_array(CRE_DES).get_element(kx,lx);
 
   opReps_.clear();
   opReps_.push_back( build_compound_operator( false, 1, ijOps.at(0), klOps.at(0), 0, indices_, false ) );
@@ -343,8 +343,8 @@ bool Npdm_op_compound_CDCD::set_local_ops( int idx )
   }
 
   // Get 2-index ops as RI building blocks
-  std::vector< boost::shared_ptr<SparseMatrix> > ijOps = spinBlock_->get_op_array(CRE_DES).get_element(ix,jx);
-  std::vector< boost::shared_ptr<SparseMatrix> > klOps = spinBlock_->get_op_array(CRE_DES).get_element(kx,lx);
+  std::vector< boost::shared_ptr<StackSparseMatrix> > ijOps = spinBlock_->get_op_array(CRE_DES).get_element(ix,jx);
+  std::vector< boost::shared_ptr<StackSparseMatrix> > klOps = spinBlock_->get_op_array(CRE_DES).get_element(kx,lx);
 
   // Allocate and build operator representation on the fly as RI tensor product for each spin component
   // multiplicities = { 1, 3, 3, 1, 3, 5 };
@@ -368,7 +368,7 @@ bool Npdm_op_compound_CDCD::set_local_ops( int idx )
 
 //===========================================================================================================================================================
 
-Npdm_op_compound_CDDC::Npdm_op_compound_CDDC( SpinBlock * spinBlock )
+Npdm_op_compound_CDDC::Npdm_op_compound_CDDC( StackSpinBlock * spinBlock )
 {
   opReps_.clear();
   indices_.clear();
@@ -397,8 +397,8 @@ bool Npdm_op_compound_CDDC::set_local_ops( int idx )
   }
 
   // Get 2-index ops as RI building blocks
-  std::vector< boost::shared_ptr<SparseMatrix> > ijOps = spinBlock_->get_op_array(CRE_DES).get_element(ix,jx);
-  std::vector< boost::shared_ptr<SparseMatrix> > klOps = spinBlock_->get_op_array(DES_CRE).get_element(kx,lx);
+  std::vector< boost::shared_ptr<StackSparseMatrix> > ijOps = spinBlock_->get_op_array(CRE_DES).get_element(ix,jx);
+  std::vector< boost::shared_ptr<StackSparseMatrix> > klOps = spinBlock_->get_op_array(DES_CRE).get_element(kx,lx);
 
   // Allocate and build operator representation on the fly as RI tensor product for each spin component
   // multiplicities = { 1, 3, 3, 1, 3, 5 };
@@ -422,7 +422,7 @@ bool Npdm_op_compound_CDDC::set_local_ops( int idx )
 
 //===========================================================================================================================================================
 
-Npdm_op_compound_CDDD::Npdm_op_compound_CDDD( SpinBlock * spinBlock )
+Npdm_op_compound_CDDD::Npdm_op_compound_CDDD( StackSpinBlock * spinBlock )
 {
   opReps_.clear();
   indices_.clear();
@@ -448,8 +448,8 @@ bool Npdm_op_compound_CDDD::set_local_ops( int idx )
   int lx = indices_[3];
 
   // Get 2-index ops as RI building blocks
-  std::vector< boost::shared_ptr<SparseMatrix> > ijOps = spinBlock_->get_op_array(CRE_DES).get_element(ix,jx);
-  std::vector< boost::shared_ptr<SparseMatrix> > klOps = spinBlock_->get_op_array(DES_DES).get_element(kx,lx);
+  std::vector< boost::shared_ptr<StackSparseMatrix> > ijOps = spinBlock_->get_op_array(CRE_DES).get_element(ix,jx);
+  std::vector< boost::shared_ptr<StackSparseMatrix> > klOps = spinBlock_->get_op_array(DES_DES).get_element(kx,lx);
 
   // Allocate and build operator representation on the fly as RI tensor product for each spin component
   // multiplicities = { 1, 3, 3, 1, 3, 5 };
@@ -473,7 +473,7 @@ bool Npdm_op_compound_CDDD::set_local_ops( int idx )
 
 //===========================================================================================================================================================
 
-Npdm_op_compound_CCCC::Npdm_op_compound_CCCC( SpinBlock * spinBlock )
+Npdm_op_compound_CCCC::Npdm_op_compound_CCCC( StackSpinBlock * spinBlock )
 {
   opReps_.clear();
   indices_.clear();
@@ -499,8 +499,8 @@ bool Npdm_op_compound_CCCC::set_local_ops( int idx )
   int lx = indices_[3];
 
   // Get 2-index ops as RI building blocks
-  std::vector< boost::shared_ptr<SparseMatrix> > ijOps = spinBlock_->get_op_array(CRE_CRE).get_element(ix,jx);
-  std::vector< boost::shared_ptr<SparseMatrix> > klOps = spinBlock_->get_op_array(CRE_CRE).get_element(kx,lx);
+  std::vector< boost::shared_ptr<StackSparseMatrix> > ijOps = spinBlock_->get_op_array(CRE_CRE).get_element(ix,jx);
+  std::vector< boost::shared_ptr<StackSparseMatrix> > klOps = spinBlock_->get_op_array(CRE_CRE).get_element(kx,lx);
 
   // Allocate and build operator representation on the fly as RI tensor product for each spin component
   // multiplicities = { 1, 3, 3, 1, 3, 5 };

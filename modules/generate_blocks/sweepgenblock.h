@@ -10,8 +10,6 @@ Sandeep Sharma and Garnet K.-L. Chan
 #ifndef SWEEPGENBLOCK_HEADER
 #define SWEEPGENBLOCK_HEADER
 
-using namespace boost;
-using namespace std;
 
 namespace SpinAdapted{
   class SweepParams;
@@ -22,6 +20,7 @@ namespace SweepGenblock
   void BlockAndDecimate (SweepParams &sweepParams, StackSpinBlock& system, StackSpinBlock& newSystem, const bool &useSlater, const bool& dot_with_sys, int stateA, int stateB);
   double do_one(SweepParams &sweepParams, const bool &warmUp, const bool &forward, const bool &restart, const int &restartSize, int stateA, int stateB);
   void do_one(SweepParams &sweepParams, const bool &forward, int stateA, int stateB);
+  void do_one_partialSweep(SweepParams &sweepParams, const bool &forward, int stateA, int stateB, int integralIndex);
 
 };
 }

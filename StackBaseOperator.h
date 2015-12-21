@@ -69,22 +69,20 @@ class StackSparseMatrix : public Baseoperator<StackMatrix>  // the sparse matrix
          & built \
 	 & built_on_disk \
 	 & allowedQuantaMatrix \
-	 & quantum_ladder \
-	 & build_pattern \
-         & operatorMatrix \
          & Sign \
 	& orbs \
 	& rowCompressedForm \
 	& colCompressedForm \
 	& nonZeroBlocks \
 	& mapToNonZeroBlocks \
+	& conj		     \
+	& filename \
 	& totalMemory;
     }
 
  protected:
   long totalMemory; //the length of the data
   double* data;    //the data which this object does not own
-  ObjectMatrix<StackMatrix> operatorMatrix;  // The StackMatrix does not own its data
 
   char conj;
   std::vector<int> orbs;
@@ -100,6 +98,7 @@ class StackSparseMatrix : public Baseoperator<StackMatrix>  // the sparse matrix
   // ...and for each way we record the spin ladder components
   std::map< std::string, std::vector<SpinQuantum> > quantum_ladder;
 
+  string filename; //if the operator is stored on disk what is the filename
   std::vector<std::vector<int> > rowCompressedForm;  //the ith vector corresponds to all the non zero blocks in the ith row
   std::vector<std::vector<int> > colCompressedForm;  //the ith vector corresponds to all the non zero blocks in the ith column
   std::vector< std::pair<std::pair<int, int>, StackMatrix> > nonZeroBlocks; //all the nonzero blocks, the first pair is the row and col index
@@ -108,29 +107,34 @@ class StackSparseMatrix : public Baseoperator<StackMatrix>  // the sparse matrix
  public:
  StackSparseMatrix() : totalMemory(0), data(0), fermion(false), orbs(2), initialised(false), built(false), built_on_disk(false), Sign(1), conj('n'){};
  StackSparseMatrix(const StackSparseMatrix& a) : 
-  orbs(a.get_orbs()), deltaQuantum(a.get_deltaQuantum()), fermion(a.get_fermion()), 
+  orbs(a.get_orbs()), deltaQuantum(a.get_deltaQuantum()), fermion(a.get_fermion()), quantum_ladder(a.quantum_ladder), build_pattern(a.build_pattern),
     initialised(a.get_initialised()), allowedQuantaMatrix(a.get_allowedQuantaMatrix()), 
     Sign(a.get_sign()), totalMemory(a.totalMemory), data(a.data), conj('n'), built(a.built),
-    operatorMatrix(a.operatorMatrix), rowCompressedForm(a.rowCompressedForm), built_on_disk(a.built_on_disk),
-    colCompressedForm(a.colCompressedForm), nonZeroBlocks(a.nonZeroBlocks), mapToNonZeroBlocks(a.mapToNonZeroBlocks) 
+    rowCompressedForm(a.rowCompressedForm), built_on_disk(a.built_on_disk),
+    colCompressedForm(a.colCompressedForm), nonZeroBlocks(a.nonZeroBlocks), mapToNonZeroBlocks(a.mapToNonZeroBlocks), filename(a.filename) 
     {};
 
  StackSparseMatrix(double* pData, long pTotalMemory) : totalMemory(pTotalMemory), data(pData), fermion(false), orbs(2), initialised(false), built(false), built_on_disk(false), Sign(1), conj('n'){};
+  void SaveThreadSafe() const;
+  void LoadThreadSafe(bool allocate);
   virtual long memoryUsed() const {return totalMemory;}
   void allocate (const StateInfo& s);
   void allocate (const StateInfo& sl, const StateInfo& sr);
   void allocate (const StateInfo& s, double* pData);
   double* allocate(const StateInfo& rowSI, const StateInfo& colSI, double* pData);
+  void allocateShell(const StateInfo& rowSI, const StateInfo& colSI);
   void deallocate() ;
   double* allocateOperatorMatrix();
+  string get_filename() {return filename;}
+  string& set_filename() {return filename;}
   virtual void build(StackMatrix &m, int row, int col, const StackSpinBlock& block) {};
   virtual void build(const StackSpinBlock& block) {};
   double* get_data() {return data;}
   const double* get_data() const {return data;}
   long& set_totalMemory() {return totalMemory;}
   void set_data(double* pData) {data = pData;}
-  void deepCopy(const StackSparseMatrix& o) ;
-  void deepClearCopy(const StackSparseMatrix& o) ;
+  virtual void deepCopy(const StackSparseMatrix& o) ;
+  virtual void deepClearCopy(const StackSparseMatrix& o) ;
   virtual string opName() const {return "None";}
   //I cannot simply allow resize because resizing should be accompanied with appropriate data allocation first
   //void resize(int n, int c) { operatorMatrix.ReSize(n, c); allowedQuantaMatrix.ReSize(n, c); }
@@ -141,41 +145,57 @@ class StackSparseMatrix : public Baseoperator<StackMatrix>  // the sparse matrix
   std::vector<int>& getActiveRows(int i)  {return colCompressedForm[i];}
   std::vector<int>& getActiveCols(int i) {return rowCompressedForm[i];}
   std::vector<std::vector<int> >& getrowCompressedForm() {return rowCompressedForm;}
+  std::vector<std::vector<int> >& getcolCompressedForm() {return colCompressedForm;}
   const StackMatrix& operator_element(int i, int j) const { 
-    if (conj == 'n') return operatorMatrix(i, j); 
-    else return operatorMatrix(j, i);
+    const int index = mapToNonZeroBlocks.at( make_pair(i,j) );
+    if (conj == 'n') return nonZeroBlocks[index].second;
+    else return nonZeroBlocks[mapToNonZeroBlocks.at(std::pair<int,int>(j,i))].second;
+    //if (conj == 'n') return operatorMatrix(i, j); 
+    //else return operatorMatrix(j, i);
   }
   const StackMatrix& operator_element(int i, int j, char conj) const { 
-    if (conj == 'n') return operatorMatrix(i, j); 
-    else return operatorMatrix(j, i);
+    if (conj == 'n') return nonZeroBlocks[mapToNonZeroBlocks.at(std::pair<int,int>(i,j))].second;
+    else return nonZeroBlocks[mapToNonZeroBlocks.at(std::pair<int,int>(j,i))].second;
+    //if (conj == 'n') return operatorMatrix(i, j); 
+    //else return operatorMatrix(j, i);
   }
   const StackMatrix& operator()(int i, int j) const { 
-    if (conj == 'n') return operatorMatrix(i, j); 
-    else return operatorMatrix(j, i);
+    if (conj == 'n') return nonZeroBlocks[mapToNonZeroBlocks.at(std::pair<int,int>(i,j))].second;
+    else return nonZeroBlocks[mapToNonZeroBlocks.at(std::pair<int,int>(j,i))].second;
+    //if (conj == 'n') return operatorMatrix(i, j); 
+    //else return operatorMatrix(j, i);
   }
   const StackMatrix& operator()(int i, int j, char conj) const { 
-    if (conj == 'n') return operatorMatrix(i, j); 
-    else return operatorMatrix(j, i);
+    if (conj == 'n') return nonZeroBlocks[mapToNonZeroBlocks.at(std::pair<int,int>(i,j))].second;
+    else return nonZeroBlocks[mapToNonZeroBlocks.at(std::pair<int,int>(j,i))].second;
+    //if (conj == 'n') return operatorMatrix(i, j); 
+    //else return operatorMatrix(j, i);
   }
   StackMatrix& operator_element(int i, int j) { 
-    if (conj == 'n') return operatorMatrix(i, j); 
-    else return operatorMatrix(j, i);
+    if (conj == 'n') return nonZeroBlocks[mapToNonZeroBlocks.at(std::pair<int,int>(i,j))].second;
+    else return nonZeroBlocks[mapToNonZeroBlocks.at(std::pair<int,int>(j,i))].second;
+    //if (conj == 'n') return operatorMatrix(i, j); 
+    //else return operatorMatrix(j, i);
   }
   StackMatrix& operator_element(int i, int j, char conj) { 
-    if (conj == 'n') return operatorMatrix(i, j); 
-    else return operatorMatrix(j, i);
+    if (conj == 'n') return nonZeroBlocks[mapToNonZeroBlocks.at(std::pair<int,int>(i,j))].second;
+    else return nonZeroBlocks[mapToNonZeroBlocks.at(std::pair<int,int>(j,i))].second;
+    //if (conj == 'n') return operatorMatrix(i, j); 
+    //else return operatorMatrix(j, i);
   }
   StackMatrix& operator()(int i, int j) { 
-    if (conj == 'n') return operatorMatrix(i, j); 
-    else return operatorMatrix(j, i);
+    if (conj == 'n') return nonZeroBlocks[mapToNonZeroBlocks.at(std::pair<int,int>(i,j))].second;
+    else return nonZeroBlocks[mapToNonZeroBlocks.at(std::pair<int,int>(j,i))].second;
+    //if (conj == 'n') return operatorMatrix(i, j); 
+    //else return operatorMatrix(j, i);
   }
   StackMatrix& operator()(int i, int j, char conj) { 
-    if (conj == 'n') return operatorMatrix(i, j); 
-    else return operatorMatrix(j, i);
+    if (conj == 'n') return nonZeroBlocks[mapToNonZeroBlocks.at(std::pair<int,int>(i,j))].second;
+    else return nonZeroBlocks[mapToNonZeroBlocks.at(std::pair<int,int>(j,i))].second;
+    //if (conj == 'n') return operatorMatrix(i, j); 
+    //else return operatorMatrix(j, i);
   }
 
-  ObjectMatrix<StackMatrix>& get_operatorMatrix() {return operatorMatrix;}
-  const ObjectMatrix<StackMatrix>& get_operatorMatrix() const {return operatorMatrix;}
   friend ostream& operator<<(ostream& os, const StackSparseMatrix& a);
   void operator=(const StackSparseMatrix& m);
   void Randomise();
@@ -188,7 +208,6 @@ class StackSparseMatrix : public Baseoperator<StackMatrix>  // the sparse matrix
   void Save(std::ofstream &ofs) const;
   void Load(std::ifstream &ifs, bool allocateData);
 
-  void OperatorMatrixReference(ObjectMatrix<StackMatrix*>& m, const std::vector<int>& oldToNewStateI, const std::vector<int>& oldToNewStateJ);
 
   virtual ~StackSparseMatrix(){};
   int nrows() const { 
@@ -337,6 +356,8 @@ public:
   char &allowed(int i, int j, char conj) { if (conj =='n') return opdata->allowed(j, i); else return opdata->allowed(i,j);}
   const StackMatrix& operator_element(int i, int j, char conj) const { if (conj == 'n') return opdata->operator_element(j, i); else return opdata->operator_element(i,j);}
   StackMatrix& operator_element(int i, int j, char conj) { if (conj == 'n') return opdata->operator_element(j, i); else return opdata->operator_element(i,j);}
+  //std::vector<std::pair<std::pair<int, int>, StackMatrix> >& get_nonZeroBlocks() {return nonZeroBlocks;} 
+  //const std::vector<std::pair<std::pair<int, int>, StackMatrix> >& get_nonZeroBlocks() const {return nonZeroBlocks;} 
 
   SpinSpace get_spin(int i=0) const  { return -opdata->get_deltaQuantum(i).get_s();}
   IrrepSpace get_symm(int i=0) const  { return -opdata->get_deltaQuantum(i).get_symm();}
@@ -363,9 +384,9 @@ void ScaleAdd(double d, const StackSparseMatrix& a, StackSparseMatrix& b);
 double DotProduct(const StackSparseMatrix& lhs, const StackSparseMatrix& rhs);
 double trace(const StackSparseMatrix& lhs);
 void Scale(double d, StackSparseMatrix& a);
-void copy(const ObjectMatrix<StackMatrix>& a, ObjectMatrix<StackMatrix>& b);
-void copy(const ObjectMatrix<Matrix>& a, ObjectMatrix<StackMatrix>& b);
-void copy(const ObjectMatrix<StackMatrix>& a, ObjectMatrix<Matrix>& b);
+//void copy(const ObjectMatrix<StackMatrix>& a, ObjectMatrix<StackMatrix>& b);
+//void copy(const ObjectMatrix<Matrix>& a, ObjectMatrix<StackMatrix>& b);
+//void copy(const ObjectMatrix<StackMatrix>& a, ObjectMatrix<Matrix>& b);
 void copy(const StackMatrix& a, StackMatrix& b);
 void copy(const StackMatrix& a, Matrix& b);
 void copy(const Matrix& a, StackMatrix& b);

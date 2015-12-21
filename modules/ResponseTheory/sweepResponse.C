@@ -9,6 +9,7 @@ Sandeep Sharma and Garnet K.-L. Chan
 #include "Stackwavefunction.h"
 #include "stackguess_wavefunction.h"
 #include "sweepResponse.h"
+#include "IntegralMatrix.h"
 #include "global.h"
 #include "solver.h"
 #include "initblocks.h"
@@ -23,11 +24,11 @@ Sandeep Sharma and Garnet K.-L. Chan
 #include "Stackdensity.h"
 #include "pario.h"
 #include "davidson.h"
-#include "sweep.h"
 #include "initblocks.h"
 #include "operatorfunctions.h"
 #include "Stackspinblock.h"
 #include "sweep_params.h"
+#include "sweep.h"
 
 using namespace boost;
 using namespace std;
@@ -82,9 +83,8 @@ void SpinAdapted::SweepResponse::BlockAndDecimate (SweepParams &sweepParams, Sta
 
   if (dmrginp.outputlevel() > 0)
    mcheck(""); 
-  if (!dot_with_sys && sweepParams.get_onedot()) pout << "\t\t\t System  Block"<<system;    
-  else pout << "\t\t\t System  Block"<<newSystem;
-  pout << "\t\t\t Environment Block"<<newEnvironment<<endl;
+  pout << "\t\t\t System  Block"<<*big.get_leftBlock();
+  pout << "\t\t\t Environment Block"<<*big.get_rightBlock()<<endl;
   p1out << "\t\t\t Solving wavefunction "<<endl;
 
   std::vector<StackWavefunction> lowerStates;
@@ -159,6 +159,9 @@ void SpinAdapted::SweepResponse::BlockAndDecimate (SweepParams &sweepParams, Sta
       int sweepiter = sweepParams.get_sweep_iter();
 
       //**********************************
+      //if (!(dmrginp.calc_type() == RESPONSEAAAV && systemDotStart >= dmrginp.num_occupied_orbitals()))
+
+      pout << perturbationBig<<endl;
       branoiseMatrix.add_onedot_noise(iwave, perturbationBig);
       DSCAL( branoiseMatrix.memoryUsed(), 1.0/DotProduct(iwave, iwave)/trace(branoiseMatrix), branoiseMatrix.get_data() , 1);
     }
@@ -170,6 +173,7 @@ void SpinAdapted::SweepResponse::BlockAndDecimate (SweepParams &sweepParams, Sta
     temp.Clear();
 
     perturbationBig.multiplyH_2index(iwave, &temp, MAX_THRD);
+
     if (mpigetrank() == 0) {
       if(l==0)
 	DCOPY(temp.memoryUsed(), temp.get_data(), 1, lowerStates[0].get_data(), 1);
@@ -254,6 +258,7 @@ void SpinAdapted::SweepResponse::BlockAndDecimate (SweepParams &sweepParams, Sta
 
 
   dmrginp.setOutputlevel() = originalOutputlevel;
+
   StackDensityMatrix bratracedMatrix(newSystem.get_braStateInfo());
   if (mpigetrank() == 0) {
     bratracedMatrix.allocate(newSystem.get_braStateInfo());
@@ -524,6 +529,17 @@ double SpinAdapted::SweepResponse::do_one(SweepParams &sweepParams, const bool &
   }
 
   sweepParams.set_sweep_parameters();
+  if (dmrginp.get_sweep_type() == PARTIAL) {
+    if (dmrginp.spinAdapted()) {
+      sweepParams.set_n_iters() =  sweepParams.set_n_iters()+(dmrginp.getPartialSweep() - dmrginp.last_site())/sweepParams.get_sys_add();
+    }
+    else {
+      sweepParams.set_n_iters() =  sweepParams.set_n_iters()+(dmrginp.getPartialSweep() - dmrginp.last_site())/(2*sweepParams.get_sys_add());
+    }
+  
+    sweepParams.set_backward_starting_size() = dmrginp.last_site()-dmrginp.getPartialSweep()+1;
+  }
+
   // a new renormalisation sweep routine
   pout << endl;
   if (forward)
@@ -532,28 +548,71 @@ double SpinAdapted::SweepResponse::do_one(SweepParams &sweepParams, const bool &
     pout << "\t\t\t Starting sweep "<< sweepParams.set_sweep_iter()<<" in backwards direction" << endl;
   pout << "\t\t\t ============================================================================ " << endl;
 
-  InitBlocks::InitStartingBlock (system,forward, targetState, targetState,
-				 sweepParams.get_forward_starting_size(), sweepParams.get_backward_starting_size(), 
-				 restartSize, restart, warmUp, activeSpaceIntegral);
 
-  for (int l=0; l<projectors.size(); l++)
-  {
-    StackSpinBlock perturbationSystem;
-    perturbationSystem.set_integralIndex() = 0;
-    InitBlocks::InitStartingBlock (perturbationSystem,forward, targetState, projectors[l],
-				   sweepParams.get_forward_starting_size(), sweepParams.get_backward_starting_size(), 
-				   restartSize, restart, warmUp, 0);
-    StackSpinBlock::store (forward, system.get_sites(), perturbationSystem, targetState, projectors[l]);
+  if (dmrginp.get_sweep_type() == PARTIAL) {
+    int len = forward? sweepParams.get_forward_starting_size() : sweepParams.get_backward_starting_size();
+    vector<int> sites(len);  
+    if (forward)
+      for (int i=0; i<len; i++)
+	sites[i] = i;
+    else
+      for (int i=0; i<len; i++)
+	sites[i] = dmrginp.last_site() - len + i;
+    
+    StackSpinBlock::restore (forward, sites, system, targetState, targetState);
+
+    system.set_twoInt(activeSpaceIntegral);
+
+    for (int l=0; l<projectors.size(); l++)
+    {
+      StackSpinBlock perturbationSystem;
+      perturbationSystem.set_integralIndex() = 0;
+      //if (sweepParams.get_sweep_iter() == 0)
+      //InitBlocks::InitStartingBlock (perturbationSystem,forward, targetState, projectors[l],
+      //			       sweepParams.get_forward_starting_size(), sweepParams.get_backward_starting_size(), 
+      //			       restartSize, restart, warmUp, 0);
+      //else
+      StackSpinBlock::restore (forward, sites, perturbationSystem, targetState, projectors[l]);
+      StackSpinBlock::store (forward, system.get_sites(), perturbationSystem, targetState, projectors[l]);
+    }
+    for (int l=0; l<baseStates.size(); l++)
+    {
+      StackSpinBlock overlapSystem;
+      overlapSystem.set_integralIndex() = l+1;
+      //if (sweepParams.get_sweep_iter() == 0)
+      //InitBlocks::InitStartingBlock (overlapSystem,forward, targetState, baseStates[l],
+      //			       sweepParams.get_forward_starting_size(), sweepParams.get_backward_starting_size(), 
+      //			       restartSize, restart, warmUp, perturbationIntegral[l]);
+      //else
+      StackSpinBlock::restore (forward, sites, overlapSystem, targetState, baseStates[l]);
+      StackSpinBlock::store (forward, system.get_sites(), overlapSystem, targetState, baseStates[l]);
+    }
+
   }
-
-  for (int l=0; l<baseStates.size(); l++)
-  {
-    StackSpinBlock overlapSystem;
-    overlapSystem.set_integralIndex() = l+1;
-    InitBlocks::InitStartingBlock (overlapSystem,forward, targetState, baseStates[l],
+  else {
+    InitBlocks::InitStartingBlock (system,forward, targetState, targetState,
 				   sweepParams.get_forward_starting_size(), sweepParams.get_backward_starting_size(), 
-				   restartSize, restart, warmUp, perturbationIntegral[l]);
-    StackSpinBlock::store (forward, system.get_sites(), overlapSystem, targetState, baseStates[l]);
+				   restartSize, restart, warmUp, activeSpaceIntegral);
+  
+    for (int l=0; l<projectors.size(); l++)
+    {
+      StackSpinBlock perturbationSystem;
+      perturbationSystem.set_integralIndex() = 0;
+      InitBlocks::InitStartingBlock (perturbationSystem,forward, targetState, projectors[l],
+				     sweepParams.get_forward_starting_size(), sweepParams.get_backward_starting_size(), 
+				     restartSize, restart, warmUp, 0);
+      StackSpinBlock::store (forward, system.get_sites(), perturbationSystem, targetState, projectors[l]);
+    }
+    
+    for (int l=0; l<baseStates.size(); l++)
+    {
+      StackSpinBlock overlapSystem;
+      overlapSystem.set_integralIndex() = l+1;
+      InitBlocks::InitStartingBlock (overlapSystem,forward, targetState, baseStates[l],
+				     sweepParams.get_forward_starting_size(), sweepParams.get_backward_starting_size(), 
+				     restartSize, restart, warmUp, perturbationIntegral[l]);
+      StackSpinBlock::store (forward, system.get_sites(), overlapSystem, targetState, baseStates[l]);
+    }
   }
 
   if(!restart)
@@ -569,7 +628,7 @@ double SpinAdapted::SweepResponse::do_one(SweepParams &sweepParams, const bool &
   bool dot_with_sys = true;
   vector<int> syssites = system.get_sites();
 
-  if (restart)
+  if (restart || dmrginp.get_sweep_type() == PARTIAL)
     Sweep::set_dot_with_sys(dot_with_sys, system, sweepParams, forward);
 
  // get_n_iters() returns the number of blocking iterations needed in one sweep
@@ -656,7 +715,7 @@ double SpinAdapted::SweepResponse::do_one(SweepParams &sweepParams, const bool &
   //when we are doing twodot, we still need to do the last sweep to make sure that the
   //correctionVector and base wavefunction are propogated correctly across sweeps
   //especially when we switch from twodot to onedot algorithm
-  if (!sweepParams.get_onedot() && !warmUp) {
+  if (!sweepParams.get_onedot() && !warmUp && dmrginp.get_sweep_type() == FULL) {
       pout << "\n\t\t\t Block Iteration :: " << sweepParams.get_block_iter() << endl;
       pout << "\t\t\t ----------------------------" << endl;
       if (forward)
@@ -823,6 +882,7 @@ void SpinAdapted::SweepResponse::StartUp (SweepParams &sweepParams, StackSpinBlo
     broadcast(calc, ketrotateMatrix, 0);
 #endif
 
+    SpinQuantum hq(0,SpinSpace(0),IrrepSpace(0));
     dmrginp.operrotT -> start();
     perturbationNewSystem.transform_operators(brarotateMatrix, ketrotateMatrix, false, false);
     dmrginp.operrotT -> stop();
@@ -1021,8 +1081,9 @@ void SpinAdapted::SweepResponse::WavefunctionCanonicalize (SweepParams &sweepPar
     StackSpinBlock overlapsystemDot(systemDotStart, systemDotEnd, perturbationIntegral, false);
 
     overlapenvironmentDot.set_integralIndex() = perturbationIntegral;
-    overlapenvironmentDot = StackSpinBlock(sitesenvdot[0], sitesenvdot[0], perturbationIntegral, false);//singleSiteBlocks[perturbationIntegral][sitesenvdot[0]];
-    //StackSpinBlock::restore(!forward, sitesenvdot, overlapenvironmentDot, targetState, baseStates[l]); 
+
+    //overlapenvironmentDot = StackSpinBlock(sitesenvdot[0], sitesenvdot[0], perturbationIntegral, false);//singleSiteBlocks[perturbationIntegral][sitesenvdot[0]];
+    StackSpinBlock::restore(!forward, sitesenvdot, overlapenvironmentDot, targetState, baseStates[l]); 
 
     guessWaveTypes guesstype = sweepParams.get_block_iter() == 0 ? TRANSPOSE : TRANSFORM;
     
@@ -1044,6 +1105,7 @@ void SpinAdapted::SweepResponse::WavefunctionCanonicalize (SweepParams &sweepPar
     pout << "transform iwave"<<endl;
     StackWavefunction iwave; iwave.initialise(dmrginp.effective_molecule_quantum_vec(), overlapBig.get_leftBlock()->get_stateInfo(), overlapBig.get_rightBlock()->get_stateInfo(), sweepParams.get_onedot()); iwave.Clear();
     //****************************
+
     if (!mpigetrank())
       GuessWave::transform_previous_twodot_to_onedot_wavefunction(iwave, overlapBig, baseStates[l]);
     iwave.set_onedot(true);
@@ -1093,8 +1155,8 @@ void SpinAdapted::SweepResponse::WavefunctionCanonicalize (SweepParams &sweepPar
     StackSpinBlock overlapsystemDot(systemDotStart, systemDotEnd, perturbationIntegral, true);
 
     overlapenvironmentDot.set_integralIndex() = perturbationIntegral;
-    overlapenvironmentDot = StackSpinBlock(sitesenvdot[0], sitesenvdot[0], perturbationIntegral, false);//singleSiteBlocks[perturbationIntegral][sitesenvdot[0]];
-    //StackSpinBlock::restore(!forward, sitesenvdot, overlapenvironmentDot, targetState, projectors[l]); 
+    //overlapenvironmentDot = StackSpinBlock(sitesenvdot[0], sitesenvdot[0], perturbationIntegral, false);//singleSiteBlocks[perturbationIntegral][sitesenvdot[0]];
+    StackSpinBlock::restore(!forward, sitesenvdot, overlapenvironmentDot, targetState, projectors[l]); 
 
     guessWaveTypes guesstype = sweepParams.get_block_iter() == 0 ? TRANSPOSE : TRANSFORM;
     

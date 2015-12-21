@@ -24,6 +24,7 @@ Sandeep Sharma and Garnet K.-L. Chan
 #include <boost/bind.hpp>
 #include <boostutils.h>
 #include <stdio.h>
+#include <tuple>
 
 #ifndef SERIAL
 #include <boost/mpi.hpp>
@@ -33,24 +34,29 @@ Sandeep Sharma and Garnet K.-L. Chan
 namespace SpinAdapted{
 using namespace operatorfunctions;
 
-void StackSpinBlock::make_iterator(StackSpinBlock& b, opTypes op, int* data, bool oneIndex, int numIndices) {
+void StackSpinBlock::make_iterator(StackSpinBlock& b, opTypes op, int* data, int index, int numIndices) {
 
   std::vector<int> oneindex (numIndices, 0.0);
   std::vector<std::pair<int, int> > twoindex(numIndices, std::pair<int, int>(0,0));
+  std::map<std::tuple<int, int, int>, int > threeindex;
   
-  if (oneIndex) {
+  if (index == 1) {
     for (int i=0; i<numIndices; i++) {
       oneindex[i] = data[i];
     }
   }
-  else {
+  else if (index == 2){
     for (int i=0; i<numIndices; i++) {
       twoindex[i].first = data[2*i];
       twoindex[i].second = data[2*i+1];
     }
   }
+  else if (index == 3){
+    for (int i=0; i<numIndices; i++) 
+      threeindex[std::make_tuple(data[4*i], data[4*i+1], data[4*i+2])] = data[4*i+3];
+  }
 
-  b.ops[op]->build_iterators(b, oneindex, twoindex);
+  b.ops[op]->build_iterators(b, oneindex, twoindex, threeindex);
   
 } 
 
@@ -87,14 +93,14 @@ void StackSpinBlock::restore (bool forward, const vector<int>& sites, StackSpinB
 
   dmrginp.rawdatai->start();
   
-  int* initialData = new int[23];
+  int* initialData = new int[25];
   int allindexsize;
   
   FILE *fp[numthrds];
   for (int i=0; i<numthrds; i++)
     fp[i] = fopen(file[i].c_str(), "rb");
 
-  fread(initialData, sizeof(int), 23, fp[0]);
+  fread(initialData, sizeof(int), 25, fp[0]);
   fread(&allindexsize, sizeof(int), 1, fp[0]);
   int* allindices = new int[allindexsize];//large data
   fread(allindices, sizeof(int), allindexsize, fp[0]);
@@ -114,7 +120,7 @@ void StackSpinBlock::restore (bool forward, const vector<int>& sites, StackSpinB
   int dataonlastthrd = b.totalMemory/numthrds + b.totalMemory%numthrds;
 
     
-  //nowunpack the first 23 integers
+  //nowunpack the first 25 integers
   b.localstorage         = initialData[0] == 1 ? true : false;
   b.name                 = initialData[1];
   b.complementary        = initialData[2] == 1 ? true : false;
@@ -138,6 +144,8 @@ void StackSpinBlock::restore (bool forward, const vector<int>& sites, StackSpinB
   int numcredesdescomp   = initialData[20];
   int numham             = initialData[21];
   int numoverlap         = initialData[22];
+  int numri3index        = initialData[23];
+  int numri4index        = initialData[24];
 
 
   dmrginp.readmakeiter->start();
@@ -169,26 +177,30 @@ void StackSpinBlock::restore (bool forward, const vector<int>& sites, StackSpinB
   if (numdescrecomp    != -1) {b.ops[DES_CRECOMP]           =   make_new_stackop(DES_CRECOMP, true);}
   if (numcredesdescomp != -1) {b.ops[CRE_DES_DESCOMP]           =   make_new_stackop(CRE_DES_DESCOMP, true);}
   if (numoverlap       != -1) {b.ops[OVERLAP]           =   make_new_stackop(OVERLAP, true);}
+  if (numri3index      != -1) {b.ops[RI_3INDEX]         =   make_new_stackop(RI_3INDEX, true);}
+  if (numri4index      != -1) {b.ops[RI_4INDEX]         =   make_new_stackop(RI_4INDEX, true);}
 
   if (b.localstorage) b.setstoragetype(LOCAL_STORAGE);
   else b.setstoragetype(DISTRIBUTED_STORAGE);
 
   //this should be in the same order as opTypes are written in enumerator.h file
   //
-  if (numham           != -1) { make_iterator(b, HAM,             &allindices[index], true,  numham);           index+=numham;} 
-  if (numcre           != -1) { make_iterator(b, CRE,             &allindices[index], true,  numcre);           index+=numcre;}
-  if (numcrecre        != -1) { make_iterator(b, CRE_CRE,         &allindices[index], false, numcrecre);        index+=2*numcrecre;}
-  if (numdesdescomp    != -1) { make_iterator(b, DES_DESCOMP,     &allindices[index], false, numdesdescomp);    index+=2*numdesdescomp;}
-  if (numcredes        != -1) { make_iterator(b, CRE_DES,         &allindices[index], false, numcredes);        index+=2*numcredes;}
-  if (numcredescomp    != -1) { make_iterator(b, CRE_DESCOMP,     &allindices[index], false, numcredescomp);    index+=2*numcredescomp;}
-  if (numcrecredescomp != -1) { make_iterator(b, CRE_CRE_DESCOMP, &allindices[index], true,  numcrecredescomp); index+=numcrecredescomp;}
-  if (numdes           != -1) { make_iterator(b, DES,             &allindices[index], true,  numdes);           index+=numdes;}
-  if (numdesdes        != -1) { make_iterator(b, DES_DES,         &allindices[index], false, numdesdes);        index+=2*numdesdes;}
-  if (numcrecrecomp    != -1) { make_iterator(b, CRE_CRECOMP,     &allindices[index], false, numcrecrecomp);    index+=2*numcrecrecomp;}
-  if (numdescre        != -1) { make_iterator(b, DES_CRE,         &allindices[index], false, numdescre);        index+=2*numdescre;}
-  if (numdescrecomp    != -1) { make_iterator(b, DES_CRECOMP,     &allindices[index], false, numdescrecomp);    index+=2*numdescrecomp;}
-  if (numcredesdescomp != -1) { make_iterator(b, CRE_DES_DESCOMP, &allindices[index], true,  numcredesdescomp); index+=numcredesdescomp;}
-  if (numoverlap       != -1) { make_iterator(b, OVERLAP,         &allindices[index], true,  numoverlap);       index+=numoverlap;}
+  if (numham           != -1) { make_iterator(b, HAM,             &allindices[index], 1,  numham);           index+=numham;} 
+  if (numcre           != -1) { make_iterator(b, CRE,             &allindices[index], 1,  numcre);           index+=numcre;}
+  if (numcrecre        != -1) { make_iterator(b, CRE_CRE,         &allindices[index], 2,  numcrecre);        index+=2*numcrecre;}
+  if (numdesdescomp    != -1) { make_iterator(b, DES_DESCOMP,     &allindices[index], 2,  numdesdescomp);    index+=2*numdesdescomp;}
+  if (numcredes        != -1) { make_iterator(b, CRE_DES,         &allindices[index], 2,  numcredes);        index+=2*numcredes;}
+  if (numcredescomp    != -1) { make_iterator(b, CRE_DESCOMP,     &allindices[index], 2,  numcredescomp);    index+=2*numcredescomp;}
+  if (numcrecredescomp != -1) { make_iterator(b, CRE_CRE_DESCOMP, &allindices[index], 1,  numcrecredescomp); index+=numcrecredescomp;}
+  if (numdes           != -1) { make_iterator(b, DES,             &allindices[index], 1,  numdes);           index+=numdes;}
+  if (numdesdes        != -1) { make_iterator(b, DES_DES,         &allindices[index], 2,  numdesdes);        index+=2*numdesdes;}
+  if (numcrecrecomp    != -1) { make_iterator(b, CRE_CRECOMP,     &allindices[index], 2,  numcrecrecomp);    index+=2*numcrecrecomp;}
+  if (numdescre        != -1) { make_iterator(b, DES_CRE,         &allindices[index], 2,  numdescre);        index+=2*numdescre;}
+  if (numdescrecomp    != -1) { make_iterator(b, DES_CRECOMP,     &allindices[index], 2,  numdescrecomp);    index+=2*numdescrecomp;}
+  if (numcredesdescomp != -1) { make_iterator(b, CRE_DES_DESCOMP, &allindices[index], 1,  numcredesdescomp); index+=numcredesdescomp;}
+  if (numoverlap       != -1) { make_iterator(b, OVERLAP,         &allindices[index], 1,  numoverlap);       index+=numoverlap;}
+  if (numri3index      != -1) { b.ops[RI_3INDEX]->build_iterators(b, false);}
+  if (numri4index      != -1) { b.ops[RI_4INDEX]->build_iterators(b, false);}
   dmrginp.readmakeiter->stop();
 
 
@@ -199,7 +211,7 @@ void StackSpinBlock::restore (bool forward, const vector<int>& sites, StackSpinB
   double* localdata = b.data; 
   for (std::map<opTypes, boost::shared_ptr< StackOp_component_base> >::iterator it = b.ops.begin(); it != b.ops.end(); ++it)
   {
-    if(it->second->is_core()) {
+    if(it->second->is_core() && it->first != RI_3INDEX && it->first != RI_4INDEX) {
 
       for (int i=0; i<it->second->get_size(); i++) {
 	int vecsize = it->second->get_local_element(i).size();
@@ -250,7 +262,7 @@ void StackSpinBlock::store (bool forward, const vector<int>& sites, StackSpinBlo
   }
 
 
-  int* initialData = new int[23];
+  int* initialData = new int[25];
 
   //nowunpack the first 23 integers
   initialData[0]    = b.localstorage      == 1 ? true : false;
@@ -276,6 +288,8 @@ void StackSpinBlock::store (bool forward, const vector<int>& sites, StackSpinBlo
   initialData[20]   = b.has(CRE_DES_DESCOMP)     ?  b.ops[CRE_DES_DESCOMP]->size() : -1;
   initialData[21]   = b.has(HAM)                 ?  b.ops[HAM]->size()             : -1;
   initialData[22]   = b.has(OVERLAP)             ?  b.ops[OVERLAP]->size()         : -1;
+  initialData[23]   = b.has(RI_3INDEX)           ?  b.ops[RI_3INDEX]->size()       : -1;
+  initialData[24]   = b.has(RI_4INDEX)           ?  b.ops[RI_4INDEX]->size()       : -1;
 
   std::vector<int> allindices;
   allindices.insert(allindices.end(), b.sites.begin(), b.sites.end());
@@ -283,32 +297,23 @@ void StackSpinBlock::store (bool forward, const vector<int>& sites, StackSpinBlo
 
   for (std::map<opTypes, boost::shared_ptr< StackOp_component_base> >::iterator it = b.ops.begin(); it != b.ops.end(); ++it)
   {
-    std::vector<int> indices = it->second->get_global_array();
-    allindices.insert(allindices.end(), indices.begin(), indices.end());
-  }
-
-  /*
-  //******************PLEASE DELETE
-  for (std::map<opTypes, boost::shared_ptr< StackOp_component_base> >::iterator it = b.ops.begin(); it != b.ops.end(); ++it)
-  {
-    if(it->second->is_core()) {
-
-      for (int i=0; i<it->second->get_size(); i++) {
-	int vecsize = it->second->get_local_element(i).size();
-	pout << it->first<<"  "<<it->second->get_local_element(i)[0]->get_data()[0]<<endl;
-      }
+    if (it->first != RI_3INDEX && it->first != RI_4INDEX) {
+      std::vector<int> indices = it->second->get_global_array();
+      allindices.insert(allindices.end(), indices.begin(), indices.end());
     }
   }
-  //**************************
-  */
+
   dmrginp.rawdatao->start();
   FILE *fp[numthrds];
   for (int i=0; i<numthrds; i++)
     fp[i] = fopen(file[i].c_str(), "wb");
   int size = allindices.size();
-  fwrite(initialData, sizeof(int), 23, fp[0]);
+  fwrite(initialData, sizeof(int), 25, fp[0]);
   fwrite(&size, sizeof(int), 1, fp[0]);
   fwrite(&allindices[0], sizeof(int), allindices.size(), fp[0]);
+
+  
+
   fwrite(&b.totalMemory, sizeof(long), 1, fp[0]);
 
   int dataperthrd = b.totalMemory/numthrds;
@@ -717,7 +722,10 @@ void StackSpinBlock::messagePassTwoIndexOps()
   //In loop block you never have any comp ops, but we need a few
   //to make CCDcomp, these operators are created in parallel and passed around
 void StackSpinBlock::formTwoIndexOps() {
+
+#ifndef SERIAL
   boost::mpi::communicator world;
+#endif
   //if dont have 2 index normal ops then return
   if (!has(CRE_DES)) return;
 
@@ -744,6 +752,7 @@ void StackSpinBlock::formTwoIndexOps() {
 
   //build iterators
   std::vector<int> cinds;
+  std::map<std::tuple<int, int, int>, int> tuple;
   std::vector<std::pair<int, int> > cdpair, ddpair;
   for (int idx = 0; idx < dotindice.size(); ++idx) 
   for (int i=0; i<complementary_sites.size(); i++) {
@@ -761,11 +770,11 @@ void StackSpinBlock::formTwoIndexOps() {
     if (dmrginp.use_partial_two_integrals() || screen_dd_interaction(I, J, sites, *get_twoInt(), screen_tol))
       ddpair.push_back(std::pair<int, int>(I, J));
   }
-  ops[CRE_DESCOMP]->build_iterators(*this, cinds, cdpair);
-  ops[DES_DESCOMP]->build_iterators(*this, cinds, ddpair);
+  ops[CRE_DESCOMP]->build_iterators(*this, cinds, cdpair, tuple);
+  ops[DES_DESCOMP]->build_iterators(*this, cinds, ddpair, tuple);
   if (has(DES)) {
-    ops[DES_CRECOMP]->build_iterators(*this, cinds, cdpair);
-    ops[CRE_CRECOMP]->build_iterators(*this, cinds, ddpair);
+    ops[DES_CRECOMP]->build_iterators(*this, cinds, cdpair, tuple);
+    ops[CRE_CRECOMP]->build_iterators(*this, cinds, ddpair, tuple);
   }
 
 
@@ -790,7 +799,9 @@ void StackSpinBlock::formTwoIndexOps() {
     std::vector<boost::shared_ptr<StackSparseMatrix> > opvec = ops[CRE_DESCOMP]->get_element(I, J);
 
     for (int opindex=0; opindex<opvec.size(); opindex++) {
+#ifndef SERIAL
       mpi::broadcast(calc, *(opvec[opindex]), processorindex(trimap_2d(I, J, length)));
+#endif
       StackCreDesComp& op = dynamic_cast<StackCreDesComp&>(*(opvec[opindex]));
       if (op.memoryUsed() != 0) continue;
       op.allocate(braStateInfo, ketStateInfo);
@@ -798,15 +809,18 @@ void StackSpinBlock::formTwoIndexOps() {
 
       if (find(dotindice.begin(), dotindice.end(), I) != dotindice.end() &&
 	    find(dotindice.begin(), dotindice.end(), J) != dotindice.end()) { //all proces should have it
-	      MPI_Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM, Calc);
+#ifndef SERIAL
+        MPI_Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM, Calc);
+#endif
 	      if (additionalMemory == 0)
 	        additionaldata = op.get_data();
 	      additionalMemory += op.memoryUsed();
       } else {
 	      //this process should have the operator
 	      int toproc = processorindex(compsite);
+#ifndef SERIAL
 	      MPI_Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM, Calc);
-
+#endif
 	      //remove the processor if not required
 	      if (mpigetrank() != toproc) {
 	        op.deallocate();
@@ -844,14 +858,18 @@ void StackSpinBlock::formTwoIndexOps() {
     std::vector<boost::shared_ptr<StackSparseMatrix> > opvec = ops[DES_DESCOMP]->get_element(I, J);
 
     for (int opindex=0; opindex<opvec.size(); opindex++) {
+#ifndef SERIAL
       mpi::broadcast(calc, *(opvec[opindex]), processorindex(trimap_2d(I, J, length)));
+#endif
       StackDesDesComp& op = dynamic_cast<StackDesDesComp&>(*(opvec[opindex]));
       if (op.memoryUsed() != 0) continue;
       op.allocate(braStateInfo, ketStateInfo);
       op.buildfromDesDes(*this);
       
       if (find(dotindice.begin(), dotindice.end(), I) != dotindice.end() && find(dotindice.begin(), dotindice.end(), J) != dotindice.end()) { //all proces should have it
-	      MPI_Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM, Calc);
+#ifndef SERIAL
+        MPI_Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM, Calc);
+#endif
 	      if (additionalMemory == 0)
 	        additionaldata = op.get_data();
 	        additionalMemory += op.memoryUsed();
@@ -859,8 +877,9 @@ void StackSpinBlock::formTwoIndexOps() {
       else {
 	//this process should have the operator
 	int toproc = processorindex(compsite);
+#ifndef SERIAL
 	MPI_Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM, Calc);
-
+#endif
 	if (mpigetrank() != toproc) {
 	  op.deallocate();
 	  if (ops[DES_DESCOMP]->has_local_index(I,J))
@@ -899,13 +918,17 @@ void StackSpinBlock::formTwoIndexOps() {
     std::vector<boost::shared_ptr<StackSparseMatrix> > opvec = ops[CRE_CRECOMP]->get_element(I, J);
 
     for (int opindex=0; opindex<opvec.size(); opindex++) {
+#ifndef SERIAL
       mpi::broadcast(calc, *(opvec[opindex]), processorindex(trimap_2d(I, J, length)));
+#endif
       StackCreCreComp& op = dynamic_cast<StackCreCreComp&>(*(opvec[opindex]));
       op.allocate(braStateInfo, ketStateInfo);
       op.buildfromCreCre(*this);
       
       if (I == J) { //all proces should have it
+#ifndef SERIAL
 	MPI_Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM, Calc);
+#endif
 	if (additionalMemory == 0)
 	  additionaldata = op.get_data();
 	additionalMemory += op.memoryUsed();
@@ -913,8 +936,9 @@ void StackSpinBlock::formTwoIndexOps() {
       else {
 	//this process should have the operator
 	int toproc = processorindex(compsite);
+#ifndef SERIAL
 	MPI_Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM, Calc);
-
+#endif
 	if (mpigetrank() != toproc) {
 	  op.deallocate();
 	  if (ops[DES_DESCOMP]->has_local_index(I,J))
@@ -952,13 +976,17 @@ void StackSpinBlock::formTwoIndexOps() {
     std::vector<boost::shared_ptr<StackSparseMatrix> > opvec = ops[DES_CRECOMP]->get_element(I, J);
 
     for (int opindex=0; opindex<opvec.size(); opindex++) {
+#ifndef SERIAL
       mpi::broadcast(calc, *(opvec[opindex]), processorindex(trimap_2d(I, J, length)));
+#endif
       StackDesCreComp& op = dynamic_cast<StackDesCreComp&>(*(opvec[opindex]));
       op.allocate(braStateInfo, ketStateInfo);
       op.buildfromDesCre(*this);
       
       if (I == J) { //all proces should have it
+#ifndef SERIAL
 	MPI_Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM, Calc);
+#endif
 	if (additionalMemory == 0)
 	  additionaldata = op.get_data();
 	additionalMemory += op.memoryUsed();
@@ -966,8 +994,9 @@ void StackSpinBlock::formTwoIndexOps() {
       else {
 	//this process should have the operator
 	int toproc = processorindex(compsite);
+#ifndef SERIAL
 	MPI_Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM, Calc);
-
+#endif
 	if (mpigetrank() != toproc) {
 	  op.deallocate();
 	  if (ops[DES_CRECOMP]->has_local_index(I,J))
@@ -1009,7 +1038,9 @@ void StackSpinBlock::addAdditionalOps()
   //comp ops and they are generated in thsi function
 void StackSpinBlock::addAllCompOps() {
 
+#ifndef SERIAL
   boost::mpi::communicator world;
+#endif
   //if dont have 2 index normal ops then return
   if (!has(CRE_DES)) return;
 
@@ -1051,14 +1082,18 @@ void StackSpinBlock::addAllCompOps() {
       std::vector<boost::shared_ptr<StackSparseMatrix> > opvec = ops[CRE_DESCOMP]->get_element(I, J);
       
       for (int opindex=0; opindex<opvec.size(); opindex++) {
+#ifndef SERIAL
 	mpi::broadcast(calc, *(opvec[opindex]), processorindex(trimap_2d(I, J, length)));
+#endif
 	StackCreDesComp& op = dynamic_cast<StackCreDesComp&>(*(opvec[opindex]));
 	op.allocate(braStateInfo, ketStateInfo);
 	op.buildfromCreDes(*this);
 	
 	//this process should have the operator
 	int toproc = processorindex(trimap_2d(I, J, length));
+#ifndef SERIAL
 	MPI_Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM, Calc);
+#endif
 	
 	//remove the processor if not required
 	if (mpigetrank() != toproc) {
@@ -1085,14 +1120,18 @@ void StackSpinBlock::addAllCompOps() {
       std::vector<boost::shared_ptr<StackSparseMatrix> > opvec = ops[DES_DESCOMP]->get_element(I, J);
       
       for (int opindex=0; opindex<opvec.size(); opindex++) {
+#ifndef SERIAL
 	mpi::broadcast(calc, *(opvec[opindex]), processorindex(trimap_2d(I, J, length)));
+#endif
 	StackDesDesComp& op = dynamic_cast<StackDesDesComp&>(*(opvec[opindex]));
 	op.allocate(braStateInfo, ketStateInfo);
 	op.buildfromDesDes(*this);
 	
 	//this process should have the operator
 	int toproc = processorindex( trimap_2d(I, J, length) );
+#ifndef SERIAL
 	MPI_Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM, Calc);
+#endif
 	
 	if (mpigetrank() != toproc) {
 	  op.deallocate();
@@ -1119,14 +1158,18 @@ void StackSpinBlock::addAllCompOps() {
 	std::vector<boost::shared_ptr<StackSparseMatrix> > opvec = ops[DES_CRECOMP]->get_element(I, J);
 	
 	for (int opindex=0; opindex<opvec.size(); opindex++) {
+#ifndef SERIAL
 	  mpi::broadcast(calc, *(opvec[opindex]), processorindex(trimap_2d(I, J, length)));
+#endif
 	  StackDesCreComp& op = dynamic_cast<StackDesCreComp&>(*(opvec[opindex]));
 	  op.allocate(braStateInfo, ketStateInfo);
 	  op.buildfromDesCre(*this);
 	  
 	  //this process should have the operator
 	  int toproc = processorindex( trimap_2d(I, J, length) );
+#ifndef SERIAL
 	  MPI_Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM, Calc);
+#endif
 	  
 	  if (mpigetrank() != toproc) {
 	    op.deallocate();
@@ -1151,14 +1194,18 @@ void StackSpinBlock::addAllCompOps() {
 	std::vector<boost::shared_ptr<StackSparseMatrix> > opvec = ops[CRE_CRECOMP]->get_element(I, J);
 	
 	for (int opindex=0; opindex<opvec.size(); opindex++) {
+#ifndef SERIAL
 	  mpi::broadcast(calc, *(opvec[opindex]), processorindex(trimap_2d(I, J, length)));
+#endif
 	  StackCreCreComp& op = dynamic_cast<StackCreCreComp&>(*(opvec[opindex]));
 	  op.allocate(braStateInfo, ketStateInfo);
 	  op.buildfromCreCre(*this);
 	  
 	  //this process should have the operator
 	  int toproc = processorindex( trimap_2d(I, J, length) );
+#ifndef SERIAL
 	  MPI_Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM, Calc);
+#endif
 	  
 	  if (mpigetrank() != toproc) {
 	    op.deallocate();

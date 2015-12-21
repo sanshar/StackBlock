@@ -47,7 +47,7 @@ namespace SpinAdapted {
       return requiredMemory;
     }
 
-  template<> void StackOp_component<StackCre>::build_iterators(StackSpinBlock& b, std::vector<int>& screened_c_ix, std::vector<std::pair<int, int> >& screened_pair)
+  template<> void StackOp_component<StackCre>::build_iterators(StackSpinBlock& b, std::vector<int>& screened_c_ix, std::vector<std::pair<int, int> >& screened_pair, std::map< std::tuple<int, int, int>, int>& tuple)
     {
       if (b.get_sites().size () == 0) return; // blank construction (used in unset_initialised() Block copy construction, for use with STL)
       m_op.set_indices(screened_c_ix, dmrginp.last_site());  
@@ -128,7 +128,7 @@ namespace SpinAdapted {
       return requiredMemory;
     }
   
-  template<> void StackOp_component<StackDes>::build_iterators(StackSpinBlock& b, std::vector<int>& screened_d_ix, std::vector<std::pair<int, int> >& screened_pair)
+  template<> void StackOp_component<StackDes>::build_iterators(StackSpinBlock& b, std::vector<int>& screened_d_ix, std::vector<std::pair<int, int> >& screened_pair, std::map< std::tuple<int, int, int>, int>& tuple)
     {
       if (b.get_sites().size () == 0) return; // blank construction (used in unset_initialised() Block copy construction, for use with STL)
       m_op.set_indices(screened_d_ix, dmrginp.last_site());  
@@ -213,7 +213,7 @@ namespace SpinAdapted {
       return requiredMemory;
     }
   
-  template<> void StackOp_component<StackCreDes>::build_iterators(StackSpinBlock& b, std::vector<int>& screened_c_ix, std::vector<std::pair<int, int> >& screened_cd_ix)
+  template<> void StackOp_component<StackCreDes>::build_iterators(StackSpinBlock& b, std::vector<int>& screened_c_ix, std::vector<std::pair<int, int> >& screened_cd_ix, std::map< std::tuple<int, int, int>, int>& tuple)
     {
       if (b.get_sites().size () == 0) return; // blank construction (used in unset_initialised() Block copy construction, for use with STL)
       m_op.set_pair_indices(screened_cd_ix, dmrginp.last_site());      
@@ -280,7 +280,7 @@ namespace SpinAdapted {
     }
   
   
-  template<> void StackOp_component<StackDesCre>::build_iterators(StackSpinBlock& b, std::vector<int>& screened_c_ix, std::vector<std::pair<int, int> >& screened_cd_ix)
+  template<> void StackOp_component<StackDesCre>::build_iterators(StackSpinBlock& b, std::vector<int>& screened_c_ix, std::vector<std::pair<int, int> >& screened_cd_ix, std::map< std::tuple<int, int, int>, int>& tuple)
     {
       if (b.get_sites().size () == 0) return; // blank construction (used in unset_initialised() Block copy construction, for use with STL)
       m_op.set_pair_indices(screened_cd_ix, dmrginp.last_site());      
@@ -345,7 +345,7 @@ namespace SpinAdapted {
       return requiredMemory;
     }
   
-  template<> void StackOp_component<StackCreCre>::build_iterators(StackSpinBlock& b, std::vector<int>& screened_c_ix, std::vector<std::pair<int, int> >& screened_dd_ix)
+  template<> void StackOp_component<StackCreCre>::build_iterators(StackSpinBlock& b, std::vector<int>& screened_c_ix, std::vector<std::pair<int, int> >& screened_dd_ix, std::map< std::tuple<int, int, int>, int>& tuple)
     {
       if (b.get_sites().size () == 0) return; // blank construction (used in unset_initialised() Block copy construction, for use with STL)
       m_op.set_pair_indices(screened_dd_ix, dmrginp.last_site());      
@@ -411,7 +411,7 @@ namespace SpinAdapted {
       return requiredMemory;
     }
   
-  template<> void StackOp_component<StackDesDes>::build_iterators(StackSpinBlock& b, std::vector<int>& screened_c_ix, std::vector<std::pair<int, int> >& screened_dd_ix)
+  template<> void StackOp_component<StackDesDes>::build_iterators(StackSpinBlock& b, std::vector<int>& screened_c_ix, std::vector<std::pair<int, int> >& screened_dd_ix, std::map< std::tuple<int, int, int>, int>& tuple)
     {
       if (b.get_sites().size () == 0) return; // blank construction (used in unset_initialised() Block copy construction, for use with STL)
       m_op.set_pair_indices(screened_dd_ix, dmrginp.last_site());      
@@ -485,7 +485,7 @@ namespace SpinAdapted {
     return requiredMemory;
   }
 
-  template<> void StackOp_component<StackCreDesComp>::build_iterators(StackSpinBlock& b, std::vector<int>& screened_c_ix, std::vector<std::pair<int, int> >& screened_cd_ix)
+  template<> void StackOp_component<StackCreDesComp>::build_iterators(StackSpinBlock& b, std::vector<int>& screened_c_ix, std::vector<std::pair<int, int> >& screened_cd_ix, std::map< std::tuple<int, int, int>, int>& tuple)
   {
     if (b.get_sites().size () == 0) return; // blank construction (used in unset_initialised() Block copy construction, for use with STL)
     m_op.set_pair_indices(screened_cd_ix, dmrginp.last_site());      
@@ -577,7 +577,7 @@ namespace SpinAdapted {
     return requiredMemory;
   }
   
-  template<> void StackOp_component<StackDesCreComp>::build_iterators(StackSpinBlock& b, std::vector<int>& screened_c_ix, std::vector<std::pair<int, int> >& screened_cd_ix)
+  template<> void StackOp_component<StackDesCreComp>::build_iterators(StackSpinBlock& b, std::vector<int>& screened_c_ix, std::vector<std::pair<int, int> >& screened_cd_ix, std::map< std::tuple<int, int, int>, int>& tuple)
   {
     if (b.get_sites().size () == 0) return; // blank construction (used in unset_initialised() Block copy construction, for use with STL)
     m_op.set_pair_indices(screened_cd_ix, dmrginp.last_site());      
@@ -672,7 +672,7 @@ namespace SpinAdapted {
       return requiredMemory;
     }
 
-  template<> void StackOp_component<StackDesDesComp>::build_iterators(StackSpinBlock& b, std::vector<int>& screened_c_ix, std::vector<std::pair<int, int> >& screened_dd_ix)
+  template<> void StackOp_component<StackDesDesComp>::build_iterators(StackSpinBlock& b, std::vector<int>& screened_c_ix, std::vector<std::pair<int, int> >& screened_dd_ix, std::map< std::tuple<int, int, int>, int>& tuple)
     {
       if (b.get_sites().size () == 0) return; // blank construction (used in unset_initialised() Block copy construction, for use with STL)
       const double screen_tol = dmrginp.twoindex_screen_tol();
@@ -767,7 +767,7 @@ namespace SpinAdapted {
       return requiredMemory;
     }
   
-  template<> void StackOp_component<StackCreCreComp>::build_iterators(StackSpinBlock& b, std::vector<int>& screened_c_ix, std::vector<std::pair<int, int> >& screened_dd_ix)
+  template<> void StackOp_component<StackCreCreComp>::build_iterators(StackSpinBlock& b, std::vector<int>& screened_c_ix, std::vector<std::pair<int, int> >& screened_dd_ix, std::map< std::tuple<int, int, int>, int>& tuple)
     {
       if (b.get_sites().size () == 0) return; // blank construction (used in unset_initialised() Block copy construction, for use with STL)
       m_op.set_pair_indices(screened_dd_ix, dmrginp.last_site());      
@@ -856,7 +856,7 @@ namespace SpinAdapted {
       return requiredMemory;
     }
   
-  template<> void StackOp_component<StackCreCreDesComp>::build_iterators(StackSpinBlock& b, std::vector<int>& screened_cdd_ix, std::vector<std::pair<int, int> >& screened_pair)
+  template<> void StackOp_component<StackCreCreDesComp>::build_iterators(StackSpinBlock& b, std::vector<int>& screened_cdd_ix, std::vector<std::pair<int, int> >& screened_pair, std::map< std::tuple<int, int, int>, int>& tuple)
     {
       if (b.get_sites().size () == 0) return; // blank construction (used in unset_initialised() Block copy construction, for use with STL)
       m_op.set_indices(screened_cdd_ix, dmrginp.last_site());      
@@ -955,7 +955,7 @@ namespace SpinAdapted {
       return requiredMemory;
     }
   
-  template<> void StackOp_component<StackCreDesDesComp>::build_iterators(StackSpinBlock& b, std::vector<int>& screened_cdd_ix, std::vector<std::pair<int, int> >& screened_pair)
+  template<> void StackOp_component<StackCreDesDesComp>::build_iterators(StackSpinBlock& b, std::vector<int>& screened_cdd_ix, std::vector<std::pair<int, int> >& screened_pair, std::map< std::tuple<int, int, int>, int>& tuple)
     {
       if (b.get_sites().size () == 0) return; // blank construction (used in unset_initialised() Block copy construction, for use with STL)
       m_op.set_indices(screened_cdd_ix, dmrginp.last_site());      
@@ -1039,7 +1039,7 @@ namespace SpinAdapted {
       return requiredMemory;
     }
 
-  template<> void StackOp_component<StackHam>::build_iterators(StackSpinBlock& b, std::vector<int>& screened_c_ix, std::vector<std::pair<int, int> >& screened_pair)
+  template<> void StackOp_component<StackHam>::build_iterators(StackSpinBlock& b, std::vector<int>& screened_c_ix, std::vector<std::pair<int, int> >& screened_pair, std::map< std::tuple<int, int, int>, int>& tuple)
     {
       m_op.set_indices();
       m_op(0).resize(1);
@@ -1084,7 +1084,7 @@ namespace SpinAdapted {
 	return 0;
     }
 
-  template<> void StackOp_component<StackOverlap>::build_iterators(StackSpinBlock& b, std::vector<int>& screened_c_ix, std::vector<std::pair<int, int> >& screened_pair)
+  template<> void StackOp_component<StackOverlap>::build_iterators(StackSpinBlock& b, std::vector<int>& screened_c_ix, std::vector<std::pair<int, int> >& screened_pair, std::map< std::tuple<int, int, int>, int>& tuple)
     {
       m_op.set_indices();
       m_op(0).resize(1);

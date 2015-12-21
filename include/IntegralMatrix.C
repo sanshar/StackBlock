@@ -28,10 +28,20 @@ double& SpinAdapted::OneElectronArray::operator()(int i, int j) {
   j=j/2;
 
   if (isCalcLCC) {
-    if (isH0 && dmrginp.excitation()[i] != dmrginp.excitation()[j])
-      return dummyZero;
-    if (!isH0 && dmrginp.excitation()[i] == dmrginp.excitation()[j])
-      return dummyZero;
+    if (isH0) {
+      if (dmrginp.excitation()[i]!=dmrginp.excitation()[j]) 
+	return dummyZero;
+    }
+    if (!isH0) { 
+      if (dmrginp.excitation()[i]==dmrginp.excitation()[j])
+	return dummyZero;
+      else if (dmrginp.calc_type() == RESPONSEAAAV && !( (dmrginp.excitation()[i]==12 && dmrginp.excitation()[j] != 12) ||
+							 (dmrginp.excitation()[i]!=12 && dmrginp.excitation()[j] == 12) ) )
+	return dummyZero;  //more than one v is not present
+      else if (dmrginp.calc_type() == RESPONSEAAAC && !( (dmrginp.excitation()[i]==1 && dmrginp.excitation()[j] != 1) ||
+							 (dmrginp.excitation()[i]!=1 && dmrginp.excitation()[j] == 1) ) )
+	return dummyZero;  //more than one v is not present
+    }
   }
   //i should be greater than j
   int idx = (i >= j) ? i*(i+1)/2 + j : j*(j+1)/2 + i;
@@ -60,10 +70,21 @@ double SpinAdapted::OneElectronArray::operator()(int i, int j) const {
   j=j/2;
   //i should be greater than j
   if (isCalcLCC) {
-    if (isH0 && dmrginp.excitation()[i] != dmrginp.excitation()[j])
-      return dummyZero;
-    if (!isH0 && dmrginp.excitation()[i] == dmrginp.excitation()[j])
-      return dummyZero;
+    if (isH0) {
+      if (dmrginp.excitation()[i]!=dmrginp.excitation()[j]) 
+	return dummyZero;
+    }
+    if (!isH0) { 
+      if (dmrginp.excitation()[i]==dmrginp.excitation()[j])
+	return dummyZero;
+      else if (dmrginp.calc_type() == RESPONSEAAAV && !( (dmrginp.excitation()[i]==12 && dmrginp.excitation()[j] != 12) ||
+							 (dmrginp.excitation()[i]!=12 && dmrginp.excitation()[j] == 12) ) )
+	return dummyZero;  //more than one v is not present
+      else if (dmrginp.calc_type() == RESPONSEAAAC && !( (dmrginp.excitation()[i]==1 && dmrginp.excitation()[j] != 1) ||
+							 (dmrginp.excitation()[i]!=1 && dmrginp.excitation()[j] == 1) ) )
+	return dummyZero;
+    }
+
   }
 
   int idx = (i >= j) ? i*(i+1)/2 + j : j*(j+1)/2 + i;
@@ -326,10 +347,22 @@ double& SpinAdapted::TwoElectronArray::operator()(int i, int j, int k, int l) {
   long n = indexMap(i, k);
   long m = indexMap(j, l);
   if (isCalcLCC) {
-    if (isH0 && dmrginp.excitation()[i]+dmrginp.excitation()[j] != dmrginp.excitation()[k]+dmrginp.excitation()[l])
-      return dummyZero;
-    if (!isH0 && dmrginp.excitation()[i]+dmrginp.excitation()[j] == dmrginp.excitation()[k]+dmrginp.excitation()[l])
-      return dummyZero;
+    if (isH0) {
+      if (dmrginp.excitation()[i]+dmrginp.excitation()[j] != dmrginp.excitation()[k]+dmrginp.excitation()[l]) 
+	return dummyZero;
+      else if (dmrginp.calc_type() == RESPONSEAAAV && dmrginp.excitation()[i] == 12 && dmrginp.excitation()[j] == 12 && dmrginp.excitation()[k] == 12 && dmrginp.excitation()[l] == 12)
+	return dummyZero;  //vvvv not present
+    }
+    if (!isH0) { 
+      if (dmrginp.excitation()[i]+dmrginp.excitation()[j] == dmrginp.excitation()[k]+dmrginp.excitation()[l])
+	return dummyZero;
+      else if (dmrginp.calc_type() == RESPONSEAAAV && !( (dmrginp.excitation()[i]==12 && dmrginp.excitation()[j] != 12 && dmrginp.excitation()[k]!=12 && dmrginp.excitation()[l]!=12) ||
+							 (dmrginp.excitation()[i]!=12 && dmrginp.excitation()[j] == 12 && dmrginp.excitation()[k]!=12 && dmrginp.excitation()[l]!=12) ||
+							 (dmrginp.excitation()[i]!=12 && dmrginp.excitation()[j] != 12 && dmrginp.excitation()[k]==12 && dmrginp.excitation()[l]!=12) ||
+							 (dmrginp.excitation()[i]!=12 && dmrginp.excitation()[j] != 12 && dmrginp.excitation()[k]!=12 && dmrginp.excitation()[l]==12)))
+	return dummyZero;  //more than one v index is not present
+
+    }
   }
   if (n >= m) {
     long index = n*(n+1)/2+m;
@@ -362,10 +395,21 @@ double SpinAdapted::TwoElectronArray::operator()(int i, int j, int k, int l) con
   long n = indexMap(i, k);
   long m = indexMap(j, l);
   if (isCalcLCC) {
-    if (isH0 && dmrginp.excitation()[i]+dmrginp.excitation()[j] != dmrginp.excitation()[k]+dmrginp.excitation()[l])
-      return dummyZero;
-    if (!isH0 && dmrginp.excitation()[i]+dmrginp.excitation()[j] == dmrginp.excitation()[k]+dmrginp.excitation()[l])
-      return dummyZero;
+    if (isH0) {
+      if (dmrginp.excitation()[i]+dmrginp.excitation()[j] != dmrginp.excitation()[k]+dmrginp.excitation()[l]) 
+	return dummyZero;
+      else if (dmrginp.calc_type() == RESPONSEAAAV && dmrginp.excitation()[i] == 12 && dmrginp.excitation()[j] == 12 && dmrginp.excitation()[k] == 12 && dmrginp.excitation()[l] == 12)
+	return dummyZero;  //vvvv not present
+    }
+    if (!isH0) { 
+      if (dmrginp.excitation()[i]+dmrginp.excitation()[j] == dmrginp.excitation()[k]+dmrginp.excitation()[l])
+	return dummyZero;
+      else if (dmrginp.calc_type() == RESPONSEAAAV && !( (dmrginp.excitation()[i]==12 && dmrginp.excitation()[j] != 12 && dmrginp.excitation()[k]!=12 && dmrginp.excitation()[l]!=12) ||
+							 (dmrginp.excitation()[i]!=12 && dmrginp.excitation()[j] == 12 && dmrginp.excitation()[k]!=12 && dmrginp.excitation()[l]!=12) ||
+							 (dmrginp.excitation()[i]!=12 && dmrginp.excitation()[j] != 12 && dmrginp.excitation()[k]==12 && dmrginp.excitation()[l]!=12) ||
+							 (dmrginp.excitation()[i]!=12 && dmrginp.excitation()[j] != 12 && dmrginp.excitation()[k]!=12 && dmrginp.excitation()[l]==12)))
+	return dummyZero;  //more than one v is not present
+    }
   }
 
   if (n >= m) {

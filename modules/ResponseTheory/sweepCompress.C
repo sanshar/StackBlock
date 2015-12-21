@@ -22,6 +22,7 @@ Sandeep Sharma and Garnet K.-L. Chan
 #include "pario.h"
 #include "davidson.h"
 #include "sweep.h"
+#include "sweepResponse.h"
 #include "Stackwavefunction.h"
 #include "Stackspinblock.h"
 #include "sweep_params.h"

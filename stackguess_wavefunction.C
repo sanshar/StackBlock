@@ -24,9 +24,8 @@ void GuessWave::TransformLeftBlock(StackWavefunction& oldwavefunction, const Sta
     for (int b=0; b<tempoldWave.ncols(); b++)
     {      
       int olda = newstateinfo.leftStateInfo->leftStateInfo->newQuantaMap[a];
-      StackMatrix& lM = oldwavefunction(olda, b);
-      if(lM.Ncols() != 0)
-      {
+      if (oldwavefunction.allowed(olda, b)) {
+	  StackMatrix& lM = oldwavefunction(olda, b);
 	Matrix tM = RotationMatrix[olda];
 	StackMatrix& nM = tempoldWave.operator_element(a, b);
 	MatrixMultiply(tM, 'n', lM, 'n', nM, 1.0);
@@ -41,10 +40,10 @@ void GuessWave::TransformRightBlock(const StackWavefunction& tempnewWave, const 
     for (int b=0; b<tempnewWave.ncols(); b++)
     {      
       int transB = oldStateInfo.rightStateInfo->leftStateInfo->newQuantaMap[b];
-      StackMatrix& nM = trial.operator_element(a, transB);
-      const StackMatrix& oM = tempnewWave.operator_element(a, b);
-      if(oM.Ncols() != 0)
-      {
+      if (tempnewWave.allowed(a,b)) {
+	StackMatrix& nM = trial.operator_element(a, transB);
+	const StackMatrix& oM = tempnewWave.operator_element(a, b);
+
 	Matrix rM = RotationMatrix[transB];
 	//rM = rM.t();
 	MatrixMultiply(oM, 'n', rM, 't', nM, 1.0);
@@ -68,7 +67,8 @@ void GuessWave::transpose_previous_wavefunction(StackWavefunction& trial, const 
     oldWave.LoadWavefunctionInfo (oldStateInfo, big.get_rightBlock()->get_sites(), state, true);
 
     temptrial.initialise(trial); temptrial.Clear();
-    copy(trial.get_operatorMatrix(), temptrial.get_operatorMatrix());
+    temptrial.copyData(trial);
+    //copy(trial.get_operatorMatrix(), temptrial.get_operatorMatrix());
 
     if (oldWave.get_onedot()) {
       temptrial.deallocate();
@@ -113,7 +113,8 @@ void GuessWave::transpose_previous_wavefunction(StackWavefunction& trial, const 
       }
     }
     else 
-      copy(temptrial.get_operatorMatrix(), trial.get_operatorMatrix());
+      trial.copyData(temptrial);
+    //copy(temptrial.get_operatorMatrix(), trial.get_operatorMatrix());
 
     oldStateInfo.Free();
     temptrial.deallocate();
@@ -121,16 +122,43 @@ void GuessWave::transpose_previous_wavefunction(StackWavefunction& trial, const 
   }
   else
   {
-    vector<int> wfsites = big.get_rightBlock()->get_sites();
-    wfsites.insert(wfsites.end(), big.get_leftBlock()->get_rightBlock()->get_sites().begin(), big.get_leftBlock()->get_rightBlock()->get_sites().end());
-    sort(wfsites.begin(), wfsites.end());
-    oldWave.LoadWavefunctionInfo(oldStateInfo, wfsites, state, true);
-    if(ket)
-      onedot_transpose_wavefunction(oldStateInfo, big.get_stateInfo(), oldWave, trial);
-    else
-      onedot_transpose_wavefunction(oldStateInfo, big.get_braStateInfo(), oldWave, trial);
-    oldStateInfo.Free();
-    oldWave.deallocate();
+    //this is because we are doing transpose before the middle of the sweep (usually it is done at the very end)
+    //this can happen when one is doing partial sweep
+    if (big.get_leftBlock()->get_leftBlock() == 0) {
+      vector<int> wfsites = big.get_rightBlock()->get_sites();
+      wfsites.insert(wfsites.end(), big.get_rightBlock()->get_rightBlock()->get_sites().begin(), big.get_rightBlock()->get_rightBlock()->get_sites().end());
+      sort(wfsites.begin(), wfsites.end());
+      oldWave.LoadWavefunctionInfo(oldStateInfo, wfsites, state, true); 
+
+      //the oldwav is  [s.] [e]
+      //we want to convert it to [e][s.]
+      for (int i=0; i<oldWave.nrows(); i++)
+	for (int j=0; j<oldWave.ncols(); j++)
+	  if (oldWave.allowed(i,j)) {
+	    assert(trial.allowed(j,i));
+	    int parity = getCommuteParity(oldStateInfo.leftStateInfo->quanta[i], oldStateInfo.rightStateInfo->quanta[j], oldWave.get_deltaQuantum(0));
+	    for (int x=0; x<oldWave(i,j).Nrows(); x++)
+	      for (int y=0; y<oldWave(i,j).Ncols(); y++)
+		trial(j,i)(y+1,x+1) = parity*oldWave(i,j)(x+1,y+1);
+		  //MatrixScaleAdd(parity*1.0, oldWave(i,j), trial(j,i));
+
+	  }
+      oldStateInfo.Free();
+      oldWave.deallocate();
+
+    }
+    else {
+      vector<int> wfsites = big.get_rightBlock()->get_sites();
+      wfsites.insert(wfsites.end(), big.get_leftBlock()->get_rightBlock()->get_sites().begin(), big.get_leftBlock()->get_rightBlock()->get_sites().end());
+      sort(wfsites.begin(), wfsites.end());
+      oldWave.LoadWavefunctionInfo(oldStateInfo, wfsites, state, true);
+      if(ket)
+	onedot_transpose_wavefunction(oldStateInfo, big.get_stateInfo(), oldWave, trial);
+      else
+	onedot_transpose_wavefunction(oldStateInfo, big.get_braStateInfo(), oldWave, trial);
+      oldStateInfo.Free();
+      oldWave.deallocate();
+    }
   }
 
 }
@@ -149,7 +177,14 @@ void GuessWave::transpose_previous_wavefunction(StackWavefunction& trial, const 
   }
   sort(wfsites.begin(), wfsites.end());
   oldWave.LoadWavefunctionInfo(oldStateInfo, wfsites, state, true);
-  onedot_transpose_wavefunction(oldStateInfo, stateInfo, oldWave, trial);
+
+  oldWave.set_deltaQuantum() = trial.set_deltaQuantum();
+
+  StateInfo intermediate1, intermediate2;
+  TensorProduct(*stateInfo.rightStateInfo, *stateInfo.leftStateInfo->rightStateInfo, intermediate1, NO_PARTICLE_SPIN_NUMBER_CONSTRAINT);
+  intermediate1.CollectQuanta();
+  TensorProduct(intermediate1, *stateInfo.leftStateInfo->leftStateInfo, intermediate2, PARTICLE_SPIN_NUMBER_CONSTRAINT);
+  onedot_transpose_wavefunction(intermediate2, stateInfo, oldWave, trial);
   oldStateInfo.Free();
   oldWave.deallocate();
 }
@@ -260,6 +295,7 @@ void GuessWave::onedot_threeindex_to_twoindex_wavefunction(const StateInfo& twos
 	      int cb = prevUnCollectedSI.quantaMap(c,b)[j];
 	      CB = prevUnCollectedSI.quanta[cb].get_s().getirrep();
 	      CBl = prevUnCollectedSI.quanta[cb].get_symm().getirrep();
+
 	      int insertionNum = prevUnCollectedSI.quanta[cb].insertionNum(twostateinfo.leftStateInfo->rightStateInfo->quanta[b], twostateinfo.rightStateInfo->quanta[c]);
 	      double scale = 1.0;
 	      if(dmrginp.spinAdapted()) {
@@ -419,7 +455,8 @@ void GuessWave::onedot_twoindex_to_threeindex_wavefunction(const StateInfo& stat
   threewavefunction.ReSize(NDimsys, NDimdot, NDimenv);
 
   StackWavefunction uncollectedwf; uncollectedwf.initialise(twowavefunction);
-  copy(twowavefunction.get_operatorMatrix(), uncollectedwf.get_operatorMatrix());
+  uncollectedwf.copyData(twowavefunction);
+  //copy(twowavefunction.get_operatorMatrix(), uncollectedwf.get_operatorMatrix());
   //DCOPY(uncollectedwf.memoryUsed(), const_cast<double*>(twowavefunction.get_data()), 1, uncollectedwf.get_data(), 1);
   uncollectedwf.UnCollectQuantaAlongRows(*stateinfo.leftStateInfo, *stateinfo.rightStateInfo);
 
@@ -464,7 +501,8 @@ void GuessWave::onedot_twoindex_to_threeindex_shufflesysdot(const StateInfo& sta
   threewavefunction.ReSize(NDimsys, NDimdot, NDimenv);
 
   StackWavefunction uncollectedwf; uncollectedwf.initialise(twowavefunction);
-  copy(twowavefunction.get_operatorMatrix(), uncollectedwf.get_operatorMatrix());
+  uncollectedwf.copyData(twowavefunction);
+  //copy(twowavefunction.get_operatorMatrix(), uncollectedwf.get_operatorMatrix());
   //DCOPY(uncollectedwf.memoryUsed(), const_cast<double*>(twowavefunction.get_data()), 1, uncollectedwf.get_data(), 1);
   uncollectedwf.UnCollectQuantaAlongColumns(*stateinfo.leftStateInfo, *stateinfo.rightStateInfo);
   const StateInfo& uncollectedstateinfo = *(stateinfo.rightStateInfo->unCollectedStateInfo);
@@ -845,9 +883,9 @@ void GuessWave::onedot_transform_wavefunction(const StateInfo& oldstateinfo, con
   for (int a = 0; a < oldASz; ++a)
     for (int c = 0; c < oldCSz; ++c) // oldCSz <= cSz
     {
-      const StackMatrix& oM = oldwavefunction.operator_element(a, c);
-      if (oM.Ncols () != 0) // this quanta combination is not allowed
-      {
+      if (oldwavefunction.allowed(a,c)) {
+	const StackMatrix& oM = oldwavefunction.operator_element(a, c);
+
 	int transC = oldstateinfo.rightStateInfo->newQuantaMap [c];
 
 	Matrix& tM = tmp (a, transC);
@@ -886,7 +924,8 @@ void GuessWave::onedot_transform_wavefunction(const StateInfo& oldstateinfo, con
     }
 
   if (!transpose_guess_wave){
-    copy(tmpwavefunction.get_operatorMatrix(), newwavefunction.get_operatorMatrix());
+    newwavefunction.copyData(tmpwavefunction);
+    //copy(tmpwavefunction.get_operatorMatrix(), newwavefunction.get_operatorMatrix());
     //newwavefunction = tmpwavefunction;
     newwavefunction.set_onedot(oldwavefunction.get_onedot());
     tmpwavefunction.deallocate();

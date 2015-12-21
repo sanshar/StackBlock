@@ -268,6 +268,7 @@ void StackDensityMatrix::add_onedot_noise(StackWavefunction& wave_solution, Stac
 
   std::vector<boost::shared_ptr<StackSparseMatrix> >  allops;
 
+
   if (leftBlock->has(CRE)) {
     for (int i=0; i<leftBlock->get_op_array(CRE).get_size(); i++)
       for (int j=0; j<leftBlock->get_op_array(CRE).get_local_element(i).size(); j++) {
@@ -297,10 +298,12 @@ void StackDensityMatrix::add_onedot_noise(StackWavefunction& wave_solution, Stac
 	  allops.push_back(leftBlock->get_op_array(CRE_CRE).get_local_element(i)[j]);
 	}
       
-      for (int i=0; i<leftBlock->get_op_array(CRE_DES).get_size(); i++)
-	for (int j=0; j<leftBlock->get_op_array(CRE_DES).get_local_element(i).size(); j++) {
-	  allops.push_back(leftBlock->get_op_array(CRE_DES).get_local_element(i)[j]);
-	}
+      if (leftBlock->has(CRE_DES)) {
+	for (int i=0; i<leftBlock->get_op_array(CRE_DES).get_size(); i++)
+	  for (int j=0; j<leftBlock->get_op_array(CRE_DES).get_local_element(i).size(); j++) {
+	    allops.push_back(leftBlock->get_op_array(CRE_DES).get_local_element(i)[j]);
+	  }
+      }
     } 
     else if (leftBlock->has(DES_DESCOMP)) {
       for (int i=0; i<leftBlock->get_op_array(DES_DESCOMP).get_size(); i++)
@@ -308,11 +311,12 @@ void StackDensityMatrix::add_onedot_noise(StackWavefunction& wave_solution, Stac
 	  allops.push_back(leftBlock->get_op_array(DES_DESCOMP).get_local_element(i)[j]);
 	}
       
-      for (int i=0; i<leftBlock->get_op_array(CRE_DESCOMP).get_size(); i++)
-	for (int j=0; j<leftBlock->get_op_array(CRE_DESCOMP).get_local_element(i).size(); j++) {
-	  allops.push_back(leftBlock->get_op_array(CRE_DESCOMP).get_local_element(i)[j]);
-	}
-      
+      if (leftBlock->has(CRE_DESCOMP)) {
+	for (int i=0; i<leftBlock->get_op_array(CRE_DESCOMP).get_size(); i++)
+	  for (int j=0; j<leftBlock->get_op_array(CRE_DESCOMP).get_local_element(i).size(); j++) {
+	    allops.push_back(leftBlock->get_op_array(CRE_DESCOMP).get_local_element(i)[j]);
+	  }
+      }
     }
     if (leftBlock->has(DES_DES)) {
       for (int i=0; i<leftBlock->get_op_array(DES_DES).get_size(); i++)
@@ -320,10 +324,12 @@ void StackDensityMatrix::add_onedot_noise(StackWavefunction& wave_solution, Stac
 	  allops.push_back(leftBlock->get_op_array(DES_DES).get_local_element(i)[j]);
 	}
       
-      for (int i=0; i<leftBlock->get_op_array(DES_CRE).get_size(); i++)
-	for (int j=0; j<leftBlock->get_op_array(DES_CRE).get_local_element(i).size(); j++) {
-	  allops.push_back(leftBlock->get_op_array(DES_CRE).get_local_element(i)[j]);
-	}
+      if (leftBlock->has(DES_CRE)) {
+	for (int i=0; i<leftBlock->get_op_array(DES_CRE).get_size(); i++)
+	  for (int j=0; j<leftBlock->get_op_array(DES_CRE).get_local_element(i).size(); j++) {
+	    allops.push_back(leftBlock->get_op_array(DES_CRE).get_local_element(i)[j]);
+	  }
+      }
     }
     else if (leftBlock->has(CRE_CRECOMP)) {
       for (int i=0; i<leftBlock->get_op_array(CRE_CRECOMP).get_size(); i++)
@@ -331,10 +337,12 @@ void StackDensityMatrix::add_onedot_noise(StackWavefunction& wave_solution, Stac
 	  allops.push_back(leftBlock->get_op_array(CRE_CRECOMP).get_local_element(i)[j]);
 	}
       
-      for (int i=0; i<leftBlock->get_op_array(DES_CRECOMP).get_size(); i++)
-	for (int j=0; j<leftBlock->get_op_array(DES_CRECOMP).get_local_element(i).size(); j++) {
-	  allops.push_back(leftBlock->get_op_array(DES_CRECOMP).get_local_element(i)[j]);
-	}      
+      if (leftBlock->has(DES_CRECOMP)) {
+	for (int i=0; i<leftBlock->get_op_array(DES_CRECOMP).get_size(); i++)
+	  for (int j=0; j<leftBlock->get_op_array(DES_CRECOMP).get_local_element(i).size(); j++) {
+	    allops.push_back(leftBlock->get_op_array(DES_CRECOMP).get_local_element(i)[j]);
+	  }   
+      }   
     }
     
     

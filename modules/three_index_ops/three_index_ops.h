@@ -1,121 +1,121 @@
 #ifndef THREE_INDEX_OPS_H
 #define THREE_INDEX_OPS_H
 
-#include "BaseOperator.h"
+#include "StackBaseOperator.h"
 
 namespace SpinAdapted{
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 // This is a skeleton class only used to set up infrastructure, and the operator contents are never stored or built during the standard sweep
-class RI3index: public SpinAdapted::SparseMatrix
+class RI3index: public SpinAdapted::StackSparseMatrix
 {
   public:
     RI3index() { abort(); } // should never be instantiated ??FIXME
-    void build(const SpinBlock& b) { abort(); }
-//    void build_from_disk(SpinBlock& b, std::ifstream& sysfs, std::ifstream& dotfs) { abort(); }
-    boost::shared_ptr<SparseMatrix> getworkingrepresentation(const SpinBlock* block) { abort(); }
-    double redMatrixElement(Csf c1, vector<Csf>& ladder, const SpinBlock* b) { abort(); }
+    void build(const StackSpinBlock& b) { abort(); }
+//    void build_from_disk(StackSpinBlock& b, std::ifstream& sysfs, std::ifstream& dotfs) { abort(); }
+    //boost::shared_ptr<StackSparseMatrix> getworkingrepresentation(const StackSpinBlock* block) { abort(); }
+    double redMatrixElement(Csf c1, vector<Csf>& ladder, const StackSpinBlock* b) { abort(); }
 };
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 // This can be avoided with transposes
 
-class DesDesDes: public SpinAdapted::SparseMatrix
+class StackDesDesDes: public SpinAdapted::StackSparseMatrix
 {
   public:
-    DesDesDes() { orbs.resize(3); fermion = true; build_pattern = "((DD)(D))";} // default build_pattern
-    void build(const SpinBlock& b);
-//    void build_from_disk(SpinBlock& b, std::ifstream& sysfs, std::ifstream& dotfs);
-    boost::shared_ptr<SparseMatrix> getworkingrepresentation(const SpinBlock* block);
-    double redMatrixElement(Csf c1, vector<Csf>& ladder, const SpinBlock* b);
+    StackDesDesDes() { orbs.resize(3); fermion = true; build_pattern = "((DD)(D))";} // default build_pattern
+    void build(const StackSpinBlock& b);
+//    void build_from_disk(StackSpinBlock& b, std::ifstream& sysfs, std::ifstream& dotfs);
+    //boost::shared_ptr<StackSparseMatrix> getworkingrepresentation(const StackSpinBlock* block);
+    double redMatrixElement(Csf c1, vector<Csf>& ladder, const StackSpinBlock* b);
 };
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 // 3PDM operators
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-class CreCreDes: public SpinAdapted::SparseMatrix
+class StackCreCreDes: public SpinAdapted::StackSparseMatrix
 {
   public:
-    CreCreDes() { orbs.resize(3); fermion = true; build_pattern = "((CC)(D))";} // default build_pattern
-    void build(const SpinBlock& b);
-//    void build_from_disk(SpinBlock& b, std::ifstream& sysfs, std::ifstream& dotfs);
-    boost::shared_ptr<SparseMatrix> getworkingrepresentation(const SpinBlock* block);
-    double redMatrixElement(Csf c1, vector<Csf>& ladder, const SpinBlock* b);
+    StackCreCreDes() { orbs.resize(3); fermion = true; build_pattern = "((CC)(D))";} // default build_pattern
+    void build(const StackSpinBlock& b);
+//    void build_from_disk(StackSpinBlock& b, std::ifstream& sysfs, std::ifstream& dotfs);
+    //boost::shared_ptr<StackSparseMatrix> getworkingrepresentation(const StackSpinBlock* block);
+    double redMatrixElement(Csf c1, vector<Csf>& ladder, const StackSpinBlock* b);
 };
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-class CreDesDes: public SpinAdapted::SparseMatrix
+class StackCreDesDes: public SpinAdapted::StackSparseMatrix
 {
   public:
-    CreDesDes() { orbs.resize(3); fermion = true; build_pattern = "((CD)(D))";} // default build_pattern
-    void build(const SpinBlock& b);
-//    void build_from_disk(SpinBlock& b, std::ifstream& sysfs, std::ifstream& dotfs);
-    boost::shared_ptr<SparseMatrix> getworkingrepresentation(const SpinBlock* block);
-    double redMatrixElement(Csf c1, vector<Csf>& ladder, const SpinBlock* b);
+    StackCreDesDes() { orbs.resize(3); fermion = true; build_pattern = "((CD)(D))";} // default build_pattern
+    void build(const StackSpinBlock& b);
+//    void build_from_disk(StackSpinBlock& b, std::ifstream& sysfs, std::ifstream& dotfs);
+    //boost::shared_ptr<StackSparseMatrix> getworkingrepresentation(const StackSpinBlock* block);
+    double redMatrixElement(Csf c1, vector<Csf>& ladder, const StackSpinBlock* b);
 };
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-class CreDesCre: public SpinAdapted::SparseMatrix
+class StackCreDesCre: public SpinAdapted::StackSparseMatrix
 {
   public:
-    CreDesCre() { orbs.resize(3); fermion = true; build_pattern = "((CD)(C))";} // default build_pattern
-    void build(const SpinBlock& b);
-//    void build_from_disk(SpinBlock& b, std::ifstream& sysfs, std::ifstream& dotfs);
-    boost::shared_ptr<SparseMatrix> getworkingrepresentation(const SpinBlock* block);
-    double redMatrixElement(Csf c1, vector<Csf>& ladder, const SpinBlock* b);
+    StackCreDesCre() { orbs.resize(3); fermion = true; build_pattern = "((CD)(C))";} // default build_pattern
+    void build(const StackSpinBlock& b);
+//    void build_from_disk(StackSpinBlock& b, std::ifstream& sysfs, std::ifstream& dotfs);
+    //boost::shared_ptr<StackSparseMatrix> getworkingrepresentation(const StackSpinBlock* block);
+    double redMatrixElement(Csf c1, vector<Csf>& ladder, const StackSpinBlock* b);
 };
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-class CreCreCre: public SpinAdapted::SparseMatrix
+class StackCreCreCre: public SpinAdapted::StackSparseMatrix
 {
   public:
-    CreCreCre() { orbs.resize(3); fermion = true; build_pattern = "((CC)(C))";} // default build_pattern
-    void build(const SpinBlock& b);
-//    void build_from_disk(SpinBlock& b, std::ifstream& sysfs, std::ifstream& dotfs);
-    boost::shared_ptr<SparseMatrix> getworkingrepresentation(const SpinBlock* block);
-    double redMatrixElement(Csf c1, vector<Csf>& ladder, const SpinBlock* b);
+    StackCreCreCre() { orbs.resize(3); fermion = true; build_pattern = "((CC)(C))";} // default build_pattern
+    void build(const StackSpinBlock& b);
+//    void build_from_disk(StackSpinBlock& b, std::ifstream& sysfs, std::ifstream& dotfs);
+    //boost::shared_ptr<StackSparseMatrix> getworkingrepresentation(const StackSpinBlock* block);
+    double redMatrixElement(Csf c1, vector<Csf>& ladder, const StackSpinBlock* b);
 };
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 // 4PDM operators
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-class DesCreDes: public SpinAdapted::SparseMatrix
+class StackDesCreDes: public SpinAdapted::StackSparseMatrix
 {
   public:
-    DesCreDes() { orbs.resize(3); fermion = true; build_pattern = "((DC)(D))";} // default build_pattern
-    void build(const SpinBlock& b);
-//    void build_from_disk(SpinBlock& b, std::ifstream& sysfs, std::ifstream& dotfs);
-    boost::shared_ptr<SparseMatrix> getworkingrepresentation(const SpinBlock* block);
-    double redMatrixElement(Csf c1, vector<Csf>& ladder, const SpinBlock* b);
+    StackDesCreDes() { orbs.resize(3); fermion = true; build_pattern = "((DC)(D))";} // default build_pattern
+    void build(const StackSpinBlock& b);
+//    void build_from_disk(StackSpinBlock& b, std::ifstream& sysfs, std::ifstream& dotfs);
+    //boost::shared_ptr<StackSparseMatrix> getworkingrepresentation(const StackSpinBlock* block);
+    double redMatrixElement(Csf c1, vector<Csf>& ladder, const StackSpinBlock* b);
 };
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-class DesDesCre: public SpinAdapted::SparseMatrix
+class StackDesDesCre: public SpinAdapted::StackSparseMatrix
 {
   public:
-    DesDesCre() { orbs.resize(3); fermion = true; build_pattern = "((DD)(C))";} // default build_pattern
-    void build(const SpinBlock& b); 
-//    void build_from_disk(SpinBlock& b, std::ifstream& sysfs, std::ifstream& dotfs);
-    boost::shared_ptr<SparseMatrix> getworkingrepresentation(const SpinBlock* block);
-    double redMatrixElement(Csf c1, vector<Csf>& ladder, const SpinBlock* b);
+    StackDesDesCre() { orbs.resize(3); fermion = true; build_pattern = "((DD)(C))";} // default build_pattern
+    void build(const StackSpinBlock& b); 
+//    void build_from_disk(StackSpinBlock& b, std::ifstream& sysfs, std::ifstream& dotfs);
+    //boost::shared_ptr<StackSparseMatrix> getworkingrepresentation(const StackSpinBlock* block);
+    double redMatrixElement(Csf c1, vector<Csf>& ladder, const StackSpinBlock* b);
 };
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-class DesCreCre: public SpinAdapted::SparseMatrix
+class StackDesCreCre: public SpinAdapted::StackSparseMatrix
 {
   public:
-    DesCreCre() { orbs.resize(3); fermion = true; build_pattern = "((D)(CC))";} // default build_pattern
-    void build(const SpinBlock& b);
-//    void build_from_disk(SpinBlock& b, std::ifstream& sysfs, std::ifstream& dotfs);
-    boost::shared_ptr<SparseMatrix> getworkingrepresentation(const SpinBlock* block);
-    double redMatrixElement(Csf c1, vector<Csf>& ladder, const SpinBlock* b);
+    StackDesCreCre() { orbs.resize(3); fermion = true; build_pattern = "((D)(CC))";} // default build_pattern
+    void build(const StackSpinBlock& b);
+//    void build_from_disk(StackSpinBlock& b, std::ifstream& sysfs, std::ifstream& dotfs);
+    //boost::shared_ptr<StackSparseMatrix> getworkingrepresentation(const StackSpinBlock* block);
+    double redMatrixElement(Csf c1, vector<Csf>& ladder, const StackSpinBlock* b);
 };
 
 //-------------------------------------------------------------------------------------------------------------------------------------------------------------

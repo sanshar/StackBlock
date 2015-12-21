@@ -80,6 +80,8 @@ void TensorProduct (const StackSpinBlock *ablock, const StackSparseMatrix& a, co
 					  const StackSpinBlock *cblock, StackWavefunction& ropCmat, StackWavefunction* v, 
 					  double scale);
 
+ void TensorMultiplyleftdot(const StackSparseMatrix& leftOp, StateInfo *cstate, StackWavefunction& c, StackWavefunction* v, const SpinQuantum opQ, double scale);
+ void TensorMultiplydotop(const StackSparseMatrix& dotOp, StateInfo *cstate, StackWavefunction& c, StackWavefunction* v, const SpinQuantum opQ, double scale);
  void TensorMultiplysplitLeft(const StackSparseMatrix& RightO, const StackSparseMatrix& LeftO, const StackSparseMatrix& DotO, const StackSparseMatrix& LEFTOP, const StackSpinBlock *cblock, StackWavefunction& c, StackWavefunction* v, const SpinQuantum opQ, double scale);
  void TensorMultiplysplitLeftElement(const StackSparseMatrix& rightOp, const StackSparseMatrix& leftOp, const StackSparseMatrix& dotOp, const StackSparseMatrix& LEFTOP, const StackSpinBlock *cblock, StackWavefunction& c, StackWavefunction* v, const SpinQuantum opQ, int index, double scale);
  void TensorMultiplyCDxCDsplitLeftElement(const StackSparseMatrix& rightOp, const StackSparseMatrix& leftOp, const StackSparseMatrix& dotOp, const StackSparseMatrix& LEFTOP, const StackSpinBlock *cblock, StackWavefunction& c, StackWavefunction* v, const SpinQuantum opQ, int rQPrime, double scale);
@@ -128,6 +130,7 @@ void TensorProduct (const StackSpinBlock *ablock, const StackSparseMatrix& a, co
 
 void MultiplyWithOwnTranspose(const StackSparseMatrix& a, StackSparseMatrix& c, double scale);
 
+ void braTensorMultiply(const StackSpinBlock *ablock, const StackSparseMatrix &a, const StackSpinBlock *cblock, StackWavefunction &c, StackWavefunction &v, double scale, int num_thrds=1);
 }
 }
 #endif

@@ -48,7 +48,7 @@ void StackSparseMatrix::build_and_renormalise_transform(StackSpinBlock *big, con
   std::vector<std::vector<int> > oldcolCompressedForm = colCompressedForm;
   std::vector< std::pair<std::pair<int, int>, StackMatrix> > oldnonZeroBlocks = nonZeroBlocks; 
   std::map< std::pair<int, int>, int> oldmapToNonZeroBlocks = mapToNonZeroBlocks; 
-  ObjectMatrix<StackMatrix> oldoperatorMatrix=operatorMatrix; 
+  //ObjectMatrix<StackMatrix> oldoperatorMatrix=operatorMatrix; 
   ObjectMatrix<char> oldallowedQuantaMatrix = allowedQuantaMatrix;
 
   //allocate new data and build the operator
@@ -59,7 +59,11 @@ void StackSparseMatrix::build_and_renormalise_transform(StackSpinBlock *big, con
   build(*big);
 
   //put the new operatorMatrix 
-  StackSparseMatrix tmp; tmp.operatorMatrix = operatorMatrix;
+  StackSparseMatrix tmp; //tmp.operatorMatrix = operatorMatrix;
+  tmp.rowCompressedForm = rowCompressedForm;
+  tmp.colCompressedForm = colCompressedForm;
+  tmp.nonZeroBlocks = nonZeroBlocks;
+  tmp.mapToNonZeroBlocks = mapToNonZeroBlocks;
   tmp.data = data; tmp.totalMemory = totalMemory;
   tmp.allowedQuantaMatrix = allowedQuantaMatrix;
   tmp.initialised = true;
@@ -72,7 +76,7 @@ void StackSparseMatrix::build_and_renormalise_transform(StackSpinBlock *big, con
   colCompressedForm = oldcolCompressedForm;
   nonZeroBlocks = oldnonZeroBlocks;
   mapToNonZeroBlocks = oldmapToNonZeroBlocks;
-  operatorMatrix = oldoperatorMatrix;
+  //operatorMatrix = oldoperatorMatrix;
   allowedQuantaMatrix = oldallowedQuantaMatrix;
   memset(data, 0, totalMemory*sizeof(double));
 
@@ -85,7 +89,7 @@ void StackSparseMatrix::build_and_renormalise_transform(StackSpinBlock *big, con
     for (int newQPrime = 0; newQPrime < newQuantaMap.size(); newQPrime++) {
       if (this->allowed(newQ, newQPrime)) {
 	int Q = newQuantaMap[newQ], QPrime = newQuantaMap[newQPrime];
-	MatrixRotate(rotate_matrix[Q], tmp.operatorMatrix(Q, QPrime), rotate_matrix[QPrime], this->operatorMatrix(newQ, newQPrime));
+	MatrixRotate(rotate_matrix[Q], tmp(Q, QPrime), rotate_matrix[QPrime], this->operator()(newQ, newQPrime));
       }
     }
   tmp.deallocate();
@@ -102,7 +106,7 @@ void StackSparseMatrix::build_and_renormalise_transform(StackSpinBlock *big, con
   std::vector<std::vector<int> > oldcolCompressedForm = colCompressedForm;
   std::vector< std::pair<std::pair<int, int>, StackMatrix> > oldnonZeroBlocks = nonZeroBlocks; 
   std::map< std::pair<int, int>, int> oldmapToNonZeroBlocks = mapToNonZeroBlocks; 
-  ObjectMatrix<StackMatrix> oldoperatorMatrix=operatorMatrix; 
+  //ObjectMatrix<StackMatrix> oldoperatorMatrix=operatorMatrix; 
   ObjectMatrix<char> oldallowedQuantaMatrix = allowedQuantaMatrix;
 
   //allocate new data and build the operator
@@ -110,10 +114,15 @@ void StackSparseMatrix::build_and_renormalise_transform(StackSpinBlock *big, con
   colCompressedForm.clear();
   rowCompressedForm.clear();
   allocate(big->get_braStateInfo(), big->get_ketStateInfo());
+  initialised = true;
   build(*big);
   
   //put the new operatorMatrix 
-  StackSparseMatrix tmp; tmp.operatorMatrix = operatorMatrix;
+  StackSparseMatrix tmp; //tmp.operatorMatrix = operatorMatrix;
+  tmp.rowCompressedForm = rowCompressedForm;
+  tmp.colCompressedForm = colCompressedForm;
+  tmp.nonZeroBlocks = nonZeroBlocks;
+  tmp.mapToNonZeroBlocks = mapToNonZeroBlocks;
   tmp.data = data; tmp.totalMemory = totalMemory;
   tmp.allowedQuantaMatrix = allowedQuantaMatrix;
   tmp.initialised = true;
@@ -125,7 +134,7 @@ void StackSparseMatrix::build_and_renormalise_transform(StackSpinBlock *big, con
   colCompressedForm = oldcolCompressedForm;
   nonZeroBlocks = oldnonZeroBlocks;
   mapToNonZeroBlocks = oldmapToNonZeroBlocks;
-  operatorMatrix = oldoperatorMatrix;
+  //operatorMatrix = oldoperatorMatrix;
   allowedQuantaMatrix = oldallowedQuantaMatrix;
   memset(data, 0, totalMemory*sizeof(double));
   
@@ -137,11 +146,12 @@ void StackSparseMatrix::build_and_renormalise_transform(StackSpinBlock *big, con
     for (int newQPrime = 0; newQPrime < rnewQuantaMap.size(); newQPrime++) {
       if (this->allowed(newQ, newQPrime)) {
 	int Q = lnewQuantaMap[newQ], QPrime = rnewQuantaMap[newQPrime];
-	MatrixRotate(leftrotate_matrix[Q], tmp.operatorMatrix(Q, QPrime), rightrotate_matrix[QPrime], this->operatorMatrix(newQ, newQPrime));
+	MatrixRotate(leftrotate_matrix[Q], tmp(Q, QPrime), rightrotate_matrix[QPrime], this->operator()(newQ, newQPrime));
       }
     }
-  
+
   tmp.deallocate();
+  tmp.CleanUp();
 }
 
 
@@ -195,22 +205,25 @@ void assignloopblock(StackSpinBlock*& loopblock, StackSpinBlock*& otherblock, St
 
 void StackSparseMatrix::operator=(const StackSparseMatrix& a) 
 {
-  conj = a.conj;
-  orbs = a.get_orbs(); 
+  filename = a.filename;
   deltaQuantum = a.get_deltaQuantum();
+  quantum_ladder = a.quantum_ladder;
+  build_pattern = a.build_pattern;
   fermion = a.get_fermion();
   initialised = a.get_initialised();
-  allowedQuantaMatrix = a.get_allowedQuantaMatrix();
-  operatorMatrix = a.operatorMatrix;
-  Sign = a.get_sign();
   built = a.built;
   built_on_disk = a.built_on_disk;
-  totalMemory = a.totalMemory;
-  data=a.data;
+  allowedQuantaMatrix = a.get_allowedQuantaMatrix();
+  //operatorMatrix = a.operatorMatrix;
+  Sign = a.get_sign();
+  orbs = a.get_orbs(); 
   rowCompressedForm = a.rowCompressedForm;
   colCompressedForm = a.colCompressedForm;
   nonZeroBlocks = a.nonZeroBlocks;
   mapToNonZeroBlocks = a.mapToNonZeroBlocks;
+  conj = a.conj;
+  totalMemory = a.totalMemory;
+  data=a.data;
 }
 
 double StackSparseMatrix::get_scaling(SpinQuantum leftq, SpinQuantum rightq) const 
@@ -291,6 +304,8 @@ long getRequiredMemory(const StateInfo& s, const std::vector<SpinQuantum>& q) {r
 
 void StackSparseMatrix::deallocate() 
 { 
+  //allowedQuantaMatrix.Clear();
+  //operatorMatrix.Clear();
   Stackmem[omprank].deallocate(data, totalMemory);
   totalMemory = 0;
   data = 0;
@@ -337,7 +352,7 @@ double* StackSparseMatrix::allocate(const StateInfo& rowSI, const StateInfo& col
   mapToNonZeroBlocks.clear();
 
   data = pData;
-  operatorMatrix.resize(rowSI.quanta.size(), colSI.quanta.size());
+  //operatorMatrix.resize(rowSI.quanta.size(), colSI.quanta.size());
   allowedQuantaMatrix.resize(rowSI.quanta.size(), colSI.quanta.size());
 
   long index = 0;
@@ -356,9 +371,9 @@ double* StackSparseMatrix::allocate(const StateInfo& rowSI, const StateInfo& col
       allowedQuantaMatrix (lQ,rQ) = allowedcoupling;
       if (allowedQuantaMatrix(lQ, rQ))
       {
-	      operatorMatrix(lQ,rQ).allocate(&data[index], rowSI.quantaStates [lQ], colSI.quantaStates [rQ]);
+	      StackMatrix m(&data[index], rowSI.quantaStates [lQ], colSI.quantaStates [rQ]);
 	      index += rowSI.quantaStates [lQ]* colSI.quantaStates [rQ] + CACHEBUFFER;
-	      nonZeroBlocks.push_back(std::pair< std::pair<int, int> , StackMatrix>( std::pair<int,int>(lQ,rQ), operatorMatrix(lQ,rQ)));
+	      nonZeroBlocks.push_back(std::pair< std::pair<int, int> , StackMatrix>( std::pair<int,int>(lQ,rQ), m));
 	      mapToNonZeroBlocks.insert(std::pair< std::pair<int, int>, int>(std::pair<int, int>(lQ, rQ), nonZeroBlocks.size()-1));
       }
     }
@@ -366,20 +381,47 @@ double* StackSparseMatrix::allocate(const StateInfo& rowSI, const StateInfo& col
   return &pData[index];
 }
 
+void StackSparseMatrix::allocateShell(const StateInfo& rowSI, const StateInfo& colSI)
+{
+  if (totalMemory != 0) {
+    perr << "Already have memory and allocating more memory"<<endl;
+    perr << "Possible memory bug in StackSparseMatrix "<<endl;
+    abort();
+  }
+  //the shell of the operator is already present
+  //so just need to allocate the operatormatrix
+  if (rowCompressedForm.size() != 0) {
+    return;
+  }
+
+  rowCompressedForm.clear();rowCompressedForm.resize(rowSI.quanta.size(), vector<int>());
+  colCompressedForm.clear();colCompressedForm.resize(colSI.quanta.size(), vector<int>());
+  nonZeroBlocks.resize(0);
+  mapToNonZeroBlocks.clear();
+
+  //operatorMatrix.resize(rowSI.quanta.size(), colSI.quanta.size());
+  allowedQuantaMatrix.resize(rowSI.quanta.size(), colSI.quanta.size());
+
+  long index = 0;
+  for (int lQ = 0; lQ < rowSI.quanta.size (); ++lQ)
+    for (int rQ = 0; rQ < colSI.quanta.size (); ++rQ)
+    {
+      bool allowedcoupling = false;
+      for (int k = 0; k < deltaQuantum.size(); ++k) {
+        if (rowSI.quanta[lQ].allow(deltaQuantum[k], colSI.quanta[rQ])) {
+          allowedcoupling = true;
+	  rowCompressedForm[lQ].push_back(rQ);
+	  colCompressedForm[rQ].push_back(lQ);
+          break;
+        }
+      }
+      allowedQuantaMatrix (lQ,rQ) = allowedcoupling;
+    }
+  return;
+}
+
 
   
-void StackSparseMatrix::OperatorMatrixReference(ObjectMatrix<StackMatrix*>& m, const std::vector<int>& oldToNewStateI, const std::vector<int>& oldToNewStateJ)
-{
-  int rows = oldToNewStateI.size ();
-  int cols = oldToNewStateJ.size ();
-  m.ReSize (rows, cols);
-  for (int i = 0; i < rows; ++i)
-    for (int j = 0; j < cols; ++j)
-    {
-	  assert (allowedQuantaMatrix (oldToNewStateI [i], oldToNewStateJ [j]));
-	  m (i,j) = &operatorMatrix (oldToNewStateI [i], oldToNewStateJ [j]);
-    }
-}
 
 
 double* StackSparseMatrix::allocateOperatorMatrix()
@@ -387,9 +429,11 @@ double* StackSparseMatrix::allocateOperatorMatrix()
   long index = 0;
   for (int i=0; i<nonZeroBlocks.size(); i++) {
     int lQ = nonZeroBlocks[i].first.first, rQ = nonZeroBlocks[i].first.second;
-    operatorMatrix(lQ,rQ).allocate(&data[index], operatorMatrix(lQ, rQ).Nrows(), operatorMatrix(lQ, rQ).Ncols());
-    index += operatorMatrix(lQ, rQ).Nrows()* operatorMatrix(lQ, rQ).Ncols()+ CACHEBUFFER;
-    nonZeroBlocks[i].second= operatorMatrix(lQ,rQ);
+    StackMatrix m(&data[index], operator()(lQ, rQ).Nrows(), operator()(lQ, rQ).Ncols());
+    //operatorMatrix(lQ,rQ).allocate(&data[index], operatorMatrix(lQ, rQ).Nrows(), operatorMatrix(lQ, rQ).Ncols());
+    index += operator()(lQ, rQ).Nrows()* operator()(lQ, rQ).Ncols()+ CACHEBUFFER;
+    nonZeroBlocks[i].second= m;
+    mapToNonZeroBlocks.insert(std::pair< std::pair<int, int>, int>(std::pair<int, int>(lQ, rQ), i));
   }
   totalMemory = index;
   return &data[index];
@@ -397,23 +441,232 @@ double* StackSparseMatrix::allocateOperatorMatrix()
 
 
 
+template<class T>  void write(std::ofstream &ofs, const T& t)
+{
+  ofs.write((char*)(&t), sizeof(t));
+}
+template<class T>  void read(std::ifstream &ifs, const T& t)
+{
+  ifs.read((char*)(&t), sizeof(t));
+}
+void SaveVecThreadSafe(std::ofstream &ofs, const std::vector<int>& v)
+{
+  write(ofs, v.size());
+  for (int i=0; i<v.size(); i++)
+    write(ofs, v[i]);
+
+}
+
+void LoadVecThreadSafe(std::ifstream &ifs, std::vector<int>& v)
+{
+  size_t n;
+  read(ifs, n);
+  v.resize(n);
+  for (int i=0; i<v.size(); i++)
+    read(ifs, v[i]);
+}
+
+void StackSparseMatrix::SaveThreadSafe() const
+{
+  std::ofstream ofs(filename.c_str(), ios::binary);
+  //#pragma omp critical
+  //{
+  write(ofs, deltaQuantum.size());
+
+  for (int i=0; i<deltaQuantum.size(); i++)
+    deltaQuantum[i].SaveThreadSafe(ofs);
+
+  size_t size = build_pattern.size();
+  write(ofs, size);
+  ofs.write(build_pattern.c_str(), build_pattern.size());
+  write(ofs, fermion);
+  write(ofs, initialised);
+  write(ofs, built);
+  write(ofs, built_on_disk);
+
+  size_t nrows = allowedQuantaMatrix.nrows();
+  size_t ncols = allowedQuantaMatrix.ncols();
+  write(ofs, nrows);
+  write(ofs, ncols);
+  for (int i=0 ; i<allowedQuantaMatrix.nrows(); i++)
+    for (int j=0; j<allowedQuantaMatrix.ncols(); j++)
+      write(ofs, allowedQuantaMatrix(i,j));
+
+  /*
+  for (int i=0 ; i<allowedQuantaMatrix.nrows(); i++)
+    for (int j=0; j<allowedQuantaMatrix.ncols(); j++)
+      operatorMatrix(i,j).SaveThreadSafe(ofs);
+  */
+  write(ofs, Sign) ;
+  size = orbs.size();
+  write(ofs, size);
+  for (int i=0; i< orbs.size(); i++)
+    write(ofs, orbs[i]);
+
+  write(ofs, quantum_ladder.size());
+  for (std::map<std::string, std::vector<SpinQuantum> >::const_iterator it = quantum_ladder.begin(); it != quantum_ladder.end(); it++) {
+    size = it->first.size();
+    write(ofs, size);
+    ofs.write(it->first.c_str(), it->first.size());
+
+    size = it->second.size();
+    write(ofs, size);
+    for (int i=0; i<it->second.size(); i++)
+      it->second[i].SaveThreadSafe(ofs);
+  }
+
+  size = rowCompressedForm.size();
+  write(ofs, size);
+  for (int i=0; i<rowCompressedForm.size(); i++)
+    SaveVecThreadSafe(ofs, rowCompressedForm[i]);
+
+  size = colCompressedForm.size();
+  write(ofs, size);
+  for (int i=0; i<colCompressedForm.size(); i++)
+    SaveVecThreadSafe(ofs, colCompressedForm[i]);
+
+  size = nonZeroBlocks.size();
+  write(ofs, size);
+  for (int i=0; i<nonZeroBlocks.size(); i++) {
+    write(ofs, nonZeroBlocks[i].first.first);
+    write(ofs, nonZeroBlocks[i].first.second);
+    nonZeroBlocks[i].second.SaveThreadSafe(ofs);
+  }
+
+  size = mapToNonZeroBlocks.size();
+  write(ofs, size);
+  for (std::map<std::pair<int, int>, int >::const_iterator it = mapToNonZeroBlocks.begin(); it != mapToNonZeroBlocks.end(); it++) {
+    write(ofs, it->first.first);
+    write(ofs, it->first.second);
+    write(ofs, it->second);
+  }
+
+  write(ofs, totalMemory);
+  ofs.write((char*)(data), sizeof(*data)*totalMemory);
+  //}
+  ofs.close();
+}
+
+
+void StackSparseMatrix::LoadThreadSafe(bool allocate)
+{
+  std::ifstream ifs(filename.c_str(), ios::binary);
+  //#pragma omp critical
+  //{
+  size_t size=0;
+  read(ifs, size);
+  deltaQuantum.resize(size);
+  for (int i=0; i<deltaQuantum.size(); i++)
+    deltaQuantum[i].LoadThreadSafe(ifs);
+
+  read(ifs, size);
+  char* temp = new char[size+1];
+  ifs.read(temp, size);
+  temp[size] = '\0';
+  build_pattern = temp;
+  delete [] temp;
+
+  read(ifs, fermion);
+  read(ifs, initialised);
+  read(ifs, built);
+  read(ifs, built_on_disk);
+
+  size_t nrows, ncols;
+  read(ifs, nrows);
+  read(ifs, ncols);
+  allowedQuantaMatrix.resize(nrows, ncols);
+  //operatorMatrix.resize(nrows, ncols);
+  for (int i=0 ; i<allowedQuantaMatrix.nrows(); i++)
+    for (int j=0; j<allowedQuantaMatrix.ncols(); j++)
+      read(ifs, allowedQuantaMatrix(i,j));
+  /*
+  for (int i=0 ; i<allowedQuantaMatrix.nrows(); i++)
+    for (int j=0; j<allowedQuantaMatrix.ncols(); j++)
+      operatorMatrix(i,j).LoadThreadSafe(ifs);
+  */
+  
+
+  read(ifs, Sign) ;
+  read(ifs, size);
+  orbs.resize(size);
+  for (int i=0; i< orbs.size(); i++)
+    read(ifs, orbs[i]);
+
+  read(ifs, size);
+  for (int i=0; i<size; i++) {
+    size_t size2;
+    read(ifs, size2);
+    char* temp = new char[size2+1];
+    ifs.read(temp, size2);
+    temp[size2] = '\0';
+    string s = temp;
+    delete [] temp;
+
+    std::vector<SpinQuantum> qvec;
+
+    read(ifs, size2);
+    qvec.resize(size2);
+    for (int j=0; j<size2; j++) 
+      qvec[j].LoadThreadSafe(ifs);
+    quantum_ladder[s] = qvec;
+  }
+
+
+  read(ifs, size);
+  rowCompressedForm.resize(size);
+  for (int i=0; i<rowCompressedForm.size(); i++)
+    LoadVecThreadSafe(ifs, rowCompressedForm[i]);
+
+  read(ifs, size);
+  colCompressedForm.resize(size);
+  for (int i=0; i<colCompressedForm.size(); i++)
+    LoadVecThreadSafe(ifs, colCompressedForm[i]);
+
+  read(ifs, size);
+  nonZeroBlocks.resize(size);
+  for (int i=0; i<nonZeroBlocks.size(); i++) {
+    int first, second;
+    read(ifs, first);
+    read(ifs, second);
+    StackMatrix m;
+    m.LoadThreadSafe(ifs);
+    nonZeroBlocks[i] = make_pair( make_pair(first, second), m);
+  }
+
+  read(ifs, size);
+  for (int i=0; i<size; i++) {
+    int first, second, third;
+    read(ifs, first);
+    read(ifs, second);
+    read(ifs, third);
+    mapToNonZeroBlocks[make_pair(first, second)] = third;
+  }
+
+  read(ifs, totalMemory);
+
+  if (allocate) data = Stackmem[omprank].allocate(totalMemory);
+  ifs.read((char*)(data), sizeof(*data)*totalMemory);
+
+  ifs.close();
+  //}
+}
+
 void StackSparseMatrix::Save(std::ofstream &ofs) const
 {
-  boost::archive::binary_oarchive save_op(ofs);
-  save_op << *this;
-
-  save_op << totalMemory;
-  save_op << boost::serialization::make_array<double>(data, totalMemory);
+    boost::archive::binary_oarchive save_op(ofs);
+    save_op << *this;
+    save_op << totalMemory;
+    save_op << boost::serialization::make_array<double>(data, totalMemory);
 }
  
 void StackSparseMatrix::Load(std::ifstream &ifs, bool allocateData)
 {
-  boost::archive::binary_iarchive load_op(ifs);
-  load_op >> *this;
-
-  load_op >> totalMemory;
-  if (allocateData) data = Stackmem[omprank].allocate(totalMemory);
-  load_op >> boost::serialization::make_array<double>(data, totalMemory);
+    boost::archive::binary_iarchive load_op(ifs);
+    load_op >> *this;
+    
+    load_op >> totalMemory;
+    if (allocateData) data = Stackmem[omprank].allocate(totalMemory);
+    load_op >> boost::serialization::make_array<double>(data, totalMemory);
 }
 
 long getRequiredMemory(const StateInfo& sr, const StateInfo& sc, const std::vector<SpinQuantum>& q) {
@@ -441,8 +694,8 @@ long getRequiredMemory(const StateInfo& sr, const StateInfo& sc, const std::vect
 
 void StackSparseMatrix::CleanUp ()
 {
-  allowedQuantaMatrix.ReSize (0,0);
-  operatorMatrix.ReSize (0,0);
+  allowedQuantaMatrix.Clear();
+  //operatorMatrix.Clear();
   nonZeroBlocks.resize(0);
   rowCompressedForm.resize(0);
   colCompressedForm.resize(0);

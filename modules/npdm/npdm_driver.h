@@ -9,7 +9,7 @@
 #include "fourpdm_container.h"
 #include "pairpdm_container.h"
 #include "npdm.h"
-#include "wavefunction.h"
+#include "Stackwavefunction.h"
 
 namespace SpinAdapted{
 namespace Npdm{
@@ -22,7 +22,7 @@ class Npdm_driver_base {
     virtual ~Npdm_driver_base() {}
     virtual void clear() = 0;
     virtual void save_data( const int i, const int j ) = 0;
-    virtual void compute_npdm_elements( std::vector<Wavefunction> & wavefunctions, const SpinBlock & big, int sweepPos, int endPos ) = 0;
+    virtual void compute_npdm_elements( std::vector<StackWavefunction> & wavefunctions, const StackSpinBlock & big, int sweepPos, int endPos ) = 0;
 };
 
 //===========================================================================================================================================================
@@ -30,39 +30,44 @@ class Npdm_driver_base {
 class Npdm_driver {
 
   public:
-		double diskread_time =0;
+    double diskread_time =0;
     double write_intermediate_time =0;
     explicit Npdm_driver(NpdmOrder order, Npdm_container& container) : npdm_order_(order), container_(container) {}
     ~Npdm_driver() {}
-   void clear() { container_.clear(); }
-   void save_data( const int i, const int j ) { container_.save_npdms(i,j); }
-   void compute_npdm_elements( std::vector<Wavefunction> & wavefunctions, const SpinBlock & big, int sweepPos, int endPos );
-
+    void clear() { container_.clear(); }
+    void save_data( const int i, const int j ) { container_.save_npdms(i,j); }
+    void compute_npdm_elements( std::vector<StackWavefunction> & wavefunctions, const StackSpinBlock & big, int sweepPos, int endPos );
+  
   private:
     NpdmOrder npdm_order_;
     Npdm_container& container_;
     Npdm_spin_adaptation spin_adaptation_;
-		std::vector<boost::shared_ptr<NpdmSpinOps> > inner_Operators;
-		std::vector<boost::shared_ptr<std::map<std::vector<int>, Wavefunction> > > inner_intermediate;
-
-    void loop_over_operator_patterns( Npdm_patterns& patterns, Npdm_expectations& expectations, const SpinBlock& big );
-    void loop_over_operator_patterns_store( Npdm::Npdm_patterns& patterns, Npdm::Npdm_expectations& expectations, const SpinBlock& big );
+    std::vector<boost::shared_ptr<NpdmSpinOps> > inner_Operators;
+    std::vector<boost::shared_ptr<std::map<std::vector<int>, StackWavefunction> > > inner_intermediate;
+  
+    void loop_over_operator_patterns_store( Npdm::Npdm_patterns& patterns, Npdm::Npdm_expectations& expectations, const StackSpinBlock& big );
     void do_inner_loop( const char inner, Npdm_expectations & npdm_expectations, 
                         NpdmSpinOps_base & outerOps, NpdmSpinOps & innerOps, NpdmSpinOps & dotOps );
     void do_inner_loop( const char inner, Npdm_expectations & npdm_expectations, 
-                        NpdmSpinOps_base & outerOps, NpdmSpinOps & innerOps, NpdmSpinOps & dotOps, std::map<std::vector<int>, Wavefunction>& waves );
+                        NpdmSpinOps_base & outerOps, NpdmSpinOps & innerOps, NpdmSpinOps & dotOps, std::map<std::vector<int>, StackWavefunction>& waves );
     void do_inner_loop( const char inner, Npdm_expectations & npdm_expectations, 
-                        NpdmSpinOps_base & outerOps, NpdmSpinOps & dotOps, std::map<std::vector<int>, Wavefunction>& waves );
+                        NpdmSpinOps_base & outerOps, NpdmSpinOps & dotOps, std::map<std::vector<int>, StackWavefunction>& waves );
     void loop_over_block_operators( Npdm_expectations& npdm_expectations, NpdmSpinOps& outerOps, NpdmSpinOps& innerOps, NpdmSpinOps& dotOps );
-
-    void par_loop_over_block_operators( const char inner, Npdm_expectations & npdm_expectations, 
-                                        NpdmSpinOps & lhsOps, NpdmSpinOps & outerOps, NpdmSpinOps & dotOps, bool innerdot );
 
     void do_parallel_lhs_loop( const char inner, Npdm_expectations & npdm_expectations,
                                NpdmSpinOps & outerOps, NpdmSpinOps & innerOps, NpdmSpinOps & dotOps, bool skip );
+
+
+    void loop_over_operator_patterns( Npdm_patterns& patterns, Npdm_expectations& expectations, const StackSpinBlock& big );
+    void get_inner_Operators( const char inner, Npdm_expectations & npdm_expectations, boost::shared_ptr<NpdmSpinOps> lhsOps, boost::shared_ptr<NpdmSpinOps> dotOps, boost::shared_ptr<NpdmSpinOps> rhsOps) ;
+    void par_loop_over_block_operators( const char inner, Npdm_expectations & npdm_expectations, 
+                                        NpdmSpinOps & lhsOps, NpdmSpinOps & outerOps, NpdmSpinOps & dotOps, bool innerdot );
     void do_parallel_intermediate_loop( const char inner, Npdm_expectations & npdm_expectations,
                                NpdmSpinOps & outerOps, NpdmSpinOps & innerOps, NpdmSpinOps & dotOps, bool skip );
-    void get_inner_Operators( const char inner, Npdm_expectations & npdm_expectations, boost::shared_ptr<NpdmSpinOps> lhsOps, boost::shared_ptr<NpdmSpinOps> dotOps, boost::shared_ptr<NpdmSpinOps> rhsOps) ;
+    void do_inner_loop( const char inner, Npdm_expectations & npdm_expectations, 
+                        NpdmSpinOps_base & outerOps, NpdmSpinOps & dotOps, std::map<std::vector<int>, StackWavefunction>& outerwaves, int k);
+
+
 
     int get_mpi_max_size( int my_size );
     bool broadcast_lhs( int lhs_size, int rhs_size );
@@ -81,7 +86,7 @@ class Onepdm_driver : public Npdm_driver_base {
     explicit Onepdm_driver( int sites ) : container( Onepdm_container(sites) ), driver( Npdm_driver(NPDM_ONEPDM, container) ) {}
     void clear() { driver.clear(); }
     void save_data( const int i, const int j ) { driver.save_data(i,j); }
-    void compute_npdm_elements( std::vector<Wavefunction> & wavefunctions, const SpinBlock & big, int sweepPos, int endPos ) 
+    void compute_npdm_elements( std::vector<StackWavefunction> & wavefunctions, const StackSpinBlock & big, int sweepPos, int endPos ) 
       { driver.compute_npdm_elements(wavefunctions, big, sweepPos, endPos ); }
   private:
     Onepdm_container container;
@@ -95,7 +100,7 @@ class Twopdm_driver : public Npdm_driver_base {
     explicit Twopdm_driver( int sites ) : container( Twopdm_container(sites) ), driver( Npdm_driver(NPDM_TWOPDM, container) ) {}
     void clear() { driver.clear(); }
     void save_data( const int i, const int j ) { driver.save_data(i,j); }
-    void compute_npdm_elements( std::vector<Wavefunction> & wavefunctions, const SpinBlock & big, int sweepPos, int endPos ) 
+    void compute_npdm_elements( std::vector<StackWavefunction> & wavefunctions, const StackSpinBlock & big, int sweepPos, int endPos ) 
       { driver.compute_npdm_elements(wavefunctions, big, sweepPos, endPos ); }
   private:
     Twopdm_container container;
@@ -109,7 +114,7 @@ class Threepdm_driver : public Npdm_driver_base {
     explicit Threepdm_driver( int sites ) : container( Threepdm_container(sites) ), driver( Npdm_driver(NPDM_THREEPDM, container) ) {}
     void clear() { driver.clear(); }
     void save_data( const int i, const int j ) { driver.save_data(i,j); }
-    void compute_npdm_elements( std::vector<Wavefunction> & wavefunctions, const SpinBlock & big, int sweepPos, int endPos ) 
+    void compute_npdm_elements( std::vector<StackWavefunction> & wavefunctions, const StackSpinBlock & big, int sweepPos, int endPos ) 
       { driver.compute_npdm_elements(wavefunctions, big, sweepPos, endPos ); }
   private:
     Threepdm_container container;
@@ -123,7 +128,7 @@ class Fourpdm_driver : public Npdm_driver_base {
     explicit Fourpdm_driver( int sites ) : container( Fourpdm_container(sites) ), driver( Npdm_driver(NPDM_FOURPDM, container) ) {}
     void clear() { driver.clear(); }
     void save_data( const int i, const int j ) { driver.save_data(i,j); }
-    void compute_npdm_elements( std::vector<Wavefunction> & wavefunctions, const SpinBlock & big, int sweepPos, int endPos ) 
+    void compute_npdm_elements( std::vector<StackWavefunction> & wavefunctions, const StackSpinBlock & big, int sweepPos, int endPos ) 
       { driver.compute_npdm_elements(wavefunctions, big, sweepPos, endPos ); }
   private:
     Fourpdm_container container;
@@ -137,7 +142,7 @@ class Pairpdm_driver : public Npdm_driver_base {
     explicit Pairpdm_driver( int sites ) : container( Pairpdm_container(sites) ), driver( Npdm_driver(NPDM_PAIRMATRIX, container) ) {}
     void clear() { driver.clear(); }
     void save_data( const int i, const int j ) { driver.save_data(i,j); }
-    void compute_npdm_elements( std::vector<Wavefunction> & wavefunctions, const SpinBlock & big, int sweepPos, int endPos ) 
+    void compute_npdm_elements( std::vector<StackWavefunction> & wavefunctions, const StackSpinBlock & big, int sweepPos, int endPos ) 
       { driver.compute_npdm_elements(wavefunctions, big, sweepPos, endPos ); }
   private:
     Pairpdm_container container;

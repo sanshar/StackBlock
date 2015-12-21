@@ -13,7 +13,7 @@ Sandeep Sharma and Garnet K.-L. Chan
 #include <boost/mpi.hpp>
 #endif
 
-#include "BaseOperator.h"
+#include "StackBaseOperator.h"
 #include "operatorfunctions.h"
 
 #include <boost/serialization/serialization.hpp>
@@ -21,7 +21,7 @@ Sandeep Sharma and Garnet K.-L. Chan
 #include <boost/serialization/export.hpp>
 #include <boost/serialization/vector.hpp>
 #include <boost/serialization/string.hpp>
-#include "spinblock.h"
+#include "Stackspinblock.h"
 
 namespace SpinAdapted{
 namespace Npdm{
@@ -35,25 +35,20 @@ class NpdmSpinOps_base {
     NpdmSpinOps_base() = default;
 // FIXME Shallow copy constructor
     NpdmSpinOps_base( const NpdmSpinOps_base & obj ) {
-//      opReps_.clear();
-//      for (int i=0; i < obj.opReps_.size(); ++i) {
-//        boost::shared_ptr<SparseMatrix> op (new Cre);
-//        opReps_.push_back(op);
-//      }
-//      for (int i=0; i < obj.opReps_.size(); ++i) {
-//        opReps_.at(i) = obj.opReps_.at(i);
-//      }
-      opReps_ = obj.opReps_;
+      //opReps_ = obj.opReps_;  //dont copy opReps_
+      //opReps_.resize(obj.opReps_.size());
       build_pattern_ = obj.build_pattern_;
       transpose_ = obj.transpose_;
       factor_ = obj.factor_;
       indices_ = obj.indices_;
       is_local_ = obj.is_local_;
+      opIndices_ = obj.opIndices_;
     }
+    virtual bool set_local_ops( int idx ) { abort(); }
 
     // Numerical representation of the operators for several total spins (e.g. 2-index op has two forms with spin-1/2 particles)
 //FIXME should this be a reference?  Don't want to copy!!
-    std::vector< boost::shared_ptr<SparseMatrix> > opReps_;
+    std::vector< boost::shared_ptr<StackSparseMatrix> > opReps_;
     // is_local_ == true mean operators are duplicated on all mpi ranks
     bool is_local_;
     // How the operator is built (e.g. 3-index from product of 2-index cre-cre and 1-index destruction)
@@ -64,6 +59,9 @@ class NpdmSpinOps_base {
     double factor_;
     // Effective spatial orbital indices (since due to use of transposition / commutation may not match OpRep.get_orbs() etc)
     std::vector<int> indices_;
+
+    //the number of indices of the operators stored in opReps_
+    int opIndices_=0;
 
 #ifndef SERIAL
 //FIXME put in implementation file
@@ -100,7 +98,7 @@ class NpdmSpinOps_base {
       reqs.push_back( world.irecv(rank, k++, indices_) );
       reqs.push_back( world.isend(rank, k++, is_local_) );
       for ( int i = 0; i < size; ++i) {
-        boost::shared_ptr<SparseMatrix> op (new Cre);
+        boost::shared_ptr<StackSparseMatrix> op (new StackCre);
         reqs.push_back( world.irecv(rank, k++, *op ) );
         opReps_.push_back(op);
       }
@@ -119,65 +117,31 @@ class NpdmSpinOps : public NpdmSpinOps_base {
     int size() { return size_; }
     virtual bool set_local_ops( int idx ) { abort(); }
 
+    virtual boost::shared_ptr<NpdmSpinOps> getcopy() {return boost::shared_ptr<NpdmSpinOps>(new NpdmSpinOps(*this));}
 //FIXME public??
     // Input file stream for disk-based operators used to build NPDM
-    std::ifstream ifs_;
-    std::string ifile_;
+    //std::ifstream ifs_;
+    //std::string ifile_;
     // Number of spatial orbital combinations
     int size_;
 
     NpdmSpinOps() = default;
-    NpdmSpinOps( const NpdmSpinOps & obj ) {
-//      opReps_.clear();
-//      for (int i=0; i < obj.opReps_.size(); ++i) {
-//        boost::shared_ptr<SparseMatrix> op (new Cre);
-//        opReps_.push_back(op);
-//      }
-//      for (int i=0; i < obj.opReps_.size(); ++i) {
-//        opReps_.at(i) = obj.opReps_.at(i);
-//      }
-      opReps_ = obj.opReps_;
-      build_pattern_ = obj.build_pattern_;
-      transpose_ = obj.transpose_;
-      factor_ = obj.factor_;
-      indices_ = obj.indices_;
-      is_local_ = obj.is_local_;
-      //FIXME
-      //ifstream is not copyable.
-      //Now, we do not copy it. 
-     // ifs_ = obj.ifs_;
-      ifile_ = obj.ifile_;
-      size_ = obj.size_;
+ NpdmSpinOps( const NpdmSpinOps & obj ) : NpdmSpinOps_base(obj) {
+      spinBlock_ = obj.spinBlock_;
     }
 
     virtual std::vector< std::vector<int> > get_indices() { abort(); }
 //    virtual const std::vector< int >& get_1d_indices() { abort(); }
 
+    StackSpinBlock* spinBlock_;
   protected:
     //FIXME
-    boost::shared_ptr<SparseMatrix> build_compound_operator( bool is_fermion, int sign,
-                                                             boost::shared_ptr<SparseMatrix> lhsOp,
-                                                             boost::shared_ptr<SparseMatrix> rhsOp,
+    boost::shared_ptr<StackSparseMatrix> build_compound_operator( bool is_fermion, int sign,
+                                                             boost::shared_ptr<StackSparseMatrix> lhsOp,
+                                                             boost::shared_ptr<StackSparseMatrix> rhsOp,
                                                              int ispin, std::vector<int> indices, bool transpose );
 
-    SpinBlock* spinBlock_;
 
-    bool check_file_open( int idx ) 
-    { 
-      if ( idx == 0 ) {
-        assert( ! ifs_.is_open() );
-        ifs_.open(ifile_.c_str(), ios::binary); 
-      }
-      return ifs_.good();
-    }
-    bool check_file_close( int idx ) 
-    { 
-      if ( idx == (size_-1) ) {
-        assert( ifs_.is_open() );
-        ifs_.close(); 
-      }
-      return true;
-    }
 
 };
 
