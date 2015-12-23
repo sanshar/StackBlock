@@ -111,6 +111,7 @@ class StackSpinBlock
   //these will be tricky to implement
   void addAdditionalOps() ;
   void addAllCompOps() ;
+  void addOneIndexNormOps() ;
   void addOneIndexOps() ;
   void messagePassTwoIndexOps() ;
   void formTwoIndexOps() ;

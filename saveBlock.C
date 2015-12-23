@@ -377,6 +377,77 @@ void StackSpinBlock::removeAdditionalOps()
   Stackmem[omprank].deallocate(additionaldata, additionalMemory);
 }
 
+void StackSpinBlock::addOneIndexNormOps() {
+  // used in NPDM code
+#ifndef SERIAL
+  boost::mpi::communicator world;
+  if (calc.size() == 1)
+    return; //there is no need to have additional compops
+  
+  int length = dmrginp.last_site();
+  
+  //distribute cre to all processors
+  if (!ops[CRE]->is_local()) {
+    for(int i=0; i<get_sites().size(); i++) {
+      if (ops[CRE]->has(sites[i])) {
+	if (processorindex(sites[i]) != mpigetrank()) {
+	  ops[CRE]->add_local_indices(sites[i]);
+	}
+	
+	ops[CRE]->set_local() = true;
+	boost::shared_ptr<StackSparseMatrix> op = ops[CRE]->get_element(sites[i])[0];
+
+	//this only broadcasts the frame but no data
+	mpi::broadcast(calc, *op, processorindex(sites[i]));
+	
+	//now allocate the data
+	if (processorindex(sites[i]) != mpigetrank()) {
+	  
+	  double *data = Stackmem[omprank].allocate(op->memoryUsed());
+	  op->set_data(data);
+	  if (additionalMemory == 0) 
+	    additionaldata = data;
+	  additionalMemory+=op->memoryUsed();
+	  op->allocateOperatorMatrix();
+	}
+	
+	//now broadcast the data
+	MPI_Bcast(op->get_data(), op->memoryUsed(), MPI_DOUBLE, processorindex(sites[i]), Calc);
+      }
+    }
+  }
+    
+  //distribute DES to all processors
+  if (has(DES) && !ops[DES]->is_local()) {
+    for(int i=0; i<get_sites().size(); i++) {
+      if (ops[DES]->has(sites[i])) {
+	if (processorindex(sites[i]) != mpigetrank()) ops[DES]->add_local_indices(sites[i]);
+	
+	ops[DES]->set_local() = true;
+	boost::shared_ptr<StackSparseMatrix> op = ops[DES]->get_element(sites[i])[0];
+	
+	//this only broadcasts the frame but no data
+	mpi::broadcast(calc, *op, processorindex(sites[i]));
+	
+	//now allocate the data when it is not already there
+	if (processorindex(sites[i]) != mpigetrank()) {
+	  double *data = Stackmem[omprank].allocate(op->memoryUsed());
+	  op->set_data(data);
+	  if (additionalMemory == 0) 
+	    additionaldata=data; 
+	  additionalMemory+=op->memoryUsed();
+	  
+	  op->allocateOperatorMatrix();
+	}
+	
+	//now broadcast the data
+	MPI_Bcast(op->get_data(), op->memoryUsed(), MPI_DOUBLE, processorindex(sites[i]), Calc);
+      }
+    }
+  }
+#endif
+}
+
 void StackSpinBlock::addOneIndexOps() 
 {
 #ifndef SERIAL

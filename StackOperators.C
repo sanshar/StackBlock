@@ -983,7 +983,7 @@ void SpinAdapted::StackCreDesComp::buildfromCreDes(StackSpinBlock& b)
 
   if (dmrginp.hamiltonian() == BCS) {
     for (int ii = 0; ii < b.get_op_array(CRE_CRE).get_size(); ++ii)
-      for (int ji = 0; ji < b.get_op_array(CRE_DES).get_local_element(ii).size(); ++ji)
+      for (int ji = 0; ji < b.get_op_array(CRE_CRE).get_local_element(ii).size(); ++ji)
         if (b.get_op_array(CRE_CRE).get_local_element(ii)[ji]->get_deltaQuantum(0).get_s() == deltaQuantum[0].get_s() || 
             b.get_op_array(CRE_CRE).get_local_element(ii)[ji]->get_deltaQuantum(0).get_s() == -deltaQuantum[0].get_s()) {
           allops1.push_back(b.get_op_array(CRE_CRE).get_local_element(ii)[ji]);
@@ -1020,7 +1020,7 @@ void SpinAdapted::StackCreDesComp::buildfromCreDes(StackSpinBlock& b)
         }
 
     if (b.has(DES)) {
-      pout << "not implemented" << endl;
+      pout << "buildfromCreDes with DES in BCS not implemented" << endl;
       abort();
     }
   }
@@ -1867,6 +1867,10 @@ void SpinAdapted::StackDesDesComp::buildfromDesDes(StackSpinBlock& b)
         if (nonzero) allops.push_back(b.get_op_array(CRE_CRE).get_local_element(ii)[ji]);
       }
   } else {
+    if (dmrginp.hamiltonian() == BCS) {
+      pout << "buildfromDesDes with DES in BCS not implemented" << endl;
+      abort();
+    }
     for (int ii=0; ii<b.get_op_array(DES_DES).get_size(); ii++)
       for (int ji=0; ji<b.get_op_array(DES_DES).get_local_element(ii).size(); ji++) 
         if (b.get_op_array(DES_DES).get_local_element(ii)[ji]->get_deltaQuantum(0) == deltaQuantum[0]) {
@@ -1884,10 +1888,6 @@ void SpinAdapted::StackDesDesComp::buildfromDesDes(StackSpinBlock& b)
               scaleDD[allops.size()-1] += parity * calcCompfactor(CC1, DD2, DD, *(b.get_twoInt()), b.get_integralIndex());
           }
         }
-    if (dmrginp.hamiltonian() == BCS) {
-      pout << "not implemented" << endl;
-      abort();
-    }
   }
   numCC = allops.size();
 
@@ -3084,7 +3084,7 @@ double SpinAdapted::StackCreCreDesComp::redMatrixElement(Csf c1, vector<Csf>& la
     Csf& detladder = ladder[ladidx];
     if (!dmrginp.spinAdapted() && detladder.det_rep.size() > 1) {
       pout << detladder << endl;
-      pout << "ccdcomp redmatrixelement failed" << endl;
+      pout << "CreCreDesComp::redMatrixElement failed" << endl;
       abort();
     }
     for (int ki =0; ki<b->get_sites().size(); ki++) 
@@ -3208,7 +3208,7 @@ double SpinAdapted::StackCreCreDesComp::redMatrixElement(Csf c1, vector<Csf>& la
 
     if (detladder.det_rep.size() > 1) {
       pout << detladder << endl;
-      pout << "ccdcomp redmatrixelement failed" << endl;
+      pout << "CreCreDesComp redMatrixElement failed" << endl;
       abort();
     }
 

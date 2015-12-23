@@ -64,7 +64,13 @@ void SweepGenblock::BlockAndDecimate (SweepParams &sweepParams, StackSpinBlock& 
   //bool doComp = true;
   if (doComp && !system.has(CRE_DESCOMP) && !dmrginp.npdm_generate())
     system.addAllCompOps();
-  system.addAdditionalOps();
+  if (dmrginp.npdm_generate()) {
+    dmrginp.datatransfer->start();
+    system.addOneIndexNormOps();    
+    dmrginp.datatransfer->stop();
+  } else {
+    system.addAdditionalOps();
+  }
 
   //bool doComp = true;
   InitBlocks::InitNewSystemBlock(system, systemDot, newSystem, stateA, stateB, sweepParams.get_sys_add(), dmrginp.direct(), system.get_integralIndex(), DISTRIBUTED_STORAGE, doNorms, doComp);
