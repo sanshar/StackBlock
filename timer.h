@@ -120,7 +120,6 @@ private:
   double wallstarttime;
   double accumclock(double tcpu) 
   {
-   boost::mpi::communicator world;
    double sum;
    all_reduce(calc, tcpu, sum, std::plus<double>());
    return sum;

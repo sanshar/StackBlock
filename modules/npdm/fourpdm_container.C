@@ -74,7 +74,8 @@ void Fourpdm_container::save_npdms(const int& i, const int& j)
 #ifndef SERIAL
   world.barrier();
 #endif
-  p3out << "4PDM save full array time " << timer.elapsedwalltime() << " " << timer.elapsedcputime() << endl;
+  double cputime = timer.elapsedcputime();
+  p3out << "4PDM save full array time " << timer.elapsedwalltime() << " " << cputime << endl;
 
 }
 
@@ -283,18 +284,21 @@ void Fourpdm_container::save_spatial_npdm_binary(const int &i, const int &j)
       Sortpdm::partition_data<Sortpdm::index_element>((long)pow(dmrginp.last_site(),8),file,tmpfile);
       Sortpdm::externalsort<Sortpdm::index_element>(tmpfile,sortedfile,(long)pow(dmrginp.last_site(),8));
       world.barrier();
-      p3out << "4PDM parallel external sort time " << timer1.elapsedwalltime() << " " << timer1.elapsedcputime() << endl;
+      double cputime = timer1.elapsedcputime();
+      p3out << "4PDM parallel external sort time " << timer1.elapsedwalltime() << " " << cputime << endl;
       Timer timer;
       Sortpdm::mergefile(sortedfile);
       world.barrier();
       if(mpigetrank()==0) boost::filesystem::rename(sortedfile,finalfile);
       boost::filesystem::remove(tmpfile);
-      p3out << "4PDM merge sorted file time " << timer.elapsedwalltime() << " " << timer.elapsedcputime() << endl;
+      cputime = timer.elapsedcputime();
+      p3out << "4PDM merge sorted file time " << timer.elapsedwalltime() << " " << cputime << endl;
 #else
       Timer timer2;
       Sortpdm::externalsort<Sortpdm::index_element> (file,finalfile,(long)pow(dmrginp.last_site(),8));
       boost::filesystem::remove(file);
-      p3out << "4PDM external sort time " << timer2.elapsedwalltime() << " " << timer2.elapsedcputime() << endl;
+      cputime = timer2.elapsedcputime();
+      p3out << "4PDM external sort time " << timer2.elapsedwalltime() << " " << cputime << endl;
 #endif
     }
   }
