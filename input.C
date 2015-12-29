@@ -1092,7 +1092,7 @@ SpinAdapted::Input::Input(const string& config_name) {
 	}
         m_algorithm_type = TWODOT_TO_ONEDOT;
         m_env_add = 1;
-        m_twodot_to_onedot_iter = atoi(tok[1].c_str());
+        m_twodot_to_onedot_iter = 2*(atoi(tok[1].c_str())/2) ;
       }
 
       else if(boost::iequals(keyword, "twodot_noise")) 

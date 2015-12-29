@@ -447,6 +447,10 @@ int calldmrg(char* input, char* output)
 	fullrestartGenblock();
 	reset_iter = true;
 	sweepParams.restorestate(direction, restartsize);
+
+	if (!direction) {
+	  double last_fe = Sweep::do_one(sweepParams, false, direction, true, restartsize);
+	}
 	sweepParams.calc_niter();
 	sweepParams.savestate(direction, restartsize);
 	restart(sweep_tol, reset_iter);
@@ -578,6 +582,7 @@ void fullrestartGenblock() {
 //Temporary fix to restore sweep direction
 //FIXME: NN wrote: please let me know if this makes some erroneous behaviors
   sweepParamsTmp.restorestate(direction, restartsize);
+
   sweepParams.set_sweep_iter() = 0;
   sweepParams.current_root() = -1;
 //direction = true;
@@ -1081,10 +1086,10 @@ void responsepartialSweep(double sweep_tol, int targetState, vector<int>& projec
 
       StackWavefunction w; StateInfo state;
 
-      if (StackWavefunction::exists(targetState+1)) 
-	StackWavefunction::CopyState(targetState+1, baseStates[0]); 
+      if (StackWavefunction::exists(-1)) 
+	StackWavefunction::CopyState(-1, baseStates[0]); 
       else
-	StackWavefunction::CopyState(baseStates[0], targetState+1); 
+	StackWavefunction::CopyState(baseStates[0], -1); 
 
       if (dmrginp.calc_type() == RESPONSEAAAV) {
 	int start = dmrginp.getPartialSweep();
@@ -1106,8 +1111,9 @@ void responsepartialSweep(double sweep_tol, int targetState, vector<int>& projec
 
 	StackWavefunction w2; 
 	w2.initialise(dmrginp.effective_molecule_quantum_vec(), *state.leftStateInfo, newSystem.get_stateInfo(), true);
-	w2.UnCollectQuantaAlongColumns(*state.leftStateInfo, newSystem.get_stateInfo());
 
+	w2.UnCollectQuantaAlongColumns(*state.leftStateInfo, newSystem.get_stateInfo());
+	
 	for (int i=0; i<w.nrows(); i++)
 	  for (int j=0; j<w.ncols(); j++) 
 	    if (w.allowed(i,j)) {
