@@ -740,10 +740,14 @@ SpinAdapted::Input::Input(const string& config_name) {
 	m_calc_type = TRANSITION_ONEPDM;
       else if (boost::iequals(keyword,  "transition_twopdm") || boost::iequals(keyword,  "transition_twordm") || boost::iequals(keyword,  "tran_twopdm"))
 	m_calc_type = TRANSITION_TWOPDM;
+      else if (boost::iequals(keyword,  "transition_threepdm") || boost::iequals(keyword,  "transition_threerdm") || boost::iequals(keyword,  "tran_threepdm"))
+	m_calc_type = TRANSITION_THREEPDM;
       else if (boost::iequals(keyword,  "restart_tran_onepdm") || boost::iequals(keyword,  "restart_tran_onerdm") || boost::iequals(keyword,  "restart_tran_ordm"))
 	m_calc_type = RESTART_T_ONEPDM;
       else if (boost::iequals(keyword,  "restart_tran_twopdm") || boost::iequals(keyword,  "restart_tran_twordm") || boost::iequals(keyword,  "restart_tran_trdm"))
 	m_calc_type = RESTART_T_TWOPDM;
+      else if (boost::iequals(keyword,  "restart_tran_threepdm") || boost::iequals(keyword,  "restart_tran_threerdm") || boost::iequals(keyword,  "restart_tran_threerdm"))
+	m_calc_type = RESTART_T_THREEPDM;
       else if (boost::iequals(keyword,  "nevpt2") || boost::iequals(keyword,  "pt2")){
 	m_calc_type = NEVPT2;
         m_nevpt2 = true;

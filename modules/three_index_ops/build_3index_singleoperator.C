@@ -58,16 +58,25 @@ void do_3index_single_op_tensor_trace( const opTypes& optype, StackSparseMatrix&
       boost::shared_ptr<StackSparseMatrix>& sysdot_op = sysdot_ops[jdx];
 
       int len1 = sysdot_op->get_filename().length(),
-	len2 = op.get_filename().length();
+	        len2 = op.get_filename().length();
       char char1 = sysdot_op->get_filename()[len1-1], char2 = op.get_filename()[len2-1];
       if ( char1 == char2) {
-	sysdot_op->LoadThreadSafe(true);
-	sysdot_op->allocateOperatorMatrix();
-	std::string build_pattern = sysdot_op->get_build_pattern();
-	finish_tensor_trace( big, sysdot, *sysdot_op, op, build_pattern );
-	sysdot_op->deallocate();
+	      sysdot_op->LoadThreadSafe(true);
+	      sysdot_op->allocateOperatorMatrix();
+	      std::string build_pattern = sysdot_op->get_build_pattern();
+        if ( dmrginp.doimplicitTranspose() )
+	        finish_tensor_trace( big, sysdot, *sysdot_op, op, build_pattern );
+        else{
+
+          const StackSpinBlock* overlap_block = (big.get_leftBlock() == sysdot) ? big.get_rightBlock() : big.get_leftBlock();
+          SpinQuantum hq(0, SpinSpace(0), IrrepSpace(0));
+          const boost::shared_ptr<StackSparseMatrix> Overlap = overlap_block->get_op_rep(OVERLAP, hq);
+          bool forwards = false;
+          finish_tensor_product( big, sysdot, *sysdot_op, *Overlap, op, forwards, build_pattern );
+        }
+	      sysdot_op->deallocate();
 	
-	return;
+	      return;
       }
     }
   }
@@ -84,7 +93,18 @@ void do_3index_single_op_tensor_trace( const opTypes& optype, StackSparseMatrix&
       std::vector<SpinQuantum> s2 = op.get_quantum_ladder().at(build_pattern);
       // Store spin component in correct location
       if ( s1 == s2 ) 
-	finish_tensor_trace( big, sysdot, *sysdot_op, op, build_pattern );
+      {
+        if ( dmrginp.doimplicitTranspose() )
+	        finish_tensor_trace( big, sysdot, *sysdot_op, op, build_pattern );
+        else{
+          const StackSpinBlock* overlap_block = (big.get_leftBlock() == sysdot) ? big.get_rightBlock() : big.get_leftBlock();
+          SpinQuantum hq(0, SpinSpace(0), IrrepSpace(0));
+          const boost::shared_ptr<StackSparseMatrix> Overlap = overlap_block->get_op_rep(OVERLAP, hq);
+          bool forwards = false;
+          finish_tensor_product( big, sysdot, *sysdot_op, *Overlap, op, forwards, build_pattern );
+        }
+
+      }
     }
   }
 
