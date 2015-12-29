@@ -404,7 +404,7 @@ void npdm(NpdmOrder npdm_order, bool restartpdm, bool transitionpdm)
     else if (npdm_order == NPDM_THREEPDM) npdm_driver = boost::shared_ptr<Npdm_driver_base>( new Threepdm_driver( dmrginp.last_site() ) );
     else if (npdm_order == NPDM_FOURPDM) npdm_driver = boost::shared_ptr<Npdm_driver_base>( new Fourpdm_driver( dmrginp.last_site() ) );
     //else if (npdm_order == NPDM_NEVPT2) npdm_driver = boost::shared_ptr<Npdm_driver_base>( new Nevpt2_npdm_driver( dmrginp.last_site() ) );
-    else if (npdm_order == NPDM_PAIRMATRIX) npdm_driver = boost::shared_ptr<Npdm_driver_base>( new Pairpdm_driver( dmrginp.last_site() ) );
+    //else if (npdm_order == NPDM_PAIRMATRIX) npdm_driver = boost::shared_ptr<Npdm_driver_base>( new Pairpdm_driver( dmrginp.last_site() ) );
     else abort();
     }
   }
@@ -469,6 +469,14 @@ void npdm(NpdmOrder npdm_order, bool restartpdm, bool transitionpdm)
           npdm_do_one_sweep(*npdm_driver, sweepParams, false, direction, false, 0, state,stateB);
           double cputime = timerX.elapsedcputime();
           p3out << "\t\t\t NPDM sweep time " << timerX.elapsedwalltime() << " " << cputime << endl;
+          if (dmrginp.hamiltonian() == BCS && npdm_order == NPDM_ONEPDM) {
+            Timer timerX1;            
+            npdm_driver = boost::shared_ptr<Npdm_driver_base>( new Pairpdm_driver( dmrginp.last_site() ) );
+            npdm_driver->clear();
+            npdm_do_one_sweep(*npdm_driver, sweepParams, false, !direction, false, 0, state,stateB);
+            cputime = timerX1.elapsedcputime();
+            p3out << "\t\t\t NPDM sweep time " << timerX1.elapsedwalltime() << " " << cputime << endl; 
+          }
 	}
       }
       
@@ -482,6 +490,14 @@ void npdm(NpdmOrder npdm_order, bool restartpdm, bool transitionpdm)
           npdm_do_one_sweep(*npdm_driver, sweepParams, false, direction, false, 0, state,state);
           double cputime = timerX.elapsedcputime();
           p3out << "\t\t\t NPDM sweep time " << timerX.elapsedwalltime() << " " << cputime << endl;
+          if (dmrginp.hamiltonian() == BCS && npdm_order == NPDM_ONEPDM) {
+            Timer timerX1;            
+            npdm_driver = boost::shared_ptr<Npdm_driver_base>( new Pairpdm_driver( dmrginp.last_site() ) );
+            npdm_driver->clear();
+            npdm_do_one_sweep(*npdm_driver, sweepParams, false, !direction, false, 0, state,state);
+            cputime = timerX1.elapsedcputime();
+            p3out << "\t\t\t NPDM sweep time " << timerX1.elapsedwalltime() << " " << cputime << endl; 
+          }
         } 
         else{
 	  pout << "Old code is not available anymore "<<endl;
