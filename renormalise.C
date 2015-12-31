@@ -67,7 +67,7 @@ void StackSpinBlock::RenormaliseFrom(vector<double> &energies, vector<double> &s
   SpinQuantum hq(0, SpinSpace(0), IrrepSpace(0));
 
   Solver::solve_wavefunction(wave_solutions, energies, big, tol, guesswavetype, onedot, 
-			     dot_with_sys, warmUp, additional_noise, currentRoot, lowerStates);
+			     dot_with_sys, warmUp, false, additional_noise, currentRoot, lowerStates);
   dmrginp.solvewf -> stop();
 
   StackSpinBlock newsystem;

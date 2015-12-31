@@ -53,7 +53,7 @@ void memorySummary(StackSpinBlock& big, vector<StackWavefunction>& solution) {
 }
 
 void SpinAdapted::Solver::solve_wavefunction(vector<StackWavefunction>& solution, vector<double>& energies, StackSpinBlock& big, const double tol, 
-					     const guessWaveTypes& guesswavetype, const bool &onedot, const bool& dot_with_sys, const bool& warmUp,
+					     const guessWaveTypes& guesswavetype, const bool &onedot, const bool& dot_with_sys, const bool& warmUp, const bool& twoindex,
 					     double additional_noise, int currentRoot, std::vector<StackWavefunction>& lowerStates)
 {
   for (int thrd=0; thrd<numthrds; thrd++) 
@@ -116,7 +116,13 @@ void SpinAdapted::Solver::solve_wavefunction(vector<StackWavefunction>& solution
         }
       }
 
-      multiply_h davidson_f(big, onedot);
+      //multiply_h davidson_f(big, onedot);
+      Davidson_functor* davidson_f;
+      if (twoindex) {
+        davidson_f = new multiply_h_2Index(big, onedot);
+      } else {
+        davidson_f = new multiply_h(big, onedot);
+      }
 
       guessWaveTypes guesstype = guesswavetype;
       if (guesswavetype == TRANSPOSE && big.get_leftBlock()->get_rightBlock() == 0)
@@ -132,18 +138,24 @@ void SpinAdapted::Solver::solve_wavefunction(vector<StackWavefunction>& solution
       }
     
       dmrginp.blockdavid->start();
-      Linear::block_davidson(solution, e, tol, warmUp, davidson_f, useprecond, currentRoot, lowerStates);
+      Linear::block_davidson(solution, e, tol, warmUp, *davidson_f, useprecond, currentRoot, lowerStates);
       dmrginp.blockdavid->stop();
 
       if (mpigetrank() == 0) {
 	for (int i=solution.size()-1; i>=nroots; i--) 
 	  solution[i].deallocate();
       }
-
+      delete davidson_f;
     }
     else if (dmrginp.solve_method() == CONJUGATE_GRADIENT) {
 
-      multiply_h davidson_f(big, onedot);
+      //multiply_h davidson_f(big, onedot);
+      Davidson_functor* davidson_f;
+      if (twoindex) {
+        davidson_f = new multiply_h_2Index(big, onedot);
+      } else {
+        davidson_f = new multiply_h(big, onedot);
+      }
 
       if (mpigetrank()!=0) 
 	e.ReSize(0);
@@ -155,11 +167,11 @@ void SpinAdapted::Solver::solve_wavefunction(vector<StackWavefunction>& solution
       if (guesswavetype == BASIC)
 	solution[0].Clear();
 
-      double functional = Linear::MinResMethod(solution[0], tol, davidson_f, lowerStates);
+      double functional = Linear::MinResMethod(solution[0], tol, *davidson_f, lowerStates);
       //double functional = Linear::ConjugateGradient(solution[0], tol, davidson_f, lowerStates);
       if (mpigetrank() == 0)
 	e(1) = functional;
-
+      delete davidson_f;
     }
     else {
       pout << "Lanczos is no longer supported"<<endl;

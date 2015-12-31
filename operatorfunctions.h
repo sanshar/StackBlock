@@ -128,6 +128,9 @@ void TensorProduct (const StackSpinBlock *ablock, const StackSparseMatrix& a, co
 
  void OperatorScaleAdd(double scaleV, const StackSpinBlock& b, const StackSparseMatrix& op1, StackSparseMatrix& op2);
 
+ void OperatorScaleAdd(double scaleV, const StackSpinBlock& b, const StackSparseMatrix& op1, StackSparseMatrix& op2, const std::vector<int>& rows, const std::vector<int>& cols);
+
+
 void MultiplyWithOwnTranspose(const StackSparseMatrix& a, StackSparseMatrix& c, double scale);
 
  void braTensorMultiply(const StackSpinBlock *ablock, const StackSparseMatrix &a, const StackSpinBlock *cblock, StackWavefunction &c, StackWavefunction &v, double scale, int num_thrds=1);

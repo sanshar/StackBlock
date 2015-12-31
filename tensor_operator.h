@@ -56,20 +56,20 @@ class TensorOp {
       int Kirrep = SymmetryOfSpatialOrb(k).getirrep();
       
       if (Symmetry::sizeofIrrep(Kirrep)>1 && sign <0) {
-	int ind1[] = {K+3, K+2, K+1, K+0};
-	*this = TensorOp(-1, Kirrep, vector<int>(ind1, ind1+4));
+	      int ind1[] = {K+3, K+2, K+1, K+0};
+	      *this = TensorOp(-1, Kirrep, vector<int>(ind1, ind1+4));
       }
       else if (Symmetry::sizeofIrrep(Kirrep)==1 && sign <0){
-	int ind1[] = {K+1, K+0};
-	*this = TensorOp(-1, Kirrep, vector<int>(ind1, ind1+2));
+	      int ind1[] = {K+1, K+0};
+	      *this = TensorOp(-1, Kirrep, vector<int>(ind1, ind1+2));
       }
       else if (Symmetry::sizeofIrrep(Kirrep)>1 && sign > 0) {
-	int ind1[] = {K+0, K+1, K+2, K+3};
-	*this = TensorOp(1, Kirrep, vector<int>(ind1, ind1+4));
+	      int ind1[] = {K+0, K+1, K+2, K+3};
+	      *this = TensorOp(1, Kirrep, vector<int>(ind1, ind1+4));
       }
       else {
-	int ind1[] = {K+0, K+1};
-	*this = TensorOp(1, Kirrep, vector<int>(ind1, ind1+2));
+	      int ind1[] = {K+0, K+1};
+	      *this = TensorOp(1, Kirrep, vector<int>(ind1, ind1+2));
       }
     }
     else {
@@ -78,42 +78,41 @@ class TensorOp {
     }
 	
   }
- 
+
  TensorOp(int sgn, int pirrep, std::vector<int> ind) :empty(false)
   {
     // This can only be used to initialize a cre or des operator. It could
     // not be used to initialize crecre or credes ...
     if(dmrginp.spinAdapted()) {
       if (!(sgn == 1 || sgn == -1)) {
-	perr<<"sign not correct";exit(0);}
+	      perr<<"sign not correct";exit(0);
+      }
       Spin = 1;
       if (sgn == -1)
-	irrep = (-IrrepSpace(pirrep)).getirrep();
+	      irrep = (-IrrepSpace(pirrep)).getirrep();
       else
-	irrep = pirrep;
+	      irrep = pirrep;
       optypes.push_back(sgn);
       if ( Symmetry::sizeofIrrep(irrep) == 1) {
-	std::vector<double> vec1(2,0);
-	std::vector<double> vec2(2,0);
-	vec1[0] = sgn*1.0; vec2[1] = 1.0;
-	Szops.push_back(vec1); Szops.push_back(vec2);
-	opindices.resize(2);
-	opindices[0].push_back(ind[0]); opindices[1].push_back(ind[1]);
-	rows = 1;
+	      std::vector<double> vec1(2,0);
+	      std::vector<double> vec2(2,0);
+	      vec1[0] = sgn*1.0; vec2[1] = 1.0;
+	      Szops.push_back(vec1); Szops.push_back(vec2);
+	      opindices.resize(2);
+	      opindices[0].push_back(ind[0]); opindices[1].push_back(ind[1]);
+	      rows = 1;
+      } else {
+	      std::vector<double> vec1(4,0), vec2(4,0), vec3(4,0), vec4(4,0);
+	      
+	      vec1[0] = sgn*1.0; vec2[1] = 1.0; vec3[2] = sgn*1.0; vec4[3] = 1.0;
+	      Szops.push_back(vec1); Szops.push_back(vec2);
+	      Szops.push_back(vec3); Szops.push_back(vec4);
+	      opindices.resize(4);
+	      opindices[0].push_back(ind[0]); opindices[1].push_back(ind[1]);
+	      opindices[2].push_back(ind[2]); opindices[3].push_back(ind[3]);
+	      rows = 2;
       }
-      else {
-	std::vector<double> vec1(4,0), vec2(4,0), vec3(4,0), vec4(4,0);
-	
-	vec1[0] = sgn*1.0; vec2[1] = 1.0; vec3[2] = sgn*1.0; vec4[3] = 1.0;
-	Szops.push_back(vec1); Szops.push_back(vec2);
-	Szops.push_back(vec3); Szops.push_back(vec4);
-	opindices.resize(4);
-	opindices[0].push_back(ind[0]); opindices[1].push_back(ind[1]);
-	opindices[2].push_back(ind[2]); opindices[3].push_back(ind[3]);
-	rows = 2;
-      }
-    }
-    else {
+    } else {
       std::vector<double> vec1(1,1.0);
       Szops.push_back(vec1);
       opindices.resize(1); opindices[0].push_back(ind[0]);
@@ -122,19 +121,16 @@ class TensorOp {
       Spin = ind[0]%2 == 0? 1*sgn : -1*sgn;
       optypes.push_back(sgn);
     }
-
   }
 
-  TensorOp& operator*(const double d)
-  {
+  TensorOp& operator*(const double d) {
     for (int i=0; i<Szops.size(); i++)
       for (int j=0; j<Szops[i].size(); j++)
-	Szops[i][j] *= d;
+	      Szops[i][j] *= d;
     return *this;
   }
 
-  static double getTransposeFactorCD(int I, int J, int pspin, int pirrep)
-  {
+  static double getTransposeFactorCD(int I, int J, int pspin, int pirrep) {
     if(!dmrginp.spinAdapted())
       return 1.0;
     //i.e. is CD_ij^dag =? CD_ji
@@ -148,16 +144,15 @@ class TensorOp {
       int bsize = Symmetry::sizeofIrrep(birrep);
       int psize = Symmetry::sizeofIrrep(pirrep);
       for (int al = 0; al<Symmetry::sizeofIrrep(airrep); al++)
-      for (int bl = 0; bl<Symmetry::sizeofIrrep(birrep); bl++)
-      {
-	double clebspatial = Symmetry::spatial_cg(airrep, birrep, pirrep, al, bl, 0);
-	if(fabs(clebspatial) <= 1.0e-14)
-	  continue;
-	else 
-	  spatfactor = clebspatial/Symmetry::spatial_cg(birrep, airrep, pirrep, bl==0?bsize-1:0, al==0?asize-1:0, psize-1);
+      for (int bl = 0; bl<Symmetry::sizeofIrrep(birrep); bl++) {
+	      double clebspatial = Symmetry::spatial_cg(airrep, birrep, pirrep, al, bl, 0);
+	      if(fabs(clebspatial) <= 1.0e-14)
+	        continue;
+	      else 
+	        spatfactor = clebspatial/Symmetry::spatial_cg(birrep, airrep, pirrep, bl==0?bsize-1:0, al==0?asize-1:0, psize-1);
       }
 
-    return spinfactor*spatfactor; 
+      return spinfactor*spatfactor; 
   }
 
 
@@ -189,6 +184,56 @@ class TensorOp {
     return spinfactor*spatfactor; 
   }
 
+  inline TensorOp(int k, int l, int sign_k, int sign_l, int pspin, int pirrep, bool identical = false) {
+    if (!dmrginp.spinAdapted()) {
+      Spin = (k%2 == 0? sign_k : -sign_k) + (l%2 == 0 ? sign_l : -sign_l);
+      if (pspin != Spin) {
+        empty = true;
+      } else {
+        empty = false;
+        irrep = pirrep;
+        rows = 1;
+        Szops.resize(1);
+        Szops[0].push_back(1.0);
+        opindices.resize(1);
+        opindices[0].push_back(k);
+        opindices[0].push_back(l);
+        optypes.push_back(sign_k);
+        optypes.push_back(sign_l);
+      }
+    } else {
+      *this = TensorOp(k, sign_k);
+      TensorOp other = TensorOp(l, sign_l);
+      product(other, pspin, pirrep, identical);
+    }
+  }
+
+  inline TensorOp(int i, int j, int k, int sign_i, int sign_j, int sign_k, int pspinij, int pirrepij, int pspin, int pirrep, bool identical = false) {
+    if (!dmrginp.spinAdapted()) {
+      Spin = (i%2 == 0? sign_i : -sign_i) + (j%2 == 0 ? sign_j : -sign_j) + (k%2 == 0 ? sign_k : -sign_k);
+      if (pspin != Spin) {
+        empty = true;
+      } else {
+        empty = false;
+        irrep = pirrep;
+        rows = 1;
+        Szops.resize(1);
+        Szops[0].push_back(1.0);
+        opindices.resize(1);
+        opindices[0].push_back(i);
+        opindices[0].push_back(j);
+        opindices[0].push_back(k);
+        optypes.push_back(sign_i);
+        optypes.push_back(sign_j);
+        optypes.push_back(sign_k);
+      }
+    } else {
+      *this = TensorOp(i, sign_i);
+      TensorOp TOj(j, sign_j), TOk(k, sign_k);
+      product(TOj, pspinij, pirrepij, identical);
+      product(TOk, pspin, pirrep);
+    }
+  }
 
   TensorOp& product(TensorOp& op1, int pspin, int pirrep, bool identical=false) {
 
@@ -198,17 +243,17 @@ class TensorOp {
       std::copy(op1.optypes.begin(), op1.optypes.end(), back_inserter(optypes));
       empty = false;
       if(pspin != Spin+op1.Spin) {
-	empty = true;
-	return *this;
-	perr <<"incorrect spin is chosen"<<endl;
-	perr <<"cannot combine "<<Spin<<" and "<<op1.Spin<<" to form "<<pspin<<endl;
-	abort();
+	      empty = true;
+	      return *this;
+	      perr <<"incorrect spin is chosen"<<endl;
+	      perr <<"cannot combine "<<Spin<<" and "<<op1.Spin<<" to form "<<pspin<<endl;
+	      abort();
       }
       Spin = pspin;
       irrep = pirrep;
       rows = 1;
       return *this;
-   }
+    }
     identical=false;
 
     if (pspin < abs(Spin - op1.Spin) || pspin > Spin+op1.Spin) {
@@ -221,8 +266,8 @@ class TensorOp {
     bool allowed=false;
     for (int i=0; i<spinvec.size(); i++) {
       if (spinvec[i].getirrep() == pirrep) {
-	allowed = true;
-	break;
+	      allowed = true;
+	      break;
       }
     }
     if (!allowed) {
@@ -242,12 +287,12 @@ class TensorOp {
     int index =0;
     for (int i=0; i<opindices.size(); i++) 
       for (int j=0; j<op1.opindices.size(); j++) { 
-	if (identical && i>j) continue;
-	tempopindices[index] = opindices[i];
-	for (int jj=0; jj<op1.opindices[j].size(); jj++)
-	  tempopindices[index].push_back(op1.opindices[j][jj]);
-	//copy(op1.opindices[j].begin(), op1.opindices[j].end(), back_inserter(tempopindices[index]) );
-	index++;
+	      if (identical && i>j) continue;
+	      tempopindices[index] = opindices[i];
+	      for (int jj=0; jj<op1.opindices[j].size(); jj++)
+	        tempopindices[index].push_back(op1.opindices[j][jj]);
+	      //copy(op1.opindices[j].begin(), op1.opindices[j].end(), back_inserter(tempopindices[index]) );
+	      index++;
       }
     opindices = tempopindices;
 
@@ -262,37 +307,37 @@ class TensorOp {
       for (int sz1=Spin; sz1> -Spin-1; sz1-=2)
       for (int ilz2=0; ilz2 <op1.rows; ilz2++)	
       for (int sz2=op1.Spin; sz2> -op1.Spin-1; sz2-=2) {
-	//int lz1 = lz[ilz1], lz2 = op1.lz[ilz2];
-	std::vector<double>&  iSz1 = Szops[ilz1*(Spin+1)+(-sz1+Spin)/2];
-	std::vector<double>&  iSz2 = op1.Szops[ilz2*(op1.Spin+1)+(-sz2+op1.Spin)/2];
+	      //int lz1 = lz[ilz1], lz2 = op1.lz[ilz2];
+	      std::vector<double>&  iSz1 = Szops[ilz1*(Spin+1)+(-sz1+Spin)/2];
+	      std::vector<double>&  iSz2 = op1.Szops[ilz2*(op1.Spin+1)+(-sz2+op1.Spin)/2];
 
-	//double cleb = cleb_(Spin, sz1, op1.Spin, sz2, pspin, sz);
-	double cleb = clebsch(Spin, sz1, op1.Spin, sz2, pspin, sz);
-	double clebdinfh = 1.0;
-	if (NonabelianSym || sym == "dinfh" || sym == "dinfh_abelian" || sym=="lzsym" || sym=="trans")
-	  clebdinfh = Symmetry::spatial_cg(irrep, op1.irrep, pirrep, ilz1, ilz2, ilz);
-	else
-	  clebdinfh = pirrep == groupTable(irrep, op1.irrep) ? 1.0 : 0.0; 
-	if (fabs(cleb) <= 1.0e-14 || fabs(clebdinfh) <= 1.0e-14)
-	  continue;
-
-	if (!identical) {
-	  for (int i=0; i<iSz1.size(); i++)
-	    for (int j=0; j<iSz2.size(); j++) {
-	      iSz.at(i*iSz2.size()+j) += cleb*clebdinfh*iSz1.at(i)*iSz2.at(j);
-	    }
-	}
-	else {
-	  
-	  for (int i=0; i<iSz1.size(); i++)
-	    for (int j=0; j<iSz2.size(); j++) {
-	      double increment = pspin == 0 ? cleb*clebdinfh*iSz1.at(i)*iSz2.at(j)/sqrt(2.0) : 0.0;
-	      if (i <= j) 
-		iSz.at( i*(i+1)/2 + (j-i) ) += increment;
+	      //double cleb = cleb_(Spin, sz1, op1.Spin, sz2, pspin, sz);
+	      double cleb = clebsch(Spin, sz1, op1.Spin, sz2, pspin, sz);
+	      double clebdinfh = 1.0;
+	      if (NonabelianSym || sym == "dinfh" || sym == "dinfh_abelian" || sym=="lzsym" || sym=="trans")
+	        clebdinfh = Symmetry::spatial_cg(irrep, op1.irrep, pirrep, ilz1, ilz2, ilz);
 	      else
-		iSz.at( j*(j+1)/2 + (i-j) ) -= increment;//cleb*clebdinfh*iSz1.at(i)*iSz2.at(j)/sqrt(2.0);
-	    }
-	} 
+	        clebdinfh = pirrep == groupTable(irrep, op1.irrep) ? 1.0 : 0.0; 
+	      if (fabs(cleb) <= 1.0e-14 || fabs(clebdinfh) <= 1.0e-14)
+	        continue;
+
+	      if (!identical) {
+	        for (int i=0; i<iSz1.size(); i++)
+	          for (int j=0; j<iSz2.size(); j++) {
+	            iSz.at(i*iSz2.size()+j) += cleb*clebdinfh*iSz1.at(i)*iSz2.at(j);
+	          }
+	      }
+	      else {
+	        
+	        for (int i=0; i<iSz1.size(); i++)
+	          for (int j=0; j<iSz2.size(); j++) {
+	            double increment = pspin == 0 ? cleb*clebdinfh*iSz1.at(i)*iSz2.at(j)/sqrt(2.0) : 0.0;
+	            if (i <= j) 
+	      	      iSz.at( i*(i+1)/2 + (j-i) ) += increment;
+	            else
+	      	      iSz.at( j*(j+1)/2 + (i-j) ) -= increment;//cleb*clebdinfh*iSz1.at(i)*iSz2.at(j)/sqrt(2.0);
+	          }
+	      } 
       }
     }
 

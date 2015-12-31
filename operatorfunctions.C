@@ -2651,14 +2651,51 @@ void SpinAdapted::operatorfunctions::Product (const StackSpinBlock *ablock, cons
 void SpinAdapted::operatorfunctions::OperatorScaleAdd(double scaleV, const StackSpinBlock& b, const StackSparseMatrix& op1, StackSparseMatrix& op2)
 {
   const StateInfo& s = b.get_stateInfo();
-  for (int lQ = 0; lQ< op2.nrows(); lQ++)
-    for (int rQ = 0; rQ<op2.ncols(); rQ++)
-      if (op2.allowed(lQ, rQ) && op1.allowed(lQ,rQ))
-      {
-	double factor = op1.get_scaling(s.quanta[lQ], s.quanta[rQ]);
-	MatrixScaleAdd(scaleV*factor, op1.operator_element(lQ,rQ), op2.operator_element(lQ,rQ));
+  if (op1.conjugacy() == 'n') {
+    for (int lQ = 0; lQ< op2.nrows(); lQ++)
+      for (int rQ = 0; rQ<op2.ncols(); rQ++)
+        if (op2.allowed(lQ, rQ) && op1.allowed(lQ,rQ))
+        {
+	        double factor = op1.get_scaling(s.quanta[lQ], s.quanta[rQ]);
+	        MatrixScaleAdd(scaleV*factor, op1.operator_element(lQ,rQ), op2.operator_element(lQ,rQ));
+        }
+  } else {
+    for (int lQ = 0; lQ< op2.nrows(); lQ++)
+      for (int rQ = 0; rQ<op2.ncols(); rQ++)
+        if (op2.allowed(lQ, rQ) && op1.allowed(lQ,rQ)) {
+          double scaling = getStandAlonescaling(op1.get_deltaQuantum(0), b.get_braStateInfo().quanta[lQ], b.get_ketStateInfo().quanta[rQ]);
+          int nrows = op2.operator_element(lQ,rQ).Nrows();
+          int ncols = op2.operator_element(lQ,rQ).Ncols();
+          for (int row = 0; row < nrows; ++row)
+            DAXPY(ncols, scaling*scaleV, op1.operator_element(lQ,rQ).Store() + row, nrows, &(op2.operator_element(lQ,rQ)(row+1, 1)), 1);
       }
+  }
+}
 
+void SpinAdapted::operatorfunctions::OperatorScaleAdd(double scaleV, const StackSpinBlock& b, const StackSparseMatrix& op1, StackSparseMatrix& op2, const std::vector<int>& rows, const std::vector<int>& cols) {
+  const StateInfo& s = b.get_stateInfo();
+  assert(rows.size() == cols.size());
+  if (op1.conjugacy() == 'n') {
+    for (int i = 0; i < rows.size(); ++i) {
+      int lQ = rows.at(i), rQ = cols.at(i);
+        if (op2.allowed(lQ, rQ) && op1.allowed(lQ,rQ))
+        {
+	        double factor = op1.get_scaling(s.quanta[lQ], s.quanta[rQ]);
+	        MatrixScaleAdd(scaleV*factor, op1.operator_element(lQ,rQ), op2.operator_element(lQ,rQ));
+        }
+    }
+  } else {
+    for (int i = 0; i < rows.size(); ++i) {
+      int lQ = rows.at(i), rQ = cols.at(i);
+        if (op2.allowed(lQ, rQ) && op1.allowed(lQ,rQ)) {
+          double scaling = getStandAlonescaling(op1.get_deltaQuantum(0), b.get_braStateInfo().quanta[lQ], b.get_ketStateInfo().quanta[rQ]);
+          int nrows = op2.operator_element(lQ,rQ).Nrows();
+          int ncols = op2.operator_element(lQ,rQ).Ncols();
+          for (int row = 0; row < nrows; ++row)
+            DAXPY(ncols, scaling*scaleV, op1.operator_element(lQ,rQ).Store() + row, nrows, &(op2.operator_element(lQ,rQ)(row+1, 1)), 1);
+      }
+    }
+  }
 }
 
 /*

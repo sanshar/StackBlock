@@ -114,7 +114,7 @@ void SpinAdapted::Sweep::fullci(double sweep_tol)
   pout << "\t\t\t Solving the Wavefunction "<<endl;
   int currentState = 0;
   std::vector<StackWavefunction> lowerStates;
-  Solver::solve_wavefunction(solution, energies, big, tol, BASIC, false, true, false, sweepParams.get_additional_noise(), currentState, lowerStates);
+  Solver::solve_wavefunction(solution, energies, big, tol, BASIC, false, true, false, false, sweepParams.get_additional_noise(), currentState, lowerStates);
 
   pout << "tensormultiply "<<*dmrginp.tensormultiply<<endl;
 

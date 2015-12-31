@@ -176,8 +176,8 @@ void SpinAdapted::InitBlocks::InitNewEnvironmentBlock(StackSpinBlock &environmen
 
       StackSpinBlock environmentActive, environmentCore;
       if (coreSites.size() > 0) {
-	environmentActive.set_integralIndex() = integralIndex;
-	environmentCore.set_integralIndex() = integralIndex;
+	      environmentActive.set_integralIndex() = integralIndex;
+	      environmentCore.set_integralIndex() = integralIndex;
         environmentActive.default_op_components(!forward, leftState==rightState);
         environmentActive.setstoragetype(DISTRIBUTED_STORAGE);
         environmentCore.default_op_components(!forward, leftState==rightState);      
@@ -190,17 +190,17 @@ void SpinAdapted::InitBlocks::InitNewEnvironmentBlock(StackSpinBlock &environmen
         environmentActive.addAdditionalOps();
 
         if ((!dot_with_sys && onedot) || !onedot) {
-	  environment.set_integralIndex() = integralIndex;
+	        environment.set_integralIndex() = integralIndex;
           environment.default_op_components(!forward, leftState == rightState);
           environment.setstoragetype(DISTRIBUTED_STORAGE);
-          environment.BuildSumBlock(constraint, environmentCore, environmentActive);
+          environment.BuildSumBlock(constraint, environmentActive, environmentCore);
         } else {
-	  newEnvironment.set_integralIndex() = integralIndex;
+	        newEnvironment.set_integralIndex() = integralIndex;
           newEnvironment.default_op_components(direct, haveNormops, haveCompops, leftState == rightState);
           newEnvironment.setstoragetype(DISTRIBUTED_STORAGE);
-          newEnvironment.BuildSumBlock(constraint, environmentCore, environmentActive);
-	  //p2out << "\t\t\t NewEnvironment block " << endl << newEnvironment << endl;
-	  //newEnvironment.printOperatorSummary();
+          newEnvironment.BuildSumBlock(constraint, environmentActive, environmentCore);
+	        //p2out << "\t\t\t NewEnvironment block " << endl << newEnvironment << endl;
+	        //newEnvironment.printOperatorSummary();
         }
       } else { // no core
         if ((!dot_with_sys && onedot) || !onedot) {
