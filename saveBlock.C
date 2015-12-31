@@ -821,36 +821,34 @@ void StackSpinBlock::formTwoIndexOps() {
     dotindice.push_back((sites[0] == 0) ? complementary_sites[1] : complementary_sites[complementary_sites.size()-2]);    
   }
 
+
+  const double screen_tol = dmrginp.twoindex_screen_tol();
   //build iterators
   std::vector<int> cinds;
   std::map<std::tuple<int, int, int>, int> tuple;
   std::vector<std::pair<int, int> > cdpair, ddpair;
   for (int idx = 0; idx < dotindice.size(); ++idx) 
-  for (int i=0; i<complementary_sites.size(); i++) {
-    int dotopindex = dotindice[idx];
-    int compsite = complementary_sites[i];
-    if (find(dotindice.begin(), dotindice.end(), compsite) != dotindice.end() && dotopindex > compsite) {
-      continue;
-    }
-    int I = (compsite > dotopindex) ? compsite : dotopindex;
-    int J = (compsite > dotopindex) ? dotopindex : compsite;
-    const double screen_tol = dmrginp.twoindex_screen_tol();
-    if (dmrginp.use_partial_two_integrals() || screen_cd_interaction(I, J, sites, *get_twoInt(), screen_tol))
-      cdpair.push_back(std::pair<int, int>(I, J));
+    for (int i=0; i<complementary_sites.size(); i++) {
+      int dotopindex = dotindice[idx];
+      int compsite = complementary_sites[i];
+      if (find(dotindice.begin(), dotindice.end(), compsite) != dotindice.end() && dotopindex > compsite) {
+	continue;
+      }
+      int I = (compsite > dotopindex) ? compsite : dotopindex;
+      int J = (compsite > dotopindex) ? dotopindex : compsite;
+      if (dmrginp.use_partial_two_integrals() || screen_cd_interaction(I, J, sites, *get_twoInt(), screen_tol))
+	cdpair.push_back(std::pair<int, int>(I, J));
 
-    if (dmrginp.use_partial_two_integrals() || screen_dd_interaction(I, J, sites, *get_twoInt(), screen_tol))
-      ddpair.push_back(std::pair<int, int>(I, J));
-  }
+      if (dmrginp.use_partial_two_integrals() || screen_dd_interaction(I, J, sites, *get_twoInt(), screen_tol))
+	ddpair.push_back(std::pair<int, int>(I, J));
+    }
   ops[CRE_DESCOMP]->build_iterators(*this, cinds, cdpair, tuple);
   ops[DES_DESCOMP]->build_iterators(*this, cinds, ddpair, tuple);
   if (has(DES)) {
     ops[DES_CRECOMP]->build_iterators(*this, cinds, cdpair, tuple);
     ops[CRE_CRECOMP]->build_iterators(*this, cinds, ddpair, tuple);
   }
-
-
-  // CDcomp
-  //IJ operator where atleast I or J is on the dot site
+  
   for (int idx = 0; idx < dotindice.size(); ++idx) 
   for (int i=0; i<complementary_sites.size(); i++) {
     int dotopindex = dotindice[idx];
@@ -860,229 +858,146 @@ void StackSpinBlock::formTwoIndexOps() {
     }
     int I = (compsite > dotopindex) ? compsite : dotopindex;
     int J = (compsite > dotopindex) ? dotopindex : compsite;
-
-    if (!ops[CRE_DESCOMP]->has(I, J)) continue;
-    //add local index if not already present
-    if (processorindex(trimap_2d(I, J, length)) != mpigetrank()) {
-      ops[CRE_DESCOMP]->add_local_indices(I,J);
-    }
-    //get the vector of operators
-    std::vector<boost::shared_ptr<StackSparseMatrix> > opvec = ops[CRE_DESCOMP]->get_element(I, J);
-
-    for (int opindex=0; opindex<opvec.size(); opindex++) {
-#ifndef SERIAL
-      mpi::broadcast(calc, *(opvec[opindex]), processorindex(trimap_2d(I, J, length)));
-#endif
-      StackCreDesComp& op = dynamic_cast<StackCreDesComp&>(*(opvec[opindex]));
-      if (op.memoryUsed() != 0) continue;
-      op.allocate(braStateInfo, ketStateInfo);
-      op.buildfromCreDes(*this);
-
-      if (find(dotindice.begin(), dotindice.end(), I) != dotindice.end() &&
-	    find(dotindice.begin(), dotindice.end(), J) != dotindice.end()) { //all proces should have it
-#ifndef SERIAL
-        MPI_Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM, Calc);
-#endif
-	      if (additionalMemory == 0)
-	        additionaldata = op.get_data();
-	      additionalMemory += op.memoryUsed();
-      } else {
-	      //this process should have the operator
-	      int toproc = processorindex(compsite);
-#ifndef SERIAL
-	      MPI_Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM, Calc);
-#endif
-	      //remove the processor if not required
-	      if (mpigetrank() != toproc) {
-	        op.deallocate();
-	        if (ops[CRE_DESCOMP]->has_local_index(I,J))
-	          ops[CRE_DESCOMP]->remove_local_indices(I,J);
-	      }
-	      else {
-	        if (additionalMemory == 0)
-	          additionaldata = op.get_data();
-	        additionalMemory += op.memoryUsed();
-	      }
-      }
-    }
-  }
-
-  // DDcomp
-  for (int idx = 0; idx < dotindice.size(); ++idx) 
-  for (int i=0; i<complementary_sites.size(); i++) {
-    int dotopindex = dotindice[idx];
-    int compsite = complementary_sites[i];
-    if (find(dotindice.begin(), dotindice.end(), compsite) != dotindice.end() && dotopindex > compsite) {
-      continue;
-    }
-    int I = (compsite > dotopindex) ? compsite : dotopindex;
-    int J = (compsite > dotopindex) ? dotopindex : compsite;
-
-    if (!ops[DES_DESCOMP]->has(I, J)) continue;
-
-    //add local index if not already present
-    if (processorindex(trimap_2d(I, J, length)) != mpigetrank())
-      ops[DES_DESCOMP]->add_local_indices(I,J);
-    //mpi::broadcast(world, ops[DES_DESCOMP]->get_element(I,J), processorindex(trimap_2d(I, J, length)));
-
-    //get the vector of operators
-    std::vector<boost::shared_ptr<StackSparseMatrix> > opvec = ops[DES_DESCOMP]->get_element(I, J);
-
-    for (int opindex=0; opindex<opvec.size(); opindex++) {
-#ifndef SERIAL
-      mpi::broadcast(calc, *(opvec[opindex]), processorindex(trimap_2d(I, J, length)));
-#endif
-      StackDesDesComp& op = dynamic_cast<StackDesDesComp&>(*(opvec[opindex]));
-      if (op.memoryUsed() != 0) continue;
-      op.allocate(braStateInfo, ketStateInfo);
-      op.buildfromDesDes(*this);
+    if (dmrginp.use_partial_two_integrals() || screen_cd_interaction(I, J, sites, *get_twoInt(), screen_tol)) {
       
-      if (find(dotindice.begin(), dotindice.end(), I) != dotindice.end() && find(dotindice.begin(), dotindice.end(), J) != dotindice.end()) { //all proces should have it
-#ifndef SERIAL
-        MPI_Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM, Calc);
-#endif
-	      if (additionalMemory == 0)
-	        additionaldata = op.get_data();
-	        additionalMemory += op.memoryUsed();
+      //I and J are both dot indices
+      if (find (dotindice.begin(), dotindice.end(), I) != dotindice.end() &&
+	  find (dotindice.begin(), dotindice.end(), J) != dotindice.end()) {
+	if (!ops[CRE_DESCOMP]->has_local_index(I,J)) 
+	  ops[CRE_DESCOMP]->add_local_indices(I,J);
+	if (has(DES)) {
+	  if (!ops[DES_CRECOMP]->has_local_index(I,J))
+	    ops[DES_CRECOMP]->add_local_indices(I,J);
+	}
       }
       else {
-	//this process should have the operator
-	int toproc = processorindex(compsite);
-#ifndef SERIAL
-	MPI_Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM, Calc);
-#endif
-	if (mpigetrank() != toproc) {
-	  op.deallocate();
-	  if (ops[DES_DESCOMP]->has_local_index(I,J))
-	    ops[DES_DESCOMP]->remove_local_indices(I,J);
-	}
-	else {
-	  if (additionalMemory == 0)
-	    additionaldata = op.get_data();
-	  additionalMemory += op.memoryUsed();
-	}
-      }
-    }
+	//the CCD_comp(compsite) needs CD_comp(compsite, dotsite)
+	if (processorindex(compsite) == mpigetrank() && !ops[CRE_DESCOMP]->has_local_index(I,J)) 
+	  ops[CRE_DESCOMP]->add_local_indices(I,J);
+	if (processorindex(compsite) != mpigetrank() && ops[CRE_DESCOMP]->has_local_index(I,J)) 
+	  ops[CRE_DESCOMP]->remove_local_indices(I,J);
 
-
-  }
-
-  if (has(DES)) {
-    // CCcomp
-    for (int idx = 0; idx < dotindice.size(); ++idx) 
-    for (int i=0; i<complementary_sites.size(); i++) {
-    int dotopindex = dotindice[idx];
-    int compsite = complementary_sites[i];
-    if (find(dotindice.begin(), dotindice.end(), compsite) != dotindice.end() && dotopindex > compsite) {
-      continue;
-    }
-    int I = (compsite > dotopindex) ? compsite : dotopindex;
-    int J = (compsite > dotopindex) ? dotopindex : compsite;
-
-    if (!ops[CRE_CRECOMP]->has(I, J)) continue;
-
-    //add local index if not already present
-    if (processorindex(trimap_2d(I, J, length)) != mpigetrank())
-      ops[CRE_CRECOMP]->add_local_indices(I,J);
-
-    //get the vector of operators
-    std::vector<boost::shared_ptr<StackSparseMatrix> > opvec = ops[CRE_CRECOMP]->get_element(I, J);
-
-    for (int opindex=0; opindex<opvec.size(); opindex++) {
-#ifndef SERIAL
-      mpi::broadcast(calc, *(opvec[opindex]), processorindex(trimap_2d(I, J, length)));
-#endif
-      StackCreCreComp& op = dynamic_cast<StackCreCreComp&>(*(opvec[opindex]));
-      op.allocate(braStateInfo, ketStateInfo);
-      op.buildfromCreCre(*this);
-      
-      if (I == J) { //all proces should have it
-#ifndef SERIAL
-	MPI_Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM, Calc);
-#endif
-	if (additionalMemory == 0)
-	  additionaldata = op.get_data();
-	additionalMemory += op.memoryUsed();
-      }
-      else {
-	//this process should have the operator
-	int toproc = processorindex(compsite);
-#ifndef SERIAL
-	MPI_Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM, Calc);
-#endif
-	if (mpigetrank() != toproc) {
-	  op.deallocate();
-	  if (ops[DES_DESCOMP]->has_local_index(I,J))
-	    ops[DES_DESCOMP]->remove_local_indices(I,J);
-	}
-	else {
-	  if (additionalMemory == 0)
-	    additionaldata = op.get_data();
-	  additionalMemory += op.memoryUsed();
-	}
-      }
-    }
-
-
-  }
-    
-    // DCcomp
-    for (int idx = 0; idx < dotindice.size(); ++idx) 
-    for (int i=0; i<complementary_sites.size(); i++) {
-    int dotopindex = dotindice[idx];
-    int compsite = complementary_sites[i];
-    if (find(dotindice.begin(), dotindice.end(), compsite) != dotindice.end() && dotopindex > compsite) {
-      continue;
-    }
-    int I = (compsite > dotopindex) ? compsite : dotopindex;
-    int J = (compsite > dotopindex) ? dotopindex : compsite;
-
-    if (!ops[DES_CRECOMP]->has(I, J)) continue;
-
-    //add local index if not already present
-    if (processorindex(trimap_2d(I, J, length)) != mpigetrank())
-      ops[DES_CRECOMP]->add_local_indices(I,J);
-
-    //get the vector of operators
-    std::vector<boost::shared_ptr<StackSparseMatrix> > opvec = ops[DES_CRECOMP]->get_element(I, J);
-
-    for (int opindex=0; opindex<opvec.size(); opindex++) {
-#ifndef SERIAL
-      mpi::broadcast(calc, *(opvec[opindex]), processorindex(trimap_2d(I, J, length)));
-#endif
-      StackDesCreComp& op = dynamic_cast<StackDesCreComp&>(*(opvec[opindex]));
-      op.allocate(braStateInfo, ketStateInfo);
-      op.buildfromDesCre(*this);
-      
-      if (I == J) { //all proces should have it
-#ifndef SERIAL
-	MPI_Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM, Calc);
-#endif
-	if (additionalMemory == 0)
-	  additionaldata = op.get_data();
-	additionalMemory += op.memoryUsed();
-      }
-      else {
-	//this process should have the operator
-	int toproc = processorindex(compsite);
-#ifndef SERIAL
-	MPI_Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM, Calc);
-#endif
-	if (mpigetrank() != toproc) {
-	  op.deallocate();
-	  if (ops[DES_CRECOMP]->has_local_index(I,J))
+	if (has(DES)) {
+	  if (processorindex(compsite) == mpigetrank() && !ops[DES_CRECOMP]->has_local_index(I,J)) 
+	    ops[DES_CRECOMP]->add_local_indices(I,J);
+	  if (processorindex(compsite) != mpigetrank() && ops[DES_CRECOMP]->has_local_index(I,J)) 
 	    ops[DES_CRECOMP]->remove_local_indices(I,J);
 	}
-	else {
-	  if (additionalMemory == 0)
-	    additionaldata = op.get_data();
-	  additionalMemory += op.memoryUsed();
+
+      }
+    }
+    
+    if (dmrginp.use_partial_two_integrals() || screen_dd_interaction(I, J, sites, *get_twoInt(), screen_tol)) {
+      
+      //I and J are both dot indices
+      if (find (dotindice.begin(), dotindice.end(), I) != dotindice.end() &&
+	  find (dotindice.begin(), dotindice.end(), J) != dotindice.end()) {
+	if (!ops[DES_DESCOMP]->has_local_index(I,J)) 
+	  ops[DES_DESCOMP]->add_local_indices(I,J);
+	if (has(DES)) { 
+	  if (!ops[CRE_CRECOMP]->has_local_index(I,J))
+	    ops[CRE_CRECOMP]->add_local_indices(I,J);
+	}
+      }
+      else {
+	if (processorindex(compsite) == mpigetrank() && !ops[DES_DESCOMP]->has_local_index(I,J)) 
+	  ops[DES_DESCOMP]->add_local_indices(I,J);
+	if (processorindex(compsite) != mpigetrank() && ops[DES_DESCOMP]->has_local_index(I,J)) 
+	  ops[DES_DESCOMP]->remove_local_indices(I,J);
+
+	if (has(DES)) {
+	  if (processorindex(compsite) == mpigetrank() && !ops[CRE_CRECOMP]->has_local_index(I,J)) 
+	    ops[CRE_CRECOMP]->add_local_indices(I,J);
+	  if (processorindex(compsite) != mpigetrank() && ops[CRE_CRECOMP]->has_local_index(I,J)) 
+	    ops[CRE_CRECOMP]->remove_local_indices(I,J);
 	}
       }
     }
 
-
   }
+
+  vector<opTypes> opTypevec;
+  opTypevec.push_back(CRE_DESCOMP);
+  opTypevec.push_back(DES_DESCOMP);
+  if (has(DES)) {
+    opTypevec.push_back(DES_CRECOMP);
+    opTypevec.push_back(CRE_CRECOMP);
+  }
+  for (int optypeindex=0; optypeindex<opTypevec.size(); optypeindex++) {
+    opTypes optype = opTypevec[optypeindex];
+
+    for (int proc=0; proc<calc.size(); proc++) {
+
+      //for each processor loop over all its CDcomp operators and place them in ops_On_proc
+      int arraysize = 0;
+      std::vector<boost::shared_ptr<StackSparseMatrix> > ops_On_proc;
+      if (mpigetrank() == proc) {
+	for (int i=0; i<ops[optype]->get_size(); i++) {
+	  int vecsize = ops[optype]->get_local_element(i).size();
+	  for (int j=0; j< vecsize; j++) 
+	    ops_On_proc.push_back(ops[optype]->get_local_element(i)[j]);
+	}
+	arraysize = ops_On_proc.size();
+      }
+
+      //broadcast this ops_On_proc, so each processor has the shell of the operators
+      mpi::broadcast(calc, arraysize, proc);
+      if (mpigetrank() != proc) {
+	for (int i=0; i<arraysize; i++) {
+	  if (optype == CRE_DESCOMP)
+	    ops_On_proc.push_back( boost::shared_ptr<StackCreDesComp>(new StackCreDesComp));
+	  else if (optype == DES_DESCOMP)
+	    ops_On_proc.push_back( boost::shared_ptr<StackDesDesComp>(new StackDesDesComp));
+	  else if (optype == DES_CRECOMP)
+	    ops_On_proc.push_back( boost::shared_ptr<StackDesCreComp>(new StackDesCreComp));
+	  else if (optype == CRE_CRECOMP)
+	    ops_On_proc.push_back( boost::shared_ptr<StackCreCreComp>(new StackCreCreComp));
+	}
+      }
+      
+      for (int i=0; i<ops_On_proc.size(); i++) {
+	mpi::broadcast(calc, *ops_On_proc[i], proc);
+	if (ops_On_proc[i]->memoryUsed() == 0)
+	  ops_On_proc[i]->allocate(braStateInfo, ketStateInfo);
+	else
+	  ops_On_proc[i]->Clear();
+      }
+
+      //make these comp operators from normal operators using multithreading
+      //SplitStackmem();
+#pragma omp parallel for schedule(dynamic)
+      for (int i=0; i<ops_On_proc.size(); i++) {
+	if (optype == CRE_DESCOMP)
+	  ((StackCreDesComp&)(*ops_On_proc[i])).buildfromCreDes(*this);
+	else if (optype == DES_DESCOMP)
+	  ((StackDesDesComp&)(*ops_On_proc[i])).buildfromDesDes(*this);
+	else if (optype == DES_CRECOMP)
+	  ((StackDesCreComp&)(*ops_On_proc[i])).buildfromDesCre(*this);
+	else if (optype == CRE_CRECOMP)
+	  ((StackCreCreComp&)(*ops_On_proc[i])).buildfromCreCre(*this);
+      }
+
+      for (int i=0; i<ops_On_proc.size(); i++) {
+
+#ifndef SERIAL
+	MPI_Allreduce(MPI_IN_PLACE, ops_On_proc[i]->get_data(), ops_On_proc[i]->memoryUsed(), MPI_DOUBLE, MPI_SUM, Calc);
+#endif
+	
+	if (mpigetrank() == proc) {
+	  if (additionalMemory == 0)
+	    additionaldata = ops_On_proc[i]->get_data();
+	  additionalMemory += ops_On_proc[i]->memoryUsed();
+	}
+      }
+
+      for (int i=ops_On_proc.size()-1; i>=0; i--) {
+	if (mpigetrank() != proc)
+	  ops_On_proc[i]->deallocate();
+      }
+
+      //MergeStackmem();
+      //calc.barrier();
+    }
   }
 }
 
@@ -1136,165 +1051,77 @@ void StackSpinBlock::addAllCompOps() {
     ops[CRE_CRECOMP]->build_iterators(*this, false);
   }
 
-  //IJ operator where atleast I or J is on the dot site
-  for (int idx=0; idx<complementary_sites.size(); idx++) {
-  for (int i=idx; i<complementary_sites.size(); i++) {
-    int dotopindex = complementary_sites[idx];
-    int compsite = complementary_sites[i];
-    int I = (compsite > dotopindex) ? compsite : dotopindex;
-    int J = (compsite > dotopindex) ? dotopindex : compsite;
+  vector<opTypes> opTypevec;
+  opTypevec.push_back(CRE_DESCOMP);
+  opTypevec.push_back(DES_DESCOMP);
+  if (has(DES)) {
+    opTypevec.push_back(CRE_CRECOMP);
+    opTypevec.push_back(DES_CRECOMP);
+  }
+  // CDcomp
+  //loop over all processors
+  for (int optypeindex=0; optypeindex<opTypevec.size(); optypeindex++) {
+    opTypes optype = opTypevec[optypeindex];
 
-    if (ops[CRE_DESCOMP]->has(I,J)) {
-      //add local index if not already present
-      if (processorindex(trimap_2d(I, J, length)) != mpigetrank())
-	ops[CRE_DESCOMP]->add_local_indices(I,J);
-      
-      //get the vector of operators
-      std::vector<boost::shared_ptr<StackSparseMatrix> > opvec = ops[CRE_DESCOMP]->get_element(I, J);
-      
-      for (int opindex=0; opindex<opvec.size(); opindex++) {
-#ifndef SERIAL
-	mpi::broadcast(calc, *(opvec[opindex]), processorindex(trimap_2d(I, J, length)));
-#endif
-	StackCreDesComp& op = dynamic_cast<StackCreDesComp&>(*(opvec[opindex]));
-	op.allocate(braStateInfo, ketStateInfo);
-	op.buildfromCreDes(*this);
-	
-	//this process should have the operator
-	int toproc = processorindex(trimap_2d(I, J, length));
-#ifndef SERIAL
-	MPI_Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM, Calc);
-#endif
-	
-	//remove the processor if not required
-	if (mpigetrank() != toproc) {
-	  op.deallocate();
-	  if (ops[CRE_DESCOMP]->has_local_index(I,J))
-	    ops[CRE_DESCOMP]->remove_local_indices(I,J);
+    for (int proc=0; proc<calc.size(); proc++) {
+
+      //for each processor loop over all its CDcomp operators and place them in ops_On_proc
+      int arraysize = 0;
+      std::vector<boost::shared_ptr<StackSparseMatrix> > ops_On_proc;
+      if (mpigetrank() == proc) {
+	for (int i=0; i<ops[optype]->get_size(); i++) {
+	  int vecsize = ops[optype]->get_local_element(i).size();
+	  for (int j=0; j< vecsize; j++) 
+	    ops_On_proc.push_back(ops[optype]->get_local_element(i)[j]);
 	}
-	else {
+	arraysize = ops_On_proc.size();
+      }
+
+      //broadcast this ops_On_proc, so each processor has the shell of the operators
+      mpi::broadcast(calc, arraysize, proc);
+      if (mpigetrank() != proc) 
+	for (int i=0; i<arraysize; i++)
+	  ops_On_proc.push_back( boost::shared_ptr<StackSparseMatrix>(new StackSparseMatrix));
+      
+      for (int i=0; i<ops_On_proc.size(); i++) {
+	mpi::broadcast(calc, *ops_On_proc[i], proc);
+	if (ops_On_proc[i]->memoryUsed() == 0)
+	  ops_On_proc[i]->allocate(braStateInfo, ketStateInfo);
+      }
+
+      //make these comp operators from normal operators using multithreading
+      //SplitStackmem();
+#pragma omp parallel for schedule(dynamic)
+      for (int i=0; i<ops_On_proc.size(); i++) {
+	if (optype == CRE_DESCOMP)
+	  ((StackCreDesComp&)(*ops_On_proc[i])).buildfromCreDes(*this);
+	else if (optype == DES_DESCOMP)
+	  ((StackDesDesComp&)(*ops_On_proc[i])).buildfromDesDes(*this);
+	else if (optype == DES_CRECOMP)
+	  ((StackDesCreComp&)(*ops_On_proc[i])).buildfromDesCre(*this);
+	else if (optype == CRE_CRECOMP)
+	  ((StackCreCreComp&)(*ops_On_proc[i])).buildfromCreCre(*this);
+      }
+
+      for (int i=0; i<ops_On_proc.size(); i++) {
+#ifndef SERIAL
+	MPI_Allreduce(MPI_IN_PLACE, ops_On_proc[i]->get_data(), ops_On_proc[i]->memoryUsed(), MPI_DOUBLE, MPI_SUM, Calc);
+#endif
+	if (mpigetrank() == proc) {
 	  if (additionalMemory == 0)
-	    additionaldata = op.get_data();
-	  additionalMemory += op.memoryUsed();
+	    additionaldata = ops_On_proc[i]->get_data();
+	  additionalMemory += ops_On_proc[i]->memoryUsed();
 	}
       }
-    }
 
-    if (ops[DES_DESCOMP]->has(I,J)) {
-      //add local index
-      //add local index if not already present
-      if (processorindex(trimap_2d(I, J, length)) != mpigetrank())
-	ops[DES_DESCOMP]->add_local_indices(I,J);
-      //mpi::broadcast(calc, ops[DES_DESCOMP]->get_element(I,J), processorindex(trimap_2d(I, J, length)));
-      
-      //get the vector of operators
-      std::vector<boost::shared_ptr<StackSparseMatrix> > opvec = ops[DES_DESCOMP]->get_element(I, J);
-      
-      for (int opindex=0; opindex<opvec.size(); opindex++) {
-#ifndef SERIAL
-	mpi::broadcast(calc, *(opvec[opindex]), processorindex(trimap_2d(I, J, length)));
-#endif
-	StackDesDesComp& op = dynamic_cast<StackDesDesComp&>(*(opvec[opindex]));
-	op.allocate(braStateInfo, ketStateInfo);
-	op.buildfromDesDes(*this);
-	
-	//this process should have the operator
-	int toproc = processorindex( trimap_2d(I, J, length) );
-#ifndef SERIAL
-	MPI_Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM, Calc);
-#endif
-	
-	if (mpigetrank() != toproc) {
-	  op.deallocate();
-	  if (ops[DES_DESCOMP]->has_local_index(I,J))
-	    ops[DES_DESCOMP]->remove_local_indices(I,J);
-	}
-	else {
-	  if (additionalMemory == 0)
-	    additionaldata = op.get_data();
-	  additionalMemory += op.memoryUsed();
-	}
+      for (int i=ops_On_proc.size()-1; i>=0; i--) {
+	if (mpigetrank() != proc)
+	  ops_On_proc[i]->deallocate();
       }
-    }
-
-    if (has(DES)) {
-      if (ops[DES_CRECOMP]->has(I,J)) {
-	//add local index
-	//add local index if not already present
-	if (processorindex(trimap_2d(I, J, length)) != mpigetrank())
-	  ops[DES_CRECOMP]->add_local_indices(I,J);
-
-	
-	//get the vector of operators
-	std::vector<boost::shared_ptr<StackSparseMatrix> > opvec = ops[DES_CRECOMP]->get_element(I, J);
-	
-	for (int opindex=0; opindex<opvec.size(); opindex++) {
-#ifndef SERIAL
-	  mpi::broadcast(calc, *(opvec[opindex]), processorindex(trimap_2d(I, J, length)));
-#endif
-	  StackDesCreComp& op = dynamic_cast<StackDesCreComp&>(*(opvec[opindex]));
-	  op.allocate(braStateInfo, ketStateInfo);
-	  op.buildfromDesCre(*this);
-	  
-	  //this process should have the operator
-	  int toproc = processorindex( trimap_2d(I, J, length) );
-#ifndef SERIAL
-	  MPI_Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM, Calc);
-#endif
-	  
-	  if (mpigetrank() != toproc) {
-	    op.deallocate();
-	    if (ops[DES_CRECOMP]->has_local_index(I,J))
-	      ops[DES_CRECOMP]->remove_local_indices(I,J);
-	  }
-	  else {
-	    if (additionalMemory == 0)
-	      additionaldata = op.get_data();
-	    additionalMemory += op.memoryUsed();
-	  }
-	}
-      }
-      
-      if (ops[CRE_CRECOMP]->has(I,J)) {
-	//add local index
-	//add local index if not already present
-	if (processorindex(trimap_2d(I, J, length)) != mpigetrank())
-	  ops[CRE_CRECOMP]->add_local_indices(I,J);
-	
-	//get the vector of operators
-	std::vector<boost::shared_ptr<StackSparseMatrix> > opvec = ops[CRE_CRECOMP]->get_element(I, J);
-	
-	for (int opindex=0; opindex<opvec.size(); opindex++) {
-#ifndef SERIAL
-	  mpi::broadcast(calc, *(opvec[opindex]), processorindex(trimap_2d(I, J, length)));
-#endif
-	  StackCreCreComp& op = dynamic_cast<StackCreCreComp&>(*(opvec[opindex]));
-	  op.allocate(braStateInfo, ketStateInfo);
-	  op.buildfromCreCre(*this);
-	  
-	  //this process should have the operator
-	  int toproc = processorindex( trimap_2d(I, J, length) );
-#ifndef SERIAL
-	  MPI_Allreduce(MPI_IN_PLACE, op.get_data(), op.memoryUsed(), MPI_DOUBLE, MPI_SUM, Calc);
-#endif
-	  
-	  if (mpigetrank() != toproc) {
-	    op.deallocate();
-	    if (ops[CRE_CRECOMP]->has_local_index(I,J))
-	      ops[CRE_CRECOMP]->remove_local_indices(I,J);
-	  }
-	  else {
-	    if (additionalMemory == 0)
-	      additionaldata = op.get_data();
-	    additionalMemory += op.memoryUsed();
-	  }
-	}
-      }
-      
+      //MergeStackmem();
     }
   }
-  }
-  
+
   
 }
 

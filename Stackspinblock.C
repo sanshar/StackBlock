@@ -523,7 +523,7 @@ void StackSpinBlock::build_and_renormalise_operators(const std::vector<Matrix>& 
   dmrginp.parallelrenorm->start();
   SplitStackmem();
   if (!dmrginp.do_npdm_in_core()){
-    //int threads = min(8, dmrginp.thrds_per_node()[mpigetrank()]);
+
     vector<StackSparseMatrix> tmp(numthrds);
 #pragma omp parallel 
     {
@@ -532,20 +532,11 @@ void StackSpinBlock::build_and_renormalise_operators(const std::vector<Matrix>& 
 	size_t mem = Stackmem[omprank].memused;
 	double *ptr = Stackmem[omprank].data+mem;
 
-	if (omprank==0) {
-	  for (int thrd=0; thrd<numthrds; thrd++) {
-	    if (I*numthrds+thrd < allopsOnDisk.size()) {
-	      int i = I*numthrds+thrd;
-	      allopsOnDisk[i]->allocate(get_braStateInfo(), get_ketStateInfo());
-	      allopsOnDisk[i]->build(*this);
-	    }
-	  }
-	}
-
-#pragma omp barrier
-
 	if (I*numthrds+omprank < allopsOnDisk.size()) {
 	  int i = I*numthrds+omprank;
+	  allopsOnDisk[i]->allocate(get_braStateInfo(), get_ketStateInfo());
+	  allopsOnDisk[i]->build(*this);
+
 	  
 	  tmp[omprank] = *allopsOnDisk[i];
 	  tmp[omprank].set_totalMemory() = 0; tmp[omprank].set_data(0); tmp[omprank].CleanUp();
@@ -560,21 +551,13 @@ void StackSpinBlock::build_and_renormalise_operators(const std::vector<Matrix>& 
 		MatrixRotate(leftMat[Q], allopsOnDisk[i]->operator()(Q, QPrime), rightMat[QPrime], tmp[omprank](newQ, newQPrime));
 	      }
 	    }
+
+	  tmp[omprank].SaveThreadSafe();
+	  tmp[omprank].CleanUp();
+	  allopsOnDisk[I*numthrds+omprank]->CleanUp();
+	  Stackmem[omprank].deallocate(ptr, Stackmem[omprank].memused-mem);
 	}
 
-#pragma omp barrier
-	if (omprank==0) {
-	  for (int thrd=0; thrd<numthrds; thrd++) {
-	    if (I*numthrds+thrd < allopsOnDisk.size()) {
-	      tmp[thrd].SaveThreadSafe();
-	      tmp[thrd].CleanUp();
-	      allopsOnDisk[I*numthrds+thrd]->CleanUp();
-	    }
-	  }
-	}
-
-#pragma omp barrier
-	Stackmem[omprank].deallocate(ptr, Stackmem[omprank].memused-mem);
       }
     }
   }
@@ -594,41 +577,6 @@ void StackSpinBlock::build_and_renormalise_operators(const std::vector<Matrix>& 
 
   dmrginp.parallelrenorm->stop();
 
-  /*
-  dmrginp.parallelrenorm->start();
-  SplitStackmem();
-#pragma omp parallel for schedule(static)
-  for (int i=0; i<allops.size()+allopsOnDisk.size(); i++) {
-    if (i<allopsOnDisk.size()) {
-      //allopsOnDisk[i]->CleanUp();
-      for (int j=0; j<allopsOnDisk[i].size(); j++) {
-	if (!dmrginp.do_npdm_in_core())
-	  allopsOnDisk[i][j]->allocate(*bra, *ket);
-
-	int ix = allopsOnDisk[i][j]->get_orbs(0);
-	int jx = allopsOnDisk[i][j]->get_orbs(1);
-	int kx = allopsOnDisk[i][j]->get_orbs(2);
-
-	allopsOnDisk[i][j]->build_and_renormalise_transform(this, leftMat, bra, rightMat, ket);
-
-	std::vector<SpinQuantum> sq = allopsOnDisk[i][j]->get_quantum_ladder()[allopsOnDisk[i][j]->get_build_pattern()];
-	string ladderop = to_string(sq[0].get_s().getirrep())+ to_string(sq[1].get_s().getirrep())+to_string(ix)+to_string(jx)+to_string(kx);
-
-	if (!dmrginp.do_npdm_in_core()) {
-	  std::ofstream ofs;
-	  ofs.open( (fileNames[i]+ladderop).c_str(), std::ios::binary );
-	  allopsOnDisk[i][j]->SaveThreadSafe(ofs);
-	  ofs.close();
-	  allopsOnDisk[i][j]->deallocate();
-	}
-      }
-    }
-    else
-      allops[i-allopsOnDisk.size()]->build_and_renormalise_transform(this, leftMat, bra, rightMat, ket);
-  }
-  MergeStackmem();
-  dmrginp.parallelrenorm->stop();
-  */
 }
 
 void StackSpinBlock::CleanUpOperators()

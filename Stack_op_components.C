@@ -526,8 +526,14 @@ namespace SpinAdapted {
       SpinQuantum spin2 = getSpinQuantum(j);//SpinQuantum(1, 1, SymmetryOfSpatialOrb(j));
       std::vector<SpinQuantum> spinvec = spin2-spin1;
       vec.resize(spinvec.size());
-      for (int j=0; j<spinvec.size(); j++) 
+      vector<int> orbs(2); orbs[0] = i; orbs[1] = j;
+      for (int j=0; j<spinvec.size(); j++) {
 	vec[j]=boost::shared_ptr<StackCreDesComp>(new StackCreDesComp);
+	vec[j]->set_orbs() = orbs;
+	vec[j]->set_initialised() = true;
+	vec[j]->set_fermion() = false;
+	vec[j]->set_deltaQuantum(1, spinvec[j]);
+      }
     }
   
   // -------------------- dCcomp_ ---------------------------  
@@ -620,8 +626,14 @@ namespace SpinAdapted {
       SpinQuantum spin2 = getSpinQuantum(j);//SpinQuantum(1, 1, SymmetryOfSpatialOrb(j));
       std::vector<SpinQuantum> spinvec = spin1-spin2;
       vec.resize(spinvec.size());
-      for (int j=0; j<spinvec.size(); j++) 
+      vector<int> orbs(2); orbs[0] = i; orbs[1] = j;
+      for (int j=0; j<spinvec.size(); j++) {
 	vec[j]=boost::shared_ptr<StackDesCreComp>(new StackDesCreComp);
+	vec[j]->set_orbs() = orbs;
+	vec[j]->set_initialised() = true;
+	vec[j]->set_fermion() = false;
+	vec[j]->set_deltaQuantum(1, spinvec[j]);
+      }
     }
   
   // -------------------- Ddcomp_ ---------------------------  
@@ -715,8 +727,14 @@ namespace SpinAdapted {
       SpinQuantum spin2 = getSpinQuantum(j);//SpinQuantum(1, 1, SymmetryOfSpatialOrb(j));
       std::vector<SpinQuantum> spinvec = spin1+spin2;
       vec.resize(spinvec.size());
-      for (int j=0; j<spinvec.size(); j++) 
+      vector<int> orbs(2); orbs[0] = i; orbs[1] = j;
+      for (int j=0; j<spinvec.size(); j++) {
 	vec[j]=boost::shared_ptr<StackDesDesComp>(new StackDesDesComp);
+	vec[j]->set_orbs() = orbs;
+	vec[j]->set_initialised() = true;
+	vec[j]->set_fermion() = false;
+	vec[j]->set_deltaQuantum(1, -spinvec[j]);
+      }
     }
   
   
@@ -809,8 +827,14 @@ namespace SpinAdapted {
       SpinQuantum spin2 = getSpinQuantum(j);//SpinQuantum(1, 1, SymmetryOfSpatialOrb(j));
       std::vector<SpinQuantum> spinvec = spin1+spin2;
       vec.resize(spinvec.size());
-      for (int j=0; j<spinvec.size(); j++) 
+      vector<int> orbs(2); orbs[0] = i; orbs[1] = j;
+      for (int j=0; j<spinvec.size(); j++) {
 	vec[j]=boost::shared_ptr<StackCreCreComp>(new StackCreCreComp);
+	vec[j]->set_orbs() = orbs;
+	vec[j]->set_initialised() = true;
+	vec[j]->set_fermion() = false;
+	vec[j]->set_deltaQuantum(1, spinvec[j]);
+      }
     }
   
   
