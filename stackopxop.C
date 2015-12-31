@@ -1117,9 +1117,11 @@ void SpinAdapted::stackopxop::cdxcdcomp(const StackSpinBlock* otherblock, boost:
     int i = op1->get_orbs(0);
     int j = op1->get_orbs(1);
     {
-      bool deallocate1 = op1->memoryUsed() == 0 ? true : false; 
-      op1->allocate(loopblock->get_braStateInfo(), loopblock->get_ketStateInfo());
-      op1->build(*loopblock);
+      bool deallocate1 = op1->memoryUsed() == 0 ? true : false;
+      if (deallocate1) {
+        op1->allocate(loopblock->get_braStateInfo(), loopblock->get_ketStateInfo());
+        op1->build(*loopblock);
+      }
       
       if (!otherblock->get_op_array(CRE_DESCOMP).has_local_index(i,j))
 	return;
@@ -1128,9 +1130,11 @@ void SpinAdapted::stackopxop::cdxcdcomp(const StackSpinBlock* otherblock, boost:
         op2 = otherblock->get_op_array(CRE_DESCOMP).get_element(i,j).at(0);
       else
         op2 = otherblock->get_op_rep(CRE_DESCOMP, -opq, i, j);
-      bool deallocate2 = op2->memoryUsed() == 0 ? true : false; 
-      op2->allocate(otherblock->get_braStateInfo(), otherblock->get_ketStateInfo());
-      op2->build(*otherblock);
+      bool deallocate2 = op2->memoryUsed() == 0 ? true : false;
+      if (deallocate2) { 
+        op2->allocate(otherblock->get_braStateInfo(), otherblock->get_ketStateInfo());
+        op2->build(*otherblock);
+      }
       double factor = 1.0;
       SpinAdapted::operatorfunctions::TensorMultiply(otherblock, *op2, *op1, b, c, v, hq, factor);
 
@@ -1151,14 +1155,16 @@ void SpinAdapted::stackopxop::cdxcdcomp(const StackSpinBlock* otherblock, boost:
         op2 = otherblock->get_op_array(DES_CRECOMP).get_element(i,j).at(0);
       else
         op2 = otherblock->get_op_rep(DES_CRECOMP, opq, i, j);
-      bool deallocate1 = op1->memoryUsed() == 0 ? true : false; 
+      bool deallocate1 = op1->memoryUsed() == 0 ? true : false;
+     if (deallocate1) { 
       op1->allocate(loopblock->get_braStateInfo(), loopblock->get_ketStateInfo());
       op1->build(*loopblock);
-      
+     }
       bool deallocate2 = op2->memoryUsed() == 0 ? true : false; 
+     if (deallocate2) {
       op2->allocate(otherblock->get_braStateInfo(), otherblock->get_ketStateInfo());
       op2->build(*otherblock);
-
+     }
       SpinAdapted::operatorfunctions::TensorMultiply(otherblock, *op2, *op1, b, c, v, hq, parity);
       if (deallocate2) op2->deallocate();
       if (deallocate1) op1->deallocate();
@@ -1166,10 +1172,11 @@ void SpinAdapted::stackopxop::cdxcdcomp(const StackSpinBlock* otherblock, boost:
   }
   else {
     SpinQuantum opq = op1->get_deltaQuantum()[0];
-    bool deallocate1 = op1->memoryUsed() == 0 ? true : false; 
+    bool deallocate1 = op1->memoryUsed() == 0 ? true : false;
+   if (deallocate1) { 
     op1->allocate(loopblock->get_braStateInfo(), loopblock->get_ketStateInfo());
     op1->build(*loopblock);
-    
+   }
     int i = op1->get_orbs(0);
     int j = op1->get_orbs(1);
     if (!otherblock->get_op_array(CRE_DESCOMP).has_local_index(i,j))
@@ -1180,8 +1187,10 @@ void SpinAdapted::stackopxop::cdxcdcomp(const StackSpinBlock* otherblock, boost:
     else
       op2 = otherblock->get_op_rep(CRE_DESCOMP, -opq, i, j);
     bool deallocate2 = op2->memoryUsed() == 0 ? true : false; 
+    if (deallocate2) {
     op2->allocate(otherblock->get_braStateInfo(), otherblock->get_ketStateInfo());
-    if (deallocate2) op2->build(*otherblock);
+    op2->build(*otherblock);
+    }
     double factor = 1.0;
     SpinAdapted::operatorfunctions::TensorMultiply(otherblock, *op2, *op1, b, c, v, hq, factor);
     if (i != j) {
@@ -1224,12 +1233,15 @@ void SpinAdapted::stackopxop::ddxcccomp(const StackSpinBlock* otherblock, boost:
     if (otherblock == b->get_leftBlock())
       parity = getCommuteParity(op1->get_deltaQuantum(0), op2->get_deltaQuantum(0), hq);
     {
+      if (deallocate1) {
       op1->allocate(loopblock->get_braStateInfo(), loopblock->get_ketStateInfo());
       op1->build(*loopblock);
-      
+      }
+
+      if (deallocate2) {
       op2->allocate(otherblock->get_braStateInfo(), otherblock->get_ketStateInfo());
       op2->build(*otherblock);
-      
+      }
       SpinAdapted::operatorfunctions::TensorMultiply(otherblock, *op2, *op1, b, c, v, hq, factor*parity);
       
       if (deallocate2) op2->deallocate();
@@ -1246,12 +1258,14 @@ void SpinAdapted::stackopxop::ddxcccomp(const StackSpinBlock* otherblock, boost:
       bool deallocate1 = op1->memoryUsed() == 0 ? true : false; 
       bool deallocate2 = op2->memoryUsed() == 0 ? true : false; 
       
+      if (deallocate1) {
       op1->allocate(loopblock->get_braStateInfo(), loopblock->get_ketStateInfo());
       op1->build(*loopblock);
-      
+      }
+      if (deallocate2) {
       op2->allocate(otherblock->get_braStateInfo(), otherblock->get_ketStateInfo());
       op2->build(*otherblock);
-      
+      }
       SpinAdapted::operatorfunctions::TensorMultiply(otherblock, *op2, *op1, b, c, v, hq, factor*parity);
       
       if (deallocate2) op2->deallocate();
@@ -1259,11 +1273,14 @@ void SpinAdapted::stackopxop::ddxcccomp(const StackSpinBlock* otherblock, boost:
     }
   }
   else {
+    if (deallocate1) {
     op1->allocate(loopblock->get_braStateInfo(), loopblock->get_ketStateInfo());
     op1->build(*loopblock);
-    
+    }
+    if (deallocate2) {
     op2->allocate(otherblock->get_braStateInfo(), otherblock->get_ketStateInfo());
     op2->build(*otherblock);
+    }
     double scale = 1.0;
     double parity = 1.0;
     if (otherblock == b->get_leftBlock())
@@ -1313,12 +1330,17 @@ void SpinAdapted::stackopxop::cxcddcomp(const StackSpinBlock* otherblock, boost:
         op2 = otherblock->get_op_array(CRE_DES_DESCOMP).get_element(i).at(0);
       else
         op2 = otherblock->get_op_rep(CRE_DES_DESCOMP, -opq, i);
-      op1->allocate(loopblock->get_braStateInfo(), loopblock->get_ketStateInfo());
-      op1->build(*loopblock);
+
+      if (deallocate1) {
+        op1->allocate(loopblock->get_braStateInfo(), loopblock->get_ketStateInfo());
+        op1->build(*loopblock);
+      }
       
-      bool deallocate2 = op2->memoryUsed() == 0 ? true : false; 
-      op2->allocate(otherblock->get_braStateInfo(), otherblock->get_ketStateInfo());
-      op2->build(*otherblock);
+      bool deallocate2 = op2->memoryUsed() == 0 ? true : false;
+      if (deallocate2) {
+        op2->allocate(otherblock->get_braStateInfo(), otherblock->get_ketStateInfo());
+        op2->build(*otherblock);
+      }
       
       if (otherblock == b->get_leftBlock())
 	parity = getCommuteParity(op1->get_deltaQuantum(0), op2->get_deltaQuantum(0), hq);
@@ -1336,13 +1358,17 @@ void SpinAdapted::stackopxop::cxcddcomp(const StackSpinBlock* otherblock, boost:
         op1 = loopblock->get_op_rep(DES, -opq, i);
         op2 = otherblock->get_op_rep(CRE_CRE_DESCOMP, opq, i);
       }
-      bool deallocate1 = op1->memoryUsed() == 0 ? true : false; 
-      op1->allocate(loopblock->get_braStateInfo(), loopblock->get_ketStateInfo());
-      op1->build(*loopblock);
+      bool deallocate1 = op1->memoryUsed() == 0 ? true : false;
+      if (deallocate1) { 
+        op1->allocate(loopblock->get_braStateInfo(), loopblock->get_ketStateInfo());
+        op1->build(*loopblock);
+      }
       
-      bool deallocate2 = op2->memoryUsed() == 0 ? true : false; 
-      op2->allocate(otherblock->get_braStateInfo(), otherblock->get_ketStateInfo());
-      op2->build(*otherblock);
+      bool deallocate2 = op2->memoryUsed() == 0 ? true : false;
+      if (deallocate2) {
+        op2->allocate(otherblock->get_braStateInfo(), otherblock->get_ketStateInfo());
+        op2->build(*otherblock);
+      }
       
       if (otherblock == b->get_rightBlock()) parity = getCommuteParity(op1->get_deltaQuantum(0), op2->get_deltaQuantum(0), hq);
       else parity = 1.0;
@@ -1352,8 +1378,10 @@ void SpinAdapted::stackopxop::cxcddcomp(const StackSpinBlock* otherblock, boost:
       if (deallocate1) op1->deallocate();
     }
   } else {
-    op1->allocate(loopblock->get_braStateInfo(), loopblock->get_ketStateInfo());
-    op1->build(*loopblock);
+    if (deallocate1) {
+      op1->allocate(loopblock->get_braStateInfo(), loopblock->get_ketStateInfo());
+      op1->build(*loopblock);
+    }
     //StackTransposeview top1 = StackTransposeview(op1);  // DES_i
     
     boost::shared_ptr<StackSparseMatrix> op2;
@@ -1361,9 +1389,11 @@ void SpinAdapted::stackopxop::cxcddcomp(const StackSpinBlock* otherblock, boost:
       op2 = otherblock->get_op_array(CRE_CRE_DESCOMP).get_element(i).at(0);
     else
       op2 = otherblock->get_op_rep(CRE_CRE_DESCOMP, opq, i);
-    bool deallocate2 = op2->memoryUsed() == 0 ? true : false; 
-    op2->allocate(otherblock->get_braStateInfo(), otherblock->get_ketStateInfo());
-    op2->build(*otherblock);
+    bool deallocate2 = op2->memoryUsed() == 0 ? true : false;
+    if (deallocate2) {
+      op2->allocate(otherblock->get_braStateInfo(), otherblock->get_ketStateInfo());
+      op2->build(*otherblock);
+    }
     
     double scale = 1.0;
     double parity = 1.0;
@@ -1398,17 +1428,21 @@ void SpinAdapted::stackopxop::hamandoverlap(const StackSpinBlock* otherblock, bo
 
   boost::shared_ptr<StackSparseMatrix> op2 = otherblock->get_op_rep(OVERLAP, hq);
   bool deallocate2 = op2->memoryUsed() == 0 ? true : false; 
-  op2->allocate(otherblock->get_braStateInfo(), otherblock->get_ketStateInfo());
-  op2->build(*otherblock);
+  if (deallocate2) {
+    op2->allocate(otherblock->get_braStateInfo(), otherblock->get_ketStateInfo());
+    op2->build(*otherblock);
+  }
 
   boost::shared_ptr<StackSparseMatrix> op1ham;
   if (!dmrginp.spinAdapted() || dmrginp.hamiltonian() == BCS)
     op1ham = loopblock->get_op_array(HAM).get_element(0).at(0);
   else
     op1ham = loopblock->get_op_rep(HAM, hq);
-  bool deallocate1ham = op1ham->memoryUsed() == 0 ? true : false; 
-  op1ham->allocate(loopblock->get_braStateInfo(), loopblock->get_ketStateInfo());
-  op1ham->build(*loopblock);
+  bool deallocate1ham = op1ham->memoryUsed() == 0 ? true : false;
+  if (deallocate1ham) {
+    op1ham->allocate(loopblock->get_braStateInfo(), loopblock->get_ketStateInfo());
+    op1ham->build(*loopblock);
+  }
 
   SpinAdapted::operatorfunctions::TensorMultiply(otherblock, *op2, *op1ham, b, c, v, hq, 1.0);	    
   if (deallocate1ham) op1ham->deallocate();
@@ -1416,8 +1450,10 @@ void SpinAdapted::stackopxop::hamandoverlap(const StackSpinBlock* otherblock, bo
 
   bool deallocate1 = op1->memoryUsed() == 0 ? true : false; 
   op1 = loopblock->get_op_rep(OVERLAP, hq);
-  op1->allocate(loopblock->get_braStateInfo(), loopblock->get_ketStateInfo());
-  op1->build(*loopblock);
+  if (deallocate1) {
+    op1->allocate(loopblock->get_braStateInfo(), loopblock->get_ketStateInfo());
+    op1->build(*loopblock);
+  }
 
   boost::shared_ptr<StackSparseMatrix> op2ham;
   if (!dmrginp.spinAdapted() || dmrginp.hamiltonian() == BCS)
@@ -1425,9 +1461,11 @@ void SpinAdapted::stackopxop::hamandoverlap(const StackSpinBlock* otherblock, bo
   else
     op2ham = otherblock->get_op_rep(HAM, hq);
 
-  bool deallocate2ham = op2ham->memoryUsed() == 0 ? true : false; 
-  op2ham->allocate(otherblock->get_braStateInfo(), otherblock->get_ketStateInfo());
-  op2ham->build(*otherblock);
+  bool deallocate2ham = op2ham->memoryUsed() == 0 ? true : false;
+  if (deallocate2ham) {
+    op2ham->allocate(otherblock->get_braStateInfo(), otherblock->get_ketStateInfo());
+    op2ham->build(*otherblock);
+  }
   SpinAdapted::operatorfunctions::TensorMultiply(otherblock, *op2ham, *op1, b, c, v, hq, 1.0);	    
   if (deallocate2ham) op2ham->deallocate();
   SpinAdapted::operatorfunctions::TensorMultiply(otherblock, *op2, *op1, b, c, v, hq, scale);	    
