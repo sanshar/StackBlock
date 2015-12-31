@@ -15,7 +15,7 @@ namespace SpinAdapted{
 namespace Npdm{
   class Npdm_driver_base;
 
-  void npdm(NpdmOrder npdm_order, bool restartpdm=false, bool transitionpdm=false);
+  void npdm(NpdmOrder npdm_order, bool transitionpdm=false);
   double npdm_do_one_sweep(Npdm_driver_base &npdm_driver, SweepParams &sweepParams, const bool &warmUp, const bool &forward, 
 			   const bool &restart, const int &restartSize, const int state, const int stateB);
 
