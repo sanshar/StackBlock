@@ -137,6 +137,7 @@ void SpinAdapted::Sweep::BlockAndDecimate (SweepParams &sweepParams, StackSpinBl
   if (find(dmrginp.get_openorbs().begin(), dmrginp.get_openorbs().end(), systemDotStart) != dmrginp.get_openorbs().end()) {
     Noise = 0.0; Additionalnoise = 0.0;
   }
+
   newSystem.RenormaliseFrom (sweepParams.set_lowest_energy(), sweepParams.set_lowest_energy_spins(), sweepParams.set_lowest_error(), 
                              rotatematrix, sweepParams.get_keep_states(), 
                              sweepParams.get_keep_qstates(), sweepParams.get_davidson_tol(), big, sweepParams.get_guesstype(), Noise, 
@@ -173,7 +174,6 @@ void SpinAdapted::Sweep::BlockAndDecimate (SweepParams &sweepParams, StackSpinBl
     Stackmem[omprank].deallocate(newSystem.getdata()+newsysmem, memoryToFree);
     //system.clear();
   }
-
 
 
 
@@ -225,6 +225,8 @@ void SpinAdapted::Sweep::BlockAndDecimate (SweepParams &sweepParams, StackSpinBl
       StackSpinBlock::store(forward, overlapnewsystem.get_sites(), overlapnewsystem, sweepParams.current_root(), istate);
 
       Stackmem[omprank].deallocate(overlapsystem.getdata(), (overlapnewsystem.getdata()-overlapsystem.getdata())+overlapnewsystem.memoryUsed());
+      overlapenvironmentDot.deallocate();
+      overlapsystemDot.deallocate();
       
     }
     dmrginp.setOutputlevel() = originalOutputlevel;

@@ -437,6 +437,8 @@ int calldmrg(char* input, char* output)
 	   dmrginp.calc_type() == ONEPDM ||
 	   dmrginp.calc_type() == TWOPDM ||
 	   dmrginp.calc_type() == THREEPDM ||
+	   dmrginp.calc_type() == TRANSITION_ONEPDM ||
+	   dmrginp.calc_type() == TRANSITION_TWOPDM ||
 	   dmrginp.calc_type() == TRANSITION_THREEPDM)
   {
     if (dmrginp.get_sweep_type() != FULL)
@@ -470,8 +472,12 @@ int calldmrg(char* input, char* output)
     if (dmrginp.calc_type() == ONEPDM) 
       Npdm::npdm(NPDM_ONEPDM);
     //Npdm(1, false, false);
+    if (dmrginp.calc_type() == TRANSITION_ONEPDM) 
+      Npdm::npdm(NPDM_ONEPDM, true);
     if (dmrginp.calc_type() == TWOPDM) 
       Npdm::npdm(NPDM_TWOPDM);
+    if (dmrginp.calc_type() == TRANSITION_TWOPDM) 
+      Npdm::npdm(NPDM_TWOPDM, true);
     if (dmrginp.calc_type() == THREEPDM) 
       Npdm::npdm(NPDM_THREEPDM);
     if (dmrginp.calc_type() == TRANSITION_THREEPDM) 

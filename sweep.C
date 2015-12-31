@@ -538,6 +538,8 @@ void SpinAdapted::Sweep::Startup (SweepParams &sweepParams, StackSpinBlock& syst
   //if (mpigetrank() == 0) {
   double minval = 1e12;
   boost::shared_ptr<StackSparseMatrix> h = newSystem.get_op_array(HAM).get_element(0).at(0);
+  h->allocate(newSystem.get_braStateInfo(), newSystem.get_ketStateInfo());
+  h->build(newSystem);
   for (int i=0; i<nquanta; i++) {
     Matrix m;
     copy(h->operator_element(i,i), transformmatrix(i,i));
@@ -547,6 +549,7 @@ void SpinAdapted::Sweep::Startup (SweepParams &sweepParams, StackSpinBlock& syst
       if (minval > energies[i](j+1))
 	minval = energies[i](j+1);
   }
+  h->deallocate();
   if (mpigetrank() == 0) {
     for (int i=0; i<nquanta; i++) {
       for (int j=0; j<energies[i].Nrows(); j++) 
