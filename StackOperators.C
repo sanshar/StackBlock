@@ -989,9 +989,7 @@ void SpinAdapted::StackCreDesComp::buildfromCreDes(StackSpinBlock& b)
 	    }
 	  }
 	}
-    scaleCD[2*(allops1.size()-1)] = scaleV;
   }
-
 
 
   numDC = allops1.size();
