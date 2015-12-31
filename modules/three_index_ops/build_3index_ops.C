@@ -69,7 +69,7 @@ void finish_tensor_trace( StackSpinBlock& b, StackSpinBlock* sysdot, StackSparse
   op.set_build_pattern() = build_pattern;
 //FIXME magic number 1
   op.set_deltaQuantum(1, op.get_quantum_ladder().at( build_pattern ).at(1) );
-  op.allocate(b.get_stateInfo());
+  op.allocate(b.get_braStateInfo(), b.get_ketStateInfo());
 
   SpinAdapted::operatorfunctions::TensorTrace(sysdot, sysdot_op, &b, &(b.get_stateInfo()), op);
 }
@@ -86,7 +86,7 @@ void finish_tensor_product( StackSpinBlock& b, StackSpinBlock* sysdot,
   op.set_build_pattern() = build_pattern;
 //FIXME magic number 1
   op.set_deltaQuantum(1, op.get_quantum_ladder().at( build_pattern ).at(1) );
-  op.allocate(b.get_stateInfo());
+  op.allocate(b.get_braStateInfo(), b.get_ketStateInfo());
 
   // Do tensor product
   double parity = 1.0;
@@ -99,6 +99,9 @@ void finish_tensor_product( StackSpinBlock& b, StackSpinBlock* sysdot,
 void do_3index_tensor_trace( const opTypes& optype, StackSpinBlock& big, StackSpinBlock* sysdot, std::ofstream& ofs,
                              const std::vector<Matrix>& rotateMatrix, const StateInfo *stateinfo )
 {
+  const StackSpinBlock* overlap_block = (big.get_leftBlock() == sysdot) ? big.get_rightBlock() : big.get_leftBlock();
+  SpinQuantum hq(0, SpinSpace(0), IrrepSpace(0));
+  const boost::shared_ptr<StackSparseMatrix> Overlap = overlap_block->get_op_rep(OVERLAP, hq);
   // Get pointer to sparse operator array
   StackOp_component_base& sysdot_array = sysdot->get_op_array(optype);
   // Open filesystem if necessary
@@ -134,7 +137,12 @@ void do_3index_tensor_trace( const opTypes& optype, StackSpinBlock& big, StackSp
         std::vector<SpinQuantum> s2 = op->get_quantum_ladder().at(build_pattern);
         // Store spin component in correct location
         if ( s1 == s2 ) {
-          finish_tensor_trace( big, sysdot, *sysdot_op, *op, build_pattern );
+          if ( dmrginp.doimplicitTranspose() )
+            finish_tensor_trace( big, sysdot, *sysdot_op, *op, build_pattern );
+          else{
+            bool forwards = false;
+            finish_tensor_product( big, sysdot, *sysdot_op, *Overlap, *op, forwards, build_pattern );
+          }
           // Renormalise operator
 
 	  //SS: we dont have renormalise transform anymore, maybe needs to be added 

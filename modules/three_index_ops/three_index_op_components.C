@@ -1291,6 +1291,81 @@ long StackOp_component<StackDesCreDes>::build_iterators(StackSpinBlock& b, bool 
 }
 
 //===========================================================================================================================================================
+  
+template<> 
+void StackOp_component<StackDesCreDes>::build_iterators(StackSpinBlock& b, std::vector<int>& screened_c_ix, std::vector<std::pair<int, int> >& screened_pair, std::map< std::tuple<int, int, int>, int>& tuples)
+{
+  // Blank construction (used in unset_initialised() Block copy construction, for use with STL)
+  if (b.get_sites().size () == 0) return; 
+
+  // Set up 3-index (i,j,k) spatial operator indices for this StackSpinBlock
+  m_op.set_tuple_indices( tuples, dmrginp.last_site() );
+
+  // Allocate new set of operators for each set of spatial orbitals
+  std::vector<int> orbs(3);
+  for (int i = 0; i < m_op.local_nnz(); ++i) {
+    orbs = m_op.unmap_local_index(i);
+//pout << "New set of DCD operators:  " << i << std::endl;
+//pout << "Orbs = " << orbs[0] << " " << orbs[1] << " " << orbs[2] << std::endl;
+    std::vector<boost::shared_ptr<StackDesCreDes> >& spin_ops = m_op.get_local_element(i);
+
+    SpinQuantum spin1 = getSpinQuantum(orbs[0]);
+    SpinQuantum spin2 = getSpinQuantum(orbs[1]);
+    SpinQuantum spin3 = getSpinQuantum(orbs[2]);
+
+    std::vector< std::vector<SpinQuantum> > dc_d_quantum_ladder;
+    std::vector< std::vector<SpinQuantum> > d_cd_quantum_ladder;
+
+    // Create (DC)D structure
+    //----------------------------------------
+    // (DC)
+    std::vector<SpinQuantum> spinvec12 = -spin1 + spin2;
+    for (int p=0; p < spinvec12.size(); p++) {
+      // (DC)D
+      std::vector<SpinQuantum> spinvec123 = spinvec12[p] - spin3;
+      for (int q=0; q < spinvec123.size(); q++) {
+        std::vector<SpinQuantum> tmp = { spinvec12[p], spinvec123[q] };
+        dc_d_quantum_ladder.push_back( tmp );
+        assert( spinvec123[q].particleNumber == -1 );
+      }
+    }
+    assert( dc_d_quantum_ladder.size() == 3 );
+
+    // Create D(CD) structure
+    //----------------------------------------
+    // (CD)
+    std::vector<SpinQuantum> spinvec23 = spin2 - spin3;
+    for (int p=0; p < spinvec23.size(); p++) {
+      // D(CD)
+      std::vector<SpinQuantum> spinvec123 = - spin1 + spinvec23[p];
+      for (int q=0; q < spinvec123.size(); q++) {
+        std::vector<SpinQuantum> tmp = { spinvec23[p], spinvec123[q] };
+        d_cd_quantum_ladder.push_back( tmp );
+        assert( spinvec123[q].particleNumber == -1 );
+      }
+    }
+    assert( d_cd_quantum_ladder.size() == 3 );
+
+    // Allocate new operator for each spin component
+    //------------------------------------------------
+    spin_ops.clear();
+    for (int q=0; q < dc_d_quantum_ladder.size(); q++) {
+      spin_ops.push_back( boost::shared_ptr<StackDesCreDes>(new StackDesCreDes) );
+      boost::shared_ptr<StackDesCreDes> op = spin_ops.back();
+      op->set_orbs() = orbs;
+      op->set_initialised() = true;
+      op->set_quantum_ladder()["((DC)(D))"] = dc_d_quantum_ladder.at(q);
+      op->set_quantum_ladder()["((D)(CD))"] = d_cd_quantum_ladder.at(q);
+      op->set_deltaQuantum(1, op->get_quantum_ladder().at( op->get_build_pattern() ).at(1) );
+      //op->set_filename() = this->get_filename()+to_string(q);
+      op->set_filename() = this->get_filename()+to_string(orbs[0])+to_string(orbs[1])+to_string(orbs[2])+to_string(q);
+    }
+
+    assert( m_op.get_local_element(i).size() == 3);
+  }
+  return;
+}
+
 // (Des,Des,Cre)
 //-------------------
 
@@ -1394,6 +1469,81 @@ long StackOp_component<StackDesDesCre>::build_iterators(StackSpinBlock& b, bool 
 }
 
 //===========================================================================================================================================================
+  
+template<> 
+void StackOp_component<StackDesDesCre>::build_iterators(StackSpinBlock& b, std::vector<int>& screened_c_ix, std::vector<std::pair<int, int> >& screened_pair, std::map< std::tuple<int, int, int>, int>& tuples)
+{
+  // Blank construction (used in unset_initialised() Block copy construction, for use with STL)
+  if (b.get_sites().size () == 0) return; 
+
+  // Set up 3-index (i,j,k) spatial operator indices for this StackSpinBlock
+  m_op.set_tuple_indices( tuples, dmrginp.last_site() );
+
+  // Allocate new set of operators for each set of spatial orbitals
+  std::vector<int> orbs(3);
+  for (int i = 0; i < m_op.local_nnz(); ++i) {
+    orbs = m_op.unmap_local_index(i);
+//pout << "New set of DDC operators:  " << i << std::endl;
+//pout << "Orbs = " << orbs[0] << " " << orbs[1] << " " << orbs[2] << std::endl;
+    std::vector<boost::shared_ptr<StackDesDesCre> >& spin_ops = m_op.get_local_element(i);
+
+    SpinQuantum spin1 = getSpinQuantum(orbs[0]);
+    SpinQuantum spin2 = getSpinQuantum(orbs[1]);
+    SpinQuantum spin3 = getSpinQuantum(orbs[2]);
+
+    std::vector< std::vector<SpinQuantum> > dd_c_quantum_ladder;
+    std::vector< std::vector<SpinQuantum> > d_dc_quantum_ladder;
+
+    // Create (DD)C structure
+    //----------------------------------------
+    // (DD)
+    std::vector<SpinQuantum> spinvec12 = -spin1 - spin2;
+    for (int p=0; p < spinvec12.size(); p++) {
+      // (DD)C
+      std::vector<SpinQuantum> spinvec123 = spinvec12[p] + spin3;
+      for (int q=0; q < spinvec123.size(); q++) {
+        std::vector<SpinQuantum> tmp = { spinvec12[p], spinvec123[q] };
+        dd_c_quantum_ladder.push_back( tmp );
+        assert( spinvec123[q].particleNumber == -1 );
+      }
+    }
+    assert( dd_c_quantum_ladder.size() == 3 );
+
+    // Create D(DC) structure
+    //----------------------------------------
+    // (DC)
+    std::vector<SpinQuantum> spinvec23 = -spin2 + spin3;
+    for (int p=0; p < spinvec23.size(); p++) {
+      // D(DC)
+      std::vector<SpinQuantum> spinvec123 = -spin1 + spinvec23[p];
+      for (int q=0; q < spinvec123.size(); q++) {
+        std::vector<SpinQuantum> tmp = { spinvec23[p], spinvec123[q] };
+        d_dc_quantum_ladder.push_back( tmp );
+        assert( spinvec123[q].particleNumber == -1 );
+      }
+    }
+    assert( d_dc_quantum_ladder.size() == 3 );
+
+    // Allocate new operator for each spin component
+    //------------------------------------------------
+    spin_ops.clear();
+    for (int q=0; q < dd_c_quantum_ladder.size(); q++) {
+      spin_ops.push_back( boost::shared_ptr<StackDesDesCre>(new StackDesDesCre) );
+      boost::shared_ptr<StackDesDesCre> op = spin_ops.back();
+      op->set_orbs() = orbs;
+      op->set_initialised() = true;
+      op->set_quantum_ladder()["((DD)(C))"] = dd_c_quantum_ladder.at(q);
+      op->set_quantum_ladder()["((D)(DC))"] = d_dc_quantum_ladder.at(q);
+      op->set_deltaQuantum(1, op->get_quantum_ladder().at( op->get_build_pattern() ).at(1) );
+      //op->set_filename() = this->get_filename()+to_string(q);
+      op->set_filename() = this->get_filename()+to_string(orbs[0])+to_string(orbs[1])+to_string(orbs[2])+to_string(q);
+    }
+
+    assert( m_op.get_local_element(i).size() == 3);
+  }
+  return;
+}
+
 // (Des,Cre,Cre)
 //-------------------
 
@@ -1495,6 +1645,79 @@ long StackOp_component<StackDesCreCre>::build_iterators(StackSpinBlock& b, bool 
   return requiredMemory;
 }
 
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------  
+template<> 
+void StackOp_component<StackDesCreCre>::build_iterators(StackSpinBlock& b, std::vector<int>& screened_c_ix, std::vector<std::pair<int, int> >& screened_pair, std::map< std::tuple<int, int, int>, int>& tuples)
+{
+  // Blank construction (used in unset_initialised() Block copy construction, for use with STL)
+  if (b.get_sites().size () == 0) return; 
+
+  // Set up 3-index (i,j,k) spatial operator indices for this StackSpinBlock
+  m_op.set_tuple_indices( tuples, dmrginp.last_site() );
+
+  // Allocate new set of operators for each set of spatial orbitals
+  std::vector<int> orbs(3);
+  for (int i = 0; i < m_op.local_nnz(); ++i) {
+    orbs = m_op.unmap_local_index(i);
+//pout << "New set of DCC operators:  " << i << std::endl;
+//pout << "Orbs = " << orbs[0] << " " << orbs[1] << " " << orbs[2] << std::endl;
+    std::vector<boost::shared_ptr<StackDesCreCre> >& spin_ops = m_op.get_local_element(i);
+
+    SpinQuantum spin1 = getSpinQuantum(orbs[0]);
+    SpinQuantum spin2 = getSpinQuantum(orbs[1]);
+    SpinQuantum spin3 = getSpinQuantum(orbs[2]);
+
+    std::vector< std::vector<SpinQuantum> > dc_c_quantum_ladder;
+    std::vector< std::vector<SpinQuantum> > d_cc_quantum_ladder;
+
+    // Create (DC)C structure
+    //----------------------------------------
+    // (DC)
+    std::vector<SpinQuantum> spinvec12 = -spin1 + spin2;
+    for (int p=0; p < spinvec12.size(); p++) {
+      // (DC)C
+      std::vector<SpinQuantum> spinvec123 = spinvec12[p] + spin3;
+      for (int q=0; q < spinvec123.size(); q++) {
+        std::vector<SpinQuantum> tmp = { spinvec12[p], spinvec123[q] };
+        dc_c_quantum_ladder.push_back( tmp );
+        assert( spinvec123[q].particleNumber == 1 );
+      }
+    }
+    assert( dc_c_quantum_ladder.size() == 3 );
+
+    // Create D(CC) structure
+    //----------------------------------------
+    // (CC)
+    std::vector<SpinQuantum> spinvec23 = spin2 + spin3;
+    for (int p=0; p < spinvec23.size(); p++) {
+      // D(CC)
+      std::vector<SpinQuantum> spinvec123 = -spin1 + spinvec23[p];
+      for (int q=0; q < spinvec123.size(); q++) {
+        std::vector<SpinQuantum> tmp = { spinvec23[p], spinvec123[q] };
+        d_cc_quantum_ladder.push_back( tmp );
+        assert( spinvec123[q].particleNumber == 1 );
+      }
+    }
+    assert( d_cc_quantum_ladder.size() == 3 );
+
+      // Allocate new operator for each spin component
+    //------------------------------------------------
+    spin_ops.clear();
+    for (int q=0; q < dc_c_quantum_ladder.size(); q++) {
+      spin_ops.push_back( boost::shared_ptr<StackDesCreCre>(new StackDesCreCre) );
+      boost::shared_ptr<StackDesCreCre> op = spin_ops.back();
+      op->set_orbs() = orbs;
+      op->set_initialised() = true;
+      op->set_quantum_ladder()["((DC)(C))"] = dc_c_quantum_ladder.at(q);
+      op->set_quantum_ladder()["((D)(CC))"] = d_cc_quantum_ladder.at(q);
+      op->set_deltaQuantum(1, op->get_quantum_ladder().at( op->get_build_pattern() ).at(1) );
+      op->set_filename() = this->get_filename()+to_string(orbs[0])+to_string(orbs[1])+to_string(orbs[2])+to_string(q);
+    }
+
+    assert( m_op.get_local_element(i).size() == 3);
+  }
+  return;
+}
 //===========================================================================================================================================================
 
 }

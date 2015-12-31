@@ -115,8 +115,8 @@ void npdm_block_and_decimate( Npdm_driver_base& npdm_driver, SweepParams &sweepP
   else{
     solution.resize(2);
     DiagonalMatrix e;
-    solution[0].initialise(dmrginp.effective_molecule_quantum_vec(), big.get_leftBlock()->get_stateInfo(), big.get_rightBlock()->get_stateInfo(), true);
-    solution[1].initialise(dmrginp.effective_molecule_quantum_vec(), big.get_leftBlock()->get_stateInfo(), big.get_rightBlock()->get_stateInfo(), true);
+    solution[0].initialise(dmrginp.effective_molecule_quantum_vec(), big.get_leftBlock()->get_braStateInfo(), big.get_rightBlock()->get_braStateInfo(), true);
+    solution[1].initialise(dmrginp.effective_molecule_quantum_vec(), big.get_leftBlock()->get_ketStateInfo(), big.get_rightBlock()->get_ketStateInfo(), true);
     solution[0].Clear();
     solution[1].Clear();
     GuessWave::guess_wavefunctions(solution[0], e, big, sweepParams.get_guesstype(), true, state, true, 0.0,false); 
@@ -175,9 +175,9 @@ void npdm_block_and_decimate( Npdm_driver_base& npdm_driver, SweepParams &sweepP
   Stackmem[0].deallocate(ptr, Stackmem[0].memused-mem);
 
   //cout <<"before "<< Stackmem[0].memused<<endl;
+
   SaveRotationMatrix (newSystem.get_sites(), rotateMatrix, state);
   solution[0].SaveWavefunctionInfo (big.get_braStateInfo(), big.get_leftBlock()->get_sites(), state);
-
   if(state!=stateB){
     SaveRotationMatrix (newSystem.get_sites(), rotateMatrixB, stateB);
     solution[1].SaveWavefunctionInfo (big.get_ketStateInfo(), big.get_leftBlock()->get_sites(), stateB);
@@ -356,7 +356,7 @@ double npdm_do_one_sweep(Npdm_driver_base &npdm_driver, SweepParams &sweepParams
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
 
-void npdm(NpdmOrder npdm_order, bool restartpdm, bool transitionpdm)
+void npdm(NpdmOrder npdm_order, bool transitionpdm)
 {
   double sweep_tol = 1e-7;
   sweep_tol = dmrginp.get_sweep_tol();

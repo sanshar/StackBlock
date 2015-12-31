@@ -217,12 +217,12 @@ bool Npdm_expectations::test_for_singlet( int ilhs, int idot, int irhs, NpdmSpin
 double DotProduct_spincorrection(const StackWavefunction& w1, const StackWavefunction& w2, const StackSpinBlock& big)
 {
   // After multipling ket by cd operator, it has the same basis with ket
-  int leftOpSz = big.get_leftBlock()->get_braStateInfo().quanta.size ();
+  int leftOpSz = big.get_leftBlock()->get_ketStateInfo().quanta.size ();
   int rightOpSz = big.get_rightBlock()->get_braStateInfo().quanta.size ();
-  const StateInfo* rS = big.get_braStateInfo().rightStateInfo, *lS = big.get_braStateInfo().leftStateInfo;
+  const StateInfo* rS = big.get_braStateInfo().rightStateInfo, *lS = big.get_ketStateInfo().leftStateInfo;
 
   double output = 0.0;
-  SpinQuantum Q= w1.get_deltaQuantum(0);
+  SpinQuantum Q= w2.get_deltaQuantum(0);
   for (int lQ =0; lQ < leftOpSz; lQ++)
     for (int rQ = 0; rQ < rightOpSz; rQ++) {
       if (w1.allowed(lQ, rQ) && w2.allowed(lQ, rQ))
@@ -231,25 +231,25 @@ double DotProduct_spincorrection(const StackWavefunction& w1, const StackWavefun
 	
 	if(abs(b1b2) > NUMERICAL_ZERO )
 	  {
-	    
-	    b1b2 *= dmrginp.get_ninej()(lS->quanta[lQ].get_s().getirrep(), (-lS->quanta[lQ].get_s()).getirrep() , 0, 
-					Q.get_s().getirrep(), (-Q.get_s()).getirrep(), 0,
-					(-rS->quanta[rQ].get_s()).getirrep(), rS->quanta[rQ].get_s().getirrep() , 0);
-	    b1b2 *= Symmetry::spatial_ninej(lS->quanta[lQ].get_symm().getirrep(), (-lS->quanta[lQ].get_symm()).getirrep() , 0, 
-					    Q.get_symm().getirrep(), (-Q.get_symm()).getirrep(), 0,
-					    (-rS->quanta[rQ].get_symm()).getirrep(), rS->quanta[rQ].get_symm().getirrep() , 0);
-	    b1b2 /= dmrginp.get_ninej()((-rS->quanta[rQ].get_s()).getirrep(), rS->quanta[rQ].get_s().getirrep() , 0, 
-					Q.get_s().getirrep(), 0, Q.get_s().getirrep(),
-					lS->quanta[lQ].get_s().getirrep(), rS->quanta[rQ].get_s().getirrep() , Q.get_s().getirrep());
-	    b1b2 /= Symmetry::spatial_ninej((-rS->quanta[rQ].get_symm()).getirrep(), rS->quanta[rQ].get_symm().getirrep() , 0, 
-					    Q.get_symm().getirrep(), 0, Q.get_symm().getirrep(),
-					    lS->quanta[lQ].get_symm().getirrep(), rS->quanta[rQ].get_symm().getirrep() , Q.get_symm().getirrep());
-	    b1b2 /= dmrginp.get_ninej()(lS->quanta[lQ].get_s().getirrep(), (-lS->quanta[lQ].get_s()).getirrep() , 0, 
-					0, Q.get_s().getirrep(), Q.get_s().getirrep(),
-					lS->quanta[lQ].get_s().getirrep(), rS->quanta[rQ].get_s().getirrep() , Q.get_s().getirrep());
-	    b1b2 /= Symmetry::spatial_ninej(lS->quanta[lQ].get_symm().getirrep(), (-lS->quanta[lQ].get_symm()).getirrep() , 0, 
-					    0, Q.get_symm().getirrep(), Q.get_symm().getirrep(),
-					    lS->quanta[lQ].get_symm().getirrep(), rS->quanta[rQ].get_symm().getirrep() , Q.get_symm().getirrep());
+	        b1b2 *= dmrginp.get_ninej()(lS->quanta[lQ].get_s().getirrep(), (-lS->quanta[lQ].get_s()).getirrep() , 0, 
+	          				(-Q.get_s()).getirrep(), Q.get_s().getirrep(), 0,
+	          				(-rS->quanta[rQ].get_s()).getirrep(), rS->quanta[rQ].get_s().getirrep() , 0);
+	        b1b2 *= Symmetry::spatial_ninej(lS->quanta[lQ].get_symm().getirrep(), (-lS->quanta[lQ].get_symm()).getirrep() , 0, 
+	          				(-Q.get_symm()).getirrep(), Q.get_symm().getirrep(), 0,
+	          				(-rS->quanta[rQ].get_symm()).getirrep(), rS->quanta[rQ].get_symm().getirrep() , 0);
+	        b1b2 /= dmrginp.get_ninej()((-rS->quanta[rQ].get_s()).getirrep(), rS->quanta[rQ].get_s().getirrep() , 0, 
+	          				(-Q.get_s()).getirrep(), 0, (-Q.get_s()).getirrep(),
+	          				lS->quanta[lQ].get_s().getirrep(), rS->quanta[rQ].get_s().getirrep() , Q.get_s().getirrep());
+	        b1b2 /= Symmetry::spatial_ninej((-rS->quanta[rQ].get_symm()).getirrep(), rS->quanta[rQ].get_symm().getirrep() , 0, 
+	          				(-Q.get_symm()).getirrep(), 0, (-Q.get_symm()).getirrep(),
+	          				lS->quanta[lQ].get_symm().getirrep(), rS->quanta[rQ].get_symm().getirrep() , Q.get_symm().getirrep());
+	        b1b2 /= dmrginp.get_ninej()(lS->quanta[lQ].get_s().getirrep(), (-lS->quanta[lQ].get_s()).getirrep() , 0, 
+	          				0, Q.get_s().getirrep(), Q.get_s().getirrep(),
+	          				lS->quanta[lQ].get_s().getirrep(), rS->quanta[rQ].get_s().getirrep() , Q.get_s().getirrep());
+	        b1b2 /= Symmetry::spatial_ninej(lS->quanta[lQ].get_symm().getirrep(), (-lS->quanta[lQ].get_symm()).getirrep() , 0, 
+						0, Q.get_symm().getirrep(), Q.get_symm().getirrep(),
+						lS->quanta[lQ].get_symm().getirrep(), rS->quanta[rQ].get_symm().getirrep() , Q.get_symm().getirrep());
+
 	    
 	    //  b1b2 *=Aop.get_scaling(rS->quanta[rQ],lS->quanta[lQ]);
 	    //  b1b2 /=StackTransposeview(Aop).get_scaling(lS->quanta[lQ],rS->quanta[rQ]);
@@ -604,7 +604,7 @@ void Npdm_expectations::compute_intermediate( NpdmSpinOps_base & lhsOps, NpdmSpi
   
 
   StackSparseMatrix* null = 0; 
-  vector<SpinQuantum> dQ = wavefunction_1.get_deltaQuantum();
+  vector<SpinQuantum> dQ = wavefunction_0.get_deltaQuantum();
   assert(dQ.size()==1 );
   assert(dQ[0].totalSpin.getirrep()== 0);
   int lindices= &lhsOps ? lhsOps.indices_.size(): 0;
@@ -649,7 +649,7 @@ void Npdm_expectations::compute_intermediate( NpdmSpinOps_base & lhsOps, NpdmSpi
           FormLeftOp(big_.get_leftBlock(), *lhsOp, *dotOp, AOp, total_spin);
 
           //Left part of intermediate wavefuntion should multiply transpose of left ops.
-          operatorfunctions::braTensorMultiply(big_.get_leftBlock(), AOp, &big_, wavefunction_1, opw2, lhsOps.factor_*dotOps.factor_);
+          operatorfunctions::braTensorMultiply(big_.get_leftBlock(), AOp, &big_, wavefunction_0, opw2, lhsOps.factor_*dotOps.factor_);
           //operatorfunctions::TensorMultiply(big_.get_leftBlock(), AOp, &big_, wavefunction_1, opw2, dQ[0],lhsOps.factor_*dotOps.factor_);
 
 	  AOp.deallocate();
@@ -706,7 +706,7 @@ void Npdm_expectations::compute_intermediate( NpdmSpinOps_base & rhsOps, std::ma
 #endif
   
   StackSparseMatrix* null = 0; 
-  vector<SpinQuantum> dQ = wavefunction_0.get_deltaQuantum();
+  vector<SpinQuantum> dQ = wavefunction_1.get_deltaQuantum();
   assert(dQ.size()==1 );
   assert(dQ[0].totalSpin.getirrep()== 0);
   int rindices= &rhsOps ? rhsOps.indices_.size(): 0;
@@ -725,7 +725,7 @@ void Npdm_expectations::compute_intermediate( NpdmSpinOps_base & rhsOps, std::ma
 	//if (waves.find(spin) == waves.end()) continue;
 	StackWavefunction& opw2 = waves[spin];
 
-	operatorfunctions::TensorMultiply(big_.get_rightBlock(), *rhsOp, &big_, wavefunction_0, opw2, rhsOp->get_deltaQuantum(0), rhsOps.factor_);
+	operatorfunctions::TensorMultiply(big_.get_rightBlock(), *rhsOp, &big_, wavefunction_1, opw2, rhsOp->get_deltaQuantum(0), rhsOps.factor_);
 
 
 	//cout << "intermediate 1 "<<DotProduct(opw2, opw2)<<endl;

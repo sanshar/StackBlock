@@ -436,7 +436,8 @@ int calldmrg(char* input, char* output)
   else if (dmrginp.calc_type() == DMRG ||
 	   dmrginp.calc_type() == ONEPDM ||
 	   dmrginp.calc_type() == TWOPDM ||
-	   dmrginp.calc_type() == THREEPDM)
+	   dmrginp.calc_type() == THREEPDM ||
+	   dmrginp.calc_type() == TRANSITION_THREEPDM)
   {
     if (dmrginp.get_sweep_type() != FULL)
 	partialsweepDMRG(sweep_tol);
@@ -469,6 +470,8 @@ int calldmrg(char* input, char* output)
       Npdm::npdm(NPDM_TWOPDM);
     if (dmrginp.calc_type() == THREEPDM) 
       Npdm::npdm(NPDM_THREEPDM);
+    if (dmrginp.calc_type() == TRANSITION_THREEPDM) 
+      Npdm::npdm(NPDM_THREEPDM,true);
   }
   else if (dmrginp.calc_type() ==FCI) {
     Sweep::fullci(sweep_tol);
@@ -478,6 +481,9 @@ int calldmrg(char* input, char* output)
   }
   else if (dmrginp.calc_type() == RESTART_THREEPDM) {
     Npdm::npdm(NPDM_THREEPDM);
+  }
+  else if (dmrginp.calc_type() == RESTART_T_THREEPDM) {
+    Npdm::npdm(NPDM_THREEPDM,true);
   }
   else {
     pout << "Invalid calculation types" << endl; abort();
