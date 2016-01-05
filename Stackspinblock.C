@@ -1028,17 +1028,21 @@ std::vector<boost::shared_ptr<StackSparseMatrix>> StackSpinBlock::prebuild(int n
     }
 
   // Now allocate comps
-  long additionalMem = 0;
+  double additionalMem = 0.;
   for (int i = 0; i < comps.size(); ++i) {
     comps.at(i)->allocate(otherBlock->get_braStateInfo(), otherBlock->get_ketStateInfo());
     additionalMem += comps.at(i) -> memoryUsed();
   }
-  p3out << "additional memory used for pre-build complimentary operators " << (additionalMem+0.) / 1024 / 1024 / 1024 << " GB" << endl;
+  p3out << "additional memory used for pre-build complimentary operators " 
+    << additionalMem*8/1.e9 << " GB" << endl;
+
+  SplitStackmem();
 
   // omp parallel build
 #pragma omp parallel for schedule(dynamic) 
   for (int i = 0; i < comps.size(); ++i)
     comps.at(i)->build(*otherBlock);
+  MergeStackmem();
 
   return comps;
 }
