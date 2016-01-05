@@ -968,6 +968,77 @@ int procWithMinOps(std::vector<boost::shared_ptr<StackSparseMatrix> >& allops)
   return minproc;
 }
 
+std::vector<boost::shared_ptr<StackSparseMatrix>> StackSpinBlock::prebuild(int num_threads) const {
+  std::vector<boost::shared_ptr<StackSparseMatrix>> comps;
+  if (dmrginp.hamiltonian() == HUBBARD) return comps;
+
+  StackSpinBlock* loopBlock=(leftBlock->is_loopblock()) ? leftBlock : rightBlock;
+  StackSpinBlock* otherBlock = loopBlock == leftBlock ? rightBlock : leftBlock;
+
+  if (otherBlock->get_rightBlock() == 0) return comps;
+
+  for (int i = 0; i < loopBlock->get_op_array(CRE_DES).get_size(); ++i)
+    for (int j = 0; j < loopBlock->get_op_array(CRE_DES).get_local_element(i).size(); ++j) {
+      boost::shared_ptr<StackSparseMatrix> op1 = loopBlock->get_op_array(CRE_DES).get_local_element(i)[j];
+      int I = op1->get_orbs(0);
+      int J = op1->get_orbs(1);
+      if (otherBlock->get_op_array(CRE_DESCOMP).has_local_index(I, J)) {
+        boost::shared_ptr<StackSparseMatrix> op2;
+        if (!dmrginp.spinAdapted() || dmrginp.hamiltonian() == BCS)
+          op2 = otherBlock->get_op_array(CRE_DESCOMP).get_element(I, J).at(0);
+        else
+          op2 = otherBlock->get_op_rep(CRE_DESCOMP, -op1->get_deltaQuantum()[0], I, J);
+
+        if (!op2->memoryUsed()) comps.push_back(op2);
+
+        if (otherBlock->has(DES_CRECOMP)) {
+          if (!dmrginp.spinAdapted() || dmrginp.hamiltonian() == BCS)
+            op2 = otherBlock->get_op_array(DES_CRECOMP).get_element(I, J).at(0);
+          else
+            op2 = otherBlock->get_op_rep(DES_CRECOMP, op1->get_deltaQuantum()[0], I, J);
+
+          if (!op2->memoryUsed()) comps.push_back(op2);
+        }
+      }
+    }
+
+  for (int i = 0; i < loopBlock->get_op_array(CRE_CRE).get_size(); ++i)
+    for (int j = 0; j < loopBlock->get_op_array(CRE_CRE).get_local_element(i).size(); ++j) {
+      boost::shared_ptr<StackSparseMatrix> op1 = loopBlock->get_op_array(CRE_CRE).get_local_element(i)[j];
+      int I = op1->get_orbs(0);
+      int J = op1->get_orbs(1);
+      if (otherBlock->get_op_array(DES_DESCOMP).has_local_index(I, J)) {
+        boost::shared_ptr<StackSparseMatrix> op2;
+        if (!dmrginp.spinAdapted() || dmrginp.hamiltonian() == BCS)
+          op2 = otherBlock->get_op_array(DES_DESCOMP).get_element(I, J).at(0);
+        else
+          op2 = otherBlock->get_op_rep(DES_DESCOMP, -op1->get_deltaQuantum()[0], I, J);
+
+        if (!op2->memoryUsed()) comps.push_back(op2);
+
+        if (otherBlock->has(CRE_CRECOMP)) {
+          if (!dmrginp.spinAdapted() || dmrginp.hamiltonian() == BCS)
+            op2 = otherBlock->get_op_array(CRE_CRECOMP).get_element(I, J).at(0);
+          else
+            op2 = otherBlock->get_op_rep(CRE_CRECOMP, op1->get_deltaQuantum()[0], I, J);
+
+          if (!op2->memoryUsed()) comps.push_back(op2);
+        }
+      }
+    }
+
+  // Now allocate comps
+  for (int i = 0; i < comps.size(); ++i)
+    comps.at(i)->allocate(otherBlock->get_braStateInfo(), otherBlock->get_ketStateInfo());
+
+  // omp parallel build
+#pragma omp parallel for schedule(dynamic) 
+  for (int i = 0; i < comps.size(); ++i)
+    comps.at(i)->build(*otherBlock);
+
+  return comps;
+}
+
 void StackSpinBlock::multiplyH(StackWavefunction& c, StackWavefunction* v, int num_threads) const
 {
 
@@ -1163,7 +1234,7 @@ void StackSpinBlock::multiplyH(StackWavefunction& c, StackWavefunction* v, int n
     }
   }
 
-  
+
   for (int i = 0; i<numthrds; i++)  {
     if (collected[i]==2) {
       if (loopBlock == get_leftBlock()) v_array[i].CollectQuantaAlongRows(*loopBlock->get_ketStateInfo().unCollectedStateInfo, otherBlock->get_ketStateInfo());

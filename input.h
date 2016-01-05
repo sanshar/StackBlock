@@ -133,6 +133,7 @@ class Input {
   std::string  m_save_prefix;
   std::string m_load_prefix;
   bool m_direct;
+  bool m_prebuild;
   std::vector<double> m_orbenergies;
 
   int m_maxj;
@@ -183,7 +184,7 @@ class Input {
     ar & m_sweep_iter_schedule & m_sweep_state_schedule & m_sweep_qstate_schedule & m_sweep_tol_schedule & m_sweep_noise_schedule &m_sweep_additional_noise_schedule & m_reorder;
     ar & m_molecule_quantum & m_total_symmetry_number & m_total_spin & m_orbenergies & m_add_noninteracting_orbs;
     ar & m_bra_symmetry_number & m_permSymm & m_activeorbs & m_excitation & m_openorbs & m_closedorbs;
-    ar & m_save_prefix & m_load_prefix & m_direct & m_max_lanczos_dimension &  m_performResponseSolution;
+    ar & m_save_prefix & m_load_prefix & m_direct & m_prebuild & m_max_lanczos_dimension &  m_performResponseSolution;
     ar & m_deflation_min_size & m_deflation_max_size & m_outputlevel & m_reorderfile;
     ar & m_algorithm_type & m_twodot_to_onedot_iter & m_orbformat & m_calc_procs;
     ar & m_nquanta & m_sys_add & m_env_add & m_do_fci & m_no_transform ;
@@ -441,6 +442,7 @@ class Input {
   const bool &no_transform() const { return m_no_transform; }
   const int &deflation_min_size() const { return m_deflation_min_size; }
   const bool &direct() const { return m_direct; }
+  const bool &prebuild() const {return m_prebuild; }
   const int &deflation_max_size() const { return m_deflation_max_size; }
   const IrrepSpace &total_symmetry_number() const { return m_total_symmetry_number; }
   const IrrepSpace &bra_symmetry_number() const { return m_bra_symmetry_number; }

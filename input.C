@@ -128,6 +128,7 @@ void SpinAdapted::Input::initialize_defaults()
   m_guess_permutations = 10;
 
   m_direct = true;
+  m_prebuild = false;
   m_nroots = 1;
   m_weights.resize(m_nroots);
   m_weights[0] = 1.;
@@ -301,8 +302,17 @@ SpinAdapted::Input::Input(const string& config_name) {
 	}
     m_Bogoliubov = true;
     m_ham_type = BCS;
-      }
-      else if (boost::iequals(keyword, "warmup")) {
+      } else if (boost::iequals(keyword, "prebuild")) {
+        if (usedkey[PREBUILD] == 0)
+          usedkey_error(keyword, msg);
+        usedkey[PREBUILD] = 0;
+        if (tok.size() != 1) {
+          pout << "keyword prebuild is a stand alone keyword" << endl;
+          pout << msg << endl;
+          abort();
+        }
+        m_prebuild = true;
+      } else if (boost::iequals(keyword, "warmup")) {
         if (usedkey[WARMUP] == 0)
           usedkey_error(keyword, msg);
         usedkey[WARMUP] = 0;
