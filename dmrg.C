@@ -46,7 +46,6 @@ Sandeep Sharma and Garnet K.-L. Chan
 #include "dmrg_wrapper.h"
 #include "sweeponepdm.h"
 #include "screen.h"
-#include <random>
 #ifndef SERIAL
 #include <boost/mpi/environment.hpp>
 #include <boost/mpi/communicator.hpp>
@@ -114,8 +113,7 @@ namespace SpinAdapted{
   std::vector<int> NPROP;
   int PROPBITLEN=1;
 
-  std::random_device rd;
-  boost::interprocess::shared_memory_object segment(boost::interprocess::open_or_create, ("Integrals" + to_string(rd() % 1000000)).c_str(), boost::interprocess::read_write);
+  boost::interprocess::shared_memory_object segment(boost::interprocess::open_or_create, ("Integrals" + to_string(time(NULL) % 1000000)).c_str(), boost::interprocess::read_write);
   boost::interprocess::mapped_region region;
 
   std::vector<StackAllocator<double> > Stackmem;
