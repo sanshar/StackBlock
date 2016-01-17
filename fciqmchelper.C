@@ -4,7 +4,6 @@
 #include "Stackspinblock.h"
 #include "initblocks.h"
 #ifndef SERIAL
-#include "mpi.h"
 #include <boost/mpi.hpp>
 #endif
 
@@ -14,6 +13,7 @@ namespace SpinAdapted{
   int MPS::sweepIters ;
   bool MPS::spinAdapted ;
   std::vector<StackSpinBlock> MPS::siteBlocks;
+  std::vector<StackSpinBlock> MPS::siteBlocks_noDES;
 
 
   //assumes that the state has been canonicalized in the left canonical form already and stored on disk
@@ -480,8 +480,10 @@ namespace SpinAdapted{
     stateaw.LoadWavefunctionInfo(s, rotSites, statea, true);
     statebw.LoadWavefunctionInfo(s, rotSites, stateb, true);
 
+#ifndef SERIAL
     mpi::broadcast(calc, stateaw, 0);
     mpi::broadcast(calc, statebw, 0);
+#endif
     if (mpigetrank() != 0) {
       double* dataa = Stackmem[omprank].allocate(stateaw.memoryUsed());
       stateaw.set_data(dataa);
@@ -490,9 +492,11 @@ namespace SpinAdapted{
       statebw.set_data(datab);
       statebw.allocateOperatorMatrix();
     }
+#ifndef SERIAL
     calc.barrier();
     MPI_Bcast(stateaw.get_data(), stateaw.memoryUsed(), MPI_DOUBLE, 0, Calc);
     MPI_Bcast(statebw.get_data(), statebw.memoryUsed(), MPI_DOUBLE, 0, Calc);
+#endif
 
     StackWavefunction temp; temp.initialise(stateaw);
     temp.Clear();
@@ -510,7 +514,7 @@ namespace SpinAdapted{
       o = DotProduct(stateaw, temp);
 
 #ifndef SERIAL
-      mpi::communicator world;
+    mpi::communicator world;
     mpi::broadcast(calc, h, 0);
     mpi::broadcast(calc, o, 0);
 #endif

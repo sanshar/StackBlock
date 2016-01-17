@@ -142,7 +142,25 @@ template <> struct ChooseArray<StackCreDesCreCre> {
 template <> struct ChooseArray<StackCreCreCreCre> {
   typedef para_array_4d<std::vector<boost::shared_ptr<StackCreCreCreCre> > > ArrayType;
 };
-
+// mps_sc_nevpt
+template <> struct ChooseArray<StackCDD_sum> {
+  typedef para_array_0d<std::vector<boost::shared_ptr<StackCDD_sum> > > ArrayType;
+};
+template <> struct ChooseArray<StackCDD_CreDesComp> {
+  typedef para_array_1d<std::vector<boost::shared_ptr<StackCDD_CreDesComp> > > ArrayType;
+};
+template <> struct ChooseArray<StackCDD_DesDesComp> {
+  typedef para_array_1d<std::vector<boost::shared_ptr<StackCDD_DesDesComp> > > ArrayType;
+};
+template <> struct ChooseArray<StackCCD_sum> {
+  typedef para_array_0d<std::vector<boost::shared_ptr<StackCCD_sum> > > ArrayType;
+};
+template <> struct ChooseArray<StackCCD_CreDesComp> {
+  typedef para_array_1d<std::vector<boost::shared_ptr<StackCCD_CreDesComp> > > ArrayType;
+};
+template <> struct ChooseArray<StackCCD_CreCreComp> {
+  typedef para_array_1d<std::vector<boost::shared_ptr<StackCCD_CreCreComp> > > ArrayType;
+};
 
 
 
@@ -258,7 +276,7 @@ template <class Op> class StackOp_component : public StackOp_component_base
   std::string get_filename() const
   {
     std::string file;
-    file = str( boost::format("%s%s%s%s%d%d%s") % dmrginp.load_prefix() % "/" % get_op_string() % "_p" % mpigetrank() % get_size() % ".tmp" );
+    file = str( boost::format("%s%s%s%s%d%s") % dmrginp.load_prefix() % "/" % get_op_string() % "_p" % mpigetrank() % ".tmp" );
     return file;
   }
 

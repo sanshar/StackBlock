@@ -300,8 +300,7 @@ void Threepdm_container::save_spatial_npdm_binary(const int &i, const int &j)
       Timer timer2;
       Sortpdm::externalsort<Sortpdm::index_element>(file,finalfile,(long)pow(dmrginp.last_site(),6));
       boost::filesystem::remove(file);
-      cputime = timer.elapsedcputime()
-      p3out << "3PDM external sort time " << timer2.elapsedwalltime() << " " << cputime << endl;
+      p3out << "3PDM external sort time " << timer2.elapsedwalltime() << endl;
 #endif
     }
   }

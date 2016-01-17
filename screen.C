@@ -572,4 +572,291 @@ bool screen_cddcomp_interaction(int otherindex, const std::vector<int, std::allo
   }
 }
 
+vector<int, std::allocator<int> > screened_ccd_c_indices(const vector<int, std::allocator<int> >& indices,
+			       const vector<int, std::allocator<int> >& interactingix, int external_orb,
+			       const OneElectronArray& onee, const PerturbTwoElectronArray& twoe, double thresh) {
+  dmrginp.dscreen->start();
+  vector<int, std::allocator<int> > screened_indices;
+  long** indsPerthrd = new long* [numthrds];
+  for (int i=0; i<numthrds; i++) {
+    indsPerthrd[i] = reinterpret_cast<long*>(Stackmem[0].allocate(indices.size()));
+    memset(indsPerthrd[i], 0, indices.size()*sizeof(long));
+  }
+
+#pragma omp parallel for
+  for (int i = 0; i < indices.size(); ++i)
+    if (dmrginp.use_partial_two_integrals() || screen_ccd_c_interaction(indices[i], interactingix, external_orb, onee, twoe, thresh))
+      indsPerthrd[omprank][i] = 1;
+
+  for (int i = 0; i < indices.size(); ++i) {
+    for (int thrd=0; thrd<numthrds; thrd++)
+      if (indsPerthrd[thrd][i] > 0) {
+	      screened_indices.push_back(indices[i]);
+	      break;
+      }
+  }
+
+  for (int i=numthrds-1; i>-1; i--)
+    Stackmem[0].deallocate(reinterpret_cast<double*>(indsPerthrd[i]), indices.size());
+  delete[] indsPerthrd;
+
+  //pout << "\t\t\tnumber of significant d and d_comp indices: " << screened_indices.size() << endl;
+  dmrginp.dscreen->stop();
+  return screened_indices;
+}
+
+vector<int, std::allocator<int> > screened_ccd_d_indices(const vector<int, std::allocator<int> >& indices,
+			       const vector<int, std::allocator<int> >& interactingix, int external_orb,
+			       const OneElectronArray& onee, const PerturbTwoElectronArray& twoe, double thresh) {
+  dmrginp.dscreen->start();
+  vector<int, std::allocator<int> > screened_indices;
+  long** indsPerthrd = new long* [numthrds];
+  for (int i=0; i<numthrds; i++) {
+    indsPerthrd[i] = reinterpret_cast<long*>(Stackmem[0].allocate(indices.size()));
+    memset(indsPerthrd[i], 0, indices.size()*sizeof(long));
+  }
+
+#pragma omp parallel for
+  for (int i = 0; i < indices.size(); ++i)
+    if (dmrginp.use_partial_two_integrals() || screen_ccd_d_interaction(indices[i], interactingix, external_orb, onee, twoe, thresh))
+      indsPerthrd[omprank][i] = 1;
+
+  for (int i = 0; i < indices.size(); ++i) {
+    for (int thrd=0; thrd<numthrds; thrd++)
+      if (indsPerthrd[thrd][i] > 0) {
+	      screened_indices.push_back(indices[i]);
+	      break;
+      }
+  }
+
+  for (int i=numthrds-1; i>-1; i--)
+    Stackmem[0].deallocate(reinterpret_cast<double*>(indsPerthrd[i]), indices.size());
+  delete[] indsPerthrd;
+
+  dmrginp.dscreen->stop();
+  return screened_indices;
+}
+
+vector<int, std::allocator<int> > screened_cdd_c_indices(const vector<int, std::allocator<int> >& indices,
+			       const vector<int, std::allocator<int> >& interactingix, int external_orb,
+			       const OneElectronArray& onee, const PerturbTwoElectronArray& twoe, double thresh) {
+  dmrginp.dscreen->start();
+  vector<int, std::allocator<int> > screened_indices;
+  long** indsPerthrd = new long* [numthrds];
+  for (int i=0; i<numthrds; i++) {
+    indsPerthrd[i] = reinterpret_cast<long*>(Stackmem[0].allocate(indices.size()));
+    memset(indsPerthrd[i], 0, indices.size()*sizeof(long));
+  }
+
+#pragma omp parallel for
+  for (int i = 0; i < indices.size(); ++i)
+    if (dmrginp.use_partial_two_integrals() || screen_cdd_c_interaction(indices[i], interactingix, external_orb, onee, twoe, thresh))
+      indsPerthrd[omprank][i] = 1;
+
+  for (int i = 0; i < indices.size(); ++i) {
+    for (int thrd=0; thrd<numthrds; thrd++)
+      if (indsPerthrd[thrd][i] > 0) {
+	      screened_indices.push_back(indices[i]);
+	      break;
+      }
+  }
+
+  for (int i=numthrds-1; i>-1; i--)
+    Stackmem[0].deallocate(reinterpret_cast<double*>(indsPerthrd[i]), indices.size());
+  delete[] indsPerthrd;
+
+  //pout << "\t\t\tnumber of significant d and d_comp indices: " << screened_indices.size() << endl;
+  dmrginp.dscreen->stop();
+  return screened_indices;
+}
+
+vector<int, std::allocator<int> > screened_cdd_d_indices(const vector<int, std::allocator<int> >& indices,
+			       const vector<int, std::allocator<int> >& interactingix, int external_orb, 
+			       const OneElectronArray& onee, const PerturbTwoElectronArray& twoe, double thresh) {
+  dmrginp.dscreen->start();
+  vector<int, std::allocator<int> > screened_indices;
+  long** indsPerthrd = new long* [numthrds];
+  for (int i=0; i<numthrds; i++) {
+    indsPerthrd[i] = reinterpret_cast<long*>(Stackmem[0].allocate(indices.size()));
+    memset(indsPerthrd[i], 0, indices.size()*sizeof(long));
+  }
+
+#pragma omp parallel for
+  for (int i = 0; i < indices.size(); ++i)
+    if (dmrginp.use_partial_two_integrals() || screen_cdd_d_interaction(indices[i], interactingix, external_orb, onee, twoe, thresh))
+      indsPerthrd[omprank][i] = 1;
+
+  for (int i = 0; i < indices.size(); ++i) {
+    for (int thrd=0; thrd<numthrds; thrd++)
+      if (indsPerthrd[thrd][i] > 0) {
+	      screened_indices.push_back(indices[i]);
+	      break;
+      }
+  }
+
+  for (int i=numthrds-1; i>-1; i--)
+    Stackmem[0].deallocate(reinterpret_cast<double*>(indsPerthrd[i]), indices.size());
+  delete[] indsPerthrd;
+
+  //pout << "\t\t\tnumber of significant d and d_comp indices: " << screened_indices.size() << endl;
+  dmrginp.dscreen->stop();
+  return screened_indices;
+}
+
+bool screen_cdd_c_interaction(int index, const vector<int, std::allocator<int> >& interactingix, int external_orb, 
+			 const OneElectronArray& onee, const PerturbTwoElectronArray& twoe, double thresh) {
+  if(dmrginp.spinAdapted()) {
+    int lx = dmrginp.spatial_to_spin(index); 
+    int jx = dmrginp.spatial_to_spin(external_orb); 
+    
+    for (int i = 0; i < interactingix.size(); ++i) {
+      int ix = dmrginp.spatial_to_spin(interactingix[i]); 
+	    for (int k = 0; k < interactingix.size(); ++k)
+	    {
+	      int kx = dmrginp.spatial_to_spin(interactingix[k]); 
+	      if (fabs(twoe(jx,lx,ix,kx)) >= thresh)
+	        return true;
+	    }
+    }
+    return (interactingix.size() == 0);
+  } 
+  else {
+    const int jx = external_orb;
+    int lx = index;
+    
+    for (int i = 0; i < interactingix.size(); ++i)
+	    for (int k = 0; k < interactingix.size(); ++k)
+	    {
+	      const int ix = interactingix[i];
+	      const int kx = interactingix[k];
+	      if (fabs(twoe(jx,lx,ix,kx)) >= thresh)
+	        return true;
+	    }
+    
+    return (interactingix.size() == 0);
+  }
+}
+
+bool screen_cdd_d_interaction(int index, const vector<int, std::allocator<int> >& interactingix, int external_orb,
+			 const OneElectronArray& onee, const PerturbTwoElectronArray& twoe, double thresh) {
+  if(dmrginp.spinAdapted()) {
+    int lx = dmrginp.spatial_to_spin(index); 
+
+    int jx = dmrginp.spatial_to_spin(external_orb); 
+    if (fabs(onee(jx, lx)) >= thresh)
+	    return true;
+    
+    for (int i = 0; i < interactingix.size(); ++i) {
+      int ix = dmrginp.spatial_to_spin(interactingix[i]); 
+	    for (int k = 0; k < interactingix.size(); ++k)
+	    {
+	      int kx = dmrginp.spatial_to_spin(interactingix[k]); 
+	      if (fabs(twoe(jx,ix,lx,kx)) >= thresh)
+	        return true;
+	      if (fabs(twoe(jx,ix,kx,lx)) >= thresh)
+	        return true;
+	    }
+    }
+    return (interactingix.size() == 0);
+  } 
+  else {
+    const int jx = external_orb;
+    int lx = index;
+    if (fabs(onee(jx, lx)) >= thresh)
+	    return true;
+    
+    for (int i = 0; i < interactingix.size(); ++i)
+	    for (int k = 0; k < interactingix.size(); ++k)
+	    {
+	      const int ix = interactingix[i];
+	      const int kx = interactingix[k];
+	      if (fabs(twoe(jx,ix,kx,lx)) >= thresh)
+	        return true;
+	      if (fabs(twoe(jx,ix,lx,kx)) >= thresh)
+	        return true;
+	    }
+    
+    return (interactingix.size() == 0);
+  }
+}
+
+bool screen_ccd_c_interaction(int index, const vector<int, std::allocator<int> >& interactingix, int external_orb, 
+			 const OneElectronArray& onee, const PerturbTwoElectronArray& twoe, double thresh) {
+  if(dmrginp.spinAdapted()) {
+    int lx = dmrginp.spatial_to_spin(index); 
+    int jx = dmrginp.spatial_to_spin(external_orb); 
+
+    if (fabs(onee(lx, jx)) >= thresh)
+	    return true;
+    
+    for (int i = 0; i < interactingix.size(); ++i) {
+      int ix = dmrginp.spatial_to_spin(interactingix[i]); 
+	    for (int k = 0; k < interactingix.size(); ++k)
+	    {
+	      int kx = dmrginp.spatial_to_spin(interactingix[k]); 
+	      if (fabs(twoe(lx,ix,jx,kx)) >= thresh)
+	        return true;
+	      if (fabs(twoe(ix,lx,jx,kx)) >= thresh)
+	        return true;
+	    }
+    }
+    return (interactingix.size() == 0);
+  } 
+  else {
+    const int jx = external_orb;
+    int lx = index;
+    if (fabs(onee(lx, jx)) >= thresh)
+	    return true;
+    
+    for (int i = 0; i < interactingix.size(); ++i)
+	    for (int k = 0; k < interactingix.size(); ++k)
+	    {
+	      const int ix = interactingix[i];
+	      const int kx = interactingix[k];
+	      if (fabs(twoe(lx,ix,jx,kx)) >= thresh)
+	        return true;
+	      if (fabs(twoe(ix,lx,jx,kx)) >= thresh)
+	        return true;
+	    }
+    
+    return (interactingix.size() == 0);
+  }
+}
+
+bool screen_ccd_d_interaction(int index, const vector<int, std::allocator<int> >& interactingix, int external_orb,
+			 const OneElectronArray& onee, const PerturbTwoElectronArray& twoe, double thresh) {
+  if(dmrginp.spinAdapted()) {
+    int lx = dmrginp.spatial_to_spin(index); 
+
+    int jx = dmrginp.spatial_to_spin(external_orb); 
+    
+    for (int i = 0; i < interactingix.size(); ++i) {
+      int ix = dmrginp.spatial_to_spin(interactingix[i]); 
+	    for (int k = 0; k < interactingix.size(); ++k)
+	    {
+	      int kx = dmrginp.spatial_to_spin(interactingix[k]); 
+	      if (fabs(twoe(ix,kx,jx,lx)) >= thresh)
+	        return true;
+	    }
+    }
+    return (interactingix.size() == 0);
+  } 
+  else {
+    const int jx = external_orb;
+    int lx = index;
+    
+    for (int i = 0; i < interactingix.size(); ++i)
+	    for (int k = 0; k < interactingix.size(); ++k)
+	    {
+	      const int ix = interactingix[i];
+	      const int kx = interactingix[k];
+	      if (fabs(twoe(ix,kx,jx,lx)) >= thresh)
+	        return true;
+	    }
+    
+    return (interactingix.size() == 0);
+  }
+}
+
+
 } // namespace SpinAdapted

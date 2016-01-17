@@ -35,6 +35,7 @@ class MPS{
   static int sweepIters;
   static bool spinAdapted;
   static std::vector<StackSpinBlock> siteBlocks;
+  static std::vector<StackSpinBlock> siteBlocks_noDES;
 
   MPS() {};
   MPS(int stateindex); 

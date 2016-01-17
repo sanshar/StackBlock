@@ -93,14 +93,14 @@ void StackSpinBlock::restore (bool forward, const vector<int>& sites, StackSpinB
 
   dmrginp.rawdatai->start();
   
-  int* initialData = new int[25];
+  int* initialData = new int[31];
   int allindexsize;
   
   FILE *fp[numthrds];
   for (int i=0; i<numthrds; i++)
     fp[i] = fopen(file[i].c_str(), "rb");
 
-  fread(initialData, sizeof(int), 25, fp[0]);
+  fread(initialData, sizeof(int), 31, fp[0]);
   fread(&allindexsize, sizeof(int), 1, fp[0]);
   int* allindices = new int[allindexsize];//large data
   fread(allindices, sizeof(int), allindexsize, fp[0]);
@@ -144,8 +144,14 @@ void StackSpinBlock::restore (bool forward, const vector<int>& sites, StackSpinB
   int numcredesdescomp   = initialData[20];
   int numham             = initialData[21];
   int numoverlap         = initialData[22];
-  int numri3index        = initialData[23];
-  int numri4index        = initialData[24];
+  int numcdd_sum         = initialData[23];
+  int numcdd_cd          = initialData[24];
+  int numcdd_dd          = initialData[25];
+  int numccd_sum         = initialData[26];
+  int numccd_cd          = initialData[27];
+  int numccd_cc          = initialData[28];
+  int numri3index        = initialData[29];
+  int numri4index        = initialData[30];
 
 
   dmrginp.readmakeiter->start();
@@ -177,6 +183,12 @@ void StackSpinBlock::restore (bool forward, const vector<int>& sites, StackSpinB
   if (numdescrecomp    != -1) {b.ops[DES_CRECOMP]           =   make_new_stackop(DES_CRECOMP, true);}
   if (numcredesdescomp != -1) {b.ops[CRE_DES_DESCOMP]           =   make_new_stackop(CRE_DES_DESCOMP, true);}
   if (numoverlap       != -1) {b.ops[OVERLAP]           =   make_new_stackop(OVERLAP, true);}
+  if (numcdd_sum       != -1) {b.ops[CDD_SUM]           =   make_new_stackop(CDD_SUM, true);}
+  if (numcdd_cd        != -1) {b.ops[CDD_CRE_DESCOMP]   =   make_new_stackop(CDD_CRE_DESCOMP, true);}
+  if (numcdd_dd        != -1) {b.ops[CDD_DES_DESCOMP]   =   make_new_stackop(CDD_DES_DESCOMP, true);}
+  if (numccd_sum       != -1) {b.ops[CCD_SUM]           =   make_new_stackop(CCD_SUM, true);}
+  if (numccd_cd        != -1) {b.ops[CCD_CRE_DESCOMP]   =   make_new_stackop(CCD_CRE_DESCOMP, true);}
+  if (numccd_cc        != -1) {b.ops[CCD_CRE_CRECOMP]   =   make_new_stackop(CCD_CRE_CRECOMP, true);}
   if (numri3index      != -1) {b.ops[RI_3INDEX]         =   make_new_stackop(RI_3INDEX, true);}
   if (numri4index      != -1) {b.ops[RI_4INDEX]         =   make_new_stackop(RI_4INDEX, true);}
 
@@ -199,6 +211,12 @@ void StackSpinBlock::restore (bool forward, const vector<int>& sites, StackSpinB
   if (numdescrecomp    != -1) { make_iterator(b, DES_CRECOMP,     &allindices[index], 2,  numdescrecomp);    index+=2*numdescrecomp;}
   if (numcredesdescomp != -1) { make_iterator(b, CRE_DES_DESCOMP, &allindices[index], 1,  numcredesdescomp); index+=numcredesdescomp;}
   if (numoverlap       != -1) { make_iterator(b, OVERLAP,         &allindices[index], 1,  numoverlap);       index+=numoverlap;}
+  if (numcdd_sum       != -1) { make_iterator(b, CDD_SUM,         &allindices[index], 1,  numcdd_sum);       index+=numcdd_sum;}
+  if (numcdd_cd        != -1) { make_iterator(b, CDD_CRE_DESCOMP, &allindices[index], 1,  numcdd_cd );       index+=numcdd_cd ;}
+  if (numcdd_dd        != -1) { make_iterator(b, CDD_DES_DESCOMP, &allindices[index], 1,  numcdd_dd );       index+=numcdd_dd ;}
+  if (numccd_sum       != -1) { make_iterator(b, CCD_SUM,         &allindices[index], 1,  numccd_sum);       index+=numccd_sum;}
+  if (numccd_cd        != -1) { make_iterator(b, CCD_CRE_DESCOMP, &allindices[index], 1,  numccd_cd );       index+=numccd_cd ;}
+  if (numccd_cc        != -1) { make_iterator(b, CCD_CRE_CRECOMP, &allindices[index], 1,  numccd_cc );       index+=numccd_cc ;}
   if (numri3index      != -1) { b.ops[RI_3INDEX]->build_iterators(b, false);}
   if (numri4index      != -1) { b.ops[RI_4INDEX]->build_iterators(b, false);}
   dmrginp.readmakeiter->stop();
@@ -262,7 +280,7 @@ void StackSpinBlock::store (bool forward, const vector<int>& sites, StackSpinBlo
   }
 
 
-  int* initialData = new int[25];
+  int* initialData = new int[31];
 
   //nowunpack the first 23 integers
   initialData[0]    = b.localstorage      == 1 ? true : false;
@@ -288,8 +306,14 @@ void StackSpinBlock::store (bool forward, const vector<int>& sites, StackSpinBlo
   initialData[20]   = b.has(CRE_DES_DESCOMP)     ?  b.ops[CRE_DES_DESCOMP]->size() : -1;
   initialData[21]   = b.has(HAM)                 ?  b.ops[HAM]->size()             : -1;
   initialData[22]   = b.has(OVERLAP)             ?  b.ops[OVERLAP]->size()         : -1;
-  initialData[23]   = b.has(RI_3INDEX)           ?  b.ops[RI_3INDEX]->size()       : -1;
-  initialData[24]   = b.has(RI_4INDEX)           ?  b.ops[RI_4INDEX]->size()       : -1;
+  initialData[23]   = b.has(CDD_SUM)             ?  b.ops[CDD_SUM]->size()         : -1;
+  initialData[24]   = b.has(CDD_CRE_DESCOMP)     ?  b.ops[CDD_CRE_DESCOMP]->size() : -1;
+  initialData[25]   = b.has(CDD_DES_DESCOMP)     ?  b.ops[CDD_DES_DESCOMP]->size() : -1;
+  initialData[26]   = b.has(CCD_SUM)             ?  b.ops[CCD_SUM]->size()         : -1;
+  initialData[27]   = b.has(CCD_CRE_DESCOMP)     ?  b.ops[CCD_CRE_DESCOMP]->size() : -1;
+  initialData[28]   = b.has(CCD_CRE_CRECOMP)     ?  b.ops[CCD_CRE_CRECOMP]->size() : -1;
+  initialData[29]   = b.has(RI_3INDEX)           ?  b.ops[RI_3INDEX]->size()       : -1;
+  initialData[30]   = b.has(RI_4INDEX)           ?  b.ops[RI_4INDEX]->size()       : -1;
 
   std::vector<int> allindices;
   allindices.insert(allindices.end(), b.sites.begin(), b.sites.end());
@@ -308,7 +332,7 @@ void StackSpinBlock::store (bool forward, const vector<int>& sites, StackSpinBlo
   for (int i=0; i<numthrds; i++)
     fp[i] = fopen(file[i].c_str(), "wb");
   int size = allindices.size();
-  fwrite(initialData, sizeof(int), 25, fp[0]);
+  fwrite(initialData, sizeof(int), 31, fp[0]);
   fwrite(&size, sizeof(int), 1, fp[0]);
   fwrite(&allindices[0], sizeof(int), allindices.size(), fp[0]);
 
@@ -606,9 +630,6 @@ void StackSpinBlock::messagePassTwoIndexOps()
     for (int idx1 = idx; idx1 < dotindice.size(); ++idx1) {
       //CDII should be broadcast to all procs
       int J = dotindice[idx1];
-      if (J > I) {
-        int K = J; J = I; I = K;
-      }
       if (has(CRE_DESCOMP)) {
         if (!ops[CRE_DESCOMP]->is_local() ) {
 	        int fromproc = processorindex(trimap_2d(I, J, length));
@@ -926,7 +947,7 @@ void StackSpinBlock::formTwoIndexOps() {
   for (int optypeindex=0; optypeindex<opTypevec.size(); optypeindex++) {
     opTypes optype = opTypevec[optypeindex];
 
-    for (int proc=0; proc<calc.size(); proc++) {
+    for (int proc=0; proc<mpigetsize(); proc++) {
 
       //for each processor loop over all its CDcomp operators and place them in ops_On_proc
       int arraysize = 0;
@@ -941,7 +962,9 @@ void StackSpinBlock::formTwoIndexOps() {
       }
 
       //broadcast this ops_On_proc, so each processor has the shell of the operators
+#ifndef SERIAL 
       mpi::broadcast(calc, arraysize, proc);
+#endif
       if (mpigetrank() != proc) {
 	for (int i=0; i<arraysize; i++) {
 	  if (optype == CRE_DESCOMP)
@@ -956,7 +979,9 @@ void StackSpinBlock::formTwoIndexOps() {
       }
       
       for (int i=0; i<ops_On_proc.size(); i++) {
+#ifndef SERIAL 
 	mpi::broadcast(calc, *ops_On_proc[i], proc);
+#endif
 	if (ops_On_proc[i]->memoryUsed() == 0)
 	  ops_On_proc[i]->allocate(braStateInfo, ketStateInfo);
 	else
@@ -1021,7 +1046,7 @@ void StackSpinBlock::addAdditionalOps()
 }
 
   //mid way during the sweep one has to go from having normal ops to
-  //comp ops and they are generated in thsi function
+  //comp ops and they are generated in this function
 void StackSpinBlock::addAllCompOps() {
 
 #ifndef SERIAL
@@ -1063,7 +1088,7 @@ void StackSpinBlock::addAllCompOps() {
   for (int optypeindex=0; optypeindex<opTypevec.size(); optypeindex++) {
     opTypes optype = opTypevec[optypeindex];
 
-    for (int proc=0; proc<calc.size(); proc++) {
+    for (int proc=0; proc<mpigetsize(); proc++) {
 
       //for each processor loop over all its CDcomp operators and place them in ops_On_proc
       int arraysize = 0;
@@ -1078,13 +1103,17 @@ void StackSpinBlock::addAllCompOps() {
       }
 
       //broadcast this ops_On_proc, so each processor has the shell of the operators
+#ifndef SERIAL 
       mpi::broadcast(calc, arraysize, proc);
+#endif
       if (mpigetrank() != proc) 
 	for (int i=0; i<arraysize; i++)
 	  ops_On_proc.push_back( boost::shared_ptr<StackSparseMatrix>(new StackSparseMatrix));
       
       for (int i=0; i<ops_On_proc.size(); i++) {
+#ifndef SERIAL 
 	mpi::broadcast(calc, *ops_On_proc[i], proc);
+#endif
 	if (ops_On_proc[i]->memoryUsed() == 0)
 	  ops_On_proc[i]->allocate(braStateInfo, ketStateInfo);
       }

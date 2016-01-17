@@ -23,9 +23,7 @@ namespace stackopxop
   void ham_d(const StackSpinBlock* otherblock, boost::shared_ptr<StackSparseMatrix> op1, const StackSpinBlock* b, DiagonalMatrix* e, int proc);
   
  
-  void cxcdcomp(const StackSpinBlock* otherblock, std::vector< boost::shared_ptr<StackSparseMatrix> >& op1, const StackSpinBlock* b, int I, StackSparseMatrix* o, double factor);
-  void dxcccomp(const StackSpinBlock* otherBlock, std::vector< boost::shared_ptr<StackSparseMatrix> >& op1, const StackSpinBlock* b, int I, StackSparseMatrix* o, double scale);
-  void cxcdcompElement(const StackSpinBlock* otherblock, std::vector< boost::shared_ptr<StackSparseMatrix> >& op1, const StackSpinBlock* b, int I, StackSparseMatrix* o, StackMatrix& m, int row, int col, double factor);
+  void cxcdcomp(const StackSpinBlock* otherblock, std::vector< boost::shared_ptr<StackSparseMatrix> >& op1, const StackSpinBlock* b, int I, StackSparseMatrix* o, double factor); void dxcccomp(const StackSpinBlock* otherBlock, std::vector< boost::shared_ptr<StackSparseMatrix> >& op1, const StackSpinBlock* b, int I, StackSparseMatrix* o, double scale); void cxcdcompElement(const StackSpinBlock* otherblock, std::vector< boost::shared_ptr<StackSparseMatrix> >& op1, const StackSpinBlock* b, int I, StackSparseMatrix* o, StackMatrix& m, int row, int col, double factor);
   void dxcccompElement(const StackSpinBlock* otherBlock, std::vector< boost::shared_ptr<StackSparseMatrix> >& op1, const StackSpinBlock* b, int I, StackSparseMatrix* o, StackMatrix& m, int row, int col, double scale);
 
   void dxcdcomp(const StackSpinBlock* otherBlock, std::vector<boost::shared_ptr<StackSparseMatrix> >& opvec1, const StackSpinBlock* b, int I, StackSparseMatrix* o, double scale);
@@ -58,9 +56,38 @@ namespace stackopxop
   
   //these are only used when left and right states are different
   void dcxdccomp(const StackSpinBlock* otherblock, std::vector< boost::shared_ptr<StackSparseMatrix> >& op1, const StackSpinBlock* b, StackSparseMatrix* o);
-  void dxccdcomp(const StackSpinBlock* CDDblock, std::vector<boost::shared_ptr<StackSparseMatrix> >& opvec1, const StackSpinBlock* b, StackSparseMatrix* o);
+  void dxccdcomp(const StackSpinBlock* otherblock, std::vector< boost::shared_ptr<StackSparseMatrix> >& op1, const StackSpinBlock* b, StackSparseMatrix* o);
   void dxccdcomp(const StackSpinBlock* otherblock, std::vector< boost::shared_ptr<StackSparseMatrix> >& op1, const StackSpinBlock* b, StackWavefunction& c, StackWavefunction* v, const SpinQuantum& q);
   void dcxdccomp(const StackSpinBlock* otherblock, std::vector< boost::shared_ptr<StackSparseMatrix> >& op1, const StackSpinBlock* b, StackWavefunction& c, StackWavefunction* v, const SpinQuantum& q);
+
+  //**********************************************************************************************************
+  
+  void cdd_cxddcomp(const StackSpinBlock* otherblock, boost::shared_ptr<StackSparseMatrix> & op1, const StackSpinBlock* b, StackWavefunction& c, StackWavefunction* v, const SpinQuantum& q);
+  void cdd_dxcdcomp(const StackSpinBlock* otherblock, boost::shared_ptr<StackSparseMatrix> & op1, const StackSpinBlock* b, StackWavefunction& c, StackWavefunction* v, const SpinQuantum& q);
+  void ccd_dxcccomp(const StackSpinBlock* otherblock, boost::shared_ptr<StackSparseMatrix> & op1, const StackSpinBlock* b, StackWavefunction& c, StackWavefunction* v, const SpinQuantum& q);
+  void ccd_cxcdcomp(const StackSpinBlock* otherblock, boost::shared_ptr<StackSparseMatrix> & op1, const StackSpinBlock* b, StackWavefunction& c, StackWavefunction* v, const SpinQuantum& q);
+  
+  //*********************************************************************************
+  
+//  void cdd_cxddcomp(const StackSpinBlock* otherblock, boost::shared_ptr<StackSparseMatrix> & op1, const StackSpinBlock* b, StackSparseMatrix* o);
+//  void cdd_dxcdcomp(const StackSpinBlock* otherblock, boost::shared_ptr<StackSparseMatrix> & op1, const StackSpinBlock* b, StackSparseMatrix* o);
+//  void ccd_dxcccomp(const StackSpinBlock* otherblock, boost::shared_ptr<StackSparseMatrix> & op1, const StackSpinBlock* b, StackSparseMatrix* o);
+//  void ccd_cxcdcomp(const StackSpinBlock* otherblock, boost::shared_ptr<StackSparseMatrix> & op1, const StackSpinBlock* b, StackSparseMatrix* o);
+
+  void cdd_cxddcomp(const StackSpinBlock* otherblock, std::vector<boost::shared_ptr<StackSparseMatrix> >& opvec1, const StackSpinBlock* b, StackSparseMatrix* o);
+  void cdd_dxcdcomp(const StackSpinBlock* otherblock, std::vector<boost::shared_ptr<StackSparseMatrix> >& opvec1, const StackSpinBlock* b, StackSparseMatrix* o);
+  void ccd_dxcccomp(const StackSpinBlock* otherblock, std::vector<boost::shared_ptr<StackSparseMatrix> >& opvec1, const StackSpinBlock* b, StackSparseMatrix* o);
+  void ccd_cxcdcomp(const StackSpinBlock* otherblock, std::vector<boost::shared_ptr<StackSparseMatrix> >& opvec1, const StackSpinBlock* b, StackSparseMatrix* o);
+//  void cdd_cxddcomp(const StackSpinBlock* otherblock, std::vector<boost::shared_ptr<StackSparseMatrix> >& opvec1, const StackSpinBlock* b, StackWavefunction& c, StackWavefunction* v, const SpinQuantum& q);
+//  void cdd_dxcdcomp(const StackSpinBlock* otherblock, std::vector<boost::shared_ptr<StackSparseMatrix> >& opvec1, const StackSpinBlock* b, StackWavefunction& c, StackWavefunction* v, const SpinQuantum& q);
+//  void ccd_dxcccomp(const StackSpinBlock* otherblock, std::vector<boost::shared_ptr<StackSparseMatrix> >& opvec1, const StackSpinBlock* b, StackWavefunction& c, StackWavefunction* v, const SpinQuantum& q);
+//  void ccd_cxcdcomp(const StackSpinBlock* otherblock, std::vector<boost::shared_ptr<StackSparseMatrix> >& opvec1, const StackSpinBlock* b, StackWavefunction& c, StackWavefunction* v, const SpinQuantum& q);
+//  
+//  //*********************************************************************************
+//  
+//
+  void CDDandoverlap(const StackSpinBlock* otherblock, boost::shared_ptr<StackSparseMatrix> op1, const StackSpinBlock* b, StackWavefunction& c, StackWavefunction* v, const SpinQuantum& q);
+  void CCDandoverlap(const StackSpinBlock* otherblock, boost::shared_ptr<StackSparseMatrix> op1, const StackSpinBlock* b, StackWavefunction& c, StackWavefunction* v, const SpinQuantum& q);
  
 }
 }
