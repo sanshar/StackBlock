@@ -2129,7 +2129,6 @@ void SpinAdapted::StackDesDesComp::buildfromDesDes(StackSpinBlock& b)
   TensorOp CC1(i, j, 1, 1, (-deltaQuantum[0].get_s()).getirrep(), (-sym).getirrep(), i==j);
 
   std::vector<boost::shared_ptr<StackSparseMatrix> >  allops;
-  int numCC = 0;
   std::vector<double> scaleDD, scaleCD, scaleCC;
   // TODO resize scaleCC and scaleCD
   if (dmrginp.hamiltonian() == BCS) {
@@ -2209,7 +2208,7 @@ void SpinAdapted::StackDesDesComp::buildfromDesDes(StackSpinBlock& b)
           }
         }
   }
-  numCC = allops.size();
+  int numCC = allops.size();
 
   if (dmrginp.hamiltonian() == BCS) {
     for (int ii=0; ii<b.get_op_array(CRE_DES).get_size(); ii++)
@@ -2224,13 +2223,13 @@ void SpinAdapted::StackDesDesComp::buildfromDesDes(StackSpinBlock& b)
           //TensorOp CD2 = CK.product(DL, spin, sym.getirrep());
           TensorOp CD2(k, l, 1, -1, spin, sym.getirrep());
           if (!CD2.empty)
-            scaleCD[2*(allops.size()-1)] = calcCompfactor(CC1, CD2, DD, v_cccd[b.get_integralIndex()]);
+            scaleCD[2*(allops.size()-numCC-1)] = calcCompfactor(CC1, CD2, DD, v_cccd[b.get_integralIndex()]);
 
           //TensorOp CL(l,1), DK(k,-1);
           //CD2 = CL.product(DK, spin, sym.getirrep());
           CD2 = TensorOp(l, k, 1, -1, spin, sym.getirrep());
           if (k!=l && !CD2.empty)
-            scaleCD[2*(allops.size()-1)+1] = calcCompfactor(CC1, CD2, DD, v_cccd[b.get_integralIndex()]);
+            scaleCD[2*(allops.size()-numCC-1)+1] = calcCompfactor(CC1, CD2, DD, v_cccd[b.get_integralIndex()]);
         }
   }
 
@@ -2274,15 +2273,15 @@ void SpinAdapted::StackDesDesComp::buildfromDesDes(StackSpinBlock& b)
     } else { // CkDl and ClDk
       const int k = allops[opindex]->get_orbs()[0];    
       const int l = allops[opindex]->get_orbs()[1];
-      if (allowed(lQ,rQ) && allops[opindex]->allowed(lQ,rQ) && fabs(scaleCD[2*opindex]) > TINY)
-        MatrixScaleAdd(scaleCD[2*opindex], allops[opindex]->operator_element(lQ,rQ), op_array[omprank].operator_element(lQ, rQ));
+      if (allowed(lQ,rQ) && allops[opindex]->allowed(lQ,rQ) && fabs(scaleCD[2*(opindex-numCC)]) > TINY)
+        MatrixScaleAdd(scaleCD[2*(opindex-numCC)], allops[opindex]->operator_element(lQ,rQ), op_array[omprank].operator_element(lQ, rQ));
 
-      if (!b.has(DES) && k != l && allowed(lQ,rQ) && allops[opindex]->allowed(rQ,lQ) && fabs(scaleCD[2*opindex+1]) > TINY) {
+      if (!b.has(DES) && k != l && allowed(lQ,rQ) && allops[opindex]->allowed(rQ,lQ) && fabs(scaleCD[2*(opindex-numCC)+1]) > TINY) {
         double scaling = getStandAlonescaling(-(allops[opindex]->get_deltaQuantum(0)), b.get_braStateInfo().quanta[lQ], b.get_ketStateInfo().quanta[rQ]);
         int nrows = operator_element(lQ, rQ).Nrows();
         int ncols = operator_element(lQ, rQ).Ncols();
         for (int row=0; row < nrows; ++row)
-          DAXPY(ncols, scaling*scaleCD[2*opindex+1], &(allops[opindex]->operator_element(rQ,lQ)(1, row+1)), nrows, &(op_array[omprank].operator_element(lQ, rQ)(row+1, 1)), 1);
+          DAXPY(ncols, scaling*scaleCD[2*(opindex-numCC)+1], &(allops[opindex]->operator_element(rQ,lQ)(1, row+1)), nrows, &(op_array[omprank].operator_element(lQ, rQ)(row+1, 1)), 1);
       }
     }
   }
