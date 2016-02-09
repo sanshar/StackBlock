@@ -391,24 +391,24 @@ void StackSpinBlock::default_op_components(bool direct, bool haveNormops, bool h
 	ops[RI_3INDEX] = make_new_stackop(RI_3INDEX, true);
 	ops[RI_4INDEX] = make_new_stackop(RI_4INDEX, true);
 
-  if (!dmrginp.set_fullrestart()) {
-    if ( (dmrginp.calc_type() == THREEPDM) ||
-         (dmrginp.calc_type() == RESTART_THREEPDM)  ||
-         (dmrginp.calc_type() == TRANSITION_THREEPDM) ||
-         (dmrginp.calc_type() == RESTART_T_THREEPDM)
-       ){
-	  ops[CRE_CRE_CRE] = make_new_stackop(CRE_CRE_CRE, true);
-	  ops[CRE_DES_DES] = make_new_stackop(CRE_DES_DES, true);
-	  ops[CRE_CRE_DES] = make_new_stackop(CRE_CRE_DES, true);
-	  ops[CRE_DES_CRE] = make_new_stackop(CRE_DES_CRE, true);
-    if (!implicitTranspose) {
-      ops[DES_CRE_DES] = make_new_stackop(DES_CRE_DES, true);
-      ops[DES_DES_CRE] = make_new_stackop(DES_DES_CRE, true);
-      ops[DES_CRE_CRE] = make_new_stackop(DES_CRE_CRE, true);
-      ops[DES_DES_DES] = make_new_stackop(DES_DES_DES, true);
-    }
-    }
-  }
+	if (!dmrginp.set_fullrestart()) {
+	  if ( (dmrginp.calc_type() == THREEPDM) ||
+	       (dmrginp.calc_type() == RESTART_THREEPDM)  ||
+	       (dmrginp.calc_type() == TRANSITION_THREEPDM) ||
+	       (dmrginp.calc_type() == RESTART_T_THREEPDM)
+	       ){
+	    ops[CRE_CRE_CRE] = make_new_stackop(CRE_CRE_CRE, true);
+	    ops[CRE_DES_DES] = make_new_stackop(CRE_DES_DES, true);
+	    ops[CRE_CRE_DES] = make_new_stackop(CRE_CRE_DES, true);
+	    ops[CRE_DES_CRE] = make_new_stackop(CRE_DES_CRE, true);
+	    if (!dmrginp.doimplicitTranspose()) {
+	      ops[DES_CRE_DES] = make_new_stackop(DES_CRE_DES, true);
+	      ops[DES_DES_CRE] = make_new_stackop(DES_DES_CRE, true);
+	      ops[DES_CRE_CRE] = make_new_stackop(DES_CRE_CRE, true);
+	      ops[DES_DES_DES] = make_new_stackop(DES_DES_DES, true);
+	    }
+	  }
+	}
       }
     }
 
@@ -462,27 +462,27 @@ void StackSpinBlock::default_op_components(bool direct, bool haveNormops, bool h
 	ops[RI_4INDEX] = make_new_stackop(RI_4INDEX, false);
 
 
-  if (!dmrginp.set_fullrestart()) {
-    if ( (dmrginp.calc_type() == THREEPDM) ||
-         (dmrginp.calc_type() == RESTART_THREEPDM)  ||
-         (dmrginp.calc_type() == TRANSITION_THREEPDM) ||
-         (dmrginp.calc_type() == RESTART_T_THREEPDM)
-       ){
-	  ops[CRE_CRE_CRE] = make_new_stackop(CRE_CRE_CRE, false);
-	  ops[CRE_DES_DES] = make_new_stackop(CRE_DES_DES, false);
-	  ops[CRE_CRE_DES] = make_new_stackop(CRE_CRE_DES, false);
-	  ops[CRE_DES_CRE] = make_new_stackop(CRE_DES_CRE, false);
-    if (!dmrginp.doimplicitTranspose()) {
-      ops[DES_CRE_DES] = make_new_stackop(DES_CRE_DES, false);
-      ops[DES_DES_CRE] = make_new_stackop(DES_DES_CRE, false);
-      ops[DES_CRE_CRE] = make_new_stackop(DES_CRE_CRE, false);
-      ops[DES_DES_DES] = make_new_stackop(DES_DES_DES, false);
-    }
-    }
-  }
-
-
-
+	if (!dmrginp.set_fullrestart()) {
+	  if ( (dmrginp.calc_type() == THREEPDM) ||
+	       (dmrginp.calc_type() == RESTART_THREEPDM)  ||
+	       (dmrginp.calc_type() == TRANSITION_THREEPDM) ||
+	       (dmrginp.calc_type() == RESTART_T_THREEPDM)
+	       ){
+	    ops[CRE_CRE_CRE] = make_new_stackop(CRE_CRE_CRE, false);
+	    ops[CRE_DES_DES] = make_new_stackop(CRE_DES_DES, false);
+	    ops[CRE_CRE_DES] = make_new_stackop(CRE_CRE_DES, false);
+	    ops[CRE_DES_CRE] = make_new_stackop(CRE_DES_CRE, false);
+	    if (!dmrginp.doimplicitTranspose()) {
+	      ops[DES_CRE_DES] = make_new_stackop(DES_CRE_DES, false);
+	      ops[DES_DES_CRE] = make_new_stackop(DES_DES_CRE, false);
+	      ops[DES_CRE_CRE] = make_new_stackop(DES_CRE_CRE, false);
+	      ops[DES_DES_DES] = make_new_stackop(DES_DES_DES, false);
+	    }
+	  }
+	}
+	
+	
+	
       }
     }
     if (haveNormops)

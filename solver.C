@@ -112,7 +112,7 @@ void SpinAdapted::Solver::solve_wavefunction(vector<StackWavefunction>& solution
       if (mpigetrank()==0) {
         memorySummary(big, solution);
         for (int i=nroots; i<solution.size(); i++) {
-	          solution[i].initialise(dmrginp.effective_molecule_quantum_vec(), big.get_leftBlock()->get_stateInfo(), big.get_rightBlock()->get_stateInfo(), onedot);
+	  solution[i].initialise(dmrginp.effective_molecule_quantum_vec(), big.get_leftBlock()->get_stateInfo(), big.get_rightBlock()->get_stateInfo(), onedot);
         }
       }
 

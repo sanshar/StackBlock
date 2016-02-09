@@ -496,6 +496,7 @@ void StackSpinBlock::build_and_renormalise_operators(const std::vector<Matrix>& 
   std::vector<boost::shared_ptr<StackSparseMatrix> >  allops;
   std::vector<boost::shared_ptr<StackSparseMatrix> >  allopsOnDisk;
   std::vector<std::string >  fileNames;
+  std::vector<opTypes> opTypesOnDisk;
 
   //these are for the three index operators which are build on the disk
   //and have special build_and_renormalise_operators
@@ -504,6 +505,7 @@ void StackSpinBlock::build_and_renormalise_operators(const std::vector<Matrix>& 
     if(! it->second->is_core() && ot >= CRE_CRE_CRE && !(ot == RI_3INDEX || ot == RI_4INDEX) ) {
       for (int i=0; i<it->second->get_size(); i++) {
 	for (int j=0; j<it->second->get_local_element(i).size(); j++) {
+	  opTypesOnDisk.push_back(ot);
 	  allopsOnDisk.push_back(it->second->get_local_element(i)[j]);
 	  fileNames.push_back( it->second->get_filename());
 	}
@@ -515,8 +517,9 @@ void StackSpinBlock::build_and_renormalise_operators(const std::vector<Matrix>& 
     opTypes ot = it->first;
     if(! it->second->is_core() && ot < CRE_CRE_CRE && !(ot == RI_3INDEX || ot == RI_4INDEX) ) {
       for (int i=0; i<it->second->get_size(); i++)
-	for (int j=0; j<it->second->get_local_element(i).size(); j++)
+	for (int j=0; j<it->second->get_local_element(i).size(); j++) {
 	  allops.push_back(it->second->get_local_element(i)[j]);
+	}
     }
   }
 
@@ -532,16 +535,52 @@ void StackSpinBlock::build_and_renormalise_operators(const std::vector<Matrix>& 
 	size_t mem = Stackmem[omprank].memused;
 	double *ptr = Stackmem[omprank].data+mem;
 
+	if (omprank == 0) {
+	  //if the leftblock is not a dot block then check if the relevant operator is on leftblock
+	  //if it is then preread it using only thread 0. Reading it using multiple threads is for some reason
+	  //causing crashes
+	  if (leftBlock->size() > 1) {
+	    for (int i=0;i<numthrds; i++) {
+	      if (I*numthrds+i < allopsOnDisk.size()) {
+		allopsOnDisk[I*numthrds+i]->CleanUp();
+		
+		int o1 = allopsOnDisk[I*numthrds+i]->get_orbs(0),
+		  o2 = allopsOnDisk[I*numthrds+i]->get_orbs(1),
+		  o3 = allopsOnDisk[I*numthrds+i]->get_orbs(2);
+		
+		if (leftBlock->get_op_array(opTypesOnDisk[I*numthrds+i]).has(o1,o2,o3)) {
+		  std::vector<boost::shared_ptr<StackSparseMatrix> > sysops = leftBlock->get_op_array(opTypesOnDisk[I*numthrds+i]).get_element(o1,o2,o3);
+		  //loop over the sysdotops and pick the one corresponding to op
+		  for (int jdx=0; jdx < sysops.size(); jdx++) {
+		    boost::shared_ptr<StackSparseMatrix> sysop = sysops[jdx];
+		    int len1 = sysop->get_filename().length(),
+		      len2 = allopsOnDisk[I*numthrds+i]->get_filename().length();
+		    char char1 = sysop->get_filename()[len1-1], char2 = allopsOnDisk[I*numthrds+i]->get_filename()[len2-1];
+		    if ( char1 == char2) {
+		      bool allocate = sysop->memoryUsed() == 0;
+		      //if this is not in memory already, read it from the disk
+		      if (allocate) {
+			sysop->LoadThreadSafe(true);
+			sysop->allocateOperatorMatrix();
+			continue;
+		      }
+		    }
+		  }
+		}
+	      }
+	    }
+	  }
+	}
+#pragma omp barrier
+
 	if (I*numthrds+omprank < allopsOnDisk.size()) {
 	  int i = I*numthrds+omprank;
 	  allopsOnDisk[i]->allocate(get_braStateInfo(), get_ketStateInfo());
 	  allopsOnDisk[i]->build(*this);
-
 	  
 	  tmp[omprank] = *allopsOnDisk[i];
 	  tmp[omprank].set_totalMemory() = 0; tmp[omprank].set_data(0); tmp[omprank].CleanUp();
 	  tmp[omprank].allocate(*bra, *ket);
-	  
 	  const std::vector<int>& lnewQuantaMap = bra->newQuantaMap;
 	  const std::vector<int>& rnewQuantaMap = ket->newQuantaMap;
 	  for (int newQ = 0; newQ < lnewQuantaMap.size(); newQ++)
@@ -551,12 +590,21 @@ void StackSpinBlock::build_and_renormalise_operators(const std::vector<Matrix>& 
 		MatrixRotate(leftMat[Q], allopsOnDisk[i]->operator()(Q, QPrime), rightMat[QPrime], tmp[omprank](newQ, newQPrime));
 	      }
 	    }
-
-	  tmp[omprank].SaveThreadSafe();
-	  tmp[omprank].CleanUp();
-	  allopsOnDisk[I*numthrds+omprank]->CleanUp();
-	  Stackmem[omprank].deallocate(ptr, Stackmem[omprank].memused-mem);
 	}
+
+#pragma omp barrier
+	if (omprank == 0) {
+	  for (int i=0;i<numthrds; i++) {
+	    if (I*numthrds+i < allopsOnDisk.size()) {
+	      tmp[i].SaveThreadSafe();
+	      tmp[i].CleanUp();
+	      allopsOnDisk[I*numthrds+i]->CleanUp();
+	    }
+	  }
+	}
+
+#pragma omp barrier
+	Stackmem[omprank].deallocate(ptr, Stackmem[omprank].memused-mem);
 
       }
     }

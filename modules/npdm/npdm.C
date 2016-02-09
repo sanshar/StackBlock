@@ -199,10 +199,9 @@ void npdm_block_and_decimate( Npdm_driver_base& npdm_driver, SweepParams &sweepP
   //LoadRotationMatrix (newSystem.get_sites(), rotateMatrixB, stateB);
   //}
   #ifndef SERIAL
-  boost::mpi::communicator world;
-    mpi::broadcast(world,rotateMatrix,0);
-    if(state!=stateB)
-      mpi::broadcast(world,rotateMatrixB,0);
+  mpi::broadcast(calc,rotateMatrix,0);
+  if(state!=stateB)
+    mpi::broadcast(calc,rotateMatrixB,0);
   #endif
 
   // Do we need to do this step for NPDM on the last sweep site? (It's not negligible cost...?)
@@ -256,8 +255,9 @@ double npdm_do_one_sweep(Npdm_driver_base &npdm_driver, SweepParams &sweepParams
   pout << "\t\t\t ============================================================================ " << endl;
   
   int integralIndex = 0;
-  if(dmrginp.setStateSpecific() || dmrginp.transition_diff_irrep())
+  if(dmrginp.setStateSpecific() || dmrginp.transition_diff_irrep()) {
     InitBlocks::InitStartingBlock( system, forward, state, stateB, sweepParams.get_forward_starting_size(), sweepParams.get_backward_starting_size(), restartSize, restart, warmUp, integralIndex);
+  }
   else 
     InitBlocks::InitStartingBlock( system, forward, sweepParams.current_root(), sweepParams.current_root(), sweepParams.get_forward_starting_size(), sweepParams.get_backward_starting_size(), restartSize, restart, warmUp, integralIndex);
 
@@ -327,7 +327,8 @@ double npdm_do_one_sweep(Npdm_driver_base &npdm_driver, SweepParams &sweepParams
     double cputime = timer.elapsedcputime();
     p3out << "NPDM do one site time " << timer.elapsedwalltime() << " " << cputime << endl;
   }
-
+  system.deallocate();
+  system.clear();
   //for(int j=0;j<nroots;++j)
 //  {int j = state;
 //    pout << "\t\t\t Finished Sweep with " << sweepParams.get_keep_states() << " states and sweep energy for State [ " << j 
@@ -465,10 +466,12 @@ void npdm(NpdmOrder npdm_order, bool transitionpdm)
 	for(int stateB=0; stateB<=state; stateB++){
           sweepParams = sweep_copy; direction = direction_copy; restartsize = restartsize_copy;
           Timer timerX;
+
           npdm_driver->clear();
           npdm_do_one_sweep(*npdm_driver, sweepParams, false, direction, false, 0, state,stateB);
           double cputime = timerX.elapsedcputime();
           p3out << "\t\t\t NPDM sweep time " << timerX.elapsedwalltime() << " " << cputime << endl;
+
           if (dmrginp.hamiltonian() == BCS && npdm_order == NPDM_ONEPDM) {
             Timer timerX1;            
             npdm_driver = boost::shared_ptr<Npdm_driver_base>( new Pairpdm_driver( dmrginp.last_site() ) );
