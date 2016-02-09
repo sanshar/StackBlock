@@ -23,7 +23,7 @@ class Pairpdm_container : public Npdm_container {
     Pairpdm_container( int sites );
     ~Pairpdm_container() {};
   
-    void save_npdms(const int &i, const int &j);
+    void save_npdms(const int &i, const int &j, int integralIndex=0);
     void store_npdm_elements( const std::vector< std::pair< std::vector<int>, double > > & new_spin_orbital_elements );
     void clear() { pairpdm.Clear(); spatial_pairpdm.Clear(); nonredundant_elements.clear(); }
 

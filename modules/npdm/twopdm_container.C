@@ -38,11 +38,11 @@ Twopdm_container::Twopdm_container( int sites )
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
   
-void Twopdm_container::save_npdms(const int& i, const int& j)
+void Twopdm_container::save_npdms(const int& i, const int& j, int integralIndex)
 {
 #ifndef SERIAL
   boost::mpi::communicator world;
-  world.barrier();
+  calc.barrier();
 #endif
   Timer timer;
   if ( store_full_spin_array_ ) {
@@ -60,7 +60,7 @@ void Twopdm_container::save_npdms(const int& i, const int& j)
   }
 
 #ifndef SERIAL
-  world.barrier();
+  calc.barrier();
 #endif
   double cputime = timer.elapsedcputime();
   p3out << "2PDM save full array time " << timer.elapsedwalltime() << " " << cputime << endl;
@@ -150,21 +150,30 @@ void Twopdm_container::accumulate_npdm()
   array_4d<double> tmp_recv;
   mpi::communicator world;
   if( mpigetrank() == 0) {
-    for(int i=1;i<world.size();++i) {
-      world.recv(i, i, tmp_recv);
+    for(int i=1;i<calc.size();++i) {
+      calc.recv(i, i, tmp_recv);
       for(int k=0;k<twopdm.dim1();++k)
         for(int l=0;l<twopdm.dim2();++l)
           for(int m=0;m<twopdm.dim3();++m)
             for(int n=0;n<twopdm.dim4();++n)
               if ( abs(tmp_recv(k,l,m,n)) > NUMERICAL_ZERO) {
-                // Test for duplicates
-                if ( abs(twopdm(k,l,m,n)) > NUMERICAL_ZERO ) abort();
+		// Test if any duplicate elements built on different processors
+		if ( abs(twopdm(k,l,m,n)) > NUMERICAL_ZERO ) {
+		  //and if duplicate, make sure they are equal
+		  if (abs(twopdm(k,l,m,n) - tmp_recv(k,l,m,n)) > NUMERICAL_ZERO) {
+		    pout << "two different procs calculcated the same element but arrived at differen values"<<endl;
+		    pout << k<<"  "<<l<<"  "<<m<<"  "<<n<<" "<<twopdm(k,l,m,n)<<"  "<<tmp_recv(k,l,m,n)<<endl;
+		    abort();
+		  }
+		  else 
+		    continue;
+		}
                 twopdm(k,l,m,n) = tmp_recv(k,l,m,n);
               }
 	 }
   }
   else {
-    world.send(0, mpigetrank(), twopdm);
+    calc.send(0, mpigetrank(), twopdm);
   }
 #endif
 }
@@ -177,20 +186,31 @@ void Twopdm_container::accumulate_spatial_npdm()
   array_4d<double> tmp_recv;
   mpi::communicator world;
   if( mpigetrank() == 0) {
-    for(int i=1;i<world.size();++i) {
-      world.recv(i, i, tmp_recv);
+    for(int i=1;i<calc.size();++i) {
+      calc.recv(i, i, tmp_recv);
       for(int k=0;k<spatial_twopdm.dim1();++k)
         for(int l=0;l<spatial_twopdm.dim2();++l)
           for(int m=0;m<spatial_twopdm.dim3();++m)
             for(int n=0;n<spatial_twopdm.dim4();++n)
               if ( abs(tmp_recv(k,l,m,n)) > NUMERICAL_ZERO) {
+		// Test if any duplicate elements built on different processors
+		if ( abs(spatial_twopdm(k,l,m,n)) > NUMERICAL_ZERO ) {
+		  //and if duplicate, make sure they are equal
+		  if (abs(spatial_twopdm(k,l,m,n) - tmp_recv(k,l,m,n)) > NUMERICAL_ZERO) {
+		    pout << "two different procs calculcated the same element but arrived at differen values"<<endl;
+		    pout << k<<"  "<<l<<"  "<<m<<"  "<<n<<" "<<spatial_twopdm(k,l,m,n)<<"  "<<tmp_recv(k,l,m,n)<<endl;
+		    abort();
+		  }
+		  else 
+		    continue;
+		}
                 // Test for duplicates
                 spatial_twopdm(k,l,m,n) = tmp_recv(k,l,m,n);
               }
 	 }
   }
   else {
-    world.send(0, mpigetrank(), spatial_twopdm);
+    calc.send(0, mpigetrank(), spatial_twopdm);
   }
 #endif
 }
@@ -213,8 +233,6 @@ void Twopdm_container::update_full_spin_array( std::vector< std::pair< std::vect
     int k = ro.at(k0/2)*2 + k0%2;
     int l = ro.at(l0/2)*2 + l0%2;
 
-    if (i == 8 && j == 3 && k == 6 && l==3)
-      cout << val <<endl;
     //if ( abs(val) > 1e-8 ) pout << "so-twopdm val: i,j,k,l = " << i << "," << j << "," << k << "," << l << "\t\t" << val << endl;
     //cout<<setprecision(5);
     //pout << "so-twopdm val: i,j,k,l = " << i << "," << j << "," << k << "," << l << "\t\t" << val << endl;

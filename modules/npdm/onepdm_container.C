@@ -34,11 +34,11 @@ Onepdm_container::Onepdm_container( int sites )
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
   
-void Onepdm_container::save_npdms(const int& i, const int& j)
+void Onepdm_container::save_npdms(const int& i, const int& j, int integralIndex)
 {
 #ifndef SERIAL
   boost::mpi::communicator world;
-  world.barrier();
+  calc.barrier();
 #endif
   Timer timer;
   accumulate_npdm();
@@ -51,7 +51,7 @@ void Onepdm_container::save_npdms(const int& i, const int& j)
   save_spatial_npdm_binary(i, j);
   save_spatial_npdm_text(i, j);
 #ifndef SERIAL
-  world.barrier();
+  calc.barrier();
 #endif
   double cputime = timer.elapsedcputime();
   p3out << "1PDM save full array time " << timer.elapsedwalltime() << " " << cputime << endl;
@@ -137,15 +137,15 @@ void Onepdm_container::accumulate_npdm()
   array_2d<double> tmp_recv;
   mpi::communicator world;
   if( mpigetrank() == 0) {
-    for(int i=1;i<world.size();++i) {
-      world.recv(i, i, tmp_recv);
+    for(int i=1;i<calc.size();++i) {
+      calc.recv(i, i, tmp_recv);
       for(int k=0;k<onepdm.dim1();++k)
         for(int l=0;l<onepdm.dim2();++l)
           if( abs(tmp_recv(k,l)) > NUMERICAL_ZERO ) onepdm(k,l) = tmp_recv(k,l);
     }
   }
   else {
-    world.send(0, mpigetrank(), onepdm);
+    calc.send(0, mpigetrank(), onepdm);
   }
 #endif
 }
@@ -158,15 +158,15 @@ void Onepdm_container::accumulate_spatial_npdm()
   array_2d<double> tmp_recv;
   mpi::communicator world;
   if( mpigetrank() == 0) {
-    for(int i=1;i<world.size();++i) {
-      world.recv(i, i, tmp_recv);
+    for(int i=1;i<calc.size();++i) {
+      calc.recv(i, i, tmp_recv);
       for(int k=0;k<spatial_onepdm.dim1();++k)
         for(int l=0;l<spatial_onepdm.dim2();++l)
           if( abs(tmp_recv(k,l)) > NUMERICAL_ZERO ) spatial_onepdm(k,l) = tmp_recv(k,l);
     }
   }
   else {
-    world.send(0, mpigetrank(), spatial_onepdm);
+    calc.send(0, mpigetrank(), spatial_onepdm);
   }
 #endif
 }

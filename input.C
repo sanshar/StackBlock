@@ -615,15 +615,15 @@ SpinAdapted::Input::Input(const string& config_name) {
 	if(usedkey[IRREP] == 0) 
 	  usedkey_error(keyword, msg);
 	usedkey[IRREP] = 0;
-  // When there are 2 irrep number, it means that calcultions of transition density matrix between wavefunctions with different irrep.
-  if (tok.size()==2 )
+	// When there are 2 irrep number, it means that calcultions of transition density matrix between wavefunctions with different irrep.
+	if (tok.size()==2 )
 	  m_total_symmetry_number = IrrepSpace(atoi(tok[1].c_str())-1);
-  else if (tok.size()==3 ){
+	else if (tok.size()==3 ){
 	  m_bra_symmetry_number = IrrepSpace(atoi(tok[1].c_str())-1);
 	  m_total_symmetry_number = IrrepSpace(atoi(tok[2].c_str())-1);
-    m_transition_diff_spatial_irrep=true;
-  }
-  else{
+	  m_transition_diff_spatial_irrep=true;
+	}
+	else{
 	  pout << "keyword irrep should be followed by one or two numbers and then an end line"<<endl;
 	  pout << "error found in the following line "<<endl;
 	  pout << msg<<endl;

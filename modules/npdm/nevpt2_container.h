@@ -26,7 +26,7 @@ class Nevpt2_container : public Npdm_container {
     explicit Nevpt2_container( int sites );
     ~Nevpt2_container() {};
   
-    void save_npdms(const int &i, const int &j);
+    void save_npdms(const int &i, const int &j, int integralIndex=0);
     void store_npdm_elements( const std::vector< std::pair< std::vector<int>, double > > & new_spin_orbital_elements );
     void clear() { a16_matrix_.Clear(); }
 

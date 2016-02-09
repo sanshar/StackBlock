@@ -24,7 +24,7 @@ class Fourpdm_container : public Npdm_container {
     Fourpdm_container( int sites );
 //FIXME destructor?
   
-    void save_npdms(const int &i, const int &j);
+    void save_npdms(const int &i, const int &j, int integralIndex=0);
     void store_npdm_elements( const std::vector< std::pair< std::vector<int>, double > > & new_spin_orbital_elements );
     void clear() { fourpdm.Clear(); spatial_fourpdm.Clear(); nonredundant_elements.clear(); }
 

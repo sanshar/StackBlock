@@ -12,6 +12,10 @@ Sandeep Sharma and Garnet K.-L. Chan
 #include "npdm_permutations.h"
 #include <boost/filesystem.hpp>
 #include <boost/range/algorithm.hpp>
+#include <math.h>  
+#include <boost/shared_ptr.hpp>
+#include "IntegralMatrix.h"
+#include "boostutils.h"
 
 namespace SpinAdapted{
 namespace Npdm{
@@ -21,17 +25,30 @@ namespace Npdm{
 Threepdm_container::Threepdm_container( int sites )
 {
   if ( dmrginp.store_spinpdm() ) {
-    if(dmrginp.spinAdapted())
-      threepdm.resize(2*sites,2*sites,2*sites,2*sites,2*sites,2*sites);
-    else
-      threepdm.resize(sites,sites,sites,sites,sites,sites);
+    if(dmrginp.spinAdapted()) {
+      double *data = Stackmem[omprank].allocate(pow(2*sites,6));
+      threepdm.resize(2*sites,2*sites,2*sites,2*sites,2*sites,2*sites, data);
+    }
+    else {
+      double* data = Stackmem[omprank].allocate(pow(sites,6));
+      threepdm.resize(sites,sites,sites,sites,sites,sites, data);
+    }
     threepdm.Clear();
   } 
   if ( !dmrginp.spatpdm_disk_dump() ) {
-    if(dmrginp.spinAdapted())
-      spatial_threepdm.resize(sites,sites,sites,sites,sites,sites);
-    else
-      spatial_threepdm.resize(sites/2,sites/2,sites/2,sites/2,sites/2,sites/2);
+    if(dmrginp.spinAdapted()) {
+      size_t s = sites;
+      size_t len = s*s;
+      double* data = Stackmem[omprank].allocate( (len*len*len + 3*len*len + 2*len)/6);
+      pout << "allocating "<<len<<" doubles "<<endl;
+      spatial_threepdm.resize(s, data);
+    }
+    else {
+      size_t s = sites/2;
+      size_t len = s*s;
+      double* data = Stackmem[omprank].allocate((len*len*len + 3*len*len + 2*len)/6);
+      spatial_threepdm.resize(s, data);
+    }
     spatial_threepdm.Clear();
   }
 
@@ -55,11 +72,10 @@ Threepdm_container::Threepdm_container( int sites )
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
 
-void Threepdm_container::save_npdms(const int& i, const int& j)
+void Threepdm_container::save_npdms(const int& i, const int& j, int integralIndex)
 {
 #ifndef SERIAL
-  boost::mpi::communicator world;
-  world.barrier();
+  calc.barrier();
 #endif
   Timer timer;
   if ( dmrginp.store_spinpdm() ) {
@@ -69,12 +85,13 @@ void Threepdm_container::save_npdms(const int& i, const int& j)
   }
   if ( !dmrginp.spatpdm_disk_dump() ) {
     accumulate_spatial_npdm();
-    save_spatial_npdm_text(i, j);
+    if (spatial_threepdm.dim1() <= 20 )
+      save_spatial_npdm_text(i, j, integralIndex);
   }
   save_spatial_npdm_binary(i, j);
 
 #ifndef SERIAL
-  world.barrier();
+  calc.barrier();
 #endif
   double cputime =timer.elapsedcputime(); 
   p3out << "3PDM save full array time " << timer.elapsedwalltime() << " " << cputime << endl;
@@ -111,7 +128,7 @@ void Threepdm_container::save_npdm_text(const int &i, const int &j)
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
 
-void Threepdm_container::save_spatial_npdm_text(const int &i, const int &j)
+void Threepdm_container::save_spatial_npdm_text(const int &i, const int &j, int integralIndex)
 {
   if( mpigetrank() == 0)
   {
@@ -120,10 +137,19 @@ void Threepdm_container::save_spatial_npdm_text(const int &i, const int &j)
     ofstream ofs(file);
     ofs << spatial_threepdm.dim1() << endl;
 
+    double energy1 = 0.0, energy2=0.0;
     double trace = 0.0;
+    double nelec = dmrginp.total_particle_number();
+    size_t dim1 = spatial_threepdm.dim1();
+    size_t dim2 = dim1*dim1, dim3=dim2*dim1;
+    double* twordm = Stackmem[omprank].allocate(dim1*dim1*dim1*dim1);
+    double* onerdm = Stackmem[omprank].allocate(dim1*dim1);
+    memset(twordm, 0, sizeof(double)*dim3*dim1);
+    memset(onerdm, 0, sizeof(double)*dim2);
+
     for(int i=0; i<spatial_threepdm.dim1(); ++i)
       for(int j=0; j<spatial_threepdm.dim2(); ++j)
-        for(int k=0; k<spatial_threepdm.dim3(); ++k)
+        for(int k=0; k<spatial_threepdm.dim3(); ++k) 
           for(int l=0; l<spatial_threepdm.dim4(); ++l)
             for(int m=0; m<spatial_threepdm.dim5(); ++m)
               for(int n=0; n<spatial_threepdm.dim6(); ++n) {
@@ -132,25 +158,30 @@ void Threepdm_container::save_spatial_npdm_text(const int &i, const int &j)
                   if ( (i==n) && (j==m) && (k==l) ) trace += spatial_threepdm(i,j,k,l,m,n);
                 }
               }
+
     ofs.close();
-    pout << "Spatial      3PDM trace = " << trace << "\n";
+
+    pout << "Spatial      3PDM trace  = " << trace << "\n";
+    
+    Stackmem[omprank].deallocate(onerdm, dim2);
+    Stackmem[omprank].deallocate(twordm, dim3*dim1);
   }
 }
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
 
-void Threepdm_container::save_npdm_binary(const int &i, const int &j)
+void Threepdm_container::save_npdm_binary(const int &I, const int &J)
 {
   if( mpigetrank() == 0)
   {
+    
     char file[5000];
-    sprintf (file, "%s%s%d.%d%s", dmrginp.save_prefix().c_str(),"/threepdm.", i, j,".bin");
+    sprintf (file, "%s%s%d.%d%s", dmrginp.save_prefix().c_str(),"/threepdm.", I, J,".bin");
     std::ofstream ofs(file, std::ios::binary);
-    boost::archive::binary_oarchive save(ofs);
-    save << threepdm;
+    ofs.write((char*)(threepdm.data), sizeof(double)*threepdm.get_size());
     ofs.close();
   }
-
+  
 }
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -162,13 +193,13 @@ void Threepdm_container::external_sort_index(const int &i, const int &j)
 #ifndef SERIAL
   boost::mpi::communicator world;
   if(mpigetrank() != 0){
-      world.send(0,0, nonspin_batch);
+      calc.send(0,0, nonspin_batch);
   }
   else{
     //Store index from different processors on disk of root node.
-    for(int p=0; p< world.size();p++){
+    for(int p=0; p< calc.size();p++){
       if(p!=0){
-        world.recv(p,0, nonspin_batch);
+        calc.recv(p,0, nonspin_batch);
       }
       char file[5000];
       //batch_index tmpbuffer[1000000];
@@ -178,7 +209,7 @@ void Threepdm_container::external_sort_index(const int &i, const int &j)
       fwrite(&nonspin_batch[0],sizeof(Sortpdm::batch_index),nonspin_batch.size(),inputfile);
       fclose(inputfile);
       nonspin_batch.clear();
-      if(world.size() == 0) return;
+      if(calc.size() == 0) return;
     }
     //external sort nonspin_batch
     //TODO
@@ -186,10 +217,10 @@ void Threepdm_container::external_sort_index(const int &i, const int &j)
     char outfilename[5000];
     sprintf (outfilename, "%s%s%d.%d%s", dmrginp.save_prefix().c_str(),"/spatial_threepdm_index.",i,j,".bin");
     FILE* outputfile = fopen(outfilename,"wb");
-    long sorting_buff= 1024*1024*(32/world.size());
-    //For batch_index, the sorting buff is about 96M/world.size();
+    long sorting_buff= 1024*1024*(32/calc.size());
+    //For batch_index, the sorting buff is about 96M/calc.size();
     std::vector<Sortpdm::cache<Sortpdm::batch_index>> filecache;
-    for(int p=0; p< world.size();p++){
+    for(int p=0; p< calc.size();p++){
       char file[5000];
       sprintf (file, "%s%s%d.%d.%d%s", dmrginp.save_prefix().c_str(),"/spatial_threepdm_index.", i, j,p,".bin");
       Sortpdm::cache<Sortpdm::batch_index> tmpcache( file, sorting_buff);
@@ -226,7 +257,7 @@ void Threepdm_container::external_sort_index(const int &i, const int &j)
       //Finish external sort of index.
 
       //Clean up.
-      for(int p=0; p< world.size();p++){
+      for(int p=0; p< calc.size();p++){
         char file[5000];
         sprintf (file, "%s%s%d.%d.%d%s", dmrginp.save_prefix().c_str(),"/spatial_threepdm_index.", i, j,p,".bin");
         boost::filesystem::remove(file);
@@ -243,17 +274,74 @@ void Threepdm_container::external_sort_index(const int &i, const int &j)
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
 
-void Threepdm_container::save_spatial_npdm_binary(const int &i, const int &j)
+void Threepdm_container::save_spatial_npdm_binary(const int &I, const int &J)
 { 
   if(!dmrginp.spatpdm_disk_dump())
   {
     if( mpigetrank() == 0)
     {
+      int integralIndex = 0;
+      double energy1 = 0.0, energy2=0.0;
+      double trace = 0.0;
+      double nelec = dmrginp.total_particle_number();
+      size_t dim1 = spatial_threepdm.dim1();
+      size_t dim2 = dim1*dim1, dim3=dim2*dim1;
+      double* twordm = Stackmem[omprank].allocate(dim1*dim1*dim1*dim1);
+      double* onerdm = Stackmem[omprank].allocate(dim1*dim1);
+      memset(twordm, 0, sizeof(double)*dim3*dim1);
+      memset(onerdm, 0, sizeof(double)*dim2);
+      
+      for(int i=0; i<spatial_threepdm.dim1(); ++i)
+	for(int j=0; j<spatial_threepdm.dim2(); ++j)
+	  for(int k=0; k<spatial_threepdm.dim3(); ++k) 
+	    for(int l=0; l<spatial_threepdm.dim4(); ++l)
+	      for(int m=0; m<spatial_threepdm.dim5(); ++m)
+		for(int n=0; n<spatial_threepdm.dim6(); ++n) {
+		  if ( abs(spatial_threepdm(i,j,k,l,m,n)) > NUMERICAL_ZERO ) {
+		    if (i==n && j==m && k==l) trace  += spatial_threepdm(i,j,k, l,m,n);
+		    spatial_threepdm(k,j,i, n,m,l) = spatial_threepdm(i,j,k, l,m,n);
+		    spatial_threepdm(i,k,j, m,l,n) = spatial_threepdm(i,j,k, l,m,n);
+		    spatial_threepdm(j,i,k, l,n,m) = spatial_threepdm(i,j,k, l,m,n);
+		    
+		    spatial_threepdm(k,i,j, m,n,l) = spatial_threepdm(i,j,k, l,m,n);
+		    spatial_threepdm(j,k,i, n,l,m) = spatial_threepdm(i,j,k, l,m,n);
+		    spatial_threepdm(i,j,k, l,m,n) = spatial_threepdm(i,j,k, l,m,n);
+		  }
+		}
+      
+      
+      for(int i=0; i<spatial_threepdm.dim1(); ++i)
+	for(int j=0; j<spatial_threepdm.dim2(); ++j)
+	  for(int k=0; k<spatial_threepdm.dim3(); ++k) 
+	    for(int l=0; l<spatial_threepdm.dim4(); ++l)
+	      for(int m=0; m<spatial_threepdm.dim5(); ++m) {
+		twordm[i*dim3+j*dim2+k*dim1+l] += spatial_threepdm(i,j,m,m,k,l)/(nelec-2.);
+	      }
+      
+      const std::vector<int>& ro = dmrginp.reorder_vector();
+      for (int i=0; i<dim1; i++)
+	for (int j=0; j<dim1; j++)
+	  for (int k=0; k<dim1; k++) {
+	    onerdm[i*dim1+j] += twordm[i*dim3+k*dim2+k*dim1+j]/(nelec-1.);
+	    for (int l=0; l<dim1; l++) {
+	      energy2 += v_2[integralIndex](2*i,2*j,2*l,2*k)*twordm[ro.at(i)*dim3+ro.at(j)*dim2+ro.at(k)*dim1+ro.at(l)]*0.5;
+	    }
+	  }
+      for (int i=0; i<dim1; i++)
+	for (int j=0; j<dim1; j++)
+	  energy1 += v_1[integralIndex](2*i,2*j)*onerdm[ro.at(i)*dim1+ro.at(j)];
+      
+      pout << "Spatial      3PDM trace  = " << trace << "\n";
+      pout << "Spatial      3PDM Energy = " << energy1+energy2+coreEnergy[integralIndex] << "\n";
+      
+      Stackmem[omprank].deallocate(onerdm, dim2);
+      Stackmem[omprank].deallocate(twordm, dim3*dim1);
+      
       char file[5000];
-      sprintf (file, "%s%s%d.%d%s", dmrginp.save_prefix().c_str(),"/spatial_threepdm.",i,j,".bin");
+      sprintf (file, "%s%s%d.%d%s", dmrginp.save_prefix().c_str(),"/spatial_threepdm.",I,J,".bin");
       std::ofstream ofs(file, std::ios::binary);
-      boost::archive::binary_oarchive save(ofs);
-      save << spatial_threepdm;
+      //boost::archive::binary_oarchive save(ofs);
+      ofs.write( (char*)(spatial_threepdm.data), sizeof(double)*spatial_threepdm.get_size());
       ofs.close();
     }
   }
@@ -263,35 +351,35 @@ void Threepdm_container::save_spatial_npdm_binary(const int &i, const int &j)
     char oldfile[5000];
     sprintf (oldfile, "%s%s%d%s", dmrginp.save_prefix().c_str(),"/spatial_threepdm.",mpigetrank(),".tmp");
     char newfile[5000];
-    sprintf (newfile, "%s%s%d.%d.%d%s", dmrginp.save_prefix().c_str(),"/spatial_threepdm.",i,j,mpigetrank(),".bin");
+    sprintf (newfile, "%s%s%d.%d.%d%s", dmrginp.save_prefix().c_str(),"/spatial_threepdm.",I,J,mpigetrank(),".bin");
     boost::filesystem::rename(oldfile,newfile);
     if(dmrginp.pdm_unsorted())
-      external_sort_index(i,j);
+      external_sort_index(I,J);
     
     else{
       char file[5000];
-      sprintf (file, "%s%s%d.%d.%d%s", dmrginp.save_prefix().c_str(),"/spatial_threepdm.",i,j,mpigetrank(),".bin");
+      sprintf (file, "%s%s%d.%d.%d%s", dmrginp.save_prefix().c_str(),"/spatial_threepdm.",I,J,mpigetrank(),".bin");
       char finalfile[5000];
-      sprintf (finalfile, "%s%s%d.%d%s", dmrginp.save_prefix().c_str(),"/spatial_threepdm.",i,j,".bin");
+      sprintf (finalfile, "%s%s%d.%d%s", dmrginp.save_prefix().c_str(),"/spatial_threepdm.",I,J,".bin");
 #ifndef SERIAL
       boost::mpi::communicator world;
-      world.barrier();
+      calc.barrier();
       Timer timer1;
       char tmpfile[5000];
-      sprintf (tmpfile, "%s%s%d.%d.%d%s", dmrginp.save_prefix().c_str(),"/spatial_threepdm.",i,j,mpigetrank(),".tmp");
+      sprintf (tmpfile, "%s%s%d.%d.%d%s", dmrginp.save_prefix().c_str(),"/spatial_threepdm.",I,J,mpigetrank(),".tmp");
       char sortedfile[5000];
-      sprintf (sortedfile, "%s%s%d.%d.%d%s", dmrginp.save_prefix().c_str(),"/spatial_threepdm.",i,j,mpigetrank(),".bin");
+      sprintf (sortedfile, "%s%s%d.%d.%d%s", dmrginp.save_prefix().c_str(),"/spatial_threepdm.",I,J,mpigetrank(),".bin");
       Sortpdm::partition_data<Sortpdm::index_element>((long)pow(dmrginp.last_site(),6),file,tmpfile);
       //TODO
       //tmpfile and sortedfile can be the same file. Because tmpfile is divided into many small files. It can be overwritten by sortedfile.
       //However, when they are different, it is a little faster. Maybe compiler can do some optimizations. 
       Sortpdm::externalsort<Sortpdm::index_element>(tmpfile,sortedfile,(long)pow(dmrginp.last_site(),6));
-      world.barrier();
+      calc.barrier();
       double cputime = timer1.elapsedcputime();
       p3out << "3PDM parallel external sort time " << timer1.elapsedwalltime() << " " << cputime << endl;
       Timer timer;
       Sortpdm::mergefile(sortedfile);
-      world.barrier();
+      calc.barrier();
       if(mpigetrank()==0) boost::filesystem::rename(sortedfile,finalfile);
       boost::filesystem::remove(tmpfile);
       cputime = timer.elapsedcputime();
@@ -320,25 +408,20 @@ void Threepdm_container::accumulate_npdm()
   mpi::communicator world;
   if( mpigetrank() == 0)
   {
-    for(int p=1; p<world.size(); ++p) {
-      world.recv(p, p, tmp_recv);
-      for(int i=0; i<threepdm.dim1(); ++i)
-        for(int j=0; j<threepdm.dim2(); ++j)
-          for(int k=0; k<threepdm.dim3(); ++k)
-            for(int l=0; l<threepdm.dim4(); ++l)
-              for(int m=0; m<threepdm.dim5(); ++m)
-                for(int n=0; n<threepdm.dim6(); ++n) {
-                  if ( abs(tmp_recv(i,j,k,l,m,n)) > NUMERICAL_ZERO ) {
-                    // Test if any duplicate elements built on different processors
-                    if ( abs(threepdm(i,j,k,l,m,n)) > NUMERICAL_ZERO ) abort();
-                    threepdm(i,j,k,l,m,n) = tmp_recv(i,j,k,l,m,n);
-                  }
-                }
+    for(int p=1; p<calc.size(); ++p) {
+      double *pProcData = Stackmem[omprank].allocate(threepdm.get_size());
+      MPI_Recv(pProcData, threepdm.get_size(), MPI_DOUBLE, p, p,  Calc, MPI_STATUS_IGNORE);
+
+      for (int i=0; i<threepdm.get_size(); i++) 
+	if (abs(pProcData[i]) > NUMERICAL_ZERO) 
+	  threepdm.data[i] = pProcData[i];
+      Stackmem[omprank].deallocate(pProcData, threepdm.get_size());
     }
   }
   else 
   {
-    world.send(0, mpigetrank(), threepdm);
+    MPI_Send(spatial_threepdm.data, spatial_threepdm.get_size(), MPI_DOUBLE, 0, mpigetrank(),  Calc);
+    //calc.send(0, mpigetrank(), spatial_threepdm);
   }
 #endif
 } 
@@ -347,29 +430,35 @@ void Threepdm_container::accumulate_npdm()
 void Threepdm_container::accumulate_spatial_npdm()
 {
 #ifndef SERIAL
-  array_6d<double> tmp_recv;
   mpi::communicator world;
   if( mpigetrank() == 0)
   {
-    for(int p=1; p<world.size(); ++p) {
-      world.recv(p, p, tmp_recv);
-      for(int i=0; i<spatial_threepdm.dim1(); ++i)
-        for(int j=0; j<spatial_threepdm.dim2(); ++j)
-          for(int k=0; k<spatial_threepdm.dim3(); ++k)
-            for(int l=0; l<spatial_threepdm.dim4(); ++l)
-              for(int m=0; m<spatial_threepdm.dim5(); ++m)
-                for(int n=0; n<spatial_threepdm.dim6(); ++n) {
-                  if( abs(tmp_recv(i,j,k,l,m,n)) > NUMERICAL_ZERO ) {
-                    // Test if any duplicate elements built on different processors
-                    if ( abs(spatial_threepdm(i,j,k,l,m,n)) > NUMERICAL_ZERO ) abort();
-                    spatial_threepdm(i,j,k,l,m,n) = tmp_recv(i,j,k,l,m,n);
-                  }
-                }
+    for(int p=1; p<calc.size(); ++p) {
+      double *pProcData = Stackmem[omprank].allocate(spatial_threepdm.get_size());
+      size_t datadim = spatial_threepdm.get_size();
+      size_t maxint = 26843540;//mpi cannot transfer more than these number of doubles
+      size_t maxiter = datadim/maxint;
+      for (int i=0; i<maxiter; i++)
+	MPI_Recv(pProcData+i*maxint, maxint, MPI_DOUBLE, p, p*100000+i,  Calc, MPI_STATUS_IGNORE);
+      MPI_Recv(pProcData+maxiter*maxint, datadim-maxiter*maxint, MPI_DOUBLE, p, p*100000+maxiter,  Calc, MPI_STATUS_IGNORE);
+
+      for (int i=0; i<spatial_threepdm.get_size(); i++) 
+	if (abs(pProcData[i]) > NUMERICAL_ZERO) 
+	  spatial_threepdm.data[i] = pProcData[i];
+      Stackmem[omprank].deallocate(pProcData, spatial_threepdm.get_size());
     }
   }
   else 
   {
-    world.send(0, mpigetrank(), spatial_threepdm);
+    size_t datadim = spatial_threepdm.get_size();
+    size_t maxint = 26843540;//mpi cannot transfer more than these number of doubles
+    size_t maxiter = datadim/maxint;
+    double* pProcData = spatial_threepdm.data;
+    for (int i=0; i<maxiter; i++)
+      MPI_Send(pProcData+i*maxint, maxint, MPI_DOUBLE, 0, mpigetrank()*100000+i,  Calc);
+    MPI_Send(pProcData+maxiter*maxint, datadim-maxiter*maxint, MPI_DOUBLE, 0, mpigetrank()*100000+maxiter,  Calc);
+      //MPI_Send(spatial_threepdm.data, spatial_threepdm.get_size(), MPI_DOUBLE, 0, mpigetrank(),  Calc);
+    //calc.send(0, mpigetrank(), spatial_threepdm);
   }
 #endif
 }
@@ -510,7 +599,7 @@ void Threepdm_container::dump_to_disk(std::vector< std::pair< std::vector<int>, 
 
   // dump std::map of index and elements into disk;
   if(mpigetrank()==0){
-    boost::mpi::gather(world, index_and_elements, indexelement_array, 0);
+    boost::mpi::gather(calc, index_and_elements, indexelement_array, 0);
     std::map < long, double> elements;
     for(auto it = indexelement_array.begin(); it!=indexelement_array.end();it++)
       elements.insert(it->begin(),it->end());
@@ -522,7 +611,7 @@ void Threepdm_container::dump_to_disk(std::vector< std::pair< std::vector<int>, 
     }
   }
   else
-    boost::mpi::gather(world, index_and_elements, 0);
+    boost::mpi::gather(calc, index_and_elements, 0);
 
 #else
     for(auto it = index_and_elements.begin(); it!=index_and_elements.end();it++)

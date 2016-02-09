@@ -53,7 +53,7 @@ Fourpdm_container::Fourpdm_container( int sites )
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
 
-void Fourpdm_container::save_npdms(const int& i, const int& j)
+void Fourpdm_container::save_npdms(const int& i, const int& j, int integralIndex)
 {
 #ifndef SERIAL
   boost::mpi::communicator world;

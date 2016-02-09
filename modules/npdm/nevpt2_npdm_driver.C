@@ -98,7 +98,7 @@ void Nevpt2_npdm_driver::compute_matrices( const int i, const int j )
   sprintf (file, "%s%s%d.%d%s", dmrginp.save_prefix().c_str(), "/spatial_threepdm.", i, j,".bin");
   std::ifstream ifs3(file, std::ios::binary);
   boost::archive::binary_iarchive load3(ifs3);
-  load3 >> threepdm;
+  //load3 >> threepdm;
   ifs3.close();
   // Load 4PDM
   array_8d<double> fourpdm;
