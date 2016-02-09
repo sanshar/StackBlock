@@ -6,7 +6,7 @@ import numpy as N
 
 factor = 1.0
 
-def run(file1, file2, tol):
+def run(file1, file2, tol, compareAbsolute=0):
 
   #int1
   filer1 = open(file1,"r")
@@ -36,7 +36,12 @@ def run(file1, file2, tol):
         for l in xrange(0,sz):
           for m in xrange(0,sz):
             for n in xrange(0,sz):
-              res = (mat1[i,j,k,l,m,n] - mat2[i,j,k,l,m,n]) * (mat1[i,j,k,l,m,n] - mat2[i,j,k,l,m,n])
+              res = 0.0;
+              if (compareAbsolute == 0) :
+                res = (mat1[i,j,k,l,m,n] - mat2[i,j,k,l,m,n]) * (mat1[i,j,k,l,m,n] - mat2[i,j,k,l,m,n])
+              else:
+                res = (abs(mat1[i,j,k,l,m,n]) - abs(mat2[i,j,k,l,m,n])) * (abs(mat1[i,j,k,l,m,n]) - abs(mat2[i,j,k,l,m,n]))
+
               if (res> float(tol)):
                 print i,j,k,l,m,n, mat1[i,j,k,l,m,n], mat2[i,j,k,l,m,n]
               val = val + sqrt(res)
@@ -50,4 +55,7 @@ def run(file1, file2, tol):
 
 if __name__=="__main__":
     import sys
-    run(sys.argv[1], sys.argv[2], sys.argv[3])
+    if (len(sys.argv) == 5):
+      run(sys.argv[1], sys.argv[2], sys.argv[3], int(sys.argv[4]))
+    else:
+      run(sys.argv[1], sys.argv[2], sys.argv[3])

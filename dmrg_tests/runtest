@@ -1,6 +1,6 @@
 #change this depending on your architechture
 #MPICOMMAND=srun
-MPICOMMAND="" #"mpirun -np 4"
+MPICOMMAND="mpirun -np 4"
 
 
 
@@ -46,7 +46,8 @@ cd ../
 
 echo "performing bcs test..."
 cd bcs
-$MPICOMMAND ../../block.spin_adapted dmrg.conf > dmrg.out
+#$MPICOMMAND ../../block.spin_adapted dmrg.conf > dmrg.out
+../../block.spin_adapted dmrg.conf > dmrg.out
 python ../test_energy.py 1  1e-6 -1.4816808342
 python ../test_onepdm.py ref_onepdm.0.0.txt node0/onepdm.0.0.txt 1e-7
 python ../test_onepdm.py spat_pairmat.0.0.txt node0/spatial_pairmat.0.0.txt 1e-7
@@ -55,9 +56,9 @@ cd ../
 echo "testing transition threepdm..."
 cd threepdm_C2
 $MPICOMMAND ../../block.spin_adapted dmrg.conf > dmrg.out
-python ../test_threepdm.py rdm3_0_0 node0/spatial_threepdm.0.0.txt 1e-7
-python ../test_threepdm.py rdm3_1_0 node0/spatial_threepdm.1.0.txt 1e-7
-python ../test_threepdm.py rdm3_1_1 node0/spatial_threepdm.1.1.txt 1e-7
+python ../test_threepdm.py rdm3_0_0 node0/spatial_threepdm.0.0.txt 1e-6
+python ../test_threepdm.py rdm3_1_0 node0/spatial_threepdm.1.0.txt 1e-6 1
+python ../test_threepdm.py rdm3_1_1 node0/spatial_threepdm.1.1.txt 1e-6 
 cd ../
 
 #this first calculated twopdm with a small M for two lowest states (so the energy is not converged)
@@ -105,11 +106,12 @@ echo " test 1pdm..."
 $MPICOMMAND ../../block.spin_adapted dmrg_onepdm.conf >dmrg.out
 python ../test_onepdm.py node0/spatial_onepdm.0.0.txt spat_onepdm.0.0.txt 1e-7
 echo " test 2pdm..."
-$MPICOMMAND ../../block.spin_adapted dmrg_twopdm.conf >dmrg.out
+#$MPICOMMAND ../../block.spin_adapted dmrg_twopdm.conf >dmrg.out
+../../block.spin_adapted dmrg_twopdm.conf >dmrg.out
 python ../test_onepdm.py node0/spatial_twopdm.0.0.txt spat_twopdm.0.0.txt 1e-7
 cd ../
 
-decho "testing transition 1pdm and 2pdm for hubbard model"
+echo "testing transition 1pdm and 2pdm for hubbard model"
 cd hubbard_transition_pdm
 echo " test transiton 1pdm..."
 $MPICOMMAND ../../block.spin_adapted dmrg_onepdm.conf >dmrg.out
