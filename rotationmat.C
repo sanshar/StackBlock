@@ -17,6 +17,174 @@ Sandeep Sharma and Garnet K.-L. Chan
 using namespace boost;
 using namespace std;
 
+void SpinAdapted::UnCollectQuantaAlongRows(std::vector<Matrix>& rotation, const StateInfo&  sRow) {
+
+   try
+     {
+       std::vector<Matrix> tmpOper(sRow.unCollectedStateInfo->quanta.size());
+       for (int i=0; i<sRow.quanta.size(); i++) {
+	 if (rotation[i].Ncols() == 0) continue;
+	 const std::vector<int>& oldToNewStateI = sRow.oldToNewState [i];
+	 for (int iSub = 0; iSub <oldToNewStateI.size(); iSub++) {
+	   int unCollectedI = oldToNewStateI[iSub];
+	   tmpOper[unCollectedI] = Matrix(sRow.unCollectedStateInfo->quantaStates[unCollectedI], rotation[i].Ncols());
+	   tmpOper[unCollectedI] = 0.0;
+	 }
+       }
+
+       for (int i = 0; i < sRow.quanta.size (); ++i)
+	 {
+	   if (rotation[i].Ncols() == 0) continue;
+	   const std::vector<int>& oldToNewStateI = sRow.oldToNewState [i];
+	   int firstRow = 0;
+	   for (int iSub = 0; iSub < oldToNewStateI.size (); ++iSub)
+	     {
+	       int unCollectedI = oldToNewStateI [iSub];
+	       int lastRowSize = sRow.unCollectedStateInfo->quantaStates [unCollectedI];
+	       //for (int j = 0; j < sCol.quanta.size (); ++j)
+	       //if (sRow.unCollectedStateInfo->quanta[unCollectedI] == sCol.quanta[j]) {
+	       for (int row = 0; row<lastRowSize; row++) 
+		 for (int col = 0; col <tmpOper[unCollectedI].Ncols(); col++) {
+		   tmpOper[unCollectedI](row+1, col+1) = rotation[i](row+firstRow+1, col+1);
+		   //tmpOper.operator_element(unCollectedI, j)(row+1, col+1) = operatorMatrix(i, j)( row + firstRow + 1, col+1);
+		 }
+	       firstRow += lastRowSize;
+	     }
+	 }
+       rotation = tmpOper;
+    }
+  catch (Exception)
+    {
+      Exception::what ();
+      abort ();
+    }
+
+
+}
+
+
+void SpinAdapted::CollectQuantaAlongRows(std::vector<Matrix>& rotation, const StateInfo&  sRow) {
+
+   try
+     {
+       StateInfo tmpState = sRow;
+       tmpState.CollectQuanta ();
+
+       std::vector<Matrix> tmpOper(tmpState.quanta.size());
+       for (int i=0; i<tmpState.quanta.size(); i++) {
+	 const std::vector<int>& oldToNewStateI = tmpState.oldToNewState [i];
+	 for (int iSub = 0; iSub <oldToNewStateI.size(); iSub++) {
+	   int unCollectedI = oldToNewStateI[iSub];
+	   if (rotation[unCollectedI].Ncols() != 0) {
+	     tmpOper[i] = Matrix(tmpState.quantaStates[i], rotation[unCollectedI].Ncols());
+	     tmpOper[i] = 0.0;
+	     break;
+	   }
+	 }
+       }
+
+       ObjectMatrix<Matrix*> matRef;
+       for (int i = 0; i < tmpState.quanta.size (); ++i)
+       {
+	 if (tmpOper[i].Ncols() == 0) continue;
+	 std::vector<int> dum (1); 
+
+	 int rows = tmpState.oldToNewState[i].size ();
+	 int cols = dum.size ();
+	 matRef.ReSize (rows, cols);
+	 //cout << "***** "<<i<<"  "<<rows<<"  "<<tmpState.oldToNewState[0][0]<<endl;
+	 std::vector<Matrix> dummyMats(rows);
+	 for (int x = 0; x < rows; ++x) 
+	   matRef (x,0) = &rotation[tmpState.oldToNewState [i][x]];
+
+	 //cout << tmpOper[i]<<endl;
+	 CatenateProduct (matRef, tmpOper[i]);
+       }
+       rotation = tmpOper;
+    }
+  catch (Exception)
+    {
+      Exception::what ();
+      abort ();
+    }
+
+
+}
+
+int SpinAdapted::PickSingleNumberAtRandom(std::vector<double>& d)
+{ 
+  int totalLength = d.size();
+
+  vector<double> dCumulative(totalLength, 0.0);
+  int index = 0;
+  double oldCumulative = 0.0;
+  for (int i=0; i<d.size(); i++) {
+    dCumulative[i] = fabs(d[i]) + oldCumulative;
+    oldCumulative = dCumulative[i];
+  }
+
+  double random = ((double) rand() / (RAND_MAX));
+
+  index=-1;
+  for (int i=0; i<totalLength; i++)
+    if (dCumulative[i]/oldCumulative > random) {
+      index = i;
+      break;
+    }
+
+  if (index == -1)
+    index = totalLength-1;
+       
+  int counter = 0;
+  for (int i=0; i<d.size(); i++) {
+    if (i == index)
+      d[i] = 1.0*((d[i] > 0) ? 1 : ((d[i] < 0) ? -1 : 0));
+    else
+      d[i] = 0.0;
+  }
+  return index;
+}
+
+int SpinAdapted::PickSingleVectorAtRandom(std::vector<DiagonalMatrix>& d)
+{ 
+  int totalLength = 0;
+  for (int i=0; i<d.size(); i++)
+    totalLength += d[i].Ncols();
+
+  vector<double> dCumulative(totalLength, 0.0);
+  int index = 0;
+  double oldCumulative = 0.0;
+  for (int i=0; i<d.size(); i++) {
+    for (int j=0; j<d[i].Ncols(); j++) {
+      dCumulative[index] = fabs(d[i](j+1)) + oldCumulative;
+      oldCumulative = dCumulative[index];
+      index++;
+    }
+  }
+
+  double random = ((double) rand() / (RAND_MAX));
+
+  index=-1;
+  for (int i=0; i<totalLength; i++)
+    if (dCumulative[i]/oldCumulative > random) {
+      index = i;
+      break;
+    }
+
+  if (index == -1)
+    index = totalLength-1;
+       
+  int counter = 0;
+  for (int i=0; i<d.size(); i++) 
+    for (int j=0; j<d[i].Ncols(); j++) {
+      if (counter == index)
+	d[i](j+1) = 1.0;
+      else
+	d[i](j+1) = 0.0;
+      counter++;
+    }
+  return index;
+}
 
 void SpinAdapted::SaveRotationMatrix (const std::vector<int>& sites, const std::vector<Matrix>& m1, int state)
 {
@@ -304,6 +472,28 @@ void SpinAdapted::diagonalise_dm(StackSparseMatrix& tracedMatrix, std::vector<Di
     }  
 }
 
+
+void SpinAdapted::svd_densitymat(StackSparseMatrix& wavefn, std::vector<Matrix>& U, std::vector<DiagonalMatrix>& eigenMatrix, 
+				 std::vector<Matrix>& V) {
+
+  int nquanta = wavefn.nrows();
+  eigenMatrix.resize(nquanta);
+  V.resize(nquanta);
+  U.resize(nquanta);
+  vector<double> totalquantaweights(nquanta);
+  for (int tQ = 0; tQ < nquanta; ++tQ) 
+  for (int rQ = 0; rQ < wavefn.ncols(); ++rQ) 
+  if  (wavefn.allowed(tQ, rQ)) {
+    int nStates = wavefn.operator_element(tQ, rQ).Nrows ();
+    Matrix wftQ; copy(wavefn.operator_element(tQ, rQ), wftQ);
+#ifdef USELAPACK
+    svd(wftQ, eigenMatrix[tQ], U[tQ], V[tQ]);
+#else
+    cerr << "not working without lapack"<<endl;
+    exit(0);
+#endif
+  }
+}
 
 void SpinAdapted::svd_densitymat(StackSparseMatrix& tracedMatrix, std::vector<DiagonalMatrix>& eigenMatrix) {
   // SVD of matrix M=(A,B,C)=USV^T

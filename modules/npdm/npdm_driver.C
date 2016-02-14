@@ -325,7 +325,12 @@ void Npdm_driver::loop_over_operator_patterns( Npdm::Npdm_patterns& patterns, Np
 	  inner_Operators.clear();
 	  inner_intermediate.clear();
 	  
+#ifndef SERIAL
 	  for (int proc=0; proc<calc.size(); proc++) {
+#else
+	  {
+	    int proc = 0;
+#endif
 	    if (rhsOps->is_local_ && proc > 0) continue;
 	    size_t mem = Stackmem[0].memused;
 	    double *ptr = Stackmem[0].data+mem;

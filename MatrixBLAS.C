@@ -113,6 +113,39 @@ void SpinAdapted::svd(Matrix& M, DiagonalMatrix& d, Matrix& U, Matrix& V)
   delete[] workspace;
 }
 
+void SpinAdapted::svd(StackMatrix& M, DiagonalMatrix& d, Matrix& U, Matrix& V)
+{
+  int nrows = M.Nrows();
+  int ncols = M.Ncols();
+
+  assert(nrows >= ncols);
+
+  int minmn = min(nrows, ncols);
+  int maxmn = max(nrows, ncols);
+  int eigenrows = min(minmn, minmn);
+  d.ReSize(minmn);
+  Matrix Ut;
+  Ut.ReSize(nrows, nrows);
+  V.ReSize(ncols, ncols);
+
+  int lwork = maxmn * maxmn + 100;
+  double* workspace = new double[lwork];
+
+  // first transpose matrix
+  Matrix Mt;
+  //Mt = M.t();
+  int info = 0;
+  DGESVD('A', 'A', nrows, ncols, Mt.Store(), nrows, d.Store(), 
+	 Ut.Store(), nrows, V.Store(), ncols, workspace, lwork, info);
+
+  U.ReSize(nrows, ncols);
+  SpinAdapted::Clear(U);
+  for (int i = 0; i < nrows; ++i)
+    for (int j = 0; j < ncols; ++j)
+      U(i+1,j+1) = Ut(j+1,i+1);
+  delete[] workspace;
+}
+
 void SpinAdapted::diagonalise_tridiagonal(std::vector<double>& diagonal, std::vector<double>& offdiagonal, int numelements, Matrix& vec)
 {
   int nrows = numelements;

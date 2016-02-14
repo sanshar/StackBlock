@@ -12,6 +12,7 @@
 #endif
 #include "sweepgenblock.h"
 #include "sweep.h"
+#include "fciqmchelper.h"
 
 void ReadInput(char* conf);
 namespace SpinAdapted{
@@ -25,14 +26,64 @@ void initBoostMPI(int argc, char* argv[]) {
 #endif
 }
 
+void AddMPSs(int* states, double* scale, int nstates, int outstate) {
+  AddMPS(states, scale, nstates, outstate);
+}
+
+void seedRandom(int seed) {
+  srand(seed);
+}
+
+void ApplyCD(int i, int j) {
+  MPS m(0);
+  m.ApplyCD(i,j);
+}
+
+void CollapseToDeterminant(char* s, int stateIndex) {
+  MPS m(stateIndex);
+  m.CollapseToDeterminant(s);
+}
+
+
 void ReadInputFromC(char* conf, int outputlevel) {
   ReadInput(conf);
   dmrginp.setOutputlevel() = outputlevel;
   dmrginp.initCumulTimer();
+  MAX_THRD = dmrginp.thrds_per_node()[mpigetrank()];
+  int mkl_thrd = dmrginp.mkl_thrds();
+
+#ifdef _OPENMP
+  omp_set_num_threads(MAX_THRD);
+#ifdef _HAS_INTEL_MKL 
+  mkl_set_num_threads(mkl_thrd);
+  mkl_set_dynamic(0);
+#endif
+  omp_set_nested(1);
+#endif
+  cout.precision (12);
+  cout << std::fixed;
+
+  dmrginp.matmultFlops.resize(numthrds, 0.);
+  double* stackmemory = new double[dmrginp.getMemory()];
+  Stackmem.resize(numthrds);
+  Stackmem[0].data = stackmemory;
+  Stackmem[0].size = dmrginp.getMemory();
+
 }
 
 void initializeGlobalMPS(int mpsindex) {
   SpinAdapted::globalMPS = MPS(mpsindex);
+}
+
+void writeToDisk(unsigned long &occ, int length, int stateIndex)
+{
+  MPS m(&occ, length, stateIndex);
+  //m.writeToDiskForDMRG(stateIndex);
+}
+
+void evaluateOverlapAndHamiltonian(int state1, int state2, double* o, double* h)
+{
+  calcHamiltonianAndOverlap(state1, state2, *h, *o);
 }
 
 void readMPSFromDiskAndInitializeStaticVariables(bool initializeDotBlocks) {
@@ -79,60 +130,6 @@ void readMPSFromDiskAndInitializeStaticVariables(bool initializeDotBlocks) {
 
 }
 
-void writeFullMPS()
-{
-  int ncore = 2;
-  int nactive = 8;
-  int nvirt = 18;
-
-  Matrix m(1,1); m(1,1)=1.0;
-  std::vector<Matrix> corerotMat, virtcorMat, firstactMat;
-  corerotMat.resize(3); virtcorMat.resize(3);firstactMat.resize(3);
-  corerotMat[2] = m; virtcorMat[0] = m;
-  firstactMat[0] = m; firstactMat[1] = m; firstactMat[2] = m;
-
-  std::vector<Matrix> rotMat_init;rotMat_init.resize(6);
-  rotMat_init[5] = m;
-
-  std::vector<int> readSites(2,0); 
-  std::vector< std::vector<Matrix> > activeRots; activeRots.resize(nactive);
-  for (int i=ncore+1; i<ncore+nactive-1; i++) {
-    readSites[1]++;
-    LoadRotationMatrix(readSites, activeRots[i-ncore-1], 0); 
-  }
-
-
-  std::vector<int> sites(2,0); sites[1] = 1;
-  SaveRotationMatrix(sites, rotMat_init, 0);
-
-  //write ncore rotation matrices
-  for (int i=2; i<ncore; i++) {
-    sites[1] = i;
-    SaveRotationMatrix(sites, rotMat_init, 0);
-  }
-
-
-  sites[1] = ncore;
-  SaveRotationMatrix(sites, firstactMat, 0);
-
-
-  //write ncore rotation matrices
-  for (int i=ncore+1; i<ncore+nactive-1; i++) {
-    sites[1] = i;
-    SaveRotationMatrix(sites, activeRots[i-ncore-1], 0);
-  }
-
-  sites[1] = ncore+nactive-1;
-  SaveRotationMatrix(sites, firstactMat, 0);
-
-  //write ncore rotation matrices
-  for (int i=ncore+nactive; i<ncore+nactive+nvirt; i++) {
-    sites[1] = i;
-    SaveRotationMatrix(sites, virtcorMat, 0);
-  }
-
-
-}
 
 /*
 void RDM(char* infile)
@@ -288,13 +285,15 @@ void test(char* infile)
   }
 }
 
-void evaluateOverlapAndHamiltonian(unsigned long *occ, int length, double* o, double* h) {
+/*
+void evaluateOverlapAndHamiltonian1(unsigned long *occ, int length, double* o, double* h) {
   MPS dmrgc(occ, length);
-  //calcHamiltonianAndOverlap(SpinAdapted::globalMPS, dmrgc, *h, *o);
+  dmrgc.writeToDiskForDMRG(2, false);
+  calcHamiltonianAndOverlap(0, 2, *h, *o);
 }
+*/
 
-
-void intFromString(unsigned long &occ, const char* s) {
+void intFromString(unsigned long &occ, char* s) {
   occ = 0;
   long temp = 1;
   string ss(s);

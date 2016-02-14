@@ -926,7 +926,12 @@ void StackSpinBlock::formTwoIndexOps() {
   for (int optypeindex=0; optypeindex<opTypevec.size(); optypeindex++) {
     opTypes optype = opTypevec[optypeindex];
 
+#ifndef SERIAL
     for (int proc=0; proc<calc.size(); proc++) {
+#else
+    {
+      int proc = 0;
+#endif
 
       //for each processor loop over all its CDcomp operators and place them in ops_On_proc
       int arraysize = 0;
@@ -940,6 +945,7 @@ void StackSpinBlock::formTwoIndexOps() {
 	arraysize = ops_On_proc.size();
       }
 
+#ifndef SERIAL
       //broadcast this ops_On_proc, so each processor has the shell of the operators
       mpi::broadcast(calc, arraysize, proc);
       if (mpigetrank() != proc) {
@@ -954,9 +960,12 @@ void StackSpinBlock::formTwoIndexOps() {
 	    ops_On_proc.push_back( boost::shared_ptr<StackCreCreComp>(new StackCreCreComp));
 	}
       }
+#endif
       
       for (int i=0; i<ops_On_proc.size(); i++) {
+#ifndef SERIAL
 	mpi::broadcast(calc, *ops_On_proc[i], proc);
+#endif
 	if (ops_On_proc[i]->memoryUsed() == 0)
 	  ops_On_proc[i]->allocate(braStateInfo, ketStateInfo);
 	else
@@ -1063,7 +1072,12 @@ void StackSpinBlock::addAllCompOps() {
   for (int optypeindex=0; optypeindex<opTypevec.size(); optypeindex++) {
     opTypes optype = opTypevec[optypeindex];
 
+#ifndef SERIAL
     for (int proc=0; proc<calc.size(); proc++) {
+#else
+    {
+      int proc = 0;
+#endif
 
       //for each processor loop over all its CDcomp operators and place them in ops_On_proc
       int arraysize = 0;
@@ -1077,6 +1091,7 @@ void StackSpinBlock::addAllCompOps() {
 	arraysize = ops_On_proc.size();
       }
 
+#ifndef SERIAL
       //broadcast this ops_On_proc, so each processor has the shell of the operators
       mpi::broadcast(calc, arraysize, proc);
       if (mpigetrank() != proc) 
@@ -1088,6 +1103,12 @@ void StackSpinBlock::addAllCompOps() {
 	if (ops_On_proc[i]->memoryUsed() == 0)
 	  ops_On_proc[i]->allocate(braStateInfo, ketStateInfo);
       }
+#else
+      for (int i=0; i<ops_On_proc.size(); i++) {
+	if (ops_On_proc[i]->memoryUsed() == 0)
+	  ops_On_proc[i]->allocate(braStateInfo, ketStateInfo);
+      }
+#endif
 
       //make these comp operators from normal operators using multithreading
       //SplitStackmem();

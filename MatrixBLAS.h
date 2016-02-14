@@ -374,6 +374,7 @@ template<class T> void MatrixDiagonalScale(double d, const T& a, double* b)
   */
   
   void svd(Matrix& M, DiagonalMatrix& e, Matrix& U, Matrix& V);
+  void svd(StackMatrix& M, DiagonalMatrix& e, Matrix& U, Matrix& V);
   void xsolve_AxeqB(const Matrix& a, const ColumnVector& b, ColumnVector& x);
   //void MatrixDiagonalScale(double d, const Matrix& a, double* b);
   
