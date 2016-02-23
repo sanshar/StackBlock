@@ -97,8 +97,7 @@ void StackSpinBlock::restore (bool forward, const vector<int>& sites, StackSpinB
   int allindexsize;
   
   FILE *fp[numthrds];
-  for (int i=0; i<numthrds; i++)
-    fp[i] = fopen(file[i].c_str(), "rb");
+  fp[0] = fopen(file[0].c_str(), "rb");
 
   fread(initialData, sizeof(int), 25, fp[0]);
   fread(&allindexsize, sizeof(int), 1, fp[0]);
@@ -305,8 +304,7 @@ void StackSpinBlock::store (bool forward, const vector<int>& sites, StackSpinBlo
 
   dmrginp.rawdatao->start();
   FILE *fp[numthrds];
-  for (int i=0; i<numthrds; i++)
-    fp[i] = fopen(file[i].c_str(), "wb");
+  fp[0] = fopen(file[0].c_str(), "wb");
   int size = allindices.size();
   fwrite(initialData, sizeof(int), 25, fp[0]);
   fwrite(&size, sizeof(int), 1, fp[0]);

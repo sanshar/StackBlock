@@ -702,7 +702,7 @@ SpinAdapted::Input::Input(const string& config_name) {
 	  pout << msg<<endl;
 	  abort();
 	}	
-	m_baseState.resize(1, atoi(tok[1].c_str()));
+	m_baseState = vector<int>(1, atoi(tok[1].c_str()));
 
       }
       else if (boost::iequals(keyword,  "maxj")) {
