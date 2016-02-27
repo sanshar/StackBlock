@@ -102,6 +102,8 @@ void SpinAdapted::Input::initialize_defaults()
   m_performResponseSolution = true;
 
   m_memory = 2e9/sizeof(double); //about 2GB of memory by default
+  m_useSharedMemory = true;
+  m_IntegralMemoryStart = NULL;
 
   m_openorbs.resize(0);
   m_closedorbs.resize(0);
@@ -526,6 +528,8 @@ SpinAdapted::Input::Input(const string& config_name) {
 	boost::algorithm::to_lower(sym); //store as lower case string
         Symmetry::InitialiseTable(sym);
       }
+      else if (boost::iequals(keyword, "dontusesharedmemory")) 
+	m_useSharedMemory = false;
       else if (boost::iequals(keyword, "davidson")) 
 	m_solve_type = DAVIDSON;
       else if (boost::iequals(keyword, "notlowMemoryAlgorithm"))
@@ -1324,17 +1328,22 @@ SpinAdapted::Input::Input(const string& config_name) {
     else {
       if (m_calc_type == RESPONSELCC || m_calc_type == RESPONSEAAAV || m_calc_type == RESPONSEAAAC) {
 	if (integral == 0) {
+#ifndef SERIAL
+	  mpi::broadcast(world, m_openorbs, 0);
+	  mpi::broadcast(world, m_closedorbs, 0);
+#endif
 	  m_num_Integrals = 1;
-	  v_1[integral].isCalcLCC = false; 
-	  v_2[integral].isCalcLCC = false; 
+	  dmrginp.m_calc_type = m_calc_type;
+	  dmrginp.m_norbs = m_norbs;
+	  dmrginp.m_openorbs = m_openorbs;
+	  //v_1[integral].isCalcLCC = true;
+	  //v_2[integral].isCalcLCC = true; 
 	  readorbitalsfile(orbitalfile[integral], v_1[integral], v_2[integral], coreEnergy[integral], integral);
 	  v_1[integral].isCalcLCC = true; 
 	  v_2[integral].isCalcLCC = true; 
 	  m_num_Integrals = 2;
 #ifndef SERIAL
 	  mpi::broadcast(world, m_reorder, 0);
-	  mpi::broadcast(world, m_openorbs, 0);
-	  mpi::broadcast(world, m_closedorbs, 0);
 #endif
 	}
 	else {
@@ -1559,29 +1568,29 @@ void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray&
   if (integralIndex == 0) {
     if(get_restart() || get_fullrestart() || m_calc_type == COMPRESS || m_calc_type == RESPONSE || m_calc_type == RESPONSEBW) {
       if (rank == 0) {
-	      ReorderFileInput.open(ReorderFileName);
-	      boost::filesystem::path ReorderFilePath(ReorderFileName);
-	      
-	      if(!boost::filesystem::exists(ReorderFilePath)) {
-	        pout << "==============="<<endl;
-	        pout << "This is a restart job and the reorder file "<<ReorderFileName<<" should be present"<<endl;
-	        abort();
-	      }
-	      else {
-	        pout << "================"<<endl;
-	        pout << "The Fiedler routine for finding the orbital ordering has already been run." << endl;
-	        pout << "Using the reorder file " << ReorderFileName << endl;
-	        pout << "================"<<endl;
-	        m_reorder.resize(m_norbs/2);
-	        for (int i=0; i<m_norbs/2; i++)
-	          ReorderFileInput >> m_reorder[i];
-	        ReorderFileInput.close();
-	      }
+	ReorderFileInput.open(ReorderFileName);
+	boost::filesystem::path ReorderFilePath(ReorderFileName);
+	
+	if(!boost::filesystem::exists(ReorderFilePath)) {
+	  pout << "==============="<<endl;
+	  pout << "This is a restart job and the reorder file "<<ReorderFileName<<" should be present"<<endl;
+	  abort();
+	}
+	else {
+	  pout << "================"<<endl;
+	  pout << "The Fiedler routine for finding the orbital ordering has already been run." << endl;
+	  pout << "Using the reorder file " << ReorderFileName << endl;
+	  pout << "================"<<endl;
+	  m_reorder.resize(m_norbs/2);
+	  for (int i=0; i<m_norbs/2; i++)
+	    ReorderFileInput >> m_reorder[i];
+	  ReorderFileInput.close();
+	}
       }
     }
     else {
       if (rank == 0) {
-	      ReorderFileOutput.open(ReorderFileName);
+	ReorderFileOutput.open(ReorderFileName);
       }
       
       
@@ -1632,7 +1641,7 @@ void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray&
       }
     }
   }
-
+  
   //the name reorder is confusing because it clases the with the m_reorder member of the input class and these two are inverse of each other.
   //the reorder here helps one to go from the unreordered matrices to the reordered matrices
   //and the m_reorder member of input helps one to go in the opposite direction
@@ -1641,7 +1650,7 @@ void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray&
   // but for this m_reorder the reorder vector below would be 3 1 2 4 and O_unreordered(1,2) -> O_reorder(3, 1)
   bool RHF = true;
   int AOrbOffset = 0, BOrbOffset = 0;
-
+  
   if (rank == 0) {
     reorder.resize(m_norbs/2);
     for (int i=0; i<m_norbs/2; i++) {
@@ -1661,31 +1670,31 @@ void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray&
     int readLine = 1, numRead = 1;
     while (!(boost::iequals(tok[0], "ISYM") || boost::iequals(tok[0], "&END"))) {
       for (int i=0; i<tok.size(); i++) {
-	      if (boost::iequals(tok[i], "ORBSYM") || tok[i].size() == 0) continue;
+	if (boost::iequals(tok[i], "ORBSYM") || tok[i].size() == 0) continue;
 	
-	      int reorderOrbInd =  reorder.at(orbindex/2);
+	int reorderOrbInd =  reorder.at(orbindex/2);
 	
-	      int ir;
-	      if (atoi(tok[i].c_str()) >= 0 ) ir = atoi(tok[i].c_str()) - offset;
-	      else if (atoi(tok[i].c_str()) < -1) ir = atoi(tok[i].c_str()) + offset;
+	int ir;
+	if (atoi(tok[i].c_str()) >= 0 ) ir = atoi(tok[i].c_str()) - offset;
+	else if (atoi(tok[i].c_str()) < -1) ir = atoi(tok[i].c_str()) + offset;
 	
-	      if (sym == "trans") ir += 1; //for translational symmetry the lowest irrep is 0
-	      if (sym == "lzsym") ir = atoi(tok[i].c_str());
+	if (sym == "trans") ir += 1; //for translational symmetry the lowest irrep is 0
+	if (sym == "lzsym") ir = atoi(tok[i].c_str());
 	
 	
-	      m_spin_orbs_symmetry[2*reorderOrbInd] = ir;
-	      m_spin_orbs_symmetry[2*reorderOrbInd+1] = ir;
+	m_spin_orbs_symmetry[2*reorderOrbInd] = ir;
+	m_spin_orbs_symmetry[2*reorderOrbInd+1] = ir;
 	
-	      if (readLine == numRead) {
-	        m_num_spatial_orbs++;
-	        m_spatial_to_spin.push_back(orbindex);
-	        numRead = Symmetry::sizeofIrrep(ir);
-	        readLine = 0;
-	      }
-	      m_spin_to_spatial[orbindex] = m_num_spatial_orbs-1;
-	      m_spin_to_spatial[orbindex+1] = m_num_spatial_orbs-1;
-	      orbindex +=2;
-	      readLine++;
+	if (readLine == numRead) {
+	  m_num_spatial_orbs++;
+	  m_spatial_to_spin.push_back(orbindex);
+	  numRead = Symmetry::sizeofIrrep(ir);
+	  readLine = 0;
+	}
+	m_spin_to_spatial[orbindex] = m_num_spatial_orbs-1;
+	m_spin_to_spatial[orbindex+1] = m_num_spatial_orbs-1;
+	orbindex +=2;
+	readLine++;
       }
       msg.resize(0);
       ReadMeaningfulLine(dumpFile, msg, msgsize);
@@ -1696,9 +1705,9 @@ void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray&
     if(sym == "dinfh" ) {
       m_spatial_to_spin.clear();
       for (int i=0; i<m_spin_orbs_symmetry.size();) {
-	      int ir = m_spin_orbs_symmetry[i];
-	      m_spatial_to_spin.push_back(i);
-	      i += 2*Symmetry::sizeofIrrep(ir); 
+	int ir = m_spin_orbs_symmetry[i];
+	m_spatial_to_spin.push_back(i);
+	i += 2*Symmetry::sizeofIrrep(ir); 
       }
     }
     
@@ -1708,13 +1717,13 @@ void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray&
     while (!((boost::iequals(tok[0], "&END")) || (boost::iequals(tok[0], "/")))) {
       int temp;
       if (boost::iequals(tok[0], "NPROP") ) {
-	      NPROP.push_back( atoi(tok[1].c_str()));
-	      NPROP.push_back( atoi(tok[2].c_str()));
-	      NPROP.push_back( atoi(tok[3].c_str()));
+	NPROP.push_back( atoi(tok[1].c_str()));
+	NPROP.push_back( atoi(tok[2].c_str()));
+	NPROP.push_back( atoi(tok[3].c_str()));
       } else if (boost::iequals(tok[0], "PROPBITLEN") ) {
-	      temp = atoi(tok[1].c_str());
-	      PROPBITLEN=1;
-	      for (int i=0; i<temp; i++) PROPBITLEN *= 2;
+	temp = atoi(tok[1].c_str());
+	PROPBITLEN=1;
+	for (int i=0; i<temp; i++) PROPBITLEN *= 2;
       }
       
       msg.resize(0);
@@ -1731,34 +1740,49 @@ void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray&
     v1.ReSize(m_norbs);  
     v2.ReSize(m_norbs);
   }
-
+  
 #ifndef SERIAL
   mpi::broadcast(world,RHF,0);
   mpi::broadcast(world,v1,0);
   mpi::broadcast(world,v2,0);
 #endif
-
+  
   long oneIntegralMem, twoIntegralMem;
   long twoedim = v2.matDim;
-  if (RHF) { oneIntegralMem = (m_norbs/2*(m_norbs/2+1))/2; twoIntegralMem = twoedim*(twoedim+1)/2;}
-  else { oneIntegralMem = m_norbs/2*(m_norbs/2+1); twoIntegralMem = twoedim*(twoedim+1)/2;}
+  if (m_calc_type != RESPONSEAAAV) {
+    if (RHF) { oneIntegralMem = (m_norbs/2*(m_norbs/2+1))/2; twoIntegralMem = twoedim*(twoedim+1)/2;}
+    else { oneIntegralMem = m_norbs/2*(m_norbs/2+1); twoIntegralMem = twoedim*(twoedim+1)/2;}
+  }
+  else {
+    long v = m_openorbs.size();
+    long a = m_norbs/2 - v;
+    if (RHF) { oneIntegralMem = (m_norbs/2*(m_norbs/2+1))/2; twoIntegralMem = twoedim*a*(a+1)/2;}
+    else { oneIntegralMem = m_norbs/2*(m_norbs/2+1); twoIntegralMem = twoedim*a*(a+1)/2;}
+  }
 
 #ifndef SERIAL
   mpi::broadcast(world,oneIntegralMem,0);
   mpi::broadcast(world,twoIntegralMem,0);
 #endif
-  if (integralIndex == 0) {
-    segment.truncate((oneIntegralMem+twoIntegralMem)*m_num_Integrals*sizeof(double)); 
-    region = boost::interprocess::mapped_region{segment, boost::interprocess::read_write};
-    memset(region.get_address(), 0., (oneIntegralMem+twoIntegralMem)*m_num_Integrals*sizeof(double));
-  }
+  if (m_useSharedMemory) {
+    if (integralIndex == 0) {
+      segment.truncate((oneIntegralMem+twoIntegralMem)*m_num_Integrals*sizeof(double)); 
+      region = boost::interprocess::mapped_region{segment, boost::interprocess::read_write};
+      memset(region.get_address(), 0., (oneIntegralMem+twoIntegralMem)*m_num_Integrals*sizeof(double));
+    }
 #ifndef SERIAL
-  //wait for all procs to zero out the memory
-  MPI::COMM_WORLD.Barrier();
+    //wait for all procs to zero out the memory
+    MPI::COMM_WORLD.Barrier();
 #endif
-  v1.set_data() = static_cast<double*>(region.get_address()) + (oneIntegralMem+twoIntegralMem)*integralIndex;
-  v2.set_data() = static_cast<double*>(region.get_address()) + oneIntegralMem + (oneIntegralMem+twoIntegralMem)*integralIndex;
-  
+    v1.set_data() = static_cast<double*>(region.get_address()) + (oneIntegralMem+twoIntegralMem)*integralIndex;
+    v2.set_data() = static_cast<double*>(region.get_address()) + oneIntegralMem + (oneIntegralMem+twoIntegralMem)*integralIndex;
+  }
+  else {
+    long integralMemorySize = (oneIntegralMem+twoIntegralMem)*m_num_Integrals;
+    m_IntegralMemoryStart = Stackmem[0].allocate(integralMemorySize);
+    v1.set_data() = (m_IntegralMemoryStart) + (oneIntegralMem+twoIntegralMem)*integralIndex;
+    v2.set_data() = (m_IntegralMemoryStart) + oneIntegralMem + (oneIntegralMem+twoIntegralMem)*integralIndex;
+  }
   if (rank == 0) {
     msg.resize(0);
     ReadMeaningfulLine(dumpFile, msg, msgsize); //this if the first line with integrals

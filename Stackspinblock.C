@@ -137,12 +137,12 @@ ostream& operator<< (ostream& os, const StackSpinBlock& b)
   //thus is used to build the edge block for responseaaav and responseaaac
 StackSpinBlock StackSpinBlock::buildBigEdgeBlock(int start, int end, bool haveNorm, bool haveComp, int p_integralIndex, bool implicitTranspose)
 {
-    StackSpinBlock system(start,start, p_integralIndex, implicitTranspose);
     if (dmrginp.calc_type() == RESPONSEAAAV) {
+      StackSpinBlock system(end-1,end-1, p_integralIndex, implicitTranspose);
       SpinQuantum moleculeQ = dmrginp.molecule_quantum();
       dmrginp.set_molecule_quantum() = SpinQuantum(1, SpinSpace(0), IrrepSpace(0)); 
 
-      for (int i=start+1; i < end; i++) {
+      for (int i=end-2; i >= start; i--) {
 	StackSpinBlock newSystem;
 	pout << i <<"  ";
 	StackSpinBlock site(i, i, p_integralIndex, implicitTranspose);
@@ -151,7 +151,6 @@ StackSpinBlock StackSpinBlock::buildBigEdgeBlock(int start, int end, bool haveNo
 	newSystem.set_integralIndex() = p_integralIndex;
 	newSystem.setstoragetype(DISTRIBUTED_STORAGE);
 	newSystem.BuildSumBlock (PARTICLE_NUMBER_CONSTRAINT, system, site);
-	
 	{
 	  long memoryToFree = newSystem.getdata() - system.getdata();
 	  long newsysmem = newSystem.memoryUsed();
@@ -169,10 +168,11 @@ StackSpinBlock StackSpinBlock::buildBigEdgeBlock(int start, int end, bool haveNo
       
     }
     else {
+      StackSpinBlock system(end-1,end-1, p_integralIndex, implicitTranspose);
       SpinQuantum moleculeQ = dmrginp.molecule_quantum();
       dmrginp.set_molecule_quantum() = SpinQuantum(3, SpinSpace(0), IrrepSpace(0)); 
 
-      for (int i=start+1; i < end; i++) {
+      for (int i=end-2; i >= start; i--) {
 	StackSpinBlock newSystem;
 	pout << i <<"  ";
 	StackSpinBlock site(i, i, p_integralIndex, implicitTranspose);
@@ -1247,7 +1247,7 @@ void StackSpinBlock::multiplyH_2index(StackWavefunction& c, StackWavefunction* v
 	      allfuncs.push_back(f5);
       }
   }
-  
+
   FUNCTOR2 f6 = boost::bind(&stackopxop::cdxcdcomp, otherBlock, _1, this, boost::ref(c), v_array, dmrginp.effective_molecule_quantum());
   FUNCTOR2 f7 = boost::bind(&stackopxop::ddxcccomp, otherBlock, _1, this, boost::ref(c), v_array, dmrginp.effective_molecule_quantum() );
 

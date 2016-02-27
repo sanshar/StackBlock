@@ -49,6 +49,8 @@ class Input {
   int m_permSymm;
   bool m_lowMemoryAlgorithm;
   std::size_t m_memory;
+  bool m_useSharedMemory;
+  double* m_IntegralMemoryStart;
 
   IrrepSpace m_total_symmetry_number;
   IrrepSpace m_bra_symmetry_number;// This is used when bra and ket have different spatial symmetry irrep;
@@ -193,7 +195,7 @@ class Input {
     ar & m_sweep_tol & m_restart & m_backward & m_fullrestart & m_restart_warm & m_reset_iterations & m_calc_type & m_ham_type & m_warmup;
     ar & m_do_diis & m_diis_error & m_start_diis_iter & m_diis_keep_states & m_diis_error_tol & m_num_spatial_orbs;
     ar & m_spatial_to_spin & m_spin_to_spatial & m_maxM & m_schedule_type_backward & m_schedule_type_default &m_integral_disk_storage_thresh;
-    ar & n_twodot_noise & m_twodot_noise & m_twodot_gamma & m_guessState;
+    ar & n_twodot_noise & m_twodot_noise & m_twodot_gamma & m_guessState & m_useSharedMemory ;
     ar & m_calc_ri_4pdm & m_store_ripdm_readable & m_nevpt2 & m_conventional_nevpt2 & m_kept_nevpt2_states & NevPrint;
   }
 
