@@ -153,5 +153,13 @@ $MPICOMMAND ../../block.spin_adapted response.conf >response.out
 python ../test_energy.py 1 5e-4 -0.1488178755
 cd ../
 
+echo "testing MPSPT_AAAV calculations"
+cd mpspt2aaav
+$MPICOMMAND ../../block.spin_adapted dmrg.conf >dmrg.out
+python ../test_energy.py 1 1e-6 -17.718279624510
+$MPICOMMAND ../../block.spin_adapted response_aaav.conf >response_aaav.out
+python ../test_energy.py 1 5e-4 -5.3106166331e-02 
+cd ../
+
 ./clean
 
