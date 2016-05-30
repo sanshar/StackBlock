@@ -1756,8 +1756,8 @@ void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray&
   else {
     long v = m_openorbs.size();
     long a = m_norbs/2 - v;
-    if (RHF) { oneIntegralMem = (m_norbs/2*(m_norbs/2+1))/2; twoIntegralMem = twoedim*a*(a+1)/2;}
-    else { oneIntegralMem = m_norbs/2*(m_norbs/2+1); twoIntegralMem = twoedim*a*(a+1)/2;}
+    if (RHF) { oneIntegralMem = (m_norbs/2*(m_norbs/2+1))/2; twoIntegralMem = twoedim*a*(a+1)/2 + ((v+a)*a * ((v+a)*a+1)/2);}
+    else { oneIntegralMem = m_norbs/2*(m_norbs/2+1); twoIntegralMem = twoedim*a*(a+1)/2 + (v+a)*a * ((v+a)*a+1)/2;}
   }
 
 #ifndef SERIAL

@@ -1,4 +1,5 @@
 #include "global.h"
+#include "IntegralMatrix.h"
 #include "fciqmchelper.h"
 #include "input.h"
 #include "Stackspinblock.h"
@@ -25,7 +26,7 @@ void initBoostMPI(int argc, char* argv[]) {
   boost::mpi::environment env(argc, argv);
 #endif
 }
-
+/*
 void AddMPSs(int* states, double* scale, int nstates, int outstate) {
   AddMPS(states, scale, nstates, outstate);
 }
@@ -43,7 +44,7 @@ void CollapseToDeterminant(char* s, int stateIndex) {
   MPS m(stateIndex);
   m.CollapseToDeterminant(s);
 }
-
+*/
 
 void ReadInputFromC(char* conf, int outputlevel) {
   ReadInput(conf);
@@ -74,13 +75,13 @@ void ReadInputFromC(char* conf, int outputlevel) {
 void initializeGlobalMPS(int mpsindex) {
   SpinAdapted::globalMPS = MPS(mpsindex);
 }
-
+/*
 void writeToDisk(unsigned long &occ, int length, int stateIndex)
 {
   MPS m(&occ, length, stateIndex);
   //m.writeToDiskForDMRG(stateIndex);
 }
-
+*/
 void evaluateOverlapAndHamiltonian(int state1, int state2, double* o, double* h)
 {
   calcHamiltonianAndOverlap(state1, state2, *h, *o);
@@ -249,7 +250,7 @@ void test(char* infile)
       printf("starting row : %i\n", i);
     for (int j=0; j<1; j++) {
       double h=0,o=0;
-      calcHamiltonianAndOverlap(states[i], states[j], h, o);
+      calcHamiltonianAndOverlap(states[i], states[j], h, o, i==j, 0);
       ham[i][j] = h; ham[j][i] = h;
       Overlap[i][j] = o; Overlap[j][i] = o;
       if (mpigetrank() == 0) 
