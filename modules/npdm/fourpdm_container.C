@@ -53,7 +53,7 @@ Fourpdm_container::Fourpdm_container( int sites )
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
 
-void Fourpdm_container::save_npdms(const int& i, const int& j)
+void Fourpdm_container::save_npdms(const int& i, const int& j, int integralIndex)
 {
 #ifndef SERIAL
   boost::mpi::communicator world;
@@ -297,7 +297,7 @@ void Fourpdm_container::save_spatial_npdm_binary(const int &i, const int &j)
       Timer timer2;
       Sortpdm::externalsort<Sortpdm::index_element> (file,finalfile,(long)pow(dmrginp.last_site(),8));
       boost::filesystem::remove(file);
-      cputime = timer2.elapsedcputime();
+      double cputime = timer2.elapsedcputime();
       p3out << "4PDM external sort time " << timer2.elapsedwalltime() << " " << cputime << endl;
 #endif
     }

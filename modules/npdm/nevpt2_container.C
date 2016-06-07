@@ -20,16 +20,16 @@ namespace Npdm{
 Nevpt2_container::Nevpt2_container( int sites )
 {
 //  if ( dmrginp.spatpdm_disk_dump() ){
-    a16_matrix_.resize(sites,sites,sites,sites,sites,sites);
-    a16_matrix_.Clear();
-    a22_matrix_.resize(sites,sites,sites,sites,sites,sites);
-    a22_matrix_.Clear();
+  //a16_matrix_.resize(sites,sites,sites,sites,sites,sites);
+  //a16_matrix_.Clear();
+    //a22_matrix_.resize(sites,sites,sites,sites,sites,sites);
+    //a22_matrix_.Clear();
 //  }
 }
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
 
-void Nevpt2_container::save_npdms(const int& i, const int& j)
+void Nevpt2_container::save_npdms(const int& i, const int& j, int integralIndex)
 {
 //  if ( dmrginp.spatpdm_disk_dump() ){
   char file[5000];
@@ -139,7 +139,7 @@ void Nevpt2_container::accumulate_full_array(array_6d<double>& matrix)
   if( mpigetrank() == 0)
   {
     for(int p=1; p<world.size(); ++p) {
-      world.recv(p, p, tmp_recv);
+      //world.recv(p, p, tmp_recv);
       for(int i=0; i<dim; ++i)
         for(int j=0; j<dim; ++j)
           for(int k=0; k<dim; ++k)
@@ -153,7 +153,7 @@ void Nevpt2_container::accumulate_full_array(array_6d<double>& matrix)
   }
   else
   {
-    world.send(0, mpigetrank(), matrix);
+    //world.send(0, mpigetrank(), matrix);
   }
 #endif
 }

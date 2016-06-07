@@ -703,10 +703,9 @@ void GuessWave::transform_previous_twodot_to_onedot_wavefunction(StackWavefuncti
     for (int c = 0; c < cSz; ++c) //cSz
     {
       int oldA = big.get_stateInfo().leftStateInfo->leftStateInfo->newQuantaMap [a];
-
-      StackMatrix& tM = oldWave(oldA,c); //tmp (oldA, b, c);
-      if (tM.Ncols () != 0) // this quanta combination is not allowed
-      {
+      
+      if (oldWave.allowed(oldA, c)) {
+	StackMatrix& tM = oldWave(oldA,c); //tmp (oldA, b, c);
 	const Matrix& lM = leftRotationMatrix [oldA];
 	StackMatrix& nM = tmpwavefunction.operator_element(a, c);
 	//nM.ReSize (lM.Nrows (), tM.Ncols ()); //***********

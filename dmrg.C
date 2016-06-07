@@ -242,14 +242,15 @@ int calldmrg(char* input, char* output)
 #endif
   omp_set_nested(1);
 #endif
-  pout.precision (12);
-  pout << std::fixed;
+  cout.precision (12);
+  cout << std::fixed;
 
+  cout <<"allocating " <<dmrginp.getMemory()<<" doubles "<<endl;
   double* stackmemory = new double[dmrginp.getMemory()];
   Stackmem.resize(numthrds);
   Stackmem[0].data = stackmemory;
   Stackmem[0].size = dmrginp.getMemory();
-  //************
+ //************
   //memset(stackmemory, 0, dmrginp.getMemory()*sizeof(double));
   dmrginp.initCumulTimer();
 
@@ -437,6 +438,8 @@ int calldmrg(char* input, char* output)
 	   dmrginp.calc_type() == ONEPDM ||
 	   dmrginp.calc_type() == TWOPDM ||
 	   dmrginp.calc_type() == THREEPDM ||
+	   dmrginp.calc_type() == TRANSITION_ONEPDM ||
+	   dmrginp.calc_type() == TRANSITION_TWOPDM ||
 	   dmrginp.calc_type() == TRANSITION_THREEPDM)
   {
     if (dmrginp.get_sweep_type() != FULL)
@@ -448,6 +451,10 @@ int calldmrg(char* input, char* output)
 	fullrestartGenblock();
 	reset_iter = true;
 	sweepParams.restorestate(direction, restartsize);
+
+	if (!direction) {
+	  double last_fe = Sweep::do_one(sweepParams, false, direction, true, restartsize);
+	}
 	sweepParams.calc_niter();
 	sweepParams.savestate(direction, restartsize);
 	restart(sweep_tol, reset_iter);
@@ -466,8 +473,12 @@ int calldmrg(char* input, char* output)
     if (dmrginp.calc_type() == ONEPDM) 
       Npdm::npdm(NPDM_ONEPDM);
     //Npdm(1, false, false);
+    if (dmrginp.calc_type() == TRANSITION_ONEPDM) 
+      Npdm::npdm(NPDM_ONEPDM, true);
     if (dmrginp.calc_type() == TWOPDM) 
       Npdm::npdm(NPDM_TWOPDM);
+    if (dmrginp.calc_type() == TRANSITION_TWOPDM) 
+      Npdm::npdm(NPDM_TWOPDM, true);
     if (dmrginp.calc_type() == THREEPDM) 
       Npdm::npdm(NPDM_THREEPDM);
     if (dmrginp.calc_type() == TRANSITION_THREEPDM) 
@@ -584,6 +595,7 @@ void fullrestartGenblock() {
 //Temporary fix to restore sweep direction
 //FIXME: NN wrote: please let me know if this makes some erroneous behaviors
   sweepParamsTmp.restorestate(direction, restartsize);
+
   sweepParams.set_sweep_iter() = 0;
   sweepParams.current_root() = -1;
 //direction = true;
@@ -1087,33 +1099,35 @@ void responsepartialSweep(double sweep_tol, int targetState, vector<int>& projec
 
       StackWavefunction w; StateInfo state;
 
-      if (StackWavefunction::exists(targetState+1)) 
-	StackWavefunction::CopyState(targetState+1, baseStates[0]); 
+      if (StackWavefunction::exists(-1)) 
+	StackWavefunction::CopyState(-1, baseStates[0]); 
       else
-	StackWavefunction::CopyState(baseStates[0], targetState+1); 
+	StackWavefunction::CopyState(baseStates[0], -1); 
+    }
 
-      if (dmrginp.calc_type() == RESPONSEAAAV) {
-	int start = dmrginp.getPartialSweep();
-	int end   = dmrginp.last_site();
-	StackSpinBlock system = StackSpinBlock::buildBigEdgeBlock(start, end, false, true, 1, false);
-
-	StackSpinBlock site(start-1, start-1, 1, false);      	
-	system.addAdditionalOps();
-	StackSpinBlock newSystem;
-	newSystem.default_op_components(false, false, true, false);
-	newSystem.set_integralIndex() = 1;
-	newSystem.setstoragetype(DISTRIBUTED_STORAGE);
-	newSystem.BuildSumBlock (NO_PARTICLE_SPIN_NUMBER_CONSTRAINT, system, site);
-	
-
-	vector<int> sites(2); sites[0] = 0; sites[1] = start-2;
-
+    if (dmrginp.calc_type() == RESPONSEAAAV) {
+      StackWavefunction w; StateInfo state;
+      int start = dmrginp.getPartialSweep();
+      int end   = dmrginp.last_site();
+      StackSpinBlock site(start-1, start-1, 1, false);      	
+      StackSpinBlock system = StackSpinBlock::buildBigEdgeBlock(start, end, false, true, 1, false);
+      
+      system.addAdditionalOps();
+      StackSpinBlock newSystem;
+      newSystem.default_op_components(false, false, true, false);
+      newSystem.set_integralIndex() = 1;
+      newSystem.setstoragetype(DISTRIBUTED_STORAGE);
+      newSystem.BuildSumBlock (NO_PARTICLE_SPIN_NUMBER_CONSTRAINT, system, site);
+      
+      
+      vector<int> sites(2); sites[0] = 0; sites[1] = start-2;
+      if (mpigetrank() == 0) {	
 	w.LoadWavefunctionInfo(state, sites, baseStates[0], true);
-
+	
 	StackWavefunction w2; 
 	w2.initialise(dmrginp.effective_molecule_quantum_vec(), *state.leftStateInfo, newSystem.get_stateInfo(), true);
+	
 	w2.UnCollectQuantaAlongColumns(*state.leftStateInfo, newSystem.get_stateInfo());
-
 	for (int i=0; i<w.nrows(); i++)
 	  for (int j=0; j<w.ncols(); j++) 
 	    if (w.allowed(i,j)) {
@@ -1126,94 +1140,101 @@ void responsepartialSweep(double sweep_tol, int targetState, vector<int>& projec
 	w2.SaveWavefunctionInfo(bigstate, sites, baseStates[0]);
 	w2.deallocate();
 	w.deallocate();
+      }
 
-	//make edge blocks for all the combinations
-	sites[0] = start-1; sites[1] = end-1;
-	StackSpinBlock::store(false, sites, newSystem, targetState, baseStates[0]);  
-	//system.deallocate(); system.clear();
+      //make edge blocks for all the combinations
+      sites[0] = start-1; sites[1] = end-1;
+      StackSpinBlock::store(false, sites, newSystem, targetState, baseStates[0]);  
+      //system.deallocate(); system.clear();
 	
+      newSystem.set_integralIndex() = 0;
+      //system = StackSpinBlock::buildBigEdgeBlock(start, end, false, true, 0, false);
+      StackSpinBlock::store(false, sites, newSystem, targetState, baseStates[0]);  
+      newSystem.deallocate(); newSystem.clear();
+      system.removeAdditionalOps();
+      system.deallocate();
+      site.deallocate(); 
+      
+      {	
+	StackSpinBlock site(start-1, start-1, 0, false);      	
+	system = StackSpinBlock::buildBigEdgeBlock(start, end, false, true, 0, true);
+	system.addAdditionalOps();
+	StackSpinBlock newSystem;
+	newSystem.default_op_components(false, false, true, true);
 	newSystem.set_integralIndex() = 0;
-	//system = StackSpinBlock::buildBigEdgeBlock(start, end, false, true, 0, false);
-	StackSpinBlock::store(false, sites, newSystem, targetState, baseStates[0]);  
-	newSystem.deallocate(); newSystem.clear();
-	site.deallocate(); system.deallocate();
+	newSystem.setstoragetype(DISTRIBUTED_STORAGE);
+	newSystem.BuildSumBlock (NO_PARTICLE_SPIN_NUMBER_CONSTRAINT, system, site);
+	StackSpinBlock::store(false, sites, newSystem, targetState, targetState);  
+	StackSpinBlock::store(false, sites, newSystem, baseStates[0], baseStates[0]);  
+	newSystem.deallocate();
+	newSystem.clear();
+	system.removeAdditionalOps();
+	system.deallocate();
+	site.deallocate(); 
+      }
 
-	{	
-	  system = StackSpinBlock::buildBigEdgeBlock(start, end, false, true, 0, true);
-	  StackSpinBlock site(start-1, start-1, 0, false);      	
-	  system.addAdditionalOps();
-	  StackSpinBlock newSystem;
-	  newSystem.default_op_components(false, false, true, true);
-	  newSystem.set_integralIndex() = 0;
-	  newSystem.setstoragetype(DISTRIBUTED_STORAGE);
-	  newSystem.BuildSumBlock (NO_PARTICLE_SPIN_NUMBER_CONSTRAINT, system, site);
-	  StackSpinBlock::store(false, sites, newSystem, targetState, targetState);  
-	  StackSpinBlock::store(false, sites, newSystem, baseStates[0], baseStates[0]);  
-	  newSystem.deallocate();
-	  newSystem.clear();
-	  site.deallocate(); system.deallocate();
-	}
-
-	//now take the expanded base wavefunction and canonicalize it 
-	
+      //now take the expanded base wavefunction and canonicalize it 
+    
+      if (mpigetrank() == 0) {
 	Sweep::InitializeStateInfoPartialSweep(sweepParams, true, baseStates[0]);
 	Sweep::CanonicalizeWavefunctionPartialSweep(sweepParams, false, baseStates[0]);
 	Sweep::CanonicalizeWavefunctionPartialSweep(sweepParams, true, baseStates[0]);
 	Sweep::CanonicalizeWavefunctionPartialSweep(sweepParams, false, baseStates[0]);
-	
-	
-	//store the first block for all combinations
-	StackSpinBlock forwardStart;
-	InitBlocks::InitStartingBlock (forwardStart,true, targetState, targetState,
-				       sweepParams.get_forward_starting_size(), sweepParams.get_backward_starting_size(), 
-				       0, false, false, 0);
-	sites[0] = 0; sites[1] = 0;
-	StackSpinBlock::store(true, sites, forwardStart, targetState, targetState);  
-	
-	forwardStart.deallocate(); forwardStart.clear();
-	InitBlocks::InitStartingBlock (forwardStart,true, baseStates[0], baseStates[0],
-				       sweepParams.get_forward_starting_size(), sweepParams.get_backward_starting_size(), 
-				       0, false, false, 0);
-	sites[0] = 0; sites[1] = 0;
-	StackSpinBlock::store(true, sites, forwardStart, baseStates[0], baseStates[0]);  
-	
-	forwardStart.deallocate(); forwardStart.clear();
-	InitBlocks::InitStartingBlock (forwardStart,true, targetState, baseStates[0],
-				       sweepParams.get_forward_starting_size(), sweepParams.get_backward_starting_size(), 
-				       0, false, false, 1);
-	sites[0] = 0; sites[1] = 0;
-	StackSpinBlock::store(true, sites, forwardStart, targetState, baseStates[0]);  
-	forwardStart.set_integralIndex() = 0;
-	StackSpinBlock::store(true, sites, forwardStart, targetState, baseStates[0]);  
-	forwardStart.deallocate(); forwardStart.clear();
-	direction = false;
-
       }
-      else if (dmrginp.calc_type() == RESPONSEAAAC) {
+      
+      //store the first block for all combinations
+      StackSpinBlock forwardStart;
+      InitBlocks::InitStartingBlock (forwardStart,true, targetState, targetState,
+				     sweepParams.get_forward_starting_size(), sweepParams.get_backward_starting_size(), 
+				     0, false, false, 0);
+      sites[0] = 0; sites[1] = 0;
+      StackSpinBlock::store(true, sites, forwardStart, targetState, targetState);  
+      
+      forwardStart.deallocate(); forwardStart.clear();
+      InitBlocks::InitStartingBlock (forwardStart,true, baseStates[0], baseStates[0],
+				     sweepParams.get_forward_starting_size(), sweepParams.get_backward_starting_size(), 
+				     0, false, false, 0);
+      sites[0] = 0; sites[1] = 0;
+      StackSpinBlock::store(true, sites, forwardStart, baseStates[0], baseStates[0]);  
+      
+      forwardStart.deallocate(); forwardStart.clear();
+      InitBlocks::InitStartingBlock (forwardStart,true, targetState, baseStates[0],
+				     sweepParams.get_forward_starting_size(), sweepParams.get_backward_starting_size(), 
+				     0, false, false, 1);
+      sites[0] = 0; sites[1] = 0;
+      StackSpinBlock::store(true, sites, forwardStart, targetState, baseStates[0]);  
+      forwardStart.set_integralIndex() = 0;
+      StackSpinBlock::store(true, sites, forwardStart, targetState, baseStates[0]);  
+      forwardStart.deallocate(); forwardStart.clear();
+      direction = false;
+      
+    }
+    else if (dmrginp.calc_type() == RESPONSEAAAC) {
+      if (mpigetrank() == 0)
 	StackWavefunction::ChangeLastSite(dmrginp.last_site()-1, dmrginp.getPartialSweep()-1, baseStates[0]); 
-
-	int start = dmrginp.getPartialSweep();
-	int end   = dmrginp.last_site();
-	StackSpinBlock system = StackSpinBlock::buildBigEdgeBlock(start, end, true, true, 1, false);
-	
-	system.addAdditionalOps(); system.set_loopblock(false);
-	StackSpinBlock site(start-1, start-1, 1, false);      
-	StackSpinBlock newSystem;
-	newSystem.default_op_components(false, true, true, false);
-	newSystem.set_integralIndex() = 1;
-	newSystem.setstoragetype(DISTRIBUTED_STORAGE);
-	newSystem.BuildSumBlock (NO_PARTICLE_SPIN_NUMBER_CONSTRAINT, system, site);
-
-
-	vector<int> sites(2); sites[0] = start-1; sites[1] = start-1;
-
+      
+      int start = dmrginp.getPartialSweep();
+      int end   = dmrginp.last_site();
+      StackSpinBlock site(start-1, start-1, 1, false);      
+      StackSpinBlock system = StackSpinBlock::buildBigEdgeBlock(start, end, true, true, 1, false);
+      
+      system.addAdditionalOps(); system.set_loopblock(false);
+      StackSpinBlock newSystem;
+      newSystem.default_op_components(false, true, true, false);
+      newSystem.set_integralIndex() = 1;
+      newSystem.setstoragetype(DISTRIBUTED_STORAGE);
+      newSystem.BuildSumBlock (NO_PARTICLE_SPIN_NUMBER_CONSTRAINT, system, site);
+      
+      
+      vector<int> sites(2); sites[0] = start-1; sites[1] = start-1;
+      if (mpigetrank() == 0 ) {
 	std::vector<SpinQuantum> quanta = newSystem.get_stateInfo().quanta;
 	std::vector<Matrix> rotation(quanta.size());
-
+	
 	StateInfo lsi = *newSystem.get_stateInfo().leftStateInfo;
 	StateInfo rsi = *newSystem.get_stateInfo().rightStateInfo;
 	StateInfo si = newSystem.get_stateInfo();
-
+	
 	for (int i=0; i<si.quanta.size(); i++) {
 	  const vector<int>& oldToNewStateI = si.oldToNewState[i];
 	  int rowindex = 0;
@@ -1221,7 +1242,7 @@ void responsepartialSweep(double sweep_tol, int targetState, vector<int>& projec
 	    int unCollectedI = oldToNewStateI[iSub];
 	    int lindex = si.unCollectedStateInfo->leftUnMapQuanta[unCollectedI];
 	    int rindex = si.unCollectedStateInfo->rightUnMapQuanta[unCollectedI];
-
+	    
 	    if (lindex == lsi.quanta.size()-1) {//this is the last index so all orbs are doubly occupied
 	      if (rotation[i].Ncols() != 0) {
 		cout << "something wrong in writing the matrix"<<endl;
@@ -1238,66 +1259,66 @@ void responsepartialSweep(double sweep_tol, int targetState, vector<int>& projec
 	}
 	sites[0] = start-1; sites[1] = dmrginp.last_site()-1;
 	SaveRotationMatrix(sites, rotation, baseStates[0]); 
+      }
 
-	//make edge blocks for all the combinations
-	sites[0] = start; sites[1] = end-1;
-	StackSpinBlock::store(false, sites, system, targetState, baseStates[0]);  
-	//newSystem.deallocate();
-
-	//system = StackSpinBlock::buildBigEdgeBlock(start, end, false, true, 0, false);
-	system.set_integralIndex() = 0;
-	StackSpinBlock::store(false, sites, system, targetState, baseStates[0]);  
-	newSystem.deallocate();
-	site.deallocate();
-	system.deallocate(); system.clear();
-	
-	system = StackSpinBlock::buildBigEdgeBlock(start, end, true, true, 0, true);
-	StackSpinBlock::store(false, sites, system, targetState, targetState);  
-	StackSpinBlock::store(false, sites, system, baseStates[0], baseStates[0]);  
-	system.deallocate();
-	system.clear();
-	
-	
-	
-	//store the first block for all combinations
-	StackSpinBlock forwardStart;
-	InitBlocks::InitStartingBlock (forwardStart,true, targetState, targetState,
-				       sweepParams.get_forward_starting_size(), sweepParams.get_backward_starting_size(), 
-				       0, false, false, 0);
-	sites[0] = 0; sites[1] = 0;
-	StackSpinBlock::store(true, sites, forwardStart, targetState, targetState);  
-	
-	forwardStart.deallocate(); forwardStart.clear();
-	InitBlocks::InitStartingBlock (forwardStart,true, baseStates[0], baseStates[0],
-				       sweepParams.get_forward_starting_size(), sweepParams.get_backward_starting_size(), 
-				       0, false, false, 0);
-	sites[0] = 0; sites[1] = 0;
-	StackSpinBlock::store(true, sites, forwardStart, baseStates[0], baseStates[0]);  
-	
-	forwardStart.deallocate(); forwardStart.clear();
-	InitBlocks::InitStartingBlock (forwardStart,true, targetState, baseStates[0],
-				       sweepParams.get_forward_starting_size(), sweepParams.get_backward_starting_size(), 
-				       0, false, false, 1);
-	sites[0] = 0; sites[1] = 0;
-	StackSpinBlock::store(true, sites, forwardStart, targetState, baseStates[0]);  
-	forwardStart.set_integralIndex() = 0;
-	StackSpinBlock::store(true, sites, forwardStart, targetState, baseStates[0]);  
-	forwardStart.deallocate(); forwardStart.clear();
-
-	//now take the expanded base wavefunction and canonicalize it 	
-	dmrginp.setPartialSweep() = dmrginp.setPartialSweep()+1;
-	sweepParams.current_root() = baseStates[0];
+      //make edge blocks for all the combinations
+      sites[0] = start; sites[1] = end-1;
+      StackSpinBlock::store(false, sites, system, targetState, baseStates[0]);  
+      //newSystem.deallocate();
+      
+      //system = StackSpinBlock::buildBigEdgeBlock(start, end, false, true, 0, false);
+      system.set_integralIndex() = 0;
+      StackSpinBlock::store(false, sites, system, targetState, baseStates[0]);  
+      newSystem.deallocate();
+      system.removeAdditionalOps();
+      system.deallocate(); 
+      system.clear();
+      site.deallocate();
+      
+      system = StackSpinBlock::buildBigEdgeBlock(start, end, true, true, 0, true);
+      StackSpinBlock::store(false, sites, system, targetState, targetState);  
+      StackSpinBlock::store(false, sites, system, baseStates[0], baseStates[0]);  
+      system.removeAdditionalOps();
+      system.deallocate();
+      system.clear();
+      
+      
+      
+      //store the first block for all combinations
+      StackSpinBlock forwardStart;
+      InitBlocks::InitStartingBlock (forwardStart,true, targetState, targetState,
+				     sweepParams.get_forward_starting_size(), sweepParams.get_backward_starting_size(), 
+				     0, false, false, 0);
+      sites[0] = 0; sites[1] = 0;
+      StackSpinBlock::store(true, sites, forwardStart, targetState, targetState);  
+      
+      forwardStart.deallocate(); forwardStart.clear();
+      InitBlocks::InitStartingBlock (forwardStart,true, baseStates[0], baseStates[0],
+				     sweepParams.get_forward_starting_size(), sweepParams.get_backward_starting_size(), 
+				     0, false, false, 0);
+      sites[0] = 0; sites[1] = 0;
+      StackSpinBlock::store(true, sites, forwardStart, baseStates[0], baseStates[0]);  
+      
+      forwardStart.deallocate(); forwardStart.clear();
+      InitBlocks::InitStartingBlock (forwardStart,true, targetState, baseStates[0],
+				     sweepParams.get_forward_starting_size(), sweepParams.get_backward_starting_size(), 
+				     0, false, false, 1);
+      sites[0] = 0; sites[1] = 0;
+      StackSpinBlock::store(true, sites, forwardStart, targetState, baseStates[0]);  
+      forwardStart.set_integralIndex() = 0;
+      StackSpinBlock::store(true, sites, forwardStart, targetState, baseStates[0]);  
+      forwardStart.deallocate(); forwardStart.clear();
+      
+      //now take the expanded base wavefunction and canonicalize it 	
+      dmrginp.setPartialSweep() = dmrginp.setPartialSweep()+1;
+      sweepParams.current_root() = baseStates[0];
+      if (mpigetrank() == 0) {
 	Sweep::InitializeStateInfoPartialSweep(sweepParams, false, baseStates[0]);
 	Sweep::CanonicalizeWavefunctionPartialSweep(sweepParams, true, baseStates[0]);
 	Sweep::CanonicalizeWavefunctionPartialSweep(sweepParams, false, baseStates[0]);
 	Sweep::CanonicalizeWavefunctionPartialSweep(sweepParams, true, baseStates[0]);
-	
-	direction = false;
-	w.deallocate();
-      
       }
-      
-
+      direction = false;
     }
 
 

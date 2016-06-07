@@ -28,11 +28,11 @@ Pairpdm_container::Pairpdm_container( int sites )
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
 
-void Pairpdm_container::save_npdms(const int& i, const int& j)
+  void Pairpdm_container::save_npdms(const int& i, const int& j, int integralIndex)
 {
   #ifndef SERIAL
   boost::mpi::communicator world;
-  world.barrier();
+  calc.barrier();
   #endif
   Timer timer;
   accumulate_npdm();
@@ -43,7 +43,7 @@ void Pairpdm_container::save_npdms(const int& i, const int& j)
   save_spatial_npdm_binary(i, j);
   save_spatial_npdm_text(i, j);
 #ifndef SERIAL
-  world.barrier();
+  calc.barrier();
 #endif
   double cputime = timer.elapsedcputime();
   p3out << "Pair PDM save full array time " << timer.elapsedwalltime() << " " << cputime << endl;
@@ -127,15 +127,15 @@ void Pairpdm_container::accumulate_npdm()
   array_2d<double> tmp_recv;
   mpi::communicator world;
   if( mpigetrank() == 0) {
-    for(int i=1;i<world.size();++i) {
-      world.recv(i, i, tmp_recv);
+    for(int i=1;i<calc.size();++i) {
+      calc.recv(i, i, tmp_recv);
       for(int k=0;k<pairpdm.dim1();++k)
         for(int l=0;l<pairpdm.dim2();++l)
           if( abs(tmp_recv(k,l)) > NUMERICAL_ZERO ) pairpdm(k,l) = tmp_recv(k,l);
     }
   }
   else {
-    world.send(0, mpigetrank(), pairpdm);
+    calc.send(0, mpigetrank(), pairpdm);
   }
 #endif
 }
@@ -148,15 +148,15 @@ void Pairpdm_container::accumulate_spatial_npdm()
   array_2d<double> tmp_recv;
   mpi::communicator world;
   if( mpigetrank() == 0) {
-    for(int i=1;i<world.size();++i) {
-      world.recv(i, i, tmp_recv);
+    for(int i=1;i<calc.size();++i) {
+      calc.recv(i, i, tmp_recv);
       for(int k=0;k<spatial_pairpdm.dim1();++k)
         for(int l=0;l<spatial_pairpdm.dim2();++l)
           if( abs(tmp_recv(k,l)) > NUMERICAL_ZERO ) spatial_pairpdm(k,l) = tmp_recv(k,l);
     }
   }
   else {
-    world.send(0, mpigetrank(), spatial_pairpdm);
+    calc.send(0, mpigetrank(), spatial_pairpdm);
   }
 #endif
 }

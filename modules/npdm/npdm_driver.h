@@ -21,7 +21,7 @@ class Npdm_driver_base {
     Npdm_driver_base() {}
     virtual ~Npdm_driver_base() {}
     virtual void clear() = 0;
-    virtual void save_data( const int i, const int j ) = 0;
+    virtual void save_data( const int i, const int j, int integralIndex=0 ) = 0;
     virtual void compute_npdm_elements( std::vector<StackWavefunction> & wavefunctions, const StackSpinBlock & big, int sweepPos, int endPos ) = 0;
 };
 
@@ -35,7 +35,7 @@ class Npdm_driver {
     explicit Npdm_driver(NpdmOrder order, Npdm_container& container) : npdm_order_(order), container_(container) {}
     ~Npdm_driver() {}
     void clear() { container_.clear(); }
-    void save_data( const int i, const int j ) { container_.save_npdms(i,j); }
+    void save_data( const int i, const int j, int integralIndex=0) { container_.save_npdms(i,j, integralIndex); }
     void compute_npdm_elements( std::vector<StackWavefunction> & wavefunctions, const StackSpinBlock & big, int sweepPos, int endPos );
   
   private:
@@ -59,7 +59,7 @@ class Npdm_driver {
 
 
     void loop_over_operator_patterns( Npdm_patterns& patterns, Npdm_expectations& expectations, const StackSpinBlock& big );
-    void get_inner_Operators( const char inner, Npdm_expectations & npdm_expectations, boost::shared_ptr<NpdmSpinOps> lhsOps, boost::shared_ptr<NpdmSpinOps> dotOps, boost::shared_ptr<NpdmSpinOps> rhsOps) ;
+    void get_inner_Operators( const char inner, Npdm_expectations & npdm_expectations, boost::shared_ptr<NpdmSpinOps> lhsOps, boost::shared_ptr<NpdmSpinOps> dotOps, boost::shared_ptr<NpdmSpinOps> rhsOps, int procrank = 0) ;
     void par_loop_over_block_operators( const char inner, Npdm_expectations & npdm_expectations, 
                                         NpdmSpinOps & lhsOps, NpdmSpinOps & outerOps, NpdmSpinOps & dotOps, bool innerdot );
     void do_parallel_intermediate_loop( const char inner, Npdm_expectations & npdm_expectations,
@@ -85,7 +85,7 @@ class Onepdm_driver : public Npdm_driver_base {
   public:
     explicit Onepdm_driver( int sites ) : container( Onepdm_container(sites) ), driver( Npdm_driver(NPDM_ONEPDM, container) ) {}
     void clear() { driver.clear(); }
-    void save_data( const int i, const int j ) { driver.save_data(i,j); }
+    void save_data( const int i, const int j,int integralIndex=0 ) { driver.save_data(i,j,integralIndex); }
     void compute_npdm_elements( std::vector<StackWavefunction> & wavefunctions, const StackSpinBlock & big, int sweepPos, int endPos ) 
       { driver.compute_npdm_elements(wavefunctions, big, sweepPos, endPos ); }
   private:
@@ -99,7 +99,7 @@ class Twopdm_driver : public Npdm_driver_base {
   public:
     explicit Twopdm_driver( int sites ) : container( Twopdm_container(sites) ), driver( Npdm_driver(NPDM_TWOPDM, container) ) {}
     void clear() { driver.clear(); }
-    void save_data( const int i, const int j ) { driver.save_data(i,j); }
+    void save_data( const int i, const int j, int integralIndex=0 ) { driver.save_data(i,j, integralIndex); }
     void compute_npdm_elements( std::vector<StackWavefunction> & wavefunctions, const StackSpinBlock & big, int sweepPos, int endPos ) 
       { driver.compute_npdm_elements(wavefunctions, big, sweepPos, endPos ); }
   private:
@@ -113,7 +113,7 @@ class Threepdm_driver : public Npdm_driver_base {
   public:
     explicit Threepdm_driver( int sites ) : container( Threepdm_container(sites) ), driver( Npdm_driver(NPDM_THREEPDM, container) ) {}
     void clear() { driver.clear(); }
-    void save_data( const int i, const int j ) { driver.save_data(i,j); }
+    void save_data( const int i, const int j , const int integralIndex=0) { driver.save_data(i,j, integralIndex);}
     void compute_npdm_elements( std::vector<StackWavefunction> & wavefunctions, const StackSpinBlock & big, int sweepPos, int endPos ) 
       { driver.compute_npdm_elements(wavefunctions, big, sweepPos, endPos ); }
   private:
@@ -127,7 +127,7 @@ class Fourpdm_driver : public Npdm_driver_base {
   public:
     explicit Fourpdm_driver( int sites ) : container( Fourpdm_container(sites) ), driver( Npdm_driver(NPDM_FOURPDM, container) ) {}
     void clear() { driver.clear(); }
-    void save_data( const int i, const int j ) { driver.save_data(i,j); }
+    void save_data( const int i, const int j, int integralIndex=0 ) { driver.save_data(i,j, integralIndex); }
     void compute_npdm_elements( std::vector<StackWavefunction> & wavefunctions, const StackSpinBlock & big, int sweepPos, int endPos ) 
       { driver.compute_npdm_elements(wavefunctions, big, sweepPos, endPos ); }
   private:
@@ -141,7 +141,7 @@ class Pairpdm_driver : public Npdm_driver_base {
   public:
     explicit Pairpdm_driver( int sites ) : container( Pairpdm_container(sites) ), driver( Npdm_driver(NPDM_PAIRMATRIX, container) ) {}
     void clear() { driver.clear(); }
-    void save_data( const int i, const int j ) { driver.save_data(i,j); }
+    void save_data( const int i, const int j, int integralIndex=0 ) { driver.save_data(i,j, integralIndex); }
     void compute_npdm_elements( std::vector<StackWavefunction> & wavefunctions, const StackSpinBlock & big, int sweepPos, int endPos ) 
       { driver.compute_npdm_elements(wavefunctions, big, sweepPos, endPos ); }
   private:

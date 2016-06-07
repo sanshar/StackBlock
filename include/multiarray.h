@@ -194,7 +194,7 @@ template<class T> class array_4d : public vector<T>, public multiarray<T>
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
 
-template<class T> class array_6d : public vector<T>, public multiarray<T>
+template<class T> class array_6d : public multiarray<T>
 {
  public:
 
@@ -203,15 +203,16 @@ template<class T> class array_6d : public vector<T>, public multiarray<T>
     dim4xdim5xdim6_d(0),
     dim3xdim4xdim5xdim6_d(0),
     dim2xdim3xdim4xdim5xdim6_d(0),
-    vector<T> () { }
+    data(0) { }
 
-  array_6d(const int d1, const int d2, const int d3, const int d4, const int d5, const int d6) : 
+ array_6d(const size_t d1, const size_t d2, const size_t d3, const size_t d4, const size_t d5, const size_t d6, T* pdata) : 
     dim1_d (d1), dim2_d (d2), dim3_d (d3), dim4_d(d4), dim5_d(d5), dim6_d(d6), 
     dim5xdim6_d(d5*d6),
     dim4xdim5xdim6_d(d4*d5*d6),
     dim3xdim4xdim5xdim6_d(d3*d4*d5*d6),
-    dim2xdim3xdim4xdim5xdim6_d(d2*d3*d4*d5*d6),
-    vector<T> (d1 * d2 * d3 * d4 * d5 * d6) { }
+      dim2xdim3xdim4xdim5xdim6_d(d2*d3*d4*d5*d6),
+      data(pdata)
+      {};
 //std::cout << "array_6d:  " << d1 << " "
 //<< d2 << " "
 //<< d3 << " "
@@ -220,7 +221,7 @@ template<class T> class array_6d : public vector<T>, public multiarray<T>
 //<< d6 << std::endl;
 // }
 
-  T& operator()(const int i, const int j, const int k, const int l, const int m, const int n) 
+  T& operator()(const size_t i, const size_t j, const size_t k, const size_t l, const size_t m, const size_t n) 
     { 
       assert((0 <= i) && (i < dim1_d)); 
       assert((0 <= j) && (j < dim2_d)); 
@@ -228,16 +229,16 @@ template<class T> class array_6d : public vector<T>, public multiarray<T>
       assert((0 <= l) && (l < dim4_d));
       assert((0 <= m) && (m < dim5_d));
       assert((0 <= n) && (n < dim6_d));
-      int p = i * dim2xdim3xdim4xdim5xdim6_d 
+      size_t p = i * dim2xdim3xdim4xdim5xdim6_d 
             + j * dim3xdim4xdim5xdim6_d 
             + k * dim4xdim5xdim6_d 
             + l * dim5xdim6_d 
             + m * dim6_d 
             + n; 
-      return vector<T>::operator[](p);
+      return data[p];//vector<T>::operator[](p);
     }
 
-  T operator()(const int i, const int j, const int k, const int l, const int m, const int n) const
+  T& operator()(const size_t i, const size_t j, const size_t k, const size_t l, const size_t m, const size_t n) const
     { 
       assert((0 <= i) && (i < dim1_d)); 
       assert((0 <= j) && (j < dim2_d)); 
@@ -245,13 +246,13 @@ template<class T> class array_6d : public vector<T>, public multiarray<T>
       assert((0 <= l) && (l < dim4_d));
       assert((0 <= m) && (m < dim5_d));
       assert((0 <= n) && (n < dim6_d));
-      int p = i * dim2xdim3xdim4xdim5xdim6_d 
+      size_t p = i * dim2xdim3xdim4xdim5xdim6_d 
             + j * dim3xdim4xdim5xdim6_d 
             + k * dim4xdim5xdim6_d 
             + l * dim5xdim6_d 
             + m * dim6_d 
             + n; 
-      return vector<T>::operator[](p);
+      return data[p];//vector<T>::operator[](p);
     }
 
   array_6d<T>& operator+=(const array_6d<T>& C)
@@ -262,20 +263,27 @@ template<class T> class array_6d : public vector<T>, public multiarray<T>
            dim4() == C.dim4() &&
            dim5() == C.dim5() &&
            dim6() == C.dim6());
-    for (int i=0; i<C.size(); ++i)
+
+    for (size_t i=0; i<C.size(); ++i)
       (*this)[i]+=C[i];
     return *this;
   }
 
   void Clear()
   {
-    for (int i=0; i<this->size(); ++i)
-      (*this)[i]=0.;
+    size_t len = get_size()*sizeof(T);
+    //if (mpigetrank() == 0) {
+    //cout << len <<"  "<<sizeof(T)<<endl;
+    //cout << "zeroing out "<<len<<" bytes "<<endl;
+      //}
+    memset(data, 0, len);
   }
 
-  int get_size()
+  size_t get_size()
   {
-    return vector<T>::size();
+    //if (mpigetrank() == 0) 
+    //cout << dim1_d<<" "<<dim2_d<<"  "<<dim3_d<<"  "<<dim4_d<<"  "<<dim5_d<<"  "<<dim6_d<<endl;
+    return dim1_d*dim2_d*dim3_d*dim4_d*dim5_d*dim6_d;
   }
 
   T& operator() (const vector<int>& indices)
@@ -290,9 +298,15 @@ template<class T> class array_6d : public vector<T>, public multiarray<T>
     return operator()(indices[0], indices[1], indices[2], indices[3], indices[4], indices[5]);
   }
 
-  void resize (const int i, const int j, const int k, const int l, const int m, const int n) 
+  void resize (const size_t i, const size_t j, const size_t k, const size_t l, const size_t m, const size_t n, T* pdata) 
   { 
-    vector<T>::resize (i * j * k * l * m * n); 
+    if (data != 0) {
+      cout << "cannot resize a non-zero sized array."<<endl;
+      abort();
+    }
+    data = pdata;
+    //data = (T*)(Stackmem[omprank].allocate(i*j*k*l*m*n* (sizeof(T)/sizeof(double) + sizeof(T)%sizeof(double))));}
+    //data = (T*)(SpinAdapted::Stackmem[omprank].allocate(i*j*k*l*m*n* (sizeof(T)/sizeof(double) + sizeof(T)%sizeof(double))));
     dim1_d = i; 
     dim2_d = j; 
     dim3_d = k; 
@@ -306,14 +320,17 @@ template<class T> class array_6d : public vector<T>, public multiarray<T>
   }
   string reflect_type() const { return string("array_6d"); }
 
-  int dim1() const { return dim1_d; }
-  int dim2() const { return dim2_d; }
-  int dim3() const { return dim3_d; }
-  int dim4() const { return dim4_d; } 
-  int dim5() const { return dim5_d; } 
-  int dim6() const { return dim6_d; } 
+  size_t dim1() const { return dim1_d; }
+  size_t dim2() const { return dim2_d; }
+  size_t dim3() const { return dim3_d; }
+  size_t dim4() const { return dim4_d; } 
+  size_t dim5() const { return dim5_d; } 
+  size_t dim6() const { return dim6_d; } 
 
+
+  T* data;
  private:
+  /*
   friend class boost::serialization::access;
   template<class Archive>
   void serialize(Archive & ar, const unsigned int version)
@@ -325,16 +342,181 @@ template<class T> class array_6d : public vector<T>, public multiarray<T>
        & dim5xdim6_d;
     ar & boost::serialization::base_object<std::vector<T> >(*this);
   }
-  int dim1_d;
-  int dim2_d;
-  int dim3_d;
-  int dim4_d;
-  int dim5_d;
-  int dim6_d;
-  int dim2xdim3xdim4xdim5xdim6_d;
-  int dim3xdim4xdim5xdim6_d;
-  int dim4xdim5xdim6_d;
-  int dim5xdim6_d;
+  */
+  size_t dim1_d;
+  size_t dim2_d;
+  size_t dim3_d;
+  size_t dim4_d;
+  size_t dim5_d;
+  size_t dim6_d;
+  size_t dim2xdim3xdim4xdim5xdim6_d;
+  size_t dim3xdim4xdim5xdim6_d;
+  size_t dim4xdim5xdim6_d;
+  size_t dim5xdim6_d;
+};
+
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------
+
+//Internally the 3RDM is stored as (i,j,k,l,m,n) = E^{i,j,k}_{n,m,l}
+//we will store the array as a 3 dimention array with composite indices
+// (i,n)  (j,m)  and (k,l). We will only store terms where these three composite indices
+//are arranged in ascending order. All the 6 permutations have same values
+template<class T> class array_6d_3rdm : public multiarray<T>
+{
+ public:
+
+  array_6d_3rdm() : dim1_d(0), dim2_d(0), dim3_d(0), dim4_d(0), dim5_d(0), dim6_d(0), 
+    dimA_d(0),
+    dimB_d(0),
+    dimC_d(0),
+    data(0) { }
+
+ array_6d_3rdm(const size_t d, T* pdata) : 
+    dim1_d (d), dim2_d (d), dim3_d (d), dim4_d(d), dim5_d(d), dim6_d(d), 
+    dimA_d(d*d),
+    dimB_d(d*d),
+    dimC_d(d*d),
+      data(pdata)
+      {};
+//std::cout << "array_6d:  " << d1 << " "
+//<< d2 << " "
+//<< d3 << " "
+//<< d4 << " "
+//<< d5 << " "
+//<< d6 << std::endl;
+// }
+
+  T& operator()(const size_t i, const size_t j, const size_t k, const size_t l, const size_t m, const size_t n) 
+    { 
+      size_t a = i*dim1_d+n, b = j*dim1_d+m, c = k*dim1_d+l;
+      size_t A=0, B=0, C=0;
+      A = max(a,max(b,c));
+      if (A==a) {
+	B = max(b,c); C = min(b,c);
+      }
+      else if (A==b) {
+	B = max(a,c); C = min(a,c);
+      }
+      else {
+	B = max(a,b); C = min(a,b);
+      }
+
+      size_t p = (A*A*A + 3*A*A + 2*A)/6  +  (B*B + B)/2 + C ;
+
+      return data[p];//vector<T>::operator[](p);
+    }
+
+  T& operator()(const size_t i, const size_t j, const size_t k, const size_t l, const size_t m, const size_t n) const
+    { 
+      size_t a = i*dim1_d+n, b = j*dim1_d+m, c = k*dim1_d+l;
+      size_t A=0, B=0, C=0;
+      A = max(a,max(b,c));
+      if (A==a) {
+	B = max(b,c); C = min(b,c);
+      }
+      else if (A==b) {
+	B = max(a,c); C = min(a,c);
+      }
+      else {
+	B = max(a,b); C = min(a,b);
+      }
+
+      size_t p = (A*A*A + 3*A*A + 2*A)/6  +  (B*B + B)/2 + C ;
+
+      return data[p];//vector<T>::operator[](p);
+    }
+
+  array_6d_3rdm<T>& operator+=(const array_6d_3rdm<T>& C)
+  {
+    for (size_t i=0; i<C.size(); ++i)
+      (*this)[i]+=C[i];
+    return *this;
+  }
+
+  void Clear()
+  {
+    size_t len = get_size()*sizeof(T);
+    //if (mpigetrank() == 0) {
+    //cout << len <<"  "<<sizeof(T)<<endl;
+    //cout << "zeroing out "<<len<<" bytes "<<endl;
+      //}
+    memset(data, 0, len);
+  }
+
+  size_t get_size()
+  {
+    //if (mpigetrank() == 0) 
+    //cout << dim1_d<<" "<<dim2_d<<"  "<<dim3_d<<"  "<<dim4_d<<"  "<<dim5_d<<"  "<<dim6_d<<endl;
+    size_t A = dim1_d*dim1_d;
+    return (A*A*A +  3*A*A + 2*A)/6 ;
+  }
+
+  T& operator() (const vector<int>& indices)
+  {
+    assert(indices.size() == 6);
+    return operator()(indices[0], indices[1], indices[2], indices[3], indices[4], indices[5]);
+  }
+
+  T operator() (const vector<int>& indices) const
+  {
+    assert(indices.size() == 6);
+    return operator()(indices[0], indices[1], indices[2], indices[3], indices[4], indices[5]);
+  }
+
+  void resize (const size_t i, T* pdata) 
+  { 
+    if (data != 0) {
+      cout << "cannot resize a non-zero sized array."<<endl;
+      abort();
+    }
+    data = pdata;
+    //data = (T*)(Stackmem[omprank].allocate(i*j*k*l*m*n* (sizeof(T)/sizeof(double) + sizeof(T)%sizeof(double))));}
+    //data = (T*)(SpinAdapted::Stackmem[omprank].allocate(i*j*k*l*m*n* (sizeof(T)/sizeof(double) + sizeof(T)%sizeof(double))));
+    dim1_d = i; 
+    dim2_d = i; 
+    dim3_d = i; 
+    dim4_d = i; 
+    dim5_d = i; 
+    dim6_d = i; 
+    dimA_d = i*i;
+    dimB_d = i*i;
+    dimC_d = i*i;
+  }
+  string reflect_type() const { return string("array_6d_3rdm"); }
+
+  size_t dim1() const { return dim1_d; }
+  size_t dim2() const { return dim2_d; }
+  size_t dim3() const { return dim3_d; }
+  size_t dim4() const { return dim4_d; } 
+  size_t dim5() const { return dim5_d; } 
+  size_t dim6() const { return dim6_d; } 
+
+
+  T* data;
+ private:
+  /*
+  friend class boost::serialization::access;
+  template<class Archive>
+  void serialize(Archive & ar, const unsigned int version)
+  {
+    ar & dim1_d & dim2_d & dim3_d & dim4_d & dim5_d & dim6_d 
+       & dim2xdim3xdim4xdim5xdim6_d
+       & dim3xdim4xdim5xdim6_d
+       & dim4xdim5xdim6_d
+       & dim5xdim6_d;
+    ar & boost::serialization::base_object<std::vector<T> >(*this);
+  }
+  */
+  size_t dim1_d;
+  size_t dim2_d;
+  size_t dim3_d;
+  size_t dim4_d;
+  size_t dim5_d;
+  size_t dim6_d;
+  size_t dimA_d;
+  size_t dimB_d;
+  size_t dimC_d;
 };
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------

@@ -23,7 +23,7 @@ namespace Sortpdm{
 
 void mergefile(char* filename){
   boost::mpi::communicator world;
-  if(world.rank()!=0){
+  if(calc.rank()!=0){
     FILE* inputfile=fopen(filename,"rb");
     char buff[merge_buff_size];
     std::vector<char> sendvector(merge_buff_size);
@@ -31,14 +31,14 @@ void mergefile(char* filename){
       long realsize=fread(buff,sizeof(char),merge_buff_size,inputfile);
       if( realsize==0){
         sendvector.resize(0);
-        world.send(0,0,sendvector);
+        calc.send(0,0,sendvector);
         break;
       }
       sendvector.resize(realsize);
       std::move(buff,buff+realsize,sendvector.begin());
 
       //sendvector.assign(buff,buff+realsize);
-      world.send(0,0,sendvector);
+      calc.send(0,0,sendvector);
       if(realsize!=merge_buff_size) break;
     }
   fclose(inputfile);
@@ -48,9 +48,9 @@ void mergefile(char* filename){
     FILE* outputfile=fopen(filename,"ab");
     std::vector<char> buff;
     buff.reserve(merge_buff_size);
-    for(int i=1; i< world.size();i++){
+    for(int i=1; i< calc.size();i++){
       for(;;){
-        world.recv(i,0,buff);
+        calc.recv(i,0,buff);
         if(buff.size()==0) break;
         fwrite(&(buff[0]),sizeof(char),buff.size(),outputfile);
         if(buff.size()< merge_buff_size) break;
@@ -74,13 +74,13 @@ void parallel_external_sort( char* filename){
   //}
   boost::mpi::communicator world;
   char inputfilename[200];
-  sprintf (inputfilename, "%s%d.%d.%d%s", filename,0,0,world.rank(),".bin");
+  sprintf (inputfilename, "%s%d.%d.%d%s", filename,0,0,calc.rank(),".bin");
   char tmpfilename[200];
-  sprintf (tmpfilename, "%s%d.%d.%d%s", filename,0,0,world.rank(),".tmp");
+  sprintf (tmpfilename, "%s%d.%d.%d%s", filename,0,0,calc.rank(),".tmp");
   char sortedfilename[200];
-  sprintf (sortedfilename, "%s%d.%d.%d%s", filename,0,0,world.rank(),".sorted");
+  sprintf (sortedfilename, "%s%d.%d.%d%s", filename,0,0,calc.rank(),".sorted");
   partition_data<index_element>((long)pow(6,6),inputfilename,tmpfilename);
-  //pout << "finished partition_data" << world.rank()<<std::endl;
+  //pout << "finished partition_data" << calc.rank()<<std::endl;
   externalsort<index_element>(tmpfilename,sortedfilename,(long)pow(6,6));
   mergefile(sortedfilename);
 
@@ -100,9 +100,9 @@ template< class T,class = typename std::enable_if<has_index<T>::value>::type >
 void partition_data_sendthread(char* inputfilename, long partition_index){
   mpi::communicator world;
 
-  pout << world.size()<<endl;
+  pout << calc.size()<<endl;
   std::vector<std::vector<T>> send_buff;
-  send_buff.resize(world.size());
+  send_buff.resize(calc.size());
   //std::vector<info_pair<T>> send_buff;
   FILE* inputfile = fopen(inputfilename,"rb");
   if(inputfile==NULL){
@@ -113,9 +113,9 @@ void partition_data_sendthread(char* inputfilename, long partition_index){
   long realsize=fread(inputbuff,sizeof(T),Buff_SIZE,inputfile);
   if(realsize==0) {
     fclose(inputfile);
-    mpi::request req[world.size()];
-    for(int i=0; i< world.size();i++)
-      req[i]=world.isend(i,0,make_infopair(send_buff[i],true));
+    mpi::request req[calc.size()];
+    for(int i=0; i< calc.size();i++)
+      req[i]=calc.isend(i,0,make_infopair(send_buff[i],true));
     return;
   }
   bool finished= realsize==Buff_SIZE? false: true;// finished means this is the last piece of data.
@@ -125,7 +125,7 @@ void partition_data_sendthread(char* inputfilename, long partition_index){
     {
 //      pout <<"send elements: "<<i<<"  "<< inputbuff[i]<<endl;
 
-      if(inputbuff[i].index>= partition_index*world.size()) pout << " too big index"<<endl;
+      if(inputbuff[i].index>= partition_index*calc.size()) pout << " too big index"<<endl;
       send_buff[(int) floor(inputbuff[i].index/partition_index)].push_back(inputbuff[i]);
     }
 
@@ -137,18 +137,18 @@ void partition_data_sendthread(char* inputfilename, long partition_index){
       }
     }
 
-    std::vector<mpi::request> req(world.size());
-    for(int i=0; i< world.size();i++)
-      req[i]=world.isend(i,0,make_infopair(send_buff[i],finished));
-      //world.send(i,0,make_infopair(send_buff[i],finished));
+    std::vector<mpi::request> req(calc.size());
+    for(int i=0; i< calc.size();i++)
+      req[i]=calc.isend(i,0,make_infopair(send_buff[i],finished));
+      //calc.send(i,0,make_infopair(send_buff[i],finished));
 
-    for(int i=0; i< world.size();i++)
+    for(int i=0; i< calc.size();i++)
       req[i].wait();
-    //mpi::wait_all(req,req+world.size());
+    //mpi::wait_all(req,req+calc.size());
     if(finished) break;
 
 
-    for(int i=0; i< world.size();i++)
+    for(int i=0; i< calc.size();i++)
       send_buff[i].clear();
     if(realsize < Buff_SIZE){
 
@@ -157,8 +157,8 @@ void partition_data_sendthread(char* inputfilename, long partition_index){
   }
   fclose(inputfile);
 
-  //for(int i=0; i< world.size();i++)
-  //  world.isend(i,1,false)
+  //for(int i=0; i< calc.size();i++)
+  //  calc.isend(i,1,false)
 
 
 }
@@ -166,16 +166,16 @@ void partition_data_sendthread(char* inputfilename, long partition_index){
 template< class T,class = typename std::enable_if<has_index<T>::value>::type > 
 void partition_data_recvthread(char* outputfilename){
   mpi::communicator world;
-  pout << world.size()<<endl;
+  pout << calc.size()<<endl;
   
   std::vector<info_pair<T>> recv_buff;
-  recv_buff.resize(world.size());
+  recv_buff.resize(calc.size());
   //std::vector<T> output_buff;
   FILE* outputfile = fopen(outputfilename,"wb");
   setvbuf(outputfile,NULL,_IOFBF,Buff_SIZE*3);
-  //std::vector<bool> openrank(world.size,true)
-  std::vector<int> activeworld; activeworld.resize(world.size());
-  for(int i=0; i< world.size();i++)
+  //std::vector<bool> openrank(calc.size,true)
+  std::vector<int> activeworld; activeworld.resize(calc.size());
+  for(int i=0; i< calc.size();i++)
   {
     activeworld[i]=i;
   }
@@ -184,12 +184,12 @@ void partition_data_recvthread(char* outputfilename){
   for(;;)
   {
     if(activeworld.size() == 0) break;
-    std::vector<mpi::request> req(world.size());
-    //mpi::wait_all(req,req+activeworld.size());
+    std::vector<mpi::request> req(calc.size());
+    //mpi::wait_all(req,req+activecalc.size());
     for(int i=0; i< activeworld.size();)
     {
       //req[i]=world.irecv(activeworld[i],0,recv_buff[activeworld[i]]);
-      mpi::request req=world.irecv(activeworld[i],0,recv_buff[activeworld[i]]);
+      mpi::request req=calc.irecv(activeworld[i],0,recv_buff[activeworld[i]]);
       
       //world.recv(activeworld[i],0,recv_buff[activeworld[i]]);
       //std::move(recv_buff[i].first.begin(),recv_buff[i].first.end(),std::back_inserter(output_buff));
@@ -205,7 +205,7 @@ void partition_data_recvthread(char* outputfilename){
         recv_buff[activeworld[i]].first.clear();
 
       }
-    world.barrier();
+    calc.barrier();
       if(recv_buff[activeworld[i]].second == true)
       {
         activeworld.erase(activeworld.begin()+i);
@@ -243,7 +243,7 @@ template< class T,class = typename std::enable_if<has_index<T>::value>::type >
 void partition_data_multithread(long number_of_data, char* inputfilename, char* outputfilename)
 {
   mpi::communicator world;
-  long partition_index = number_of_data/world.size();
+  long partition_index = number_of_data/calc.size();
   pout << "begin partition\n";
   std::thread datasend(partition_data_sendthread<T>,inputfilename,partition_index);
   std::thread datarecv(partition_data_recvthread<T>,outputfilename);
@@ -251,7 +251,7 @@ void partition_data_multithread(long number_of_data, char* inputfilename, char* 
   datasend.join();
   datarecv.join();
 
-  world.barrier();
+  calc.barrier();
 
 }
 

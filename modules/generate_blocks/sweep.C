@@ -188,6 +188,9 @@ double SweepGenblock::do_one(SweepParams &sweepParams, const bool &warmUp, const
       //pout << "\t\t\tUsing one dot algorithm!!"<<endl; 
       sweepParams.savestate(forward, system.get_sites().size());
     }
+
+  system.deallocate();
+  system.clear();
   pout << "\t\t\t Finished Generate-Blocks Sweep. " << endl;
   pout << "\t\t\t ============================================================================ " << endl;
 
@@ -259,6 +262,8 @@ void SweepGenblock::do_one(SweepParams &sweepParams, const bool &forward, int st
 
       ++sweepParams.set_block_iter();
     }
+  system.deallocate();
+  system.clear();
   pout << "\t\t\t Finished Generate-Blocks Sweep. " << endl;
   pout << "\t\t\t ============================================================================ " << endl;
 
@@ -350,6 +355,8 @@ void SweepGenblock::do_one_partialSweep(SweepParams &sweepParams, const bool &fo
 
       ++sweepParams.set_block_iter();
     }
+  system.deallocate();
+  system.clear();
   pout << "\t\t\t Finished Generate-Blocks Sweep. " << endl;
   pout << "\t\t\t ============================================================================ " << endl;
 

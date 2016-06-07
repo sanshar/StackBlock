@@ -363,8 +363,43 @@ double& SpinAdapted::TwoElectronArray::operator()(int i, int j, int k, int l) {
 	return dummyZero;  //more than one v index is not present
 
     }
+
   }
-  if (n >= m) {
+  if (dmrginp.calc_type() == RESPONSEAAAV) {
+
+    long index = 0;
+    long maxi = dim/2 - dmrginp.get_openorbs().size(); 
+
+    //<av|av>, <av|aa>, <aa|av>
+    if (m >= n && i< maxi && k <maxi) {
+      long I = max(i,k), K = min(i,k);
+      n = I*(I+1)/2 + K;
+      index = m*maxi*(maxi+1)/2 + n;
+      if (I >= maxi)
+	return dummyZero;
+    }
+    //<va|va>, <va|aa>, <aa|va>
+    else if (n>m && j < maxi && l <maxi){
+      long maxi = dim/2 - dmrginp.get_openorbs().size(); 
+      long J = max(j,l), L = min(j,l);
+      m = J*(J+1)/2 + L;
+      index = n*maxi*(maxi+1)/2 + m;
+      if (J >= maxi)
+	return dummyZero;
+    }
+    //<va|av> ***because we are reading integrals <vv|aa>, <aa|vv>, <av|va>
+    else {//if (dmrginp.excitation()[i]+dmrginp.excitation()[j] + dmrginp.excitation()[k]+dmrginp.excitation()[l] == 36) {
+      long I = max(i,k), K = min(i,k);
+      long J = max(j,l), L = min(j,l);
+      if (K >=maxi || L >=maxi )
+	return dummyZero;
+      m = J*maxi+L; n = I*maxi+K;
+      index = matDim*maxi*(maxi+1)/2 + max(m,n)*(max(m,n)+1)/2 + min(m,n);
+    }  
+    int v = dmrginp.get_openorbs().size(), a = dim/2-dmrginp.get_openorbs().size();
+    return rep[index];
+  }
+  else if (n >= m) {
     long index = n*(n+1)/2+m;
     return rep[ index];
   } else {
@@ -397,22 +432,66 @@ double SpinAdapted::TwoElectronArray::operator()(int i, int j, int k, int l) con
   if (isCalcLCC) {
     if (isH0) {
       if (dmrginp.excitation()[i]+dmrginp.excitation()[j] != dmrginp.excitation()[k]+dmrginp.excitation()[l]) 
-	return dummyZero;
-      else if (dmrginp.calc_type() == RESPONSEAAAV && dmrginp.excitation()[i] == 12 && dmrginp.excitation()[j] == 12 && dmrginp.excitation()[k] == 12 && dmrginp.excitation()[l] == 12)
-	return dummyZero;  //vvvv not present
+	return 0.0;
+      //      else if (dmrginp.calc_type() == RESPONSEAAAV && dmrginp.excitation()[i] == 12 && dmrginp.excitation()[j] == 12 && dmrginp.excitation()[k] == 12 && dmrginp.excitation()[l] == 12)
+      else if (dmrginp.calc_type() == RESPONSEAAAV && ( (dmrginp.excitation()[i]==12 && dmrginp.excitation()[j] == 12 && dmrginp.excitation()[k]!=12 && dmrginp.excitation()[l]!=12) ||
+							 (dmrginp.excitation()[i]!=12 && dmrginp.excitation()[j] != 12 && dmrginp.excitation()[k]==12 && dmrginp.excitation()[l]==12)))
+	return 0.0;  //vvvv not present
     }
     if (!isH0) { 
       if (dmrginp.excitation()[i]+dmrginp.excitation()[j] == dmrginp.excitation()[k]+dmrginp.excitation()[l])
-	return dummyZero;
+	return 0.0;
       else if (dmrginp.calc_type() == RESPONSEAAAV && !( (dmrginp.excitation()[i]==12 && dmrginp.excitation()[j] != 12 && dmrginp.excitation()[k]!=12 && dmrginp.excitation()[l]!=12) ||
 							 (dmrginp.excitation()[i]!=12 && dmrginp.excitation()[j] == 12 && dmrginp.excitation()[k]!=12 && dmrginp.excitation()[l]!=12) ||
 							 (dmrginp.excitation()[i]!=12 && dmrginp.excitation()[j] != 12 && dmrginp.excitation()[k]==12 && dmrginp.excitation()[l]!=12) ||
 							 (dmrginp.excitation()[i]!=12 && dmrginp.excitation()[j] != 12 && dmrginp.excitation()[k]!=12 && dmrginp.excitation()[l]==12)))
-	return dummyZero;  //more than one v is not present
+	return 0.0;  //more than one v is not present
     }
   }
 
-  if (n >= m) {
+  if (dmrginp.calc_type() == RESPONSEAAAV) {
+    long index = 0;
+    long maxi = dim/2 - dmrginp.get_openorbs().size(); 
+
+      //<va|va>  
+    if (m >= n && i< maxi && k <maxi) {
+      long I = max(i,k), K = min(i,k);
+      n = I*(I+1)/2 + K;
+      index = m*maxi*(maxi+1)/2 + n;
+      if (I >= maxi)
+	return 0.0;
+    }
+    //also <va|va>
+    else if (n>m && j < maxi && l <maxi){
+      long maxi = dim/2 - dmrginp.get_openorbs().size(); 
+      long J = max(j,l), L = min(j,l);
+      m = J*(J+1)/2 + L;
+      index = n*maxi*(maxi+1)/2 + m;
+      if (J >= maxi)
+	return 0.0;
+    }
+    //<va|av>
+    else if (m > n) {
+      long I = max(i,k), K = min(i,k);
+      long J = max(j,l), L = min(j,l);
+      if (K >=maxi || L >=maxi) //(K,L should be a)
+	return 0.0;
+      m = J*maxi+L; n = I*maxi+K;
+      index = matDim*maxi*(maxi+1)/2 + m*(m+1)/2 + n;
+    }
+    //<va|av> <av|va> 
+    else {
+      long I = max(i,k), K = min(i,k);
+      long J = max(j,l), L = min(j,l);
+      if (K >=maxi || L >=maxi)  //(K,L should be a)
+	return 0.0;
+      m = J*maxi+L; n = I*maxi+K;
+      index = matDim*maxi*(maxi+1)/2 + n*(n+1)/2 + m;
+    }
+    int v = dmrginp.get_openorbs().size(), a = dim/2-dmrginp.get_openorbs().size();
+    return rep[index];
+  }
+  else if (n >= m) {
     long index = n*(n+1)/2+m;
     return rep[ index];
   }

@@ -58,7 +58,7 @@ class MPS{
  //double calculateOverlap (const MPS& a, const MPS& b);
 
  //calculate hamiltonian matrix between a and b <Mpsa|H|Mpsb>
- void calcHamiltonianAndOverlap(int statea, int stateb, double& h, double& o, bool sameStates=false) ;
+ void calcHamiltonianAndOverlap(int statea, int stateb, double& h, double& o, bool sameStates=false, int integralIndex=0) ;
 
 }
 

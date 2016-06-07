@@ -23,7 +23,7 @@ boost::shared_ptr<NpdmSpinOps> select_op_wrapper( StackSpinBlock * spinBlock,con
 
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
-void Npdm_driver::get_inner_Operators( const char inner, Npdm_expectations& npdm_expectations, boost::shared_ptr<NpdmSpinOps> lhsOps, boost::shared_ptr<NpdmSpinOps> dotOps, boost::shared_ptr<NpdmSpinOps> rhsOps) 
+  void Npdm_driver::get_inner_Operators( const char inner, Npdm_expectations& npdm_expectations, boost::shared_ptr<NpdmSpinOps> lhsOps, boost::shared_ptr<NpdmSpinOps> dotOps, boost::shared_ptr<NpdmSpinOps> rhsOps, int procrank) 
 {
   // Many spatial combinations on right block
   if( inner == 'l')
@@ -33,40 +33,96 @@ void Npdm_driver::get_inner_Operators( const char inner, Npdm_expectations& npdm
     }
   else if( inner == 'r')
     {
-      for (int i=0; i<rhsOps->size(); i++)
+      int rhsopsize = rhsOps->size();
+#ifndef SERIAL
+      mpi::broadcast(calc, rhsopsize, procrank);
+#endif
+
+      for (int i=0; i<rhsopsize; i++)
 	inner_Operators.push_back(rhsOps->getcopy());
-      inner_intermediate.resize(rhsOps->size());
 
+      inner_intermediate.resize(rhsopsize);
 
-      //allocate memory for the inner_intermediates
-      for ( int i = 0; i < rhsOps->size(); ++i ) {
-	bool skip = rhsOps->set_local_ops( i );
-	if (!skip) {
-	  //boost::shared_ptr<NpdmSpinOps> newOps( new NpdmSpinOps(*rhsOps));
-	  inner_Operators[i]->set_local_ops(i);
-	  inner_intermediate[i] = boost::shared_ptr<std::map<std::vector<int>, StackWavefunction> >(new std::map<std::vector<int>, StackWavefunction>);
-	  npdm_expectations.AllocateInitialiseWavefunctions(*inner_Operators[i], *inner_intermediate[i]);
+      if (mpigetrank() == procrank) {
+	//allocate memory for the inner_intermediates
+	for ( int i = 0; i < rhsopsize; ++i ) {
+	  bool skip = rhsOps->set_local_ops( i );
+	  if (!skip) {
+	    //boost::shared_ptr<NpdmSpinOps> newOps( new NpdmSpinOps(*rhsOps));
+	    inner_Operators[i]->set_local_ops(i);
+	    inner_intermediate[i] = boost::shared_ptr<std::map<std::vector<int>, StackWavefunction> >(new std::map<std::vector<int>, StackWavefunction>);
+	    npdm_expectations.AllocateInitialiseWavefunctions(*inner_Operators[i], *inner_intermediate[i]);
+	  }
+	  else {
+	    inner_Operators[i] = boost::shared_ptr<NpdmSpinOps>();
+	    inner_intermediate[i] = boost::shared_ptr<std::map<std::vector<int>, StackWavefunction> >();
+	  }
+	}
+	
+	std::vector<boost::shared_ptr<NpdmSpinOps> > rhsopsvec;
+	for (int i=0; i<numthrds; i++)
+	  rhsopsvec.push_back(rhsOps->getcopy());
+
+	SplitStackmem();      
+#pragma omp parallel for schedule(dynamic)
+	for ( int i = 0; i < rhsOps->size(); ++i ) {
+	  if(inner_Operators[i] == NULL)
+	    inner_intermediate[i] = boost::shared_ptr<std::map<std::vector<int>, StackWavefunction> >();
+	  else{
+	    npdm_expectations.compute_intermediate( *inner_Operators[i], *inner_intermediate[i]);
+	  }
+	}
+	MergeStackmem();
+      }
+      
+#ifndef SERIAL
+      //In this messy code we take the inner_Operators and inner_intermediates from the processor "procrank"
+      //and broadcast it to all procs. It is more messy than it needs to be because a lot of data is stored 
+      //in boost pointers. To broadcast boost pointers we have to first allocate the memory in boost pointers.
+      // So a big part of the following code is devoted to checking the length of vectors containing boost:pointers,
+      //making the vectors and assining memory to each vector element and finally broadcasting the data.
+      for (int i=0; i<rhsopsize; i++) {
+	int isNull = 1;
+	if (mpigetrank() == procrank) 
+	  isNull = inner_Operators[i] == NULL ? 1 : 0;
+	mpi::broadcast(calc, isNull, procrank);
+	if (isNull==1) {
+	  if (mpigetrank() != procrank) {
+	    inner_Operators[i] = boost::shared_ptr<NpdmSpinOps>();
+	    inner_intermediate[i] = boost::shared_ptr<std::map<std::vector<int>, StackWavefunction> >();
+	  }
 	}
 	else {
-	  inner_Operators[i] = boost::shared_ptr<NpdmSpinOps>();
-	  inner_intermediate[i] = boost::shared_ptr<std::map<std::vector<int>, StackWavefunction> >();
+	  //for inner_operators, we dont need to transmit the data, just the shell
+	  mpi::broadcast(calc, inner_Operators[i]->build_pattern_ , procrank); 
+	  mpi::broadcast(calc, inner_Operators[i]->transpose_ , procrank); 
+	  mpi::broadcast(calc, inner_Operators[i]->factor_ , procrank); 
+	  mpi::broadcast(calc, inner_Operators[i]->indices_ , procrank); 
+	  mpi::broadcast(calc, inner_Operators[i]->is_local_ , procrank); 
+	  mpi::broadcast(calc, inner_Operators[i]->opIndices_ , procrank); 
+
+	  //initialize the vector,Wavefunction map
+	  if (mpigetrank() != procrank) {
+	    inner_intermediate[i] = boost::shared_ptr<std::map<std::vector<int>, StackWavefunction> >(new std::map<std::vector<int>, StackWavefunction>);
+	  } 
+	  mpi::broadcast(calc, *inner_intermediate[i] , procrank);
+
+	  int index = 0;
+	  for (std::map<std::vector<int>, StackWavefunction>::iterator it = inner_intermediate[i]->begin(); it != inner_intermediate[i]->end(); it++){
+	    //allocate the memory for the wavefunction
+	    if (mpigetrank() != procrank) {
+	      it->second.initialise(it->second.get_deltaQuantum(), npdm_expectations.big_.get_leftBlock()->get_ketStateInfo(), npdm_expectations.big_.get_rightBlock()->get_braStateInfo(),true);
+	      inner_Operators[i]->opReps_.push_back(boost::shared_ptr<StackSparseMatrix>(new StackSparseMatrix));
+	    }
+
+	    mpi::broadcast(calc, *inner_Operators[i]->opReps_[index] , procrank);
+	    //broadcast the data
+	    MPI_Bcast(it->second.get_data(), it->second.memoryUsed(), MPI_DOUBLE, procrank, Calc);
+	    index++;
+	  }
 	}
       }
-
-      std::vector<boost::shared_ptr<NpdmSpinOps> > rhsopsvec;
-      for (int i=0; i<numthrds; i++)
-	rhsopsvec.push_back(rhsOps->getcopy());
-
-      SplitStackmem();      
-#pragma omp parallel for schedule(dynamic)
-      for ( int i = 0; i < rhsOps->size(); ++i ) {
-	if(inner_Operators[i] == NULL)
-	  inner_intermediate[i] = boost::shared_ptr<std::map<std::vector<int>, StackWavefunction> >();
-	else{
-	  npdm_expectations.compute_intermediate( *inner_Operators[i], *inner_intermediate[i]);
-	}
-      }
-      MergeStackmem();
+#endif
 
     }
   
@@ -119,11 +175,9 @@ void Npdm_driver::loop_over_block_operators( Npdm::Npdm_expectations& npdm_expec
   npdm_expectations.spin_adaptation_.stored_singlet_rows_.resize(numthrds);
   npdm_expectations.spin_adaptation_.stored_so_indices_.resize(numthrds);
 
-  std::vector< boost::shared_ptr<NpdmSpinOps> > inneropsvector;
   std::vector< boost::shared_ptr<NpdmSpinOps> > outeropsvector;
   std::vector< boost::shared_ptr<NpdmSpinOps> > dotopsvector;
   for (int i=0; i<numthrds; i++) {
-    inneropsvector.push_back( innerOps.getcopy() ); 
     outeropsvector.push_back( outerOps.getcopy() ); 
     dotopsvector.push_back( dotOps.getcopy() ); 
     dotopsvector[i]->set_local_ops(0);
@@ -182,14 +236,14 @@ void Npdm_driver::loop_over_block_operators( Npdm::Npdm_expectations& npdm_expec
     for ( int ilhs = 0; ilhs < outerOps.size(); ++ilhs ) {
       // Set local operators as dummy if load-balancing isn't perfect
       bool skip_op = true;
-      Timer timer2;
+      //Timer timer2;
       
       size_t mem = Stackmem[omprank].memused;
       double *ptr = Stackmem[omprank].data+mem;
       
       skip_op = outeropsvector[omprank]->set_local_ops( ilhs );
       //diskread_time += timer2.elapsedwalltime();
-      
+
       if (!skip_op) {
 	std::map<std::vector<int>, StackWavefunction> outerWaves;
 	npdm_expectations.compute_intermediate(*outeropsvector[omprank], *dotopsvector[omprank], outerWaves);
@@ -199,37 +253,9 @@ void Npdm_driver::loop_over_block_operators( Npdm::Npdm_expectations& npdm_expec
       }
       
       Stackmem[omprank].deallocate(ptr, Stackmem[omprank].memused-mem);
-      
     }
     MergeStackmem();
   }
-    /*
-  //SplitStackmem();
-  // Many spatial combinations on left block
-  //#pragma omp parallel for schedule(dynamic)
-  for ( int ilhs = 0; ilhs < outerOps.size(); ++ilhs ) {
-    // Set local operators as dummy if load-balancing isn't perfect
-    bool skip_op = true;
-    Timer timer2;
-
-    size_t mem = Stackmem[omprank].memused;
-    double *ptr = Stackmem[omprank].data+mem;
-
-    skip_op = outeropsvector[omprank]->set_local_ops( ilhs );
-    //diskread_time += timer2.elapsedwalltime();
-
-    if (!skip_op) {
-      std::map<std::vector<int>, StackWavefunction> outerWaves;
-      npdm_expectations.compute_intermediate(*outeropsvector[omprank], *dotopsvector[omprank], outerWaves);
-      for (int k=0; k<inner_intermediate.size(); k++) 
-	do_inner_loop( 'r', npdm_expectations, *outeropsvector[omprank], *dotopsvector[omprank], outerWaves, k);      
-    }
-
-    Stackmem[omprank].deallocate(ptr, Stackmem[omprank].memused-mem);
-    
-  }
-  //MergeStackmem();
-  */
 }
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -261,7 +287,7 @@ void Npdm_driver::loop_over_operator_patterns( Npdm::Npdm_patterns& patterns, Np
 #ifndef SERIAL
     // MPI threads must be synchronised here so they all work on same operator pattern simultaneously
     pout.flush();
-    world.barrier();
+    calc.barrier();
 #endif
     //pout << "-------------------------------------------------------------------------------------------\n";
     pout << "Doing pattern " << count << " of " << patterns.size() <<"   ";
@@ -285,28 +311,39 @@ void Npdm_driver::loop_over_operator_patterns( Npdm::Npdm_patterns& patterns, Np
     // Only one spatial combination on the dot block (including NULL)
     if(dmrginp.spinAdapted()){
       assert( dotOps->size() == 1 );
+
+      for(int i=0; i< dotOps->size(); i++){
       
-      bool skip = dotOps->set_local_ops( 0 );
-      if ( ! skip ) {
-	// <Psi_1| L_i d_j  R_k |Psi_0> 
-	//we form a series of  |Psi_k> = R_k |Psi_0>
-
-	//then we loop over ij and contract <Psi_1| L_i d_j |Psi_k> 
-	//these expectation values are then converted to usable RDM elements
-	Timer timer2;
-	inner_Operators.clear();
-	inner_intermediate.clear();
-	
-	size_t mem = Stackmem[0].memused;
-	double *ptr = Stackmem[0].data+mem;
-
-	get_inner_Operators( 'r', expectations, lhsOps, dotOps , rhsOps) ;  // this makes the |Psi_k> and stores them as intermediates
-	diskread_time += timer2.elapsedwalltime();
-	loop_over_block_operators( expectations, *lhsOps, *rhsOps, *dotOps ); //contracts <Psi_1|L_i d_j|Psi_k>
-
-	inner_Operators.clear();
-	inner_intermediate.clear();
-	Stackmem[0].deallocate(ptr, Stackmem[0].memused-mem);
+	bool skip = dotOps->set_local_ops( i );
+	if ( ! skip ) {
+	  // <Psi_1| L_i d_j  R_k |Psi_0> 
+	  //we form a series of  |Psi_k> = R_k |Psi_0>
+	  
+	  //then we loop over ij and contract <Psi_1| L_i d_j |Psi_k> 
+	  //these expectation values are then converted to usable RDM elements
+	  Timer timer2;
+	  inner_Operators.clear();
+	  inner_intermediate.clear();
+	  
+#ifndef SERIAL
+	  for (int proc=0; proc<calc.size(); proc++) {
+#else
+	  {
+	    int proc = 0;
+#endif
+	    if (rhsOps->is_local_ && proc > 0) continue;
+	    size_t mem = Stackmem[0].memused;
+	    double *ptr = Stackmem[0].data+mem;
+	    
+	    get_inner_Operators( 'r', expectations, lhsOps, dotOps , rhsOps, proc) ;  // this makes the |Psi_k> and stores them as intermediates
+	    diskread_time += timer2.elapsedwalltime();
+	    loop_over_block_operators( expectations, *lhsOps, *rhsOps, *dotOps ); //contracts <Psi_1|L_i d_j|Psi_k>
+	    
+	    inner_Operators.clear();
+	    inner_intermediate.clear();
+	    Stackmem[0].deallocate(ptr, Stackmem[0].memused-mem);
+	  }
+	}
       }
     }
     else{
@@ -350,7 +387,7 @@ void Npdm_driver::compute_npdm_elements(std::vector<StackWavefunction> & wavefun
 #ifndef SERIAL
   boost::mpi::communicator world;
   pout.flush();
-  world.barrier();
+  calc.barrier();
 #endif
   DEBUG_COMM_TIME = 0;
   DEBUG_STORE_ELE_TIME = 0;
@@ -380,7 +417,6 @@ void Npdm_driver::compute_npdm_elements(std::vector<StackWavefunction> & wavefun
 	diskread_time +=npdm_expectations.diskread_time; 
   // Print outs
 #ifndef SERIAL
-  cout <<"before loop over patters 3 "<< Stackmem[0].memused<<endl;
   if (mpigetrank() == 0) {
     int sum;
     reduce(calc, DEBUG_CALL_GET_EXPECT, sum, std::plus<int>(), 0);

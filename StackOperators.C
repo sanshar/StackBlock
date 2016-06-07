@@ -926,8 +926,8 @@ void SpinAdapted::StackCreDesComp::buildfromCreDes(StackSpinBlock& b)
 
   memset(data, 0, totalMemory * sizeof(double));
 
-  StackCreDesComp* op_array; 
-  initiateMultiThread(this, op_array, numthrds);
+  //StackCreDesComp op_array = this; 
+  //initiateMultiThread(this, op_array, numthrds);
 
   //TensorOp C(i,1), D(j,-1);
   //TensorOp CD1 = C.product(D, (-deltaQuantum[0].get_s()).getirrep(), (-sym).getirrep()); // the operator to be complimentaried
@@ -944,52 +944,54 @@ void SpinAdapted::StackCreDesComp::buildfromCreDes(StackSpinBlock& b)
     for (int ji=0; ji<b.get_op_array(CRE_DES).get_local_element(ii).size(); ji++) 
       if (b.get_op_array(CRE_DES).get_local_element(ii)[ji]->get_deltaQuantum(0) == deltaQuantum[0] || 
           b.get_op_array(CRE_DES).get_local_element(ii)[ji]->get_deltaQuantum(0) == -deltaQuantum[0]) {
-	      allops1.push_back(b.get_op_array(CRE_DES).get_local_element(ii)[ji]);
-	      const int k = allops1.back()->get_orbs()[0];
-	      const int l = allops1.back()->get_orbs()[1];
-	      
-	      //TensorOp CK(k,1), DL(l,-1);
-	      //TensorOp CD2 = CK.product(DL, spin, sym.getirrep());
+	allops1.push_back(b.get_op_array(CRE_DES).get_local_element(ii)[ji]);
+	const int k = allops1.back()->get_orbs()[0];
+	const int l = allops1.back()->get_orbs()[1];
+	
+	//TensorOp CK(k,1), DL(l,-1);
+	//TensorOp CD2 = CK.product(DL, spin, sym.getirrep());
         TensorOp CD2(k, l, 1, -1, spin, sym.getirrep());
-	      if (!CD2.empty) 
-	        scaleCD[2*(allops1.size()-1)] = calcCompfactor(CD1, CD2, CD,*(b.get_twoInt()), b.get_integralIndex());
-
-	      //CK=TensorOp(l,1); DL=TensorOp(k,-1);      
-	      //CD2 = CK.product(DL, spin, sym.getirrep());
+	if (!CD2.empty) 
+	  scaleCD[2*(allops1.size()-1)] = calcCompfactor(CD1, CD2, CD,*(b.get_twoInt()), b.get_integralIndex());
+	
+	//CK=TensorOp(l,1); DL=TensorOp(k,-1);      
+	//CD2 = CK.product(DL, spin, sym.getirrep());
         CD2 = TensorOp(l, k, 1, -1, spin, sym.getirrep());
-	      if (!b.has(DES) && l!=k && !CD2.empty) {
-	        double scaleV = calcCompfactor(CD1, CD2, CD,*(b.get_twoInt()), b.get_integralIndex());
+	if (!b.has(DES) && l!=k && !CD2.empty) {
+	  double scaleV = calcCompfactor(CD1, CD2, CD,*(b.get_twoInt()), b.get_integralIndex());
           if (dmrginp.spinAdapted()) {
             scaleV *= getCommuteParity(getSpinQuantum(l), getSpinQuantum(k), get_deltaQuantum()[0]);
           }
-	        scaleCD[2*(allops1.size()-1) + 1] = scaleV;
-	      }
+	  scaleCD[2*(allops1.size()-1) + 1] = scaleV;
+	}
       }
   numCD = allops1.size();
 
   if(b.has(DES)) {
     for (int ii=0; ii<b.get_op_array(DES_CRE).get_size(); ii++)
       for (int ji=0; ji<b.get_op_array(DES_CRE).get_local_element(ii).size(); ji++) 
-	      if (b.get_op_array(DES_CRE).get_local_element(ii)[ji]->get_deltaQuantum(0) == -deltaQuantum[0]) {
-	        allops1.push_back(b.get_op_array(DES_CRE).get_local_element(ii)[ji]);
-
-	        const int l = allops1.back()->get_orbs()[0];
-	        const int k = allops1.back()->get_orbs()[1];
-
-	        if (k!=l) {
-	          //TensorOp CK(k,1), DL(l,-1);      
-	          //TensorOp CD2 = CK.product(DL, spin, sym.getirrep());
+	if (b.get_op_array(DES_CRE).get_local_element(ii)[ji]->get_deltaQuantum(0) == -deltaQuantum[0]) {
+	  allops1.push_back(b.get_op_array(DES_CRE).get_local_element(ii)[ji]);
+	  
+	  const int l = allops1.back()->get_orbs()[0];
+	  const int k = allops1.back()->get_orbs()[1];
+	  
+	  if (k!=l) {
+	    //TensorOp CK(k,1), DL(l,-1);      
+	    //TensorOp CD2 = CK.product(DL, spin, sym.getirrep());
             TensorOp CD2(k, l, 1, -1, spin, sym.getirrep());
-	          if (!CD2.empty) {
-	            double scaleV = calcCompfactor(CD1, CD2, CD,*(b.get_twoInt()), b.get_integralIndex());
+	    if (!CD2.empty) {
+	      double scaleV = calcCompfactor(CD1, CD2, CD,*(b.get_twoInt()), b.get_integralIndex());
               if (dmrginp.spinAdapted()) {
-	              scaleV *= getCommuteParity(getSpinQuantum(l), getSpinQuantum(k), get_deltaQuantum()[0]);
+		scaleV *= getCommuteParity(getSpinQuantum(l), getSpinQuantum(k), get_deltaQuantum()[0]);
               }
-	            scaleCD[2*(allops1.size()-1)] = scaleV;
-	          }
-	        }
-	      }
+	      scaleCD[2*(allops1.size()-1)] = scaleV;
+	    }
+	  }
+	}
   }
+
+
   numDC = allops1.size();
 
   if (dmrginp.hamiltonian() == BCS) {
@@ -1052,7 +1054,8 @@ void SpinAdapted::StackCreDesComp::buildfromCreDes(StackSpinBlock& b)
     reorderedVector[index] = it->second;
     index--;
   }  
-#pragma omp parallel for schedule(dynamic)
+
+  //#pragma omp parallel for schedule(dynamic)
   for (int ii = 0; ii<allops1.size()*reorderedVector.size(); ii++) {
     int opindex = (ii)%allops1.size(), quantaindex = (ii)/allops1.size();
     int lQ = reorderedVector[quantaindex].first, rQ = reorderedVector[quantaindex].second;
@@ -1062,36 +1065,37 @@ void SpinAdapted::StackCreDesComp::buildfromCreDes(StackSpinBlock& b)
     //this is a cd operator
     if (opindex <numCD) {
       if (allops1[opindex]->allowed(lQ, rQ) && allowed(lQ, rQ) && fabs(scaleCD[2*opindex]) >TINY) 
-	      MatrixScaleAdd(scaleCD[2*opindex], allops1[opindex]->operator_element(lQ, rQ), op_array[omprank].operator_element(lQ, rQ));
-
+	MatrixScaleAdd(scaleCD[2*opindex], allops1[opindex]->operator_element(lQ, rQ), this->operator_element(lQ, rQ));
+      
       if (!b.has(DES) && l!=k && fabs(scaleCD[2*opindex+1]) > TINY) {
-	      if (allowed(lQ, rQ) && allops1[opindex]->allowed(rQ, lQ)) {
-	        double scaling = getStandAlonescaling(-(allops1[opindex]->get_deltaQuantum(0)), b.get_braStateInfo().quanta[lQ], b.get_ketStateInfo().quanta[rQ]);
-	        int nrows = operator_element(lQ, rQ).Nrows();
-	        int ncols = operator_element(lQ, rQ).Ncols();
-	        for (int row=0; row<nrows; row++)
-	          DAXPY(ncols, scaling*scaleCD[2*opindex+1], &(allops1[opindex]->operator_element(rQ, lQ)(1, row+1)), nrows, &(op_array[omprank].operator_element(lQ, rQ)(row+1, 1)), 1); 
-	      }
+	if (allowed(lQ, rQ) && allops1[opindex]->allowed(rQ, lQ)) {
+	  double scaling = getStandAlonescaling(-(allops1[opindex]->get_deltaQuantum(0)), b.get_braStateInfo().quanta[lQ], b.get_ketStateInfo().quanta[rQ]);
+	  int nrows = operator_element(lQ, rQ).Nrows();
+	  int ncols = operator_element(lQ, rQ).Ncols();
+	  for (int row=0; row<nrows; row++)
+	    DAXPY(ncols, scaling*scaleCD[2*opindex+1], &(allops1[opindex]->operator_element(rQ, lQ)(1, row+1)), nrows, &(this->operator_element(lQ, rQ)(row+1, 1)), 1); 
+	}
       }
     } else if (opindex < numDC) {
       if (k!=l && allops1[opindex]->allowed(lQ, rQ) && allowed(lQ, rQ) && fabs(scaleCD[2*opindex]) > TINY)  
-	      MatrixScaleAdd(scaleCD[2*opindex], allops1[opindex]->operator_element(lQ, rQ), op_array[omprank].operator_element(lQ, rQ));
+	MatrixScaleAdd(scaleCD[2*opindex], allops1[opindex]->operator_element(lQ, rQ), this->operator_element(lQ, rQ));
     } else { // CC
       if (allops1[opindex]->allowed(lQ, rQ) && allowed(lQ, rQ) && fabs(scaleCC[2*(opindex-numDC)]) > TINY)
-        MatrixScaleAdd(scaleCC[2*(opindex-numDC)], allops1[opindex]->operator_element(lQ, rQ), op_array[omprank].operator_element(lQ, rQ));
-
+        MatrixScaleAdd(scaleCC[2*(opindex-numDC)], allops1[opindex]->operator_element(lQ, rQ), this->operator_element(lQ, rQ));
+      
       if (!b.has(DES) &&  fabs(scaleCC[2*(opindex-numDC)+1]) > TINY) {
         if (allowed(lQ, rQ) && allops1[opindex]->allowed(rQ, lQ)) {
-	        double scaling = getStandAlonescaling(-(allops1[opindex]->get_deltaQuantum(0)), b.get_braStateInfo().quanta[lQ], b.get_ketStateInfo().quanta[rQ]);
+	  double scaling = getStandAlonescaling(-(allops1[opindex]->get_deltaQuantum(0)), b.get_braStateInfo().quanta[lQ], b.get_ketStateInfo().quanta[rQ]);
           int nrows = operator_element(lQ, rQ).Nrows();
           int ncols = operator_element(lQ, rQ).Ncols();
           for (int row=0; row<nrows; ++row)
-            DAXPY(ncols, scaling*scaleCC[2*(opindex-numDC)+1], &(allops1[opindex]->operator_element(rQ, lQ)(1, row+1)), nrows, &(op_array[omprank].operator_element(lQ, rQ)(row+1, 1)), 1);
+            DAXPY(ncols, scaling*scaleCC[2*(opindex-numDC)+1], &(allops1[opindex]->operator_element(rQ, lQ)(1, row+1)), nrows, &(this->operator_element(lQ, rQ)(row+1, 1)), 1);
         }
       }
     }
   }
-  accumulateMultiThread(this, op_array, numthrds);
+
+  //accumulateMultiThread(this, op_array, numthrds);
 }
 
 
@@ -1858,8 +1862,8 @@ void SpinAdapted::StackDesCreComp::buildfromDesCre(StackSpinBlock& b)
 
   memset(data, 0, totalMemory * sizeof(double));
 
-  StackDesCreComp* op_array; 
-  initiateMultiThread(this, op_array, numthrds);
+  //StackDesCreComp* op_array; 
+  //initiateMultiThread(this, op_array, numthrds);
 
 
   //TensorOp D(i,-1), C(j,1);
@@ -1877,7 +1881,7 @@ void SpinAdapted::StackDesCreComp::buildfromDesCre(StackSpinBlock& b)
       if (b.get_op_array(DES_CRE).get_local_element(ii)[ji]->get_deltaQuantum(0) == deltaQuantum[0])
 	allops2.push_back(b.get_op_array(DES_CRE).get_local_element(ii)[ji]);
 
-#pragma omp parallel for schedule(dynamic)
+  //#pragma omp parallel for schedule(dynamic)
   for (int ii = 0; ii<allops1.size(); ii++) {
     const int k = allops1[ii]->get_orbs()[0];
     const int l = allops1[ii]->get_orbs()[1];
@@ -1887,12 +1891,12 @@ void SpinAdapted::StackDesCreComp::buildfromDesCre(StackSpinBlock& b)
     TensorOp CD2(k, l, 1, -1, spin, sym.getirrep());
     if (!CD2.empty) {
       double scaleV = calcCompfactor(CD1, CD2, CD,*(b.get_twoInt()), b.get_integralIndex());
-      ScaleAdd(scaleV, *allops1[ii], op_array[omprank]);
+      ScaleAdd(scaleV, *allops1[ii], *this);
     }
 
   }
   
-#pragma omp parallel for schedule(dynamic)
+  //#pragma omp parallel for schedule(dynamic)
   for (int ii = 0; ii<allops2.size(); ii++) {
     const int l = allops2[ii]->get_orbs()[0];
     const int k = allops2[ii]->get_orbs()[1];
@@ -1905,11 +1909,11 @@ void SpinAdapted::StackDesCreComp::buildfromDesCre(StackSpinBlock& b)
       double scaleV = calcCompfactor(CD1, CD2, CD,*(b.get_twoInt()), b.get_integralIndex());
       //scaleV *= getCommuteParity(getSpinQuantum(i), getSpinQuantum(j), get_deltaQuantum()[0]);
       scaleV *= getCommuteParity(getSpinQuantum(l), -getSpinQuantum(k), get_deltaQuantum()[0]);
-      ScaleAdd(scaleV, *allops2[ii], op_array[omprank]);
+      ScaleAdd(scaleV, *allops2[ii], *this);
     }
   }
 
-  accumulateMultiThread(this, op_array, numthrds);
+  //accumulateMultiThread(this, op_array, numthrds);
 }
 
 
@@ -2121,8 +2125,8 @@ void SpinAdapted::StackDesDesComp::buildfromDesDes(StackSpinBlock& b)
   const int j = get_orbs()[1];
   memset(data, 0, totalMemory * sizeof(double));
 
-  StackDesDesComp* op_array; 
-  initiateMultiThread(this, op_array, numthrds);
+  //StackDesDesComp* op_array; 
+  //initiateMultiThread(this, op_array, numthrds);
   
   //TensorOp C(i,1), C2(j,1);
   //TensorOp CC1 = C.product(C2, (-deltaQuantum[0].get_s()).getirrep(), (-sym).getirrep(), i==j);
@@ -2246,7 +2250,7 @@ void SpinAdapted::StackDesDesComp::buildfromDesDes(StackSpinBlock& b)
     index--;
   }
 
-#pragma omp parallel for schedule(dynamic)
+  //#pragma omp parallel for schedule(dynamic)
   for (int ii = 0; ii < allops.size()*reorderedVector.size(); ++ii) {
     int opindex = (ii)%allops.size(), quantaindex = (ii)/allops.size();
     int lQ = reorderedVector[quantaindex].first, rQ = reorderedVector[quantaindex].second;
@@ -2258,35 +2262,35 @@ void SpinAdapted::StackDesDesComp::buildfromDesDes(StackSpinBlock& b)
           int nrows = operator_element(lQ, rQ).Nrows();
           int ncols = operator_element(lQ, rQ).Ncols();
           for (int row=0; row < nrows; ++row)
-            DAXPY(ncols, scaling*scaleDD[opindex], &(allops[opindex]->operator_element(rQ,lQ)(1, row+1)), nrows, &(op_array[omprank].operator_element(lQ, rQ)(row+1, 1)), 1);
+            DAXPY(ncols, scaling*scaleDD[opindex], &(allops[opindex]->operator_element(rQ,lQ)(1, row+1)), nrows, &(this->operator_element(lQ, rQ)(row+1, 1)), 1);
         }
       } else { // operator DD
         if (allowed(lQ, rQ) && allops[opindex]->allowed(lQ,rQ) && fabs(scaleDD[opindex])> TINY) {
-          MatrixScaleAdd(scaleDD[opindex], allops[opindex]->operator_element(lQ,rQ), op_array[omprank].operator_element(lQ, rQ));
+          MatrixScaleAdd(scaleDD[opindex], allops[opindex]->operator_element(lQ,rQ), this->operator_element(lQ, rQ));
         }
       }
 
       if (dmrginp.hamiltonian() == BCS && allowed(lQ, rQ) 
           && allops[opindex]->allowed(lQ,rQ) && fabs(scaleCC[opindex]) > TINY) {
-        MatrixScaleAdd(scaleCC[opindex], allops[opindex]->operator_element(lQ,rQ), op_array[omprank].operator_element(lQ, rQ));
+        MatrixScaleAdd(scaleCC[opindex], allops[opindex]->operator_element(lQ,rQ), this->operator_element(lQ, rQ));
       }
     } else { // CkDl and ClDk
       const int k = allops[opindex]->get_orbs()[0];    
       const int l = allops[opindex]->get_orbs()[1];
       if (allowed(lQ,rQ) && allops[opindex]->allowed(lQ,rQ) && fabs(scaleCD[2*(opindex-numCC)]) > TINY)
-        MatrixScaleAdd(scaleCD[2*(opindex-numCC)], allops[opindex]->operator_element(lQ,rQ), op_array[omprank].operator_element(lQ, rQ));
+        MatrixScaleAdd(scaleCD[2*(opindex-numCC)], allops[opindex]->operator_element(lQ,rQ), this->operator_element(lQ, rQ));
 
       if (!b.has(DES) && k != l && allowed(lQ,rQ) && allops[opindex]->allowed(rQ,lQ) && fabs(scaleCD[2*(opindex-numCC)+1]) > TINY) {
         double scaling = getStandAlonescaling(-(allops[opindex]->get_deltaQuantum(0)), b.get_braStateInfo().quanta[lQ], b.get_ketStateInfo().quanta[rQ]);
         int nrows = operator_element(lQ, rQ).Nrows();
         int ncols = operator_element(lQ, rQ).Ncols();
         for (int row=0; row < nrows; ++row)
-          DAXPY(ncols, scaling*scaleCD[2*(opindex-numCC)+1], &(allops[opindex]->operator_element(rQ,lQ)(1, row+1)), nrows, &(op_array[omprank].operator_element(lQ, rQ)(row+1, 1)), 1);
+          DAXPY(ncols, scaling*scaleCD[2*(opindex-numCC)+1], &(allops[opindex]->operator_element(rQ,lQ)(1, row+1)), nrows, &(this->operator_element(lQ, rQ)(row+1, 1)), 1);
       }
     }
   }
 
-  accumulateMultiThread(this, op_array, numthrds);
+  //accumulateMultiThread(this, op_array, numthrds);
 
 }
 
@@ -3214,8 +3218,8 @@ void SpinAdapted::StackCreCreComp::buildfromCreCre(StackSpinBlock& b)
  const int j = get_orbs()[1];
  memset(data, 0, totalMemory * sizeof(double));
 
- StackCreCreComp* op_array; 
- initiateMultiThread(this, op_array, numthrds);
+ //StackCreCreComp* op_array; 
+ //initiateMultiThread(this, op_array, numthrds);
  
  //TensorOp D(i, -1), D2(j, -1);
  //TensorOp DD1 = D.product(D2, (-deltaQuantum[0].get_s()).getirrep(), (-sym).getirrep(), i==j);
@@ -3228,7 +3232,7 @@ void SpinAdapted::StackCreCreComp::buildfromCreCre(StackSpinBlock& b)
      if (b.get_op_array(CRE_CRE).get_local_element(ii)[ji]->get_deltaQuantum(0) == deltaQuantum[0])
        allops.push_back(b.get_op_array(CRE_CRE).get_local_element(ii)[ji]);
 
-#pragma omp parallel for schedule(dynamic)
+ //#pragma omp parallel for schedule(dynamic)
  for (int ii = 0; ii<allops.size(); ii++) {
    const int k = allops[ii]->get_orbs()[0];
    const int l = allops[ii]->get_orbs()[1];
@@ -3248,12 +3252,12 @@ void SpinAdapted::StackCreCreComp::buildfromCreCre(StackSpinBlock& b)
      if (k != l)
        scaleV += parity*scaleV2;
 
-     ScaleAdd(scaleV, *allops[ii], op_array[omprank]);
+     ScaleAdd(scaleV, *allops[ii], *this);
      
    }
  }
 
- accumulateMultiThread(this, op_array, numthrds);
+ //accumulateMultiThread(this, op_array, numthrds);
 
 }
 

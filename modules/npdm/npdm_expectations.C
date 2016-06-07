@@ -266,9 +266,6 @@ double DotProduct_spincorrection(const StackWavefunction& w1, const StackWavefun
 
 double Npdm_expectations::build_nonspin_adapted_singlet_expectations( NpdmSpinOps_base & lhsOps, NpdmSpinOps_base & rhsOps, NpdmSpinOps_base & dotOps)
 {
-#ifndef SERIAL
-  boost::mpi::communicator world;
-#endif
 
   // IMPORTANT: generate spin-components in the same order as RHS of linear equation solver in npdm_set_up_linear_equations routine
   // i.e. in accordance with the operator string build_pattern
@@ -313,9 +310,6 @@ double Npdm_expectations::build_nonspin_adapted_singlet_expectations( NpdmSpinOp
 
 void Npdm_expectations::build_spin_adapted_singlet_expectations( NpdmSpinOps_base & lhsOps, NpdmSpinOps_base & rhsOps, NpdmSpinOps_base & dotOps)
 {
-#ifndef SERIAL
-  boost::mpi::communicator world;
-#endif
   expectations_[omprank].clear();
 
   // IMPORTANT: generate spin-components in the same order as RHS of linear equation solver in npdm_set_up_linear_equations routine
@@ -389,9 +383,6 @@ void Npdm_expectations::build_spin_adapted_singlet_expectations( NpdmSpinOps_bas
 
 void Npdm_expectations::build_spin_adapted_singlet_expectations( NpdmSpinOps_base & lhsOps, NpdmSpinOps_base & rhsOps, NpdmSpinOps_base & dotOps, std::map<std::vector<int>, StackWavefunction>& leftwaves, std::map<std::vector<int>, StackWavefunction>& rightwaves)
 {
-#ifndef SERIAL
-  boost::mpi::communicator world;
-#endif
   expectations_[omprank].clear();
 
   // IMPORTANT: generate spin-components in the same order as RHS of linear equation solver in npdm_set_up_linear_equations routine
@@ -598,9 +589,6 @@ Npdm_expectations::get_nonspin_adapted_expectations(NpdmSpinOps_base & lhsOps, N
 
 void Npdm_expectations::compute_intermediate( NpdmSpinOps_base & lhsOps, NpdmSpinOps_base & dotOps, std::map<std::vector<int>, StackWavefunction> & waves)
 {
-#ifndef SERIAL
-  boost::mpi::communicator world;
-#endif
   
 
   StackSparseMatrix* null = 0; 
@@ -670,9 +658,6 @@ void Npdm_expectations::compute_intermediate( NpdmSpinOps_base & lhsOps, NpdmSpi
 
 void Npdm_expectations::AllocateInitialiseWavefunctions(NpdmSpinOps_base & rhsOps, std::map<std::vector<int>, StackWavefunction> &  waves)
 {
-#ifndef SERIAL
-  boost::mpi::communicator world;
-#endif
   
   StackSparseMatrix* null = 0; 
   vector<SpinQuantum> dQ = wavefunction_0.get_deltaQuantum();
@@ -701,9 +686,6 @@ void Npdm_expectations::AllocateInitialiseWavefunctions(NpdmSpinOps_base & rhsOp
 
 void Npdm_expectations::compute_intermediate( NpdmSpinOps_base & rhsOps, std::map<std::vector<int>, StackWavefunction> &  waves)
 {
-#ifndef SERIAL
-  boost::mpi::communicator world;
-#endif
   
   StackSparseMatrix* null = 0; 
   vector<SpinQuantum> dQ = wavefunction_1.get_deltaQuantum();
