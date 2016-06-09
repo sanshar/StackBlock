@@ -401,7 +401,10 @@ int Symmetry::negativeof(int irrep)
 
 std::vector<int> Symmetry::add(int irrepl, int irrepr)
 {
-  if (sym == "dinfh") {
+  if (NonabelianSym) {
+    return nonAbelianGrp.getProduct(irrepl, irrepr);
+  }
+  else if (sym == "dinfh") {
     std::vector<int> vec;
     int goru = ((irrepl%2==0 && irrepr%2==0) || (irrepl%2==1 && irrepr%2==1)) ? 0 : 1;
     
@@ -429,9 +432,6 @@ std::vector<int> Symmetry::add(int irrepl, int irrepr)
       
       return vec;
     }
-  }
-  else if (NonabelianSym) {
-    return nonAbelianGrp.getProduct(irrepl, irrepr);
   }
   else if (sym == "dinfh_abelian") {
     std::vector<int> vec;
