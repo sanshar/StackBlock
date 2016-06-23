@@ -936,7 +936,7 @@ void SpinAdapted::StackCreDesComp::buildfromCreDes(StackSpinBlock& b)
   std::vector<boost::shared_ptr<StackSparseMatrix> >  allops1;
   int numCD = 0, numDC = 0;
   std::vector<double> scaleCD, scaleCC;
-  if (dmrginp.hamiltonian() == BCS) scaleCC.resize(b.get_op_array(CRE_CRE).get_size()*2, 0.0);
+  if (dmrginp.hamiltonian() == BCS) scaleCC.resize(b.get_op_array(CRE_CRE).get_size()*4, 0.0);
   //for each CD there is spin0, spin 1 and normal and transpose
   if (dmrginp.spinAdapted()) scaleCD.resize(b.get_op_array(CRE_DES).get_size()*8, 0.0);
   else scaleCD.resize(b.get_op_array(CRE_DES).get_size()*4, 0.0);
@@ -944,51 +944,51 @@ void SpinAdapted::StackCreDesComp::buildfromCreDes(StackSpinBlock& b)
     for (int ji=0; ji<b.get_op_array(CRE_DES).get_local_element(ii).size(); ji++) 
       if (b.get_op_array(CRE_DES).get_local_element(ii)[ji]->get_deltaQuantum(0) == deltaQuantum[0] || 
           b.get_op_array(CRE_DES).get_local_element(ii)[ji]->get_deltaQuantum(0) == -deltaQuantum[0]) {
-	allops1.push_back(b.get_op_array(CRE_DES).get_local_element(ii)[ji]);
-	const int k = allops1.back()->get_orbs()[0];
-	const int l = allops1.back()->get_orbs()[1];
-	
-	//TensorOp CK(k,1), DL(l,-1);
-	//TensorOp CD2 = CK.product(DL, spin, sym.getirrep());
-        TensorOp CD2(k, l, 1, -1, spin, sym.getirrep());
-	if (!CD2.empty) 
-	  scaleCD[2*(allops1.size()-1)] = calcCompfactor(CD1, CD2, CD,*(b.get_twoInt()), b.get_integralIndex());
-	
-	//CK=TensorOp(l,1); DL=TensorOp(k,-1);      
-	//CD2 = CK.product(DL, spin, sym.getirrep());
-        CD2 = TensorOp(l, k, 1, -1, spin, sym.getirrep());
-	if (!b.has(DES) && l!=k && !CD2.empty) {
-	  double scaleV = calcCompfactor(CD1, CD2, CD,*(b.get_twoInt()), b.get_integralIndex());
-          if (dmrginp.spinAdapted()) {
-            scaleV *= getCommuteParity(getSpinQuantum(l), getSpinQuantum(k), get_deltaQuantum()[0]);
-          }
-	  scaleCD[2*(allops1.size()-1) + 1] = scaleV;
-	}
+        allops1.push_back(b.get_op_array(CRE_DES).get_local_element(ii)[ji]);
+        const int k = allops1.back()->get_orbs()[0];
+        const int l = allops1.back()->get_orbs()[1];
+        
+        //TensorOp CK(k,1), DL(l,-1);
+        //TensorOp CD2 = CK.product(DL, spin, sym.getirrep());
+              TensorOp CD2(k, l, 1, -1, spin, sym.getirrep());
+        if (!CD2.empty) 
+          scaleCD[2*(allops1.size()-1)] = calcCompfactor(CD1, CD2, CD,*(b.get_twoInt()), b.get_integralIndex());
+        
+        //CK=TensorOp(l,1); DL=TensorOp(k,-1);      
+        //CD2 = CK.product(DL, spin, sym.getirrep());
+              CD2 = TensorOp(l, k, 1, -1, spin, sym.getirrep());
+        if (!b.has(DES) && l!=k && !CD2.empty) {
+          double scaleV = calcCompfactor(CD1, CD2, CD,*(b.get_twoInt()), b.get_integralIndex());
+                if (dmrginp.spinAdapted()) {
+                  scaleV *= getCommuteParity(getSpinQuantum(l), getSpinQuantum(k), get_deltaQuantum()[0]);
+                }
+          scaleCD[2*(allops1.size()-1) + 1] = scaleV;
+        }
       }
   numCD = allops1.size();
 
   if(b.has(DES)) {
     for (int ii=0; ii<b.get_op_array(DES_CRE).get_size(); ii++)
       for (int ji=0; ji<b.get_op_array(DES_CRE).get_local_element(ii).size(); ji++) 
-	if (b.get_op_array(DES_CRE).get_local_element(ii)[ji]->get_deltaQuantum(0) == -deltaQuantum[0]) {
-	  allops1.push_back(b.get_op_array(DES_CRE).get_local_element(ii)[ji]);
-	  
-	  const int l = allops1.back()->get_orbs()[0];
-	  const int k = allops1.back()->get_orbs()[1];
-	  
-	  if (k!=l) {
-	    //TensorOp CK(k,1), DL(l,-1);      
-	    //TensorOp CD2 = CK.product(DL, spin, sym.getirrep());
-            TensorOp CD2(k, l, 1, -1, spin, sym.getirrep());
-	    if (!CD2.empty) {
-	      double scaleV = calcCompfactor(CD1, CD2, CD,*(b.get_twoInt()), b.get_integralIndex());
+        if (b.get_op_array(DES_CRE).get_local_element(ii)[ji]->get_deltaQuantum(0) == -deltaQuantum[0]) {
+          allops1.push_back(b.get_op_array(DES_CRE).get_local_element(ii)[ji]);
+          
+          const int l = allops1.back()->get_orbs()[0];
+          const int k = allops1.back()->get_orbs()[1];
+          
+          if (k!=l) {
+            //TensorOp CK(k,1), DL(l,-1);      
+            //TensorOp CD2 = CK.product(DL, spin, sym.getirrep());
+                  TensorOp CD2(k, l, 1, -1, spin, sym.getirrep());
+            if (!CD2.empty) {
+              double scaleV = calcCompfactor(CD1, CD2, CD,*(b.get_twoInt()), b.get_integralIndex());
               if (dmrginp.spinAdapted()) {
-		scaleV *= getCommuteParity(getSpinQuantum(l), getSpinQuantum(k), get_deltaQuantum()[0]);
+        	      scaleV *= getCommuteParity(getSpinQuantum(l), getSpinQuantum(k), get_deltaQuantum()[0]);
               }
-	      scaleCD[2*(allops1.size()-1)] = scaleV;
-	    }
-	  }
-	}
+              scaleCD[2*(allops1.size()-1)] = scaleV;
+            }
+          }
+        }
   }
 
 
@@ -1037,8 +1037,24 @@ void SpinAdapted::StackCreDesComp::buildfromCreDes(StackSpinBlock& b)
         }
 
     if (b.has(DES)) {
-      pout << "buildfromCreDes with DES in BCS not implemented" << endl;
-      abort();
+      for (int ii = 0; ii < b.get_op_array(DES_DES).get_size(); ++ii)
+        for (int ji = 0; ji < b.get_op_array(DES_DES).get_local_element(ii).size(); ++ji)
+        if (b.get_op_array(DES_DES).get_local_element(ii)[ji]->get_deltaQuantum(0).get_s() == deltaQuantum[0].get_s() || 
+            b.get_op_array(DES_DES).get_local_element(ii)[ji]->get_deltaQuantum(0).get_s() == -deltaQuantum[0].get_s()) {
+          allops1.push_back(b.get_op_array(DES_DES).get_local_element(ii)[ji]);
+
+          const int k = allops1.back()->get_orbs()[0];
+          const int l = allops1.back()->get_orbs()[1];
+          TensorOp DD2(k, l, -1, -1, spin, sym.getirrep(), k == l);
+
+          if (!DD2.empty) {
+            TensorOp DD2_commute(l, k, -1, -1, spin, sym.getirrep(), k == l);
+            int parity = getCommuteParity(getSpinQuantum(l),getSpinQuantum(k),get_deltaQuantum()[0]);
+            scaleCC[2*(allops1.size()-numCD-1)] = calcCompfactor(CD1, DD2, CD, v_cccd[b.get_integralIndex()]);
+            if (k != l)
+              scaleCC[2*(allops1.size()-numCD-1)] += parity * calcCompfactor(CD1, DD2_commute, CD, v_cccd[b.get_integralIndex()]);
+          }
+        }
     }
   }
 
@@ -1065,16 +1081,16 @@ void SpinAdapted::StackCreDesComp::buildfromCreDes(StackSpinBlock& b)
     //this is a cd operator
     if (opindex <numCD) {
       if (allops1[opindex]->allowed(lQ, rQ) && allowed(lQ, rQ) && fabs(scaleCD[2*opindex]) >TINY) 
-	MatrixScaleAdd(scaleCD[2*opindex], allops1[opindex]->operator_element(lQ, rQ), this->operator_element(lQ, rQ));
+        MatrixScaleAdd(scaleCD[2*opindex], allops1[opindex]->operator_element(lQ, rQ), this->operator_element(lQ, rQ));
       
       if (!b.has(DES) && l!=k && fabs(scaleCD[2*opindex+1]) > TINY) {
-	if (allowed(lQ, rQ) && allops1[opindex]->allowed(rQ, lQ)) {
-	  double scaling = getStandAlonescaling(-(allops1[opindex]->get_deltaQuantum(0)), b.get_braStateInfo().quanta[lQ], b.get_ketStateInfo().quanta[rQ]);
-	  int nrows = operator_element(lQ, rQ).Nrows();
-	  int ncols = operator_element(lQ, rQ).Ncols();
-	  for (int row=0; row<nrows; row++)
-	    DAXPY(ncols, scaling*scaleCD[2*opindex+1], &(allops1[opindex]->operator_element(rQ, lQ)(1, row+1)), nrows, &(this->operator_element(lQ, rQ)(row+1, 1)), 1); 
-	}
+        if (allowed(lQ, rQ) && allops1[opindex]->allowed(rQ, lQ)) {
+          double scaling = getStandAlonescaling(-(allops1[opindex]->get_deltaQuantum(0)), b.get_braStateInfo().quanta[lQ], b.get_ketStateInfo().quanta[rQ]);
+          int nrows = operator_element(lQ, rQ).Nrows();
+          int ncols = operator_element(lQ, rQ).Ncols();
+          for (int row=0; row<nrows; row++)
+            DAXPY(ncols, scaling*scaleCD[2*opindex+1], &(allops1[opindex]->operator_element(rQ, lQ)(1, row+1)), nrows, &(this->operator_element(lQ, rQ)(row+1, 1)), 1); 
+        }
       }
     } else if (opindex < numDC) {
       if (k!=l && allops1[opindex]->allowed(lQ, rQ) && allowed(lQ, rQ) && fabs(scaleCD[2*opindex]) > TINY)  
@@ -1854,6 +1870,10 @@ double SpinAdapted::StackCreDesComp::redMatrixElement(Csf c1, vector<Csf>& ladde
 
 void SpinAdapted::StackDesCreComp::buildfromDesCre(StackSpinBlock& b) 
 {
+  if (dmrginp.hamiltonian() == BCS) {
+    pout << "buildfromDesCre in BCS not implemented" << endl;
+    abort();
+  }
   IrrepSpace sym = deltaQuantum[0].get_symm();
   int spin = deltaQuantum[0].get_s().getirrep();
 
@@ -3211,6 +3231,11 @@ double SpinAdapted::StackDesDesComp::redMatrixElement(Csf c1, vector<Csf>& ladde
 
 void SpinAdapted::StackCreCreComp::buildfromCreCre(StackSpinBlock& b) 
 {
+
+  if (dmrginp.hamiltonian() == BCS) {
+    pout << "buildfromCreCre in BCS not implemented" << endl;
+    abort();
+  }
  int spin = deltaQuantum[0].get_s().getirrep();
  IrrepSpace sym = deltaQuantum[0].get_symm();
  
