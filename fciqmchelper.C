@@ -172,14 +172,14 @@ namespace SpinAdapted{
   //this is a helper function to make a MPS from a occupation number representation of determinant
   //this representation is slightly different than the usual occupation, here each integer
   //element is a spatial orbital which can have a value 0, -1, 1, or 2.
-  MPS::MPS(ulong *occnum, int length)
+  MPS::MPS(unsigned long *occnum, int length)
   {
     assert(length*64 >= dmrginp.last_site());
     
     //convert the int array into a vector<bool>
     std::vector<bool> occ(dmrginp.last_site(), 0);
     
-    ulong temp = 1;
+    unsigned long temp = 1;
     int index = 0;
     for (int i=0; i <length ; i++) {
       long occtemp = occnum[i];
