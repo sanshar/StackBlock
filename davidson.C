@@ -15,7 +15,7 @@ Sandeep Sharma and Garnet K.-L. Chan
 #include "MatrixBLAS.h"
 
 SpinAdapted::multiply_h::multiply_h(const StackSpinBlock& b, const bool &onedot_) : block(b){
-  if (dmrginp.prebuild())
+  if (dmrginp.prebuild() && dmrginp.doimplicitTranspose())
     twoidxcomps = b.prebuild(MAX_THRD);
 }
 
@@ -25,14 +25,14 @@ void SpinAdapted::multiply_h::operator()(StackWavefunction& c, StackWavefunction
 }
 
 SpinAdapted::multiply_h::~multiply_h() {
-  if (dmrginp.prebuild()) {
+  if (dmrginp.prebuild() && dmrginp.doimplicitTranspose()) {
     for (int i = twoidxcomps.size()-1; i >= 0; --i)
       twoidxcomps.at(i)->deallocate();
   }
 }
 
 SpinAdapted::multiply_h_2Index::multiply_h_2Index(const StackSpinBlock& b, const bool &onedot_) : block(b){
-  if (dmrginp.prebuild())
+  if (dmrginp.prebuild() && dmrginp.doimplicitTranspose())
     twoidxcomps = b.prebuild(MAX_THRD);
 }
 
@@ -44,7 +44,7 @@ void SpinAdapted::multiply_h_2Index::operator()(StackWavefunction& c, StackWavef
 
 
 SpinAdapted::multiply_h_2Index::~multiply_h_2Index() {
-  if (dmrginp.prebuild()) {
+  if (dmrginp.prebuild() && dmrginp.doimplicitTranspose()) {
     for (int i = twoidxcomps.size()-1; i >= 0; --i)
       twoidxcomps.at(i)->deallocate();
   }

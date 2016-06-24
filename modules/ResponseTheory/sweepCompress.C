@@ -636,9 +636,6 @@ void SpinAdapted::SweepCompress::WavefunctionCanonicalize (SweepParams &sweepPar
   //***********
   davidson_f(solution[0], outputState[0]);
 
-  pout << solution[0]<<endl;
-  pout << outputState[0]<<endl;
-  
   std::vector<Matrix> ketrotateMatrix, brarotateMatrix;
   StackDensityMatrix bratracedMatrix(newSystem.get_braStateInfo()), kettracedMatrix(newSystem.get_ketStateInfo());
   bratracedMatrix.allocate(newSystem.get_braStateInfo());

@@ -2194,8 +2194,8 @@ void SpinAdapted::StackDesDesComp::buildfromDesDes(StackSpinBlock& b)
   std::vector<double> scaleDD, scaleCD, scaleCC;
   // TODO resize scaleCC and scaleCD
   if (dmrginp.hamiltonian() == BCS) {
-    scaleCC.resize(b.get_op_array(CRE_CRE).get_size(), 0.);
-    scaleCD.resize(b.get_op_array(CRE_DES).get_size()*2, 0.);
+    scaleCC.resize(b.get_op_array(CRE_CRE).get_size()*2, 0.);
+    scaleCD.resize(b.get_op_array(CRE_DES).get_size()*4, 0.);
   }
   if (dmrginp.spinAdapted()) scaleDD.resize(b.get_op_array(CRE_CRE).get_size()*2, 0.);
   else scaleDD.resize(b.get_op_array(CRE_CRE).get_size(), 0.);
@@ -3404,7 +3404,6 @@ void SpinAdapted::StackCreCreComp::buildfromCreCre(StackSpinBlock& b)
       }
     }
   }
-
  //accumulateMultiThread(this, op_array, numthrds);
 
 }
