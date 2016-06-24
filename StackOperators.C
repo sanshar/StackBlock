@@ -982,6 +982,7 @@ void SpinAdapted::StackCreDesComp::buildfromCreDes(StackSpinBlock& b)
                   TensorOp CD2(k, l, 1, -1, spin, sym.getirrep());
             if (!CD2.empty) {
               double scaleV = calcCompfactor(CD1, CD2, CD,*(b.get_twoInt()), b.get_integralIndex());
+              // FIXME does this need to be used for nonspinadapted as well?
               if (dmrginp.spinAdapted()) {
         	      scaleV *= getCommuteParity(getSpinQuantum(l), getSpinQuantum(k), get_deltaQuantum()[0]);
               }
@@ -1899,10 +1900,12 @@ void SpinAdapted::StackDesCreComp::buildfromDesCre(StackSpinBlock& b)
   if (dmrginp.hamiltonian() == BCS) {
     for (int ii = 0; ii < b.get_op_array(CRE_CRE).get_size(); ++ii)
       for (int ji = 0; ji < b.get_op_array(CRE_CRE).get_local_element(ii).size(); ++ji)
+        if (b.get_op_array(CRE_CRE).get_local_element(ii)[ji]->get_deltaQuantum(0) == deltaQuantum[1])
         allops3.push_back(b.get_op_array(CRE_CRE).get_local_element(ii)[ji]);
 
     for (int ii = 0; ii < b.get_op_array(DES_DES).get_size(); ++ii)
       for (int ji = 0; ji < b.get_op_array(DES_DES).get_local_element(ii).size(); ++ji)
+        if (b.get_op_array(DES_CRE).get_local_element(ii)[ji]->get_deltaQuantum(0) == deltaQuantum[2])
         allops4.push_back(b.get_op_array(DES_DES).get_local_element(ii)[ji]);
   }
 
@@ -3296,10 +3299,6 @@ double SpinAdapted::StackDesDesComp::redMatrixElement(Csf c1, vector<Csf>& ladde
 void SpinAdapted::StackCreCreComp::buildfromCreCre(StackSpinBlock& b) 
 {
 
-  if (dmrginp.hamiltonian() == BCS) {
-    pout << "buildfromCreCre in BCS not implemented" << endl;
-    abort();
-  }
  int spin = deltaQuantum[0].get_s().getirrep();
  IrrepSpace sym = deltaQuantum[0].get_symm();
  
@@ -3314,17 +3313,34 @@ void SpinAdapted::StackCreCreComp::buildfromCreCre(StackSpinBlock& b)
  //TensorOp DD1 = D.product(D2, (-deltaQuantum[0].get_s()).getirrep(), (-sym).getirrep(), i==j);
  TensorOp DD1(i, j, -1, -1, (-deltaQuantum[0].get_s()).getirrep(), (-sym).getirrep(), i==j);
  
- std::vector<boost::shared_ptr<StackSparseMatrix> >  allops;
+ std::vector<boost::shared_ptr<StackSparseMatrix> >  allops1, allops2, allops3, allops4;
 
  for (int ii=0; ii<b.get_op_array(CRE_CRE).get_size(); ii++)
    for (int ji=0; ji<b.get_op_array(CRE_CRE).get_local_element(ii).size(); ji++) 
      if (b.get_op_array(CRE_CRE).get_local_element(ii)[ji]->get_deltaQuantum(0) == deltaQuantum[0])
-       allops.push_back(b.get_op_array(CRE_CRE).get_local_element(ii)[ji]);
+       allops1.push_back(b.get_op_array(CRE_CRE).get_local_element(ii)[ji]);
+
+  if (dmrginp.hamiltonian() == BCS) {
+    for (int ii=0; ii<b.get_op_array(DES_DES).get_size(); ii++)
+      for (int ji=0; ji<b.get_op_array(DES_DES).get_local_element(ii).size(); ji++) 
+        if (b.get_op_array(DES_DES).get_local_element(ii)[ji]->get_deltaQuantum(0) == deltaQuantum[2])
+          allops2.push_back(b.get_op_array(DES_DES).get_local_element(ii)[ji]);
+
+    for (int ii=0; ii<b.get_op_array(CRE_DES).get_size(); ii++)
+      for (int ji=0; ji<b.get_op_array(CRE_DES).get_local_element(ii).size(); ji++) 
+        if (b.get_op_array(CRE_DES).get_local_element(ii)[ji]->get_deltaQuantum(0) == deltaQuantum[1])
+          allops2.push_back(b.get_op_array(CRE_DES).get_local_element(ii)[ji]);
+
+    for (int ii=0; ii<b.get_op_array(DES_CRE).get_size(); ii++)
+      for (int ji=0; ji<b.get_op_array(DES_CRE).get_local_element(ii).size(); ji++) 
+        if (b.get_op_array(DES_CRE).get_local_element(ii)[ji]->get_deltaQuantum(0) == deltaQuantum[1])
+          allops3.push_back(b.get_op_array(DES_CRE).get_local_element(ii)[ji]);
+  }
 
  //#pragma omp parallel for schedule(dynamic)
- for (int ii = 0; ii<allops.size(); ii++) {
-   const int k = allops[ii]->get_orbs()[0];
-   const int l = allops[ii]->get_orbs()[1];
+ for (int ii = 0; ii<allops1.size(); ii++) {
+   const int k = allops1[ii]->get_orbs()[0];
+   const int l = allops1[ii]->get_orbs()[1];
    
    //TensorOp CK(k, 1), CL(l, 1);      
    //TensorOp CC2 = CK.product(CL, spin, sym.getirrep(), k==l);
@@ -3341,10 +3357,53 @@ void SpinAdapted::StackCreCreComp::buildfromCreCre(StackSpinBlock& b)
      if (k != l)
        scaleV += parity*scaleV2;
 
-     ScaleAdd(scaleV, *allops[ii], *this);
+     ScaleAdd(scaleV, *allops1[ii], *this);
      
    }
  }
+  
+  if (dmrginp.hamiltonian() == BCS) {
+    for (int ii = 0; ii < allops2.size(); ++ii) {
+      const int k = allops2[ii]->get_orbs()[0];
+      const int l = allops2[ii]->get_orbs()[1];
+
+      TensorOp DD2(k, l, -1, -1, spin, sym.getirrep(), k == l);
+      if (!DD2.empty) {
+        double scaleV = calcCompfactor(DD2, DD1, DD, v_cccc[b.get_integralIndex()]);
+        TensorOp DD2_commute(l, k, -1, -1, spin, sym.getirrep(), k == l);
+        double scaleV2 = calcCompfactor(DD2_commute, DD1, DD, v_cccc[b.get_integralIndex()]);
+        double parity = getCommuteParity(-getSpinQuantum(k), -getSpinQuantum(l), get_deltaQuantum()[2]);
+
+        ScaleAdd(scaleV+parity*scaleV2, *allops2[ii], *this);
+      }
+    }
+
+    for (int ii = 0; ii < allops3.size(); ++ii) {
+      const int k = allops3[ii]->get_orbs()[0];
+      const int l = allops3[ii]->get_orbs()[1];
+
+      TensorOp CD2(k, l, 1, -1, spin, sym.getirrep());
+      if (!CD2.empty) {
+        double scaleV =  calcCompfactor(DD1, CD2, DD, v_cccd[b.get_integralIndex()]);
+        ScaleAdd(scaleV, *allops3[ii], *this);
+      }
+    }
+
+    for (int ii = 0; ii < allops4.size(); ++ii) {
+      const int l = allops4[ii]->get_orbs()[0];
+      const int k = allops4[ii]->get_orbs()[1];
+
+      TensorOp CD2(k, l, 1, -1, spin, sym.getirrep());
+      if (!CD2.empty) {
+        double scaleV = calcCompfactor(DD1, CD2, DD, v_cccd[b.get_integralIndex()]);
+        // FIXME does this need to be used for nonspinadapted as well?
+        if (dmrginp.spinAdapted()) {
+          scaleV *= getCommuteParity(getSpinQuantum(l), getSpinQuantum(k), get_deltaQuantum()[1]);
+        }
+        ScaleAdd(scaleV, *allops4[ii], *this);
+      }
+    }
+  }
 
  //accumulateMultiThread(this, op_array, numthrds);
 
@@ -3434,12 +3493,12 @@ void SpinAdapted::StackCreCreComp::build(const StackSpinBlock& b)
         //TensorOp DD2 = DK.product(DL, spin, sym.getirrep(), k==l);
         TensorOp DD2(k, l, -1, -1, spin, sym.getirrep(), k==l);
         if (!DD2.empty) {
-          double scaleV = calcCompfactor(DD1, DD2, DD, v_cccc[b.get_integralIndex()]);
+          double scaleV = calcCompfactor(DD2, DD1, DD, v_cccc[b.get_integralIndex()]);
           //DK = TensorOp(k,-1);
           //DL = TensorOp(l,-1);
           //TensorOp DD2_commute = DL.product(DK, spin, sym.getirrep(), k==l);
           TensorOp DD2_commute(l, k, -1, -1, spin, sym.getirrep(), k==l);
-          double scaleV2 = calcCompfactor(DD1, DD2_commute, DD, v_cccc[b.get_integralIndex()]);
+          double scaleV2 = calcCompfactor(DD2_commute, DD1, DD, v_cccc[b.get_integralIndex()]);
           if (leftBlock->get_op_array(CRE).has(k) && rightBlock->get_op_array(CRE).has(l) && (fabs(scaleV2)+fabs(scaleV)) > dmrginp.twoindex_screen_tol()) {
             boost::shared_ptr<StackSparseMatrix> op1 = leftBlock->get_op_rep(DES, -getSpinQuantum(k), k);
             boost::shared_ptr<StackSparseMatrix> op2 = rightBlock->get_op_rep(DES, -getSpinQuantum(l), l);
