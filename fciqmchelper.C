@@ -393,8 +393,6 @@ namespace SpinAdapted{
     InitBlocks::InitStartingBlock(system, forward, leftState, statebindex, forward_starting_size, backward_starting_size, restartSize, restart, warmUp, integralIndex); 
     SpinQuantum hq(0, SpinSpace(0), IrrepSpace(0));
 
-    p2out << system<<endl;
-
     std::vector<Matrix> Rotationa, Rotationb;
     int sys_add = true; bool direct = true; 
 
@@ -407,11 +405,11 @@ namespace SpinAdapted{
 
       StackSpinBlock dotsite(i+1, i+1, integralIndex, false);
       if (mpigetrank() == 0) {
-	rotSites[1] = i+1;
-	LoadRotationMatrix(rotSites, Rotationa, statea);
-	LoadRotationMatrix(rotSites, Rotationb, stateb);
-	//Rotationa = statea.getSiteTensors(i+1);
-	//Rotationb = stateb.getSiteTensors(i+1);
+        rotSites[1] = dmrginp.spinAdapted() ? i+1 : i*2+3;
+        LoadRotationMatrix(rotSites, Rotationa, statea);
+        LoadRotationMatrix(rotSites, Rotationb, stateb);
+        //Rotationa = statea.getSiteTensors(i+1);
+        //Rotationb = stateb.getSiteTensors(i+1);
       }
 
 #ifndef SERIAL
@@ -433,27 +431,25 @@ namespace SpinAdapted{
     }
 
     StackSpinBlock newSystem, big;
-    StackSpinBlock dotsite1(sweepIters, sweepIters, integralIndex, false);
-    StackSpinBlock dotsite2(sweepIters+1, sweepIters+1, integralIndex, false);
-
+    StackSpinBlock dotsite1(sweepIters, sweepIters, integralIndex, sameStates);
+    StackSpinBlock dotsite2(sweepIters+1, sweepIters+1, integralIndex, sameStates);
 
     system.addAdditionalOps();
     InitBlocks::InitNewSystemBlock(system, dotsite1, newSystem, 0, statebindex, sys_add, direct, integralIndex, DISTRIBUTED_STORAGE, false, true);
     
     newSystem.set_loopblock(false); system.set_loopblock(false);
-    InitBlocks::InitBigBlock(newSystem, dotsite2, big); 
+    InitBlocks::InitBigBlock(newSystem, dotsite2, big);
     
     StackWavefunction stateaw, statebw;
     StateInfo s;
 
-    rotSites[1] += 1;
+    rotSites[1] += dmrginp.spinAdapted() ? 1 : 2;
     stateaw.LoadWavefunctionInfo(s, rotSites, statea, true);
     statebw.LoadWavefunctionInfo(s, rotSites, stateb, true);
 
     StackWavefunction temp; temp.initialise(stateaw);
     temp.Clear();
     
-
     big.multiplyH_2index(statebw, &temp, 1);
 
     if (mpigetrank() == 0)

@@ -245,16 +245,16 @@ void test(char* infile)
   std::vector< std::vector<double> > Overlap(nstates, std::vector<double>(nstates, 0.0));
 
 
-  for (int i=1; i<nstates; i++) {
-    if(mpigetrank() == 0)
-      printf("starting row : %i\n", i);
-    for (int j=0; j<1; j++) {
+  for (int i=0; i<nstates; i++) {
+    //if(mpigetrank() == 0)
+    //  printf("starting row : %i\n", i);
+    for (int j=0; j<=i; j++) {
       double h=0,o=0;
       calcHamiltonianAndOverlap(states[i], states[j], h, o, i==j, 0);
       ham[i][j] = h; ham[j][i] = h;
       Overlap[i][j] = o; Overlap[j][i] = o;
       if (mpigetrank() == 0) 
-	printf("%i %i  %18.9e  %18.9e\n", i, j, h, o); 
+        printf("%i %i  %18.9e  %18.9e\n", i, j, h, o); 
     }
   }
   
