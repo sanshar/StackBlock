@@ -1099,8 +1099,10 @@ void responsepartialSweep(double sweep_tol, int targetState, vector<int>& projec
 
       StackWavefunction w; StateInfo state;
 
-      if (StackWavefunction::exists(-1)) 
+      if (StackWavefunction::exists(-1)) {
+	cout << "copying state -1 to "<<baseStates[0]<<endl;
 	StackWavefunction::CopyState(-1, baseStates[0]); 
+      }
       else
 	StackWavefunction::CopyState(baseStates[0], -1); 
     }
@@ -1126,7 +1128,6 @@ void responsepartialSweep(double sweep_tol, int targetState, vector<int>& projec
 	
 	StackWavefunction w2; 
 	w2.initialise(dmrginp.effective_molecule_quantum_vec(), *state.leftStateInfo, newSystem.get_stateInfo(), true);
-	
 	w2.UnCollectQuantaAlongColumns(*state.leftStateInfo, newSystem.get_stateInfo());
 	for (int i=0; i<w.nrows(); i++)
 	  for (int j=0; j<w.ncols(); j++) 
