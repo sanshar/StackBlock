@@ -10,7 +10,9 @@ Sandeep Sharma and Garnet K.-L. Chan
 #ifndef multi_array_h
 #define multi_array_h
 #include <vector>
-#include <string>
+#include <string.h>
+#include <iostream>
+#include <stdio.h>
 #include <cassert>
 #include <boost/serialization/base_object.hpp>
 #include <boost/serialization/serialization.hpp>
@@ -301,7 +303,7 @@ template<class T> class array_6d : public multiarray<T>
   void resize (const size_t i, const size_t j, const size_t k, const size_t l, const size_t m, const size_t n, T* pdata) 
   { 
     if (data != 0) {
-      cout << "cannot resize a non-zero sized array."<<endl;
+      std::cout << "cannot resize a non-zero sized array."<<std::endl;
       abort();
     }
     data = pdata;
@@ -467,7 +469,7 @@ template<class T> class array_6d_3rdm : public multiarray<T>
   void resize (const size_t i, T* pdata) 
   { 
     if (data != 0) {
-      cout << "cannot resize a non-zero sized array."<<endl;
+      std::cout << "cannot resize a non-zero sized array."<<std::endl;
       abort();
     }
     data = pdata;

@@ -38,7 +38,7 @@ MOLCAS = no
 
 ifeq ($(USE_MKL), yes)
 MKLLIB = .
-LAPACKBLAS = -L${MKLLIB} -lmkl_gf_lp64 -lmkl_intel_thread -lmkl_core -liomp5 -lrt
+LAPACKBLAS = -L${MKLLIB} -lmkl_gf_lp64 -lmkl_sequential -lmkl_core #-lrt #-liomp5 
 MKLFLAGS = /usr/local/server/IntelStudio_2015/mkl/include/
 MKLOPT = -D_HAS_INTEL_MKL
 else
@@ -94,12 +94,12 @@ MPI_OPT = -DSERIAL
 ifeq (icpc, $(CXX))
    ifeq ($(OPENMP), yes)
       OPENMP_FLAGS= -openmp 
-	ifeq ($(USE_MPI), yes)
-	OPENMP_FLAGS += -lmpi_mt
-	endif
+	#ifeq ($(USE_MPI), yes)
+	#OPENMP_FLAGS += -lmpi_mt
+	#endif
    endif
 # Intel compiler
-  OPT = -DNDEBUG -O3 -g #-ipo
+  OPT = -DNDEBUG -O2 -g -funroll-loops #-ipo
 #  OPT = -g 
    ifeq ($(USE_MPI), no) 
       CXX = icpc
@@ -109,9 +109,9 @@ endif
 ifeq (g++, $(CXX))
    ifeq ($(OPENMP), yes)
       OPENMP_FLAGS= -fopenmp 
-	ifeq ($(USE_MPI), yes)
-	OPENMP_FLAGS += -lmpi
-	endif
+	#ifeq ($(USE_MPI), yes)
+	#OPENMP_FLAGS += -lmpi
+	#endif
    endif
 # GNU compiler
    OPT = -DNDEBUG -O2 -g -funroll-loops

@@ -1187,19 +1187,12 @@ void SpinAdapted::operatorfunctions::TensorMultiplyCDxCDsplitLeftElement(const S
 	  factor *= dmrginp.get_ninej()(unCollectedlketS->quanta[luncollectedQPrime].get_s().getirrep(), rketS->quanta[rQPrime].get_s().getirrep() , c.get_deltaQuantum(0).get_s().getirrep(), 
 					LEFTOP.get_spin().getirrep(), rightOp.get_spin().getirrep(), opQ.get_s().getirrep(),
 					unCollectedlbraS->quanta[luncollectedQ].get_s().getirrep(), rbraS->quanta[rQ].get_s().getirrep() , v[OMPRANK].get_deltaQuantum(0).get_s().getirrep());
-	  factor *= Symmetry::spatial_ninej(unCollectedlketS->quanta[luncollectedQPrime].get_symm().getirrep() , rketS->quanta[rQPrime].get_symm().getirrep(), c.get_symm().getirrep(), 
-					    LEFTOP.get_symm().getirrep(), rightOp.get_symm().getirrep(), opQ.get_symm().getirrep(),
-					    unCollectedlbraS->quanta[luncollectedQ].get_symm().getirrep() , rbraS->quanta[rQ].get_symm().getirrep(), v[OMPRANK].get_symm().getirrep());
-	  
 	  double scaleB = 1.0;
 	  
 	  if (LEFTOP.conjugacy() == 'n') {
 	    scaleB = dmrginp.get_ninej()(lketS->quanta[lQPrime].get_s().getirrep() , dotketS->quanta[dotQPrime].get_s().getirrep(), unCollectedlketS->quanta[luncollectedQPrime].get_s().getirrep(), 
 					 leftOp.get_spin().getirrep(), dotOp.get_spin().getirrep(), LEFTOP.get_spin().getirrep(),
 					 lbraS->quanta[lQ].get_s().getirrep() , dotketS->quanta[dotQ].get_s().getirrep(), unCollectedlbraS->quanta[luncollectedQ].get_s().getirrep());
-	    scaleB *= Symmetry::spatial_ninej(lketS->quanta[lQPrime].get_symm().getirrep() , dotketS->quanta[dotQPrime].get_symm().getirrep(), unCollectedlketS->quanta[luncollectedQPrime].get_symm().getirrep(), 
-					      leftOp.get_symm().getirrep(), dotOp.get_symm().getirrep(), LEFTOP.get_symm().getirrep(),
-					      lbraS->quanta[lQ].get_symm().getirrep() , dotketS->quanta[dotQ].get_symm().getirrep(), unCollectedlbraS->quanta[luncollectedQ].get_symm().getirrep());
 	    scaleB *= dotOp.operator_element(dotQ, dotQPrime)(1,1);
 	    scaleB *= leftOp.get_scaling(lbraS->quanta[lQ], lketS->quanta[lQPrime]);
 	    scaleB *= dotOp.get_scaling(dotbraS->quanta[dotQ], dotketS->quanta[dotQPrime]);
@@ -1209,9 +1202,6 @@ void SpinAdapted::operatorfunctions::TensorMultiplyCDxCDsplitLeftElement(const S
 	    scaleB = dmrginp.get_ninej()(lketS->quanta[lQ].get_s().getirrep() , dotketS->quanta[dotQ].get_s().getirrep(), unCollectedlketS->quanta[luncollectedQ].get_s().getirrep(), 
 					 leftOp.get_spin().getirrep(), dotOp.get_spin().getirrep(), LEFTOP.get_spin().getirrep(),
 					 lbraS->quanta[lQPrime].get_s().getirrep() , dotketS->quanta[dotQPrime].get_s().getirrep(), unCollectedlbraS->quanta[luncollectedQPrime].get_s().getirrep());
-	    scaleB *= Symmetry::spatial_ninej(lketS->quanta[lQ].get_symm().getirrep() , dotketS->quanta[dotQ].get_symm().getirrep(), unCollectedlketS->quanta[luncollectedQ].get_symm().getirrep(), 
-					      leftOp.get_symm().getirrep(), dotOp.get_symm().getirrep(), LEFTOP.get_symm().getirrep(),
-					      lbraS->quanta[lQPrime].get_symm().getirrep() , dotketS->quanta[dotQPrime].get_symm().getirrep(), unCollectedlbraS->quanta[luncollectedQPrime].get_symm().getirrep());
 	    scaleB *= dotOp.operator_element(dotQPrime, dotQ)(1,1);
 	    scaleB *= leftOp.get_scaling(lbraS->quanta[lQPrime], lketS->quanta[lQ]);
 	    scaleB *= dotOp.get_scaling(dotbraS->quanta[dotQPrime], dotketS->quanta[dotQ]);
@@ -1263,13 +1253,8 @@ void SpinAdapted::operatorfunctions::TensorMultiplyCDxCDsplitLeftElement(const S
 	if (dotOp.allowed(dotQ, dotQPrime, TransposeOf(LEFTOP.conjugacy())) && leftOp.allowed(lQ, lQPrime, TransposeOf(LEFTOP.conjugacy())) &&
 	    allowed(LEFTOP.get_deltaQuantum(), unCollectedlbraS->quanta[luncollectedQPrime], unCollectedlketS->quanta[luncollectedQ])) {
 
-	  //char lc = LEFTOP.conjugacy();
-	  //const_cast<StackSparseMatrix&>(LEFTOP).set_conjugacy(TransposeOf(lc));
 	  double factor = scale;
-	  //if (lc == 'n') factor*=LEFTOP.get_scaling(unCollectedlbraS->quanta[luncollectedQ], unCollectedlketS->quanta[luncollectedQPrime]);	      
 	  if (LEFTOP.conjugacy() == 'n') factor*=getStandAlonescaling(-LEFTOP.get_deltaQuantum(0), unCollectedlbraS->quanta[luncollectedQ], unCollectedlketS->quanta[luncollectedQPrime]);	      
-	  //const_cast<StackSparseMatrix&>(LEFTOP).set_conjugacy(lc);
-
 	  factor *= dmrginp.get_ninej()(unCollectedlketS->quanta[luncollectedQPrime].get_s().getirrep(), rketS->quanta[rQ].get_s().getirrep(),c.get_deltaQuantum(0).get_s().getirrep(), 
 					LEFTOP.get_spin().getirrep(), rightOp.get_spin().getirrep(), opQ.get_s().getirrep(),
 					unCollectedlbraS->quanta[luncollectedQ].get_s().getirrep(), rbraS->quanta[rQPrime].get_s().getirrep(),v[OMPRANK].get_deltaQuantum(0).get_s().getirrep());
@@ -1296,11 +1281,9 @@ void SpinAdapted::operatorfunctions::TensorMultiplyCDxCDsplitLeftElement(const S
 	  }
 	  
 	  int parity = rightOp.get_fermion() && IsFermion(unCollectedlketS->quanta[luncollectedQPrime]) ? -1 : 1;
-    if (!dmrginp.spinAdapted() && LEFTOP.get_fermion()) parity *= -1;
+	  if (!dmrginp.spinAdapted() && LEFTOP.get_fermion()) parity *= -1;
 
-	  //const_cast<StackSparseMatrix&>(rightOp).set_conjugacy('t');
 	  factor *=  getStandAlonescaling(-rightOp.get_deltaQuantum(0), rbraS->quanta[rQPrime], rketS->quanta[rQ]);
-	  //const_cast<StackSparseMatrix&>(rightOp).set_conjugacy('n');
 	  if (fabs(factor*parity*scaleB) < TINY) continue; 
 	  
 	  if (rightOp.opName() == "OVERLAP")

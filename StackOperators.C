@@ -1130,9 +1130,11 @@ void SpinAdapted::StackCreDesComp::build(StackMatrix& m, int row, int col, const
       int k = leftBlock->get_sites()[kx];
       int l = rightBlock->get_sites()[lx];
 
-      int spink = dmrginp.spin_orbs_symmetry()[dmrginp.spatial_to_spin()[k]],\
+      int spink = dmrginp.spin_orbs_symmetry()[k], spinl = Symmetry::negativeofAbelian(dmrginp.spin_orbs_symmetry()[l]);
+      if (dmrginp.spinAdapted()) {
+	spink = dmrginp.spin_orbs_symmetry()[dmrginp.spatial_to_spin()[k]], \
 	spinl = Symmetry::negativeofAbelian(dmrginp.spin_orbs_symmetry()[dmrginp.spatial_to_spin()[l]]);
-      //spinl = (-IrrepSpace(dmrginp.spin_orbs_symmetry()[dmrginp.spatial_to_spin()[l]])).getirrep();
+      }
       if (Symmetry::negativeofAbelian(sym.getirrep()) == Symmetry::addAbelian(spink, spinl)) {
 	//if ((-sym).getirrep() == Symmetry::addAbelian(spink, spinl)) {
 	double scaleV = calcCompfactor(i,j,k,l, spin, CD,*(b.get_twoInt()), b.get_integralIndex());
@@ -1150,8 +1152,11 @@ void SpinAdapted::StackCreDesComp::build(StackMatrix& m, int row, int col, const
 	}
       }
       
-      spinl = dmrginp.spin_orbs_symmetry()[dmrginp.spatial_to_spin()[l]];
-      spink = Symmetry::negativeofAbelian(dmrginp.spin_orbs_symmetry()[dmrginp.spatial_to_spin()[k]]);
+      spinl = dmrginp.spin_orbs_symmetry()[l]; spink = Symmetry::negativeofAbelian(dmrginp.spin_orbs_symmetry()[k]);
+      if (dmrginp.spinAdapted()) {
+	spinl = dmrginp.spin_orbs_symmetry()[dmrginp.spatial_to_spin()[l]], \
+	spink = Symmetry::negativeofAbelian(dmrginp.spin_orbs_symmetry()[dmrginp.spatial_to_spin()[k]]);
+      }
 
       if (Symmetry::negativeofAbelian(sym.getirrep()) == Symmetry::addAbelian(spink, spinl)) {
 	double scaleV = calcCompfactor(i,j,l,k, spin, CD,*(b.get_twoInt()), b.get_integralIndex());
@@ -2026,8 +2031,13 @@ void SpinAdapted::StackDesDesComp::build(StackMatrix& m, int row, int col, const
       int k = leftBlock->get_sites()[kx];
       int l = rightBlock->get_sites()[lx];
 
-      int spink = Symmetry::negativeofAbelian(dmrginp.spin_orbs_symmetry()[dmrginp.spatial_to_spin()[k]]), \
+      int spink = Symmetry::negativeofAbelian(dmrginp.spin_orbs_symmetry()[k]),\
+	spinl = Symmetry::negativeofAbelian(dmrginp.spin_orbs_symmetry()[l]);
+      if (dmrginp.spinAdapted()) {
+	spink = Symmetry::negativeofAbelian(dmrginp.spin_orbs_symmetry()[dmrginp.spatial_to_spin()[k]]), \
 	spinl = Symmetry::negativeofAbelian(dmrginp.spin_orbs_symmetry()[dmrginp.spatial_to_spin()[l]]);
+      }
+
       if (Symmetry::negativeofAbelian(sym.getirrep()) == Symmetry::addAbelian(spink, spinl)) {
 	//if ((-sym).getirrep() == Symmetry::addAbelian(spink, spinl)) {
 	double scaleV = calcCompfactor(i,j,k,l, spin, DD,*(b.get_twoInt()), b.get_integralIndex());
