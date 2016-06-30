@@ -148,10 +148,11 @@ void Symmetry::InitialiseTable(string psym)
     //do nothing;
   }
   else if (sym == "lzsym") {
-    //do nothing;
+    //do nothing
+    groupTable.resize(40,40);
   }
   else if (sym == "dinfh_abelian") {
-    groupTable.resize(4, 4);
+    groupTable.resize(41, 41);
     groupTable(0, 0) = 0;
     groupTable(0, 1) = 1;
     groupTable(0, 2) = 2;
@@ -362,13 +363,15 @@ string Symmetry::stringOfIrrep(int irrep)
 
 int Symmetry::sizeofIrrep(int irrep)
 {
+  return 1;
+  /*
   if (sym == "dinfh")
     return irrep > 3 ? 2 : 1;
   else if (NonabelianSym)
     return nonAbelianGrp.getIrrepSize(irrep);
   else
     return 1;
-
+  */
 }
 
 int Symmetry::negativeof(int irrep)
@@ -397,6 +400,97 @@ int Symmetry::negativeof(int irrep)
   }
   else
     return irrep;
+}
+
+int Symmetry::negativeofAbelian(int irrep)
+{
+  if (groupTable.dim1() == 0) {//this is trans 
+    std::vector<int> lirrep = decompress(irrep);
+    for (int i=0; i<lirrep.size(); i++) {
+      lirrep[i] = lirrep[i] == 0 ? lirrep[i] : (NPROP[i] - lirrep[i]);//%NPROP[i];
+      if(lirrep[i] >= NPROP[i] || lirrep[i] < 0) {
+	pout << "cannot find the negative of "<<i<<" component of lirrep "<<lirrep[i]<<endl;
+	pout << "it is not in the first bruillion zone"<<endl;
+	exit(0);
+      }
+    }
+    int outirrep = compress(lirrep);
+    return outirrep;
+  }
+  else if (groupTable.dim1() == 40)  //this is lzsym
+    return -irrep;
+  else if (groupTable.dim1() == 41) {//this is dinfh_abelian
+    if (irrep >= 0 && irrep < 4)
+      return irrep;
+    else
+      return -irrep;
+  }
+  else
+    return irrep;
+}
+
+
+int Symmetry::addAbelian(int irrepl, int irrepr) {
+  if (groupTable.dim1() == 0) {//this is trans 
+    std::vector<int> lirrep = decompress(irrepl);
+    std::vector<int> rirrep = decompress(irrepr);
+    std::vector<int> out(3,0);
+    out[0] = (lirrep[0]+rirrep[0])%NPROP[0];
+    out[1] = (lirrep[1]+rirrep[1])%NPROP[1];
+    out[2] = (lirrep[2]+rirrep[2])%NPROP[2];
+    int outirrep = compress(out);
+    return outirrep;
+  }
+  else if (groupTable.dim1() == 41) {//this is dinfh_abelian
+    int goru = ((abs(irrepl)%2==0 && abs(irrepr)%2==0) || (abs(irrepl)%2==1 && abs(irrepr)%2==1)) ? 0 : 1;
+    
+    if (abs(irrepl) < 4 && abs(irrepr)< 4) {
+      return groupTable(irrepl, irrepr);
+    }
+    else if (abs(irrepl) <4 && abs(irrepr) >= 4) {
+      int irrepout = 2*(abs(irrepr)/2) + goru;
+      if (irrepr <0)
+	return -irrepout;
+      else 
+	return irrepout;
+    } 
+    else if (abs(irrepl) >= 4 && abs(irrepr) <4) {
+      int irrepout = 2*(abs(irrepl)/2) + goru;
+      if (irrepl <0)
+	return -irrepout;
+      else 
+	return irrepout;
+    }
+    else {
+      int irrep1 = 2*abs(abs(irrepl)/2 - abs(irrepr)/2) + goru;
+      int irrep2 = 2*abs(abs(irrepl)/2 + abs(irrepr)/2) + goru - 2;
+      
+      int irrep3 = 0;
+      if (irrep1 >=2) irrep1 += 2;
+      
+      if (irrepl*irrepr > 0) {
+	if (irrepl <0)
+	  return -irrep2;
+	else
+	  return irrep2;
+      }
+      else {
+	if (irrepl + irrepr > 0) {
+	  if (irrep1 >=2 ) return irrep1;
+	  else return abs(irrep1);
+	}
+	else {
+	  if (irrep1 >=2 ) return -irrep1;
+	  else return abs(irrep1);
+	}
+      }
+      
+    }
+  }
+  else if (groupTable.dim1() == 40)  //this is lzsym
+    return irrepl+irrepr;
+  else
+    return groupTable(irrepl, irrepr);
 }
 
 std::vector<int> Symmetry::add(int irrepl, int irrepr)

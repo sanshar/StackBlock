@@ -524,9 +524,9 @@ void SpinAdapted::operatorfunctions::TensorMultiply(const StackSpinBlock *ablock
 		      fac *= dmrginp.get_ninej()(lketS->quanta[lQPrime].get_s().getirrep(), rketS->quanta[rQ].get_s().getirrep() , c.get_deltaQuantum(0).get_s().getirrep(), 
 						 a.get_spin().getirrep(), 0, a.get_spin().getirrep(),
 						 lbraS->quanta[lQ].get_s().getirrep(), rketS->quanta[rQ].get_s().getirrep() , v.get_deltaQuantum(0).get_s().getirrep());
-		      fac *= Symmetry::spatial_ninej(lketS->quanta[lQPrime].get_symm().getirrep() , rketS->quanta[rQ].get_symm().getirrep(), c.get_symm().getirrep(), 
-						     a.get_symm().getirrep(), 0, a.get_symm().getirrep(),
-						     lbraS->quanta[lQ].get_symm().getirrep() , rketS->quanta[rQ].get_symm().getirrep(), v.get_symm().getirrep());
+		      //fac *= Symmetry::spatial_ninej(lketS->quanta[lQPrime].get_symm().getirrep() , rketS->quanta[rQ].get_symm().getirrep(), c.get_symm().getirrep(), 
+		      //a.get_symm().getirrep(), 0, a.get_symm().getirrep(),
+		      //lbraS->quanta[lQ].get_symm().getirrep() , rketS->quanta[rQ].get_symm().getirrep(), v.get_symm().getirrep());
 		      fac *= a.get_scaling(lbraS->quanta[lQ], lketS->quanta[lQPrime]);
 		      MatrixMultiply (aop, a.conjugacy(), c.operator_element(lQPrime, rQ), c.conjugacy(),
 				      v.operator_element(lQ, rQ), fac);
@@ -549,9 +549,9 @@ void SpinAdapted::operatorfunctions::TensorMultiply(const StackSpinBlock *ablock
 		  fac *= dmrginp.get_ninej()(lketS->quanta[lQPrime].get_s().getirrep(), rketS->quanta[rQPrime].get_s().getirrep() , c.get_deltaQuantum(0).get_s().getirrep(), 
 					     0, a.get_spin().getirrep(), a.get_spin().getirrep(),
 					     lketS->quanta[lQPrime].get_s().getirrep(), rbraS->quanta[rQ].get_s().getirrep() , v.get_deltaQuantum(0).get_s().getirrep());
-		  fac *= Symmetry::spatial_ninej(lketS->quanta[lQPrime].get_symm().getirrep() , rketS->quanta[rQPrime].get_symm().getirrep(), c.get_symm().getirrep(), 
-						 0, a.get_symm().getirrep(), a.get_symm().getirrep(),
-						 lketS->quanta[lQPrime].get_symm().getirrep() , rbraS->quanta[rQ].get_symm().getirrep(), v.get_symm().getirrep());
+		  //fac *= Symmetry::spatial_ninej(lketS->quanta[lQPrime].get_symm().getirrep() , rketS->quanta[rQPrime].get_symm().getirrep(), c.get_symm().getirrep(), 
+		  //0, a.get_symm().getirrep(), a.get_symm().getirrep(),
+		  //lketS->quanta[lQPrime].get_symm().getirrep() , rbraS->quanta[rQ].get_symm().getirrep(), v.get_symm().getirrep());
 		  fac *= a.get_scaling(rbraS->quanta[rQ], rketS->quanta[rQPrime]);
 		  double parity = a.get_fermion() && IsFermion(lketS->quanta[lQPrime]) ? -1 : 1;
 		  
@@ -589,11 +589,13 @@ void SpinAdapted::operatorfunctions::TensorMultiply(const StackSpinBlock *ablock
 
   const std::vector< std::pair<std::pair<int, int>, StackMatrix> >& nonZeroBlocks = v[omprank].get_nonZeroBlocks();
 
-  long maxlen = 0;
+  long maxlen = 0, maxrow=0, maxcol=0;
   for (int lQ=0; lQ <leftBraOpSz; lQ++)
-    for (int rQPrime=0; rQPrime <rightKetOpSz; rQPrime++)
-      if (maxlen < lbraS->getquantastates(lQ)* rketS->getquantastates(rQPrime))
-	maxlen = lbraS->getquantastates(lQ)* rketS->getquantastates(rQPrime);
+    if (maxrow <lbraS->getquantastates(lQ)) maxrow = lbraS->getquantastates(lQ);
+  for (int rQPrime=0; rQPrime <rightKetOpSz; rQPrime++)
+    if (maxcol <rketS->getquantastates(rQPrime)) maxcol = rketS->getquantastates(rQPrime);
+
+  maxlen = maxrow*maxcol;
 
   int OMPRANK = omprank;
 
@@ -674,11 +676,13 @@ void SpinAdapted::operatorfunctions::TensorMultiplysplitLeft(const StackSparseMa
   const std::vector< std::pair<std::pair<int, int>, StackMatrix> >& nonZeroBlocks = c.get_nonZeroBlocks();
 
 
-  long maxlen = 0;
+  long maxlen = 0, maxrow=0, maxcol=0;
   for (int lQ=0; lQ <leftBraOpSz; lQ++)
-    for (int rQPrime=0; rQPrime <rightKetOpSz; rQPrime++)
-      if (maxlen < lbraS->getquantastates(lQ)* rketS->getquantastates(rQPrime))
-	maxlen = lbraS->getquantastates(lQ)* rketS->getquantastates(rQPrime);
+    if (maxrow <lbraS->getquantastates(lQ)) maxrow = lbraS->getquantastates(lQ);
+  for (int rQPrime=0; rQPrime <rightKetOpSz; rQPrime++)
+    if (maxcol <rketS->getquantastates(rQPrime)) maxcol = rketS->getquantastates(rQPrime);
+
+  maxlen = maxrow*maxcol;
 
   int OMPRANK = omprank;
 
@@ -803,12 +807,13 @@ void SpinAdapted::operatorfunctions::TensorMultiplyleftdot(const StackSparseMatr
 
   const std::vector< std::pair<std::pair<int, int>, StackMatrix> >& nonZeroBlocks = c.get_nonZeroBlocks();
 
-
-  long maxlen = 0;
+  long maxlen = 0, maxrow=0, maxcol=0;
   for (int lQ=0; lQ <leftBraOpSz; lQ++)
-    for (int rQPrime=0; rQPrime <rightKetOpSz; rQPrime++)
-      if (maxlen < lbraS->getquantastates(lQ)* rketS->getquantastates(rQPrime))
-	maxlen = lbraS->getquantastates(lQ)* rketS->getquantastates(rQPrime);
+    if (maxrow <lbraS->getquantastates(lQ)) maxrow = lbraS->getquantastates(lQ);
+  for (int rQPrime=0; rQPrime <rightKetOpSz; rQPrime++)
+    if (maxcol <rketS->getquantastates(rQPrime)) maxcol = rketS->getquantastates(rQPrime);
+
+  maxlen = maxrow*maxcol;
 
   int OMPRANK = omprank;
 
@@ -893,12 +898,13 @@ void SpinAdapted::operatorfunctions::TensorMultiplydotop(const StackSparseMatrix
   const std::vector< std::pair<std::pair<int, int>, StackMatrix> >& nonZeroBlocks = c.get_nonZeroBlocks();
 
 
-  long maxlen = 0;
+  long maxlen = 0, maxrow=0, maxcol=0;
   for (int lQ=0; lQ <leftBraOpSz; lQ++)
-    for (int rQPrime=0; rQPrime <rightKetOpSz; rQPrime++)
-      if (maxlen < lbraS->getquantastates(lQ)* rketS->getquantastates(rQPrime))
-	maxlen = lbraS->getquantastates(lQ)* rketS->getquantastates(rQPrime);
+    if (maxrow <lbraS->getquantastates(lQ)) maxrow = lbraS->getquantastates(lQ);
+  for (int rQPrime=0; rQPrime <rightKetOpSz; rQPrime++)
+    if (maxcol <rketS->getquantastates(rQPrime)) maxcol = rketS->getquantastates(rQPrime);
 
+  maxlen = maxrow*maxcol;
   int OMPRANK = omprank;
 
   int quanta_thrds = dmrginp.quanta_thrds();
@@ -988,12 +994,13 @@ void SpinAdapted::operatorfunctions::TensorMultiplysplitLeftElement(const StackS
   const StateInfo* rbraS = cblock->get_braStateInfo().rightStateInfo, *rketS = cblock->get_ketStateInfo().rightStateInfo;
 
 
-
-  long maxlen = 0;
+  long maxlen = 0, maxrow=0, maxcol=0;
   for (int lQ=0; lQ <leftBraOpSz; lQ++)
-    for (int rQPrime=0; rQPrime <rightKetOpSz; rQPrime++)
-      if (maxlen < lbraS->getquantastates(lQ)* rketS->getquantastates(rQPrime))
-	maxlen = lbraS->getquantastates(lQ)* rketS->getquantastates(rQPrime);
+    if (maxrow <lbraS->getquantastates(lQ)) maxrow = lbraS->getquantastates(lQ);
+  for (int rQPrime=0; rQPrime <rightKetOpSz; rQPrime++)
+    if (maxcol <rketS->getquantastates(rQPrime)) maxcol = rketS->getquantastates(rQPrime);
+
+  maxlen = maxrow*maxcol;
 
   int OMPRANK = omprank;
 
@@ -1130,12 +1137,13 @@ void SpinAdapted::operatorfunctions::TensorMultiplyCDxCDsplitLeftElement(const S
 
 
 
-  long maxlen = 0;
+  long maxlen = 0, maxrow=0, maxcol=0;
   for (int lQ=0; lQ <leftBraOpSz; lQ++)
-    for (int rQPrime=0; rQPrime <rightKetOpSz; rQPrime++)
-      if (maxlen < lbraS->getquantastates(lQ)* rketS->getquantastates(rQPrime))
-	maxlen = lbraS->getquantastates(lQ)* rketS->getquantastates(rQPrime);
+    if (maxrow <lbraS->getquantastates(lQ)) maxrow = lbraS->getquantastates(lQ);
+  for (int rQPrime=0; rQPrime <rightKetOpSz; rQPrime++)
+    if (maxcol <rketS->getquantastates(rQPrime)) maxcol = rketS->getquantastates(rQPrime);
 
+  maxlen = maxrow*maxcol;
   int OMPRANK = omprank;
 
   int quanta_thrds = dmrginp.quanta_thrds();
@@ -1348,12 +1356,13 @@ void SpinAdapted::operatorfunctions::TensorMultiplyCDxCDsplitRightElement(const 
   const StateInfo* dotketS = cblock->get_rightBlock()->get_ketStateInfo().rightStateInfo;
   const StateInfo* lbraS = cblock->get_braStateInfo().leftStateInfo, *lketS = cblock->get_ketStateInfo().leftStateInfo;
 
-
-  long maxlen = 0;
+  long maxlen = 0, maxrow=0, maxcol=0;
   for (int lQ=0; lQ <leftBraOpSz; lQ++)
-    for (int rQPrime=0; rQPrime <rightKetOpSz; rQPrime++)
-      if (maxlen < lbraS->getquantastates(lQ)* rketS->getquantastates(rQPrime))
-	maxlen = lbraS->getquantastates(lQ)* rketS->getquantastates(rQPrime);
+    if (maxrow <lbraS->getquantastates(lQ)) maxrow = lbraS->getquantastates(lQ);
+  for (int rQPrime=0; rQPrime <rightKetOpSz; rQPrime++)
+    if (maxcol <rketS->getquantastates(rQPrime)) maxcol = rketS->getquantastates(rQPrime);
+
+  maxlen = maxrow*maxcol;
 
   int OMPRANK = omprank;
 
@@ -1572,11 +1581,13 @@ void SpinAdapted::operatorfunctions::TensorMultiplyCDxCDsplitRightElementcopy(co
   const StateInfo* lbraS = cblock->get_braStateInfo().leftStateInfo, *lketS = cblock->get_ketStateInfo().leftStateInfo;
 
 
-  long maxlen = 0;
+  long maxlen = 0, maxrow=0, maxcol=0;
   for (int lQ=0; lQ <leftBraOpSz; lQ++)
-    for (int rQPrime=0; rQPrime <rightKetOpSz; rQPrime++)
-      if (maxlen < lbraS->getquantastates(lQ)* rketS->getquantastates(rQPrime))
-	maxlen = lbraS->getquantastates(lQ)* rketS->getquantastates(rQPrime);
+    if (maxrow <lbraS->getquantastates(lQ)) maxrow = lbraS->getquantastates(lQ);
+  for (int rQPrime=0; rQPrime <rightKetOpSz; rQPrime++)
+    if (maxcol <rketS->getquantastates(rQPrime)) maxcol = rketS->getquantastates(rQPrime);
+
+  maxlen = maxrow*maxcol;
 
   int OMPRANK = omprank;
 
@@ -1727,11 +1738,13 @@ void SpinAdapted::operatorfunctions::TensorMultiplysplitRight(const StackSparseM
 
   const std::vector< std::pair<std::pair<int, int>, StackMatrix> >& nonZeroBlocks = c.get_nonZeroBlocks();
 
-  long maxlen = 0;
+  long maxlen = 0, maxrow=0, maxcol=0;
   for (int lQ=0; lQ <leftBraOpSz; lQ++)
-    for (int rQPrime=0; rQPrime <rightKetOpSz; rQPrime++)
-      if (maxlen < lbraS->getquantastates(lQ)* rketS->getquantastates(rQPrime))
-	maxlen = lbraS->getquantastates(lQ)* rketS->getquantastates(rQPrime);
+    if (maxrow <lbraS->getquantastates(lQ)) maxrow = lbraS->getquantastates(lQ);
+  for (int rQPrime=0; rQPrime <rightKetOpSz; rQPrime++)
+    if (maxcol <rketS->getquantastates(rQPrime)) maxcol = rketS->getquantastates(rQPrime);
+
+  maxlen = maxrow*maxcol;
 
   int OMPRANK = omprank;
 

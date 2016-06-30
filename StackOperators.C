@@ -1095,8 +1095,6 @@ void SpinAdapted::StackCreDesComp::build(StackMatrix& m, int row, int col, const
   const int i = get_orbs()[0];
   const int j = get_orbs()[1];
 
-  TensorOp C(i,1), D(j,-1);
-  TensorOp CD1 = C.product(D, (-deltaQuantum[0].get_s()).getirrep(), (-sym).getirrep()); // the operator to be complimentaried
 
   StackSpinBlock* leftBlock = b.get_leftBlock();
   StackSpinBlock* rightBlock = b.get_rightBlock();
@@ -1125,16 +1123,20 @@ void SpinAdapted::StackCreDesComp::build(StackMatrix& m, int row, int col, const
     SpinAdapted::operatorfunctions::TensorProductElement(leftBlock, *Overlap, *op, &b, &(b.get_stateInfo()), *this, m, row, col, 1.0);
   }  
 
+  const TwoElectronArray& v2 = *(b.get_twoInt());
   // build CDcomp explicitely
   for (int kx = 0; kx < leftBlock->get_sites().size(); ++kx)
     for (int lx = 0; lx < rightBlock->get_sites().size(); ++lx) {
       int k = leftBlock->get_sites()[kx];
       int l = rightBlock->get_sites()[lx];
 
-      TensorOp CK(k,1), DL(l,-1);      
-      TensorOp CD2 = CK.product(DL, spin, sym.getirrep());
-      if (!CD2.empty) {
-	double scaleV = calcCompfactor(CD1, CD2, CD,*(b.get_twoInt()), b.get_integralIndex());
+      int spink = dmrginp.spin_orbs_symmetry()[dmrginp.spatial_to_spin()[k]],\
+	spinl = Symmetry::negativeofAbelian(dmrginp.spin_orbs_symmetry()[dmrginp.spatial_to_spin()[l]]);
+      //spinl = (-IrrepSpace(dmrginp.spin_orbs_symmetry()[dmrginp.spatial_to_spin()[l]])).getirrep();
+      if (Symmetry::negativeofAbelian(sym.getirrep()) == Symmetry::addAbelian(spink, spinl)) {
+	//if ((-sym).getirrep() == Symmetry::addAbelian(spink, spinl)) {
+	double scaleV = calcCompfactor(i,j,k,l, spin, CD,*(b.get_twoInt()), b.get_integralIndex());
+
 	if (leftBlock->get_op_array(CRE).has(k) && rightBlock->get_op_array(CRE).has(l) && fabs(scaleV) > dmrginp.twoindex_screen_tol()) {
 	  boost::shared_ptr<StackSparseMatrix> op1 = leftBlock->get_op_rep(CRE, getSpinQuantum(k), k);
 	  if (rightBlock->has(DES)) {
@@ -1148,10 +1150,11 @@ void SpinAdapted::StackCreDesComp::build(StackMatrix& m, int row, int col, const
 	}
       }
       
-      CK=TensorOp(l,1); DL=TensorOp(k,-1);      
-      CD2 = CK.product(DL, spin, sym.getirrep());
-      if (!CD2.empty) {
-      	double scaleV = calcCompfactor(CD1, CD2, CD,*(b.get_twoInt()), b.get_integralIndex());
+      spinl = dmrginp.spin_orbs_symmetry()[dmrginp.spatial_to_spin()[l]];
+      spink = Symmetry::negativeofAbelian(dmrginp.spin_orbs_symmetry()[dmrginp.spatial_to_spin()[k]]);
+
+      if (Symmetry::negativeofAbelian(sym.getirrep()) == Symmetry::addAbelian(spink, spinl)) {
+	double scaleV = calcCompfactor(i,j,l,k, spin, CD,*(b.get_twoInt()), b.get_integralIndex());
 	
       	if (leftBlock->get_op_array(CRE).has(k) && rightBlock->get_op_array(CRE).has(l) && fabs(scaleV) > dmrginp.twoindex_screen_tol()) {
 	  boost::shared_ptr<StackSparseMatrix> op1 = rightBlock->get_op_rep(CRE, getSpinQuantum(l), l);
@@ -1171,7 +1174,9 @@ void SpinAdapted::StackCreDesComp::build(StackMatrix& m, int row, int col, const
       }
       
       if (dmrginp.hamiltonian() == BCS) {
-        CK = TensorOp(k, 1);
+	TensorOp C(i,1), D(j,-1);
+	TensorOp CD1 = C.product(D, (-deltaQuantum[0].get_s()).getirrep(), (-sym).getirrep()); // the operator to be complimentaried
+        TensorOp CK = TensorOp(k, 1);
         TensorOp CL(l, 1);
         TensorOp CC2 = CK.product(CL, spin, sym.getirrep(), k==l); // k cannot equal to l
         if (!CC2.empty) {
@@ -1191,7 +1196,7 @@ void SpinAdapted::StackCreDesComp::build(StackMatrix& m, int row, int col, const
           }
         }
         TensorOp DK(k, -1);
-        DL = TensorOp(l, -1);
+        TensorOp DL = TensorOp(l, -1);
         TensorOp DD2 = DK.product(DL, spin, sym.getirrep(), k==l);
         if (!DD2.empty) {
           double scaleV = calcCompfactor(CD1, DD2, CD, v_cccd[b.get_integralIndex()]);
@@ -1985,9 +1990,6 @@ void SpinAdapted::StackDesDesComp::build(StackMatrix& m, int row, int col, const
   const int j = get_orbs()[1];
 
 
-  TensorOp C(i,1), C2(j,1);
-  TensorOp CC1 = C.product(C2, (-deltaQuantum[0].get_s()).getirrep(), (-sym).getirrep(), i==j);
-
   StackSpinBlock* leftBlock = b.get_leftBlock();
   StackSpinBlock* rightBlock = b.get_rightBlock();
 
@@ -2014,7 +2016,9 @@ void SpinAdapted::StackDesDesComp::build(StackMatrix& m, int row, int col, const
     SpinQuantum hq(0, SpinSpace(0), IrrepSpace(0));
     const boost::shared_ptr<StackSparseMatrix> Overlap = leftBlock->get_op_rep(OVERLAP, hq);
     SpinAdapted::operatorfunctions::TensorProductElement(leftBlock, *Overlap, *op, &b, &(b.get_stateInfo()), *this, m, row, col, 1.0);
-  }  
+  } 
+
+  const TwoElectronArray& v2 = *(b.get_twoInt()); 
   // explicitly build DD_comp
   for (int kx = 0; kx < leftBlock->get_sites().size(); ++kx)
     for (int lx = 0; lx < rightBlock->get_sites().size(); ++lx)
@@ -2022,14 +2026,13 @@ void SpinAdapted::StackDesDesComp::build(StackMatrix& m, int row, int col, const
       int k = leftBlock->get_sites()[kx];
       int l = rightBlock->get_sites()[lx];
 
-      TensorOp DK(k,-1), DL(l,-1);
-      TensorOp DD2 = DK.product(DL, spin, sym.getirrep(), k==l);
-      if (!DD2.empty) {
-        double scaleV = calcCompfactor(CC1, DD2, DD, *(b.get_twoInt()), b.get_integralIndex());
+      int spink = Symmetry::negativeofAbelian(dmrginp.spin_orbs_symmetry()[dmrginp.spatial_to_spin()[k]]), \
+	spinl = Symmetry::negativeofAbelian(dmrginp.spin_orbs_symmetry()[dmrginp.spatial_to_spin()[l]]);
+      if (Symmetry::negativeofAbelian(sym.getirrep()) == Symmetry::addAbelian(spink, spinl)) {
+	//if ((-sym).getirrep() == Symmetry::addAbelian(spink, spinl)) {
+	double scaleV = calcCompfactor(i,j,k,l, spin, DD,*(b.get_twoInt()), b.get_integralIndex());
 
-        DK=TensorOp(k,-1); DL=TensorOp(l,-1);
-        DD2 = DL.product(DK, spin, sym.getirrep(), k==l);
-        double scaleV2 = calcCompfactor(CC1, DD2, DD, *(b.get_twoInt()), b.get_integralIndex());
+	double scaleV2 = calcCompfactor(i,j,l,k, spin, DD,*(b.get_twoInt()), b.get_integralIndex());
         
         if (leftBlock->get_op_array(CRE).has(k) && rightBlock->get_op_array(CRE).has(l) && (fabs(scaleV2)+fabs(scaleV)) > dmrginp.twoindex_screen_tol()) {
 	  if (leftBlock->has(DES)) {
@@ -2059,6 +2062,9 @@ void SpinAdapted::StackDesDesComp::build(StackMatrix& m, int row, int col, const
       }
 
       if (dmrginp.hamiltonian() == BCS) {
+	TensorOp C(i,1), C2(j,1);
+	TensorOp CC1 = C.product(C2, (-deltaQuantum[0].get_s()).getirrep(), (-sym).getirrep(), i==j);
+
         TensorOp CK(k, 1), CL(l, 1);
         TensorOp CC2 = CK.product(CL, spin, sym.getirrep(), k==l);
         if (!CC2.empty) {
@@ -2081,7 +2087,7 @@ void SpinAdapted::StackDesDesComp::build(StackMatrix& m, int row, int col, const
         }
         // Ck*Dl
         CK = TensorOp(k, 1);
-        DL = TensorOp(l, -1);
+        TensorOp DL = TensorOp(l, -1);
         TensorOp CD2 = CK.product(DL, spin, sym.getirrep());
         if (!CD2.empty) {
           double scaleV = calcCompfactor(CC1, CD2, DD, v_cccd[b.get_integralIndex()]);
@@ -2101,7 +2107,7 @@ void SpinAdapted::StackDesDesComp::build(StackMatrix& m, int row, int col, const
         }
         // Cl*Dk
         CL = TensorOp(l,1);
-        DK = TensorOp(k,-1);
+        TensorOp DK = TensorOp(k,-1);
         CD2 = CL.product(DK, spin, sym.getirrep());
         if (!CD2.empty) {
           double scaleV = calcCompfactor(CC1, CD2, DD, v_cccd[b.get_integralIndex()]);

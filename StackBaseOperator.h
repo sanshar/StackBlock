@@ -305,6 +305,7 @@ class StackSparseMatrix : public Baseoperator<StackMatrix>  // the sparse matrix
   virtual void buildUsingCre(const StackSpinBlock* b) {};
   virtual double redMatrixElement(Csf c1, vector<Csf>& ladder, const StackSpinBlock* b=0) {return 0;}
   double calcCompfactor(TensorOp& Top1, TensorOp& op2, CompType comp, const TwoElectronArray& v_2, int integralIndex);
+  double calcCompfactor(int i, int j, int k, int l, int spin, CompType comp, const TwoElectronArray& v_2, int integralIndex);
   double calcCompfactor(TensorOp& Top1, TensorOp& op2, CompType comp, const CCCCArray& vcccc);
   double calcCompfactor(TensorOp& Top1, TensorOp& op2, CompType comp, const CCCDArray& vcccd);
   double calcCompfactor(TensorOp& Top1, TensorOp& op2, CompType comp, int op2index, const TwoElectronArray& v_2, int integralIndex);

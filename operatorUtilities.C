@@ -145,6 +145,54 @@ double SpinAdapted::StackSparseMatrix::calcMatrixElements(Csf& c1, TensorOp& Top
   return element;
 }
 
+// s*s -> 0
+double SpinAdapted::StackSparseMatrix::calcCompfactor(int i, int j, int k, int l, int spin, CompType comp, const TwoElectronArray& v_2, int integralIndex)
+{    
+  double cleb = clebsch(spin, spin, spin, -spin, 0, 0);
+  double factor = 0.0;
+  if (fabs(cleb) <= 1.0e-14)
+    return 0.0;
+
+  if (comp == CD && spin==0) {
+    int Ind10 = dmrginp.spatial_to_spin()[i], Ind11 = dmrginp.spatial_to_spin()[j],  Ind20 = dmrginp.spatial_to_spin()[k],  Ind21 = dmrginp.spatial_to_spin()[l];
+    factor += 0.5*(-v_2(Ind10, Ind20, Ind21, Ind11) - v_2(Ind20, Ind10, Ind11, Ind21) 
+		   + v_2(Ind20, Ind10, Ind21, Ind11) + v_2(Ind10, Ind20, Ind11, Ind21))/cleb/2.;
+    Ind10 = dmrginp.spatial_to_spin()[i], Ind11 = dmrginp.spatial_to_spin()[j],  Ind20 = dmrginp.spatial_to_spin()[k]+1,  Ind21 = dmrginp.spatial_to_spin()[l]+1;
+    factor += 0.5*(-v_2(Ind10, Ind20, Ind21, Ind11) - v_2(Ind20, Ind10, Ind11, Ind21) 
+		   + v_2(Ind20, Ind10, Ind21, Ind11) + v_2(Ind10, Ind20, Ind11, Ind21))/cleb/2.;
+    Ind10 = dmrginp.spatial_to_spin()[i]+1, Ind11 = dmrginp.spatial_to_spin()[j]+1,  Ind20 = dmrginp.spatial_to_spin()[k],  Ind21 = dmrginp.spatial_to_spin()[l];
+    factor += 0.5*(-v_2(Ind10, Ind20, Ind21, Ind11) - v_2(Ind20, Ind10, Ind11, Ind21) 
+		   + v_2(Ind20, Ind10, Ind21, Ind11) + v_2(Ind10, Ind20, Ind11, Ind21))/cleb/2.;
+    Ind10 = dmrginp.spatial_to_spin()[i]+1, Ind11 = dmrginp.spatial_to_spin()[j]+1,  Ind20 = dmrginp.spatial_to_spin()[k]+1,  Ind21 = dmrginp.spatial_to_spin()[l]+1;
+    factor += 0.5*(-v_2(Ind10, Ind20, Ind21, Ind11) - v_2(Ind20, Ind10, Ind11, Ind21) 
+		   + v_2(Ind20, Ind10, Ind21, Ind11) + v_2(Ind10, Ind20, Ind11, Ind21))/cleb/2.;
+  }
+  else if (comp == CD && spin==2) {
+    int Ind10 = dmrginp.spatial_to_spin()[i], Ind11 = dmrginp.spatial_to_spin()[j]+1,  Ind20 = dmrginp.spatial_to_spin()[k]+1,  Ind21 = dmrginp.spatial_to_spin()[l];
+    factor += -0.5*(-v_2(Ind10, Ind20, Ind21, Ind11) - v_2(Ind20, Ind10, Ind11, Ind21) 
+		   + v_2(Ind20, Ind10, Ind21, Ind11) + v_2(Ind10, Ind20, Ind11, Ind21))/cleb;
+  }
+  else if (comp == DD && spin==0) {
+    int Ind10 = dmrginp.spatial_to_spin()[i], Ind11 = dmrginp.spatial_to_spin()[j]+1,  Ind20 = dmrginp.spatial_to_spin()[k],  Ind21 = dmrginp.spatial_to_spin()[l]+1;
+    factor += 0.5*(v_2(Ind10, Ind11, Ind21, Ind20))/cleb/2.;
+
+    Ind10 = dmrginp.spatial_to_spin()[i], Ind11 = dmrginp.spatial_to_spin()[j]+1,  Ind20 = dmrginp.spatial_to_spin()[k]+1,  Ind21 = dmrginp.spatial_to_spin()[l];
+    factor += -0.5*(v_2(Ind10, Ind11, Ind21, Ind20))/cleb/2.;
+
+    Ind10 = dmrginp.spatial_to_spin()[i]+1, Ind11 = dmrginp.spatial_to_spin()[j],  Ind20 = dmrginp.spatial_to_spin()[k],  Ind21 = dmrginp.spatial_to_spin()[l]+1;
+    factor += -0.5*(v_2(Ind10, Ind11, Ind21, Ind20))/cleb/2.;
+
+    Ind10 = dmrginp.spatial_to_spin()[i]+1, Ind11 = dmrginp.spatial_to_spin()[j],  Ind20 = dmrginp.spatial_to_spin()[k]+1,  Ind21 = dmrginp.spatial_to_spin()[l];
+    factor += 0.5*(v_2(Ind10, Ind11, Ind21, Ind20))/cleb/2.;
+  }
+  else if (comp == DD && spin==2) {
+    int Ind10 = dmrginp.spatial_to_spin()[i], Ind11 = dmrginp.spatial_to_spin()[j],  Ind20 = dmrginp.spatial_to_spin()[k],  Ind21 = dmrginp.spatial_to_spin()[l];
+    //cout <<Ind10<<"  "<<Ind11<<"  "<<Ind20<<"  "<<Ind21<<endl;
+    factor = 0.5*(v_2(Ind10, Ind11, Ind21, Ind20))/cleb;
+  }
+  return factor;
+}
+
 
 double SpinAdapted::StackSparseMatrix::calcCompfactor(TensorOp& op1, TensorOp& op2, CompType comp, const TwoElectronArray& v_2, int integralIndex)
 {

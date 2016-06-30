@@ -29,6 +29,7 @@ class Symmetry
   static void InitialiseTable(string sym);
 
   static std::vector<int> add(int irrepl, int irrepr);
+  static int addAbelian(int irrepl, int irrepr);
   static int sizeofIrrep(int irrep);
   static bool irrepAllowed(int irrep);
   static string stringOfIrrep(int irrep);
@@ -38,6 +39,7 @@ class Symmetry
   static std::vector<int> decompress(int irrep);
   static int compress(std::vector<int>& irreps);
   static int negativeof(int irrep);
+  static int negativeofAbelian(int irrep);
 };
 }
 #endif

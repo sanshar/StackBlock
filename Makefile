@@ -99,7 +99,7 @@ ifeq (icpc, $(CXX))
 	endif
    endif
 # Intel compiler
-  OPT = -DNDEBUG -O2 -g #-ipo
+  OPT = -DNDEBUG -O3 -g #-ipo
 #  OPT = -g 
    ifeq ($(USE_MPI), no) 
       CXX = icpc

@@ -27,20 +27,21 @@ double SpinAdapted::getCommuteParity(SpinQuantum a, SpinQuantum b, SpinQuantum c
 
   for (int asz = -aspin; asz<aspin+1; asz+=2)
   for (int bsz = -bspin; bsz<bspin+1; bsz+=2)
-  for (int al = 0; al<Symmetry::sizeofIrrep(airrep); al++)
-  for (int bl = 0; bl<Symmetry::sizeofIrrep(birrep); bl++)
+    //for (int al = 0; al<Symmetry::sizeofIrrep(airrep); al++)
+    //for (int bl = 0; bl<Symmetry::sizeofIrrep(birrep); bl++)
   {
     //double cleb = cleb_(aspin, asz, bspin, bsz, cspin, cspin);
     double cleb = clebsch(aspin, asz, bspin, bsz, cspin, cspin);
-    double clebspatial = Symmetry::spatial_cg(airrep, birrep, cirrep, al, bl, 0);
-    if (fabs(cleb) <= NUMERICAL_ZERO || fabs(clebspatial) <= NUMERICAL_ZERO)
+    //double clebspatial = Symmetry::spatial_cg(airrep, birrep, cirrep, al, bl, 0);
+    if (fabs(cleb) <= NUMERICAL_ZERO)// || fabs(clebspatial) <= NUMERICAL_ZERO)
       continue;
     else {
       //return parity*cleb*clebdinfh/cleb_(bspin, bsz, aspin, asz, cspin, cspin)/Symmetry::spatial_cg(birrep, airrep, cirrep, bl, al, 0);
       double spinscale = cleb/clebsch(bspin, bsz, aspin, asz, cspin, cspin);
-      double spatscale = clebspatial/Symmetry::spatial_cg(birrep, airrep, cirrep, bl, al, 0);
+      //double spatscale = clebspatial/Symmetry::spatial_cg(birrep, airrep, cirrep, bl, al, 0);
 
-      return parity*spinscale*spatscale;
+      //return parity*spinscale*spatscale;
+      return parity*spinscale;
     }
   }
   pout << "Major trouble, getCommuteParity asked for three inappropriate operators"<<endl;
