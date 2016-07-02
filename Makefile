@@ -3,43 +3,40 @@
 #This program is integrated in Molpro with the permission of 
 #Sandeep Sharma and Garnet K.-L. Chan
 
-##BOOSTINCLUDE = /home/sandeep/Work/Programs/boost_1_54_0/
-#specify boost include file
-BOOSTINCLUDE = /home/sharma/apps/forServer/boost_1_53_0_mt/boost_1_53_0/
-BOOSTINCLUDE = /opt/local/include
+######### GENERAL OPTIONS FOR USER #########
+
+# change to icpc for Intel
+CXX = clang++
+MPICXX = mpiicpc
+export CXX
+export MPICXX
+
+# BOOST include directory
+#BOOSTINCLUDE = /home/sharma/apps/forServer/boost_1_53_0_mt/boost_1_53_0/
 #BOOSTINCLUDE = /home/sharma/apps/boost/boost_1_55_0/
+BOOSTINCLUDE = /opt/local/include
 
-#specify boost and lapack-blas library locations
-#BOOSTLIB = -L/home/sharma/apps/forServer/boost_1_53_0_mt/boost_1_53_0/stage/lib -lboost_serialization -lboost_system -lboost_filesystem
-BOOSTLIB = -L/opt/local/lib  -lboost_system-mt -lboost_filesystem-mt -lboost_serialization-mt
-
-#BOOSTLIB = -L/home/sharma/apps/boost/boost_1_55_0/stage/lib -lboost_serialization -lboost_system -lboost_filesystem 
-#BOOSTLIB = -lboost_serialization -lboost_system -lboost_filesystem
-#LAPACKBLAS = -lblas -llapack
-LAPACKBLAS =    /usr/lib/liblapack.dylib /usr/lib/libblas.dylib
-
-MALLOC = #-L/home/sharma/apps/forServer/tcalloc/tcalloc_install/lib -ltcmalloc
-
+# set to yes if using BOOST version >= 1.56.0
 USE_BOOST56 = no
 ifeq ($(USE_BOOST56), yes)
 	B56 = -DBOOST_1_56_0
 endif
 
-#use these variable to set if we will use mpi or not 
-USE_MPI = no
-USE_MKL = no
+# BOOST and LAPACK/BLAS linker 
+#BOOSTLIB = -L/home/sharma/apps/forServer/boost_1_53_0_mt/boost_1_53_0/stage/lib -lboost_serialization -lboost_system -lboost_filesystem
+#BOOSTLIB = -L/home/sharma/apps/boost/boost_1_55_0/stage/lib -lboost_serialization -lboost_system -lboost_filesystem 
+#BOOSTLIB = -lboost_serialization -lboost_system -lboost_filesystem
+BOOSTLIB = -L/opt/local/lib  -lboost_system-mt -lboost_filesystem-mt -lboost_serialization-mt
 
-# use this variable to set if we will use integer size of 8 or not.
-# molpro compilation requires I8, since their integers are long
-I8_OPT = no
-MOLPRO = no
+#LAPACKBLAS = -lblas -llapack
+LAPACKBLAS =    /usr/lib/liblapack.dylib /usr/lib/libblas.dylib
+
+# set if we will use MPI or OpenMP
+USE_MPI = no
 OPENMP = no
 
-DOPROF = no
-
-# add Molcas interface to libqcdmrg.so
-# molcas compilation w/ -64 option requires I8 as well
-MOLCAS = no
+# FLAGS for linking in MKL
+USE_MKL = no
 
 ifeq ($(USE_MKL), yes)
 MKLLIB = .
@@ -49,6 +46,25 @@ MKLOPT = -D_HAS_INTEL_MKL
 else
 MKLFLAGS = .
 endif
+
+
+######### ADVANCED OPTIONS (GENERALLY THESE DO NOT NEED TO BE SET) #########
+
+
+# add Molcas interface to libqcdmrg.so
+# molcas compilation w/ -64 option requires I8 as well
+MOLCAS = no
+
+# Link to Molpro
+MOLPRO = no
+# use this variable to set if we will use integer size of 8 or not.
+# molpro compilation requires I8, since their integers are long
+I8_OPT = no
+
+# Optional MALLOC library 
+MALLOC = #-L/home/sharma/apps/forServer/tcalloc/tcalloc_install/lib -ltcmalloc
+
+DOPROF = no
 
 RUN_UNITTEST=no
 ifeq ($(RUN_UNITTEST), yes)
@@ -65,9 +81,6 @@ endif
 
 EXECUTABLE = block.spin_adapted
 
-# change to icpc for Intel
-CXX = clang++
-MPICXX = mpiicpc
 BLOCKHOME = .
 HOME = .
 NEWMATINCLUDE = $(BLOCKHOME)/newmat10/
@@ -119,7 +132,7 @@ ifeq (g++, $(CXX))
 	#endif
    endif
 # GNU compiler
-   OPT = -DNDEBUG -O2 -g -funroll-loops
+   OPT = -DNDEBUG -O2 -g -funroll-loops -Werror
 #   OPT = -g -pg
 endif
 
@@ -128,7 +141,7 @@ ifeq (clang++, $(CXX))
       OPENMP_FLAGS= -fopenmp #-D_OPENMP 
    endif
 
-   OPT = -DNDEBUG -g -Werror
+   OPT = -DNDEBUG -g -Werror -funroll-loops
 endif
 
 ifeq ($(DOPROF),yes)
@@ -244,7 +257,6 @@ COEF : $(OBJ_COEF) $(NEWMATLIB)/libnewmat.a
 	$(CXX)   $(FLAGS) $(OPT) -o  COEF $(OBJ_COEF) $(LIBS)
 
 $(NEWMATLIB)/libnewmat.a :
-	export CXX
 	cd $(NEWMATLIB) && $(MAKE) -f makefile libnewmat.a
 
 clean:
