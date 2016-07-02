@@ -148,11 +148,17 @@ double SpinAdapted::StackSparseMatrix::calcMatrixElements(Csf& c1, TensorOp& Top
 // s*s -> 0
 double SpinAdapted::StackSparseMatrix::calcCompfactor(int i, int j, int k, int l, int spin, CompType comp, const TwoElectronArray& v_2, int integralIndex)
 {    
+  if (!dmrginp.spinAdapted()) {
+    if (comp == CD) 
+      return 0.5*(-v_2(i, k, l, j) - v_2(k, i, j, l) 
+		     + v_2(k, i, l, j) + v_2(i, k, j, l));
+    else if (comp == DD)
+      return 0.5*(v_2(i, j, l, k));
+  }
   double cleb = clebsch(spin, spin, spin, -spin, 0, 0);
   double factor = 0.0;
   if (fabs(cleb) <= 1.0e-14)
     return 0.0;
-
   if (comp == CD && spin==0) {
     int Ind10 = dmrginp.spatial_to_spin()[i], Ind11 = dmrginp.spatial_to_spin()[j],  Ind20 = dmrginp.spatial_to_spin()[k],  Ind21 = dmrginp.spatial_to_spin()[l];
     factor += 0.5*(-v_2(Ind10, Ind20, Ind21, Ind11) - v_2(Ind20, Ind10, Ind11, Ind21) 

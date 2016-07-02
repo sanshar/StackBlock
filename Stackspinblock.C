@@ -1078,15 +1078,15 @@ void StackSpinBlock::multiplyH(StackWavefunction& c, StackWavefunction* v, int n
       }
   }
   if (dmrginp.hamiltonian() != HUBBARD) {
-    for (int i=0; i<loopBlock->get_op_array(CRE_CRE).get_size(); i++)
-      for (int j=0; j<1; j++) {
-	allops2.push_back(loopBlock->get_op_array(CRE_CRE).get_local_element(i)[j]);
-	allfuncs2.push_back(f7b);
-      }
     for (int i=0; i<loopBlock->get_op_array(CRE_DES).get_size(); i++)
       for (int j=0; j<1; j++) {
 	allops2.push_back(loopBlock->get_op_array(CRE_DES).get_local_element(i)[j]);
 	allfuncs2.push_back(f6b);
+      }
+    for (int i=0; i<loopBlock->get_op_array(CRE_CRE).get_size(); i++)
+      for (int j=0; j<1; j++) {
+	allops2.push_back(loopBlock->get_op_array(CRE_CRE).get_local_element(i)[j]);
+	allfuncs2.push_back(f7b);
       }
   }
 
@@ -1126,7 +1126,7 @@ void StackSpinBlock::multiplyH(StackWavefunction& c, StackWavefunction* v, int n
   dmrginp.tensormultiply->start();
   std::vector<int> collected(numthrds, 0);
   std::vector<int> numops(numthrds, 0);
-#pragma omp parallel for  schedule(dynamic) 
+#pragma omp parallel for  schedule(dynamic)
   for (int i = 0; i<allops.size()+(allops2.size()+allops3.size())*reorderedVector.size(); i++)  {
 
     if (i>=collectedIndex && i<unCollectIndex && collected[omprank] == 0) {
@@ -1164,7 +1164,6 @@ void StackSpinBlock::multiplyH(StackWavefunction& c, StackWavefunction* v, int n
       allfuncs3[opindex](allops3[opindex], reorderedVector[quantaindex]);
     }
   }
-
   
   for (int i = 0; i<numthrds; i++)  {
     if (collected[i]==2) {

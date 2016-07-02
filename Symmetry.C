@@ -376,6 +376,7 @@ int Symmetry::sizeofIrrep(int irrep)
 
 int Symmetry::negativeof(int irrep)
 {
+  return negativeofAbelian(irrep);
   if (sym == "trans") {
     std::vector<int> lirrep = decompress(irrep);
     for (int i=0; i<lirrep.size(); i++) {
@@ -489,12 +490,14 @@ int Symmetry::addAbelian(int irrepl, int irrepr) {
   }
   else if (groupTable.dim1() == 40)  //this is lzsym
     return irrepl+irrepr;
-  else
+  else {
     return groupTable(irrepl, irrepr);
+  }
 }
 
 std::vector<int> Symmetry::add(int irrepl, int irrepr)
 {
+  return vector<int>(1,addAbelian(irrepl,irrepr));
   if (NonabelianSym) {
     return nonAbelianGrp.getProduct(irrepl, irrepr);
   }
