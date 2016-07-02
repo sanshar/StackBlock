@@ -25,14 +25,17 @@ template<class T> class StackAllocator
   void clear() {size = 0;data=0; memused=0;}
   T* allocate(std::size_t n, const void* hint = 0) 
   {
-    if (memused+n >=size) {
-      std::cout << "exceeding allowed memory"<<std::endl;
-      print_trace(11);
-    }
-    else {
-      memused = memused+n;
-      return &data[memused-n];
-    }
+    if (memused+n >=size)
+      {
+	std::cout << "exceeding allowed memory"<<std::endl;
+	print_trace(11);
+	return 0;
+      }
+    else
+      {
+	memused = memused+n;
+	return &data[memused-n];
+      }
   }
   void deallocate(void* ptr, std::size_t n) {
     if (n == 0) return;

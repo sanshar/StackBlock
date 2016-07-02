@@ -543,9 +543,9 @@ double SpinAdapted::SweepResponse::do_one(SweepParams &sweepParams, const bool &
   // a new renormalisation sweep routine
   pout << endl;
   if (forward)
-    pout << "\t\t\t Starting sweep "<< sweepParams.set_sweep_iter()<<" in forwards direction"<<endl;
+    { pout << "\t\t\t Starting sweep "<< sweepParams.set_sweep_iter()<<" in forwards direction"<<endl; }
   else
-    pout << "\t\t\t Starting sweep "<< sweepParams.set_sweep_iter()<<" in backwards direction" << endl;
+    { pout << "\t\t\t Starting sweep "<< sweepParams.set_sweep_iter()<<" in backwards direction" << endl; }
   pout << "\t\t\t ============================================================================ " << endl;
 
 
@@ -637,9 +637,9 @@ double SpinAdapted::SweepResponse::do_one(SweepParams &sweepParams, const bool &
       pout << "\n\t\t\t Block Iteration :: " << sweepParams.get_block_iter() << endl;
       pout << "\t\t\t ----------------------------" << endl;
       if (forward)
-       p1out << "\t\t\t Current direction is :: Forwards " << endl;
+	{ p1out << "\t\t\t Current direction is :: Forwards " << endl; }
       else
-       p1out << "\t\t\t Current direction is :: Backwards " << endl;
+	{ p1out << "\t\t\t Current direction is :: Backwards " << endl; }
 
 
       if (sweepParams.get_block_iter() == 0 && sweepParams.get_sweep_iter() == 1)
@@ -719,9 +719,9 @@ double SpinAdapted::SweepResponse::do_one(SweepParams &sweepParams, const bool &
       pout << "\n\t\t\t Block Iteration :: " << sweepParams.get_block_iter() << endl;
       pout << "\t\t\t ----------------------------" << endl;
       if (forward)
-       p1out << "\t\t\t Current direction is :: Forwards " << endl;
+	{ p1out << "\t\t\t Current direction is :: Forwards " << endl; }
       else
-       p1out << "\t\t\t Current direction is :: Backwards " << endl;
+	{ p1out << "\t\t\t Current direction is :: Backwards " << endl; }
     sweepParams.set_onedot() = true;
     sweepParams.set_env_add() = 0;
     bool dot_with_sys = true;

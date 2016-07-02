@@ -318,6 +318,7 @@ long StackOp_component<StackCreCreDesDes>::build_iterators(StackSpinBlock& b, bo
   std::map< std::tuple<int,int,int,int>, int > tuples = get_4index_tuples(b);
   m_op.set_tuple_indices( tuples, dmrginp.last_site() );
 
+  long requiredMemory = 0;
   // Allocate new set of operators for each set of spatial orbitals
   std::vector<int> orbs(4);
   for (int i = 0; i < m_op.local_nnz(); ++i) {
@@ -440,8 +441,6 @@ long StackOp_component<StackCreCreDesDes>::build_iterators(StackSpinBlock& b, bo
     }
     assert( c__cd_d_quantum_ladder.size() == 6 );
 
-
-    long requiredMemory = 0;
     // Allocate new operator for each spin component
     //------------------------------------------------
     spin_ops.clear();
@@ -462,8 +461,8 @@ long StackOp_component<StackCreCreDesDes>::build_iterators(StackSpinBlock& b, bo
     }
 
     assert( m_op.get_local_element(i).size() == 6);
-    return requiredMemory;
   }
+  return requiredMemory;
 }
 
 template<> 
@@ -508,6 +507,7 @@ long StackOp_component<StackCreDesCreDes>::build_iterators(StackSpinBlock& b, bo
   std::map< std::tuple<int,int,int,int>, int > tuples = get_4index_tuples(b);
   m_op.set_tuple_indices( tuples, dmrginp.last_site() );
 
+  long requiredMemory = 0;
   // Allocate new set of operators for each set of spatial orbitals
   std::vector<int> orbs(4);
   for (int i = 0; i < m_op.local_nnz(); ++i) {
@@ -620,8 +620,6 @@ long StackOp_component<StackCreDesCreDes>::build_iterators(StackSpinBlock& b, bo
     }
     assert( c__dc_d_quantum_ladder.size() == 6 );
 
-
-    long requiredMemory = 0;
     // Allocate new operator for each spin component
     //------------------------------------------------
     spin_ops.clear();
@@ -642,8 +640,8 @@ long StackOp_component<StackCreDesCreDes>::build_iterators(StackSpinBlock& b, bo
     }
 
     assert( m_op.get_local_element(i).size() == 6);
-    return requiredMemory;
   }
+  return requiredMemory;
 }
 
 
@@ -680,6 +678,7 @@ long StackOp_component<StackCreDesDesCre>::build_iterators(StackSpinBlock& b, bo
   std::map< std::tuple<int,int,int,int>, int > tuples = get_4index_tuples(b);
   m_op.set_tuple_indices( tuples, dmrginp.last_site() );
 
+  long requiredMemory = 0;
   // Allocate new set of operators for each set of spatial orbitals
   std::vector<int> orbs(4);
   for (int i = 0; i < m_op.local_nnz(); ++i) {
@@ -793,8 +792,6 @@ long StackOp_component<StackCreDesDesCre>::build_iterators(StackSpinBlock& b, bo
     }
     assert( c__dd_c_quantum_ladder.size() == 6 );
 
-
-    long requiredMemory = 0;
     // Allocate new operator for each spin component
     //------------------------------------------------
     spin_ops.clear();
@@ -815,8 +812,8 @@ long StackOp_component<StackCreDesDesCre>::build_iterators(StackSpinBlock& b, bo
     }
 
     assert( m_op.get_local_element(i).size() == 6);
-    return requiredMemory;
   }
+  return requiredMemory;
 }
 
 
@@ -847,6 +844,7 @@ long StackOp_component<StackCreDesDesDes>::build_iterators(StackSpinBlock& b, bo
   std::map< std::tuple<int,int,int,int>, int > tuples = get_4index_tuples(b);
   m_op.set_tuple_indices( tuples, dmrginp.last_site() );
 
+  long requiredMemory = 0;
   // Allocate new set of operators for each set of spatial orbitals
   std::vector<int> orbs(4);
   for (int i = 0; i < m_op.local_nnz(); ++i) {
@@ -960,8 +958,6 @@ long StackOp_component<StackCreDesDesDes>::build_iterators(StackSpinBlock& b, bo
     }
     assert( c__dd_d_quantum_ladder.size() == 6 );
 
-
-    long requiredMemory = 0;
     // Allocate new operator for each spin component
     //------------------------------------------------
     spin_ops.clear();
@@ -982,8 +978,8 @@ long StackOp_component<StackCreDesDesDes>::build_iterators(StackSpinBlock& b, bo
     }
 
     assert( m_op.get_local_element(i).size() == 6);
-    return requiredMemory;
   }
+  return requiredMemory;
 }
 
 
@@ -1014,6 +1010,7 @@ long StackOp_component<StackCreCreCreDes>::build_iterators(StackSpinBlock& b, bo
   std::map< std::tuple<int,int,int,int>, int > tuples = get_4index_tuples(b);
   m_op.set_tuple_indices( tuples, dmrginp.last_site() );
 
+  long requiredMemory = 0;
   // Allocate new set of operators for each set of spatial orbitals
   std::vector<int> orbs(4);
   for (int i = 0; i < m_op.local_nnz(); ++i) {
@@ -1127,7 +1124,6 @@ long StackOp_component<StackCreCreCreDes>::build_iterators(StackSpinBlock& b, bo
     assert( c__cc_d_quantum_ladder.size() == 6 );
 
 
-    long requiredMemory = 0;
     // Allocate new operator for each spin component
     //------------------------------------------------
     spin_ops.clear();
@@ -1148,8 +1144,8 @@ long StackOp_component<StackCreCreCreDes>::build_iterators(StackSpinBlock& b, bo
     }
 
     assert( m_op.get_local_element(i).size() == 6);
-    return requiredMemory;
   }
+  return requiredMemory;
 }
 
 
@@ -1179,7 +1175,8 @@ long StackOp_component<StackCreCreDesCre>::build_iterators(StackSpinBlock& b, bo
   // Set up 4-index (i,j,k,l) spatial operator indices for this StackSpinBlock
   std::map< std::tuple<int,int,int,int>, int > tuples = get_4index_tuples(b);
   m_op.set_tuple_indices( tuples, dmrginp.last_site() );
-
+  
+  long requiredMemory = 0;
   // Allocate new set of operators for each set of spatial orbitals
   std::vector<int> orbs(4);
   for (int i = 0; i < m_op.local_nnz(); ++i) {
@@ -1292,8 +1289,6 @@ long StackOp_component<StackCreCreDesCre>::build_iterators(StackSpinBlock& b, bo
     }
     assert( c__cd_c_quantum_ladder.size() == 6 );
 
-
-    long requiredMemory = 0;
     // Allocate new operator for each spin component
     //------------------------------------------------
     spin_ops.clear();
@@ -1314,8 +1309,9 @@ long StackOp_component<StackCreCreDesCre>::build_iterators(StackSpinBlock& b, bo
     }
 
     assert( m_op.get_local_element(i).size() == 6);
-    return requiredMemory;
   }
+  return requiredMemory;
+
 }
 
 
@@ -1346,6 +1342,7 @@ long StackOp_component<StackCreDesCreCre>::build_iterators(StackSpinBlock& b, bo
   std::map< std::tuple<int,int,int,int>, int > tuples = get_4index_tuples(b);
   m_op.set_tuple_indices( tuples, dmrginp.last_site() );
 
+  long requiredMemory = 0;
   // Allocate new set of operators for each set of spatial orbitals
   std::vector<int> orbs(4);
   for (int i = 0; i < m_op.local_nnz(); ++i) {
@@ -1459,8 +1456,6 @@ long StackOp_component<StackCreDesCreCre>::build_iterators(StackSpinBlock& b, bo
     }
     assert( c__dc_c_quantum_ladder.size() == 6 );
 
-
-    long requiredMemory = 0;
     // Allocate new operator for each spin component
     //------------------------------------------------
     spin_ops.clear();
@@ -1481,8 +1476,9 @@ long StackOp_component<StackCreDesCreCre>::build_iterators(StackSpinBlock& b, bo
     }
 
     assert( m_op.get_local_element(i).size() == 6);
-    return requiredMemory;
   }
+  return requiredMemory;
+
 }
 
 
@@ -1513,6 +1509,7 @@ long StackOp_component<StackCreCreCreCre>::build_iterators(StackSpinBlock& b, bo
   std::map< std::tuple<int,int,int,int>, int > tuples = get_4index_tuples(b);
   m_op.set_tuple_indices( tuples, dmrginp.last_site() );
 
+  long requiredMemory = 0;
   // Allocate new set of operators for each set of spatial orbitals
   std::vector<int> orbs(4);
   for (int i = 0; i < m_op.local_nnz(); ++i) {
@@ -1625,8 +1622,6 @@ long StackOp_component<StackCreCreCreCre>::build_iterators(StackSpinBlock& b, bo
     }
     assert( c__cc_c_quantum_ladder.size() == 6 );
 
-
-    long requiredMemory = 0;
     // Allocate new operator for each spin component
     //------------------------------------------------
     spin_ops.clear();
@@ -1647,8 +1642,8 @@ long StackOp_component<StackCreCreCreCre>::build_iterators(StackSpinBlock& b, bo
     }
 
     assert( m_op.get_local_element(i).size() == 6);
-    return requiredMemory;
-}
+  }
+  return requiredMemory;
 }
 
 //===========================================================================================================================================================

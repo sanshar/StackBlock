@@ -932,7 +932,7 @@ template<>
 void StackOp_component<StackCreDesDes>::build_iterators(StackSpinBlock& b, std::vector<int>& screened_c_ix, std::vector<std::pair<int, int> >& screened_pair, std::map< std::tuple<int, int, int>, int>& tuples)
 {
   // Blank construction (used in unset_initialised() Block copy construction, for use with STL)
-  if (b.get_sites().size () == 0) ; 
+  //  if (b.get_sites().size () == 0) ;  // GKC (should we return here?)
 
   m_op.set_tuple_indices( tuples, dmrginp.last_site() );
 

@@ -17,6 +17,7 @@ struct Davidson_functor
 {
   virtual void operator()(StackWavefunction& c, StackWavefunction& v) = 0;
   virtual const StackSpinBlock& get_block() = 0;
+  virtual ~Davidson_functor() {};
 };
 
 class multiply_h : public Davidson_functor

@@ -6,13 +6,18 @@
 ##BOOSTINCLUDE = /home/sandeep/Work/Programs/boost_1_54_0/
 #specify boost include file
 BOOSTINCLUDE = /home/sharma/apps/forServer/boost_1_53_0_mt/boost_1_53_0/
+BOOSTINCLUDE = /opt/local/include
 #BOOSTINCLUDE = /home/sharma/apps/boost/boost_1_55_0/
 
 #specify boost and lapack-blas library locations
-BOOSTLIB = -L/home/sharma/apps/forServer/boost_1_53_0_mt/boost_1_53_0/stage/lib -lboost_serialization -lboost_system -lboost_filesystem 
+#BOOSTLIB = -L/home/sharma/apps/forServer/boost_1_53_0_mt/boost_1_53_0/stage/lib -lboost_serialization -lboost_system -lboost_filesystem
+BOOSTLIB = -L/opt/local/lib  -lboost_system-mt -lboost_filesystem-mt -lboost_serialization-mt
+
 #BOOSTLIB = -L/home/sharma/apps/boost/boost_1_55_0/stage/lib -lboost_serialization -lboost_system -lboost_filesystem 
 #BOOSTLIB = -lboost_serialization -lboost_system -lboost_filesystem
-LAPACKBLAS = -lblas -llapack
+#LAPACKBLAS = -lblas -llapack
+LAPACKBLAS =    /usr/lib/liblapack.dylib /usr/lib/libblas.dylib
+
 MALLOC = #-L/home/sharma/apps/forServer/tcalloc/tcalloc_install/lib -ltcmalloc
 
 USE_BOOST56 = no
@@ -21,14 +26,14 @@ ifeq ($(USE_BOOST56), yes)
 endif
 
 #use these variable to set if we will use mpi or not 
-USE_MPI = yes
-USE_MKL = yes
+USE_MPI = no
+USE_MKL = no
 
 # use this variable to set if we will use integer size of 8 or not.
 # molpro compilation requires I8, since their integers are long
 I8_OPT = no
 MOLPRO = no
-OPENMP = yes
+OPENMP = no
 
 DOPROF = no
 
@@ -61,7 +66,7 @@ endif
 EXECUTABLE = block.spin_adapted
 
 # change to icpc for Intel
-CXX = icpc
+CXX = clang++
 MPICXX = mpiicpc
 BLOCKHOME = .
 HOME = .
@@ -72,7 +77,7 @@ NEWMATLIB = $(BLOCKHOME)/newmat10/
 BTAS = $(BLOCKHOME)/btas
 .SUFFIXES: .C .cpp
 
-   
+
 MOLPROINCLUDE=.
 ifeq ($(MOLPRO), yes)
    MOLPROINCLUDE=$(BLOCKHOME)/../
@@ -118,6 +123,14 @@ ifeq (g++, $(CXX))
 #   OPT = -g -pg
 endif
 
+ifeq (clang++, $(CXX))
+   ifeq ($(OPENMP), yes)
+      OPENMP_FLAGS= -fopenmp #-D_OPENMP 
+   endif
+
+   OPT = -DNDEBUG -g -Werror
+endif
+
 ifeq ($(DOPROF),yes)
      OPT += -pg
 endif
@@ -130,7 +143,7 @@ ifeq ($(USE_MPI), yes)
 endif
 
 
-OPT	+= $(OPENMP_FLAGS) -DBLAS -DUSELAPACK $(MPI_OPT) $(I8) $(B56) $(MOLPRO_BLOCK)  -DFAST_MTP -D_HAS_CBLAS -D_HAS_INTEL_MKL ${MKLOPT} ${UNITTEST} 
+OPT	+= $(OPENMP_FLAGS) -DBLAS -DUSELAPACK $(MPI_OPT) $(I8) $(B56) $(MOLPRO_BLOCK)  -DFAST_MTP -D_HAS_CBLAS  ${MKLOPT} ${UNITTEST} 
 
 SRC_genetic = genetic/CrossOver.C genetic/Evaluate.C genetic/GAInput.C genetic/GAOptimize.C genetic/Generation.C genetic/Mutation.C genetic/RandomGenerator.C genetic/ReadIntegral.C
 
@@ -231,6 +244,7 @@ COEF : $(OBJ_COEF) $(NEWMATLIB)/libnewmat.a
 	$(CXX)   $(FLAGS) $(OPT) -o  COEF $(OBJ_COEF) $(LIBS)
 
 $(NEWMATLIB)/libnewmat.a :
+	export CXX
 	cd $(NEWMATLIB) && $(MAKE) -f makefile libnewmat.a
 
 clean:

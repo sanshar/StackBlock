@@ -1,4 +1,5 @@
-CXX = g++
+#CXX = g++
+$(info $(CXX))
 CXXFLAGS = -fPIC -O2 -Wall
 
 DIFF = ./sdiff

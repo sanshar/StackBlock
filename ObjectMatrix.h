@@ -74,7 +74,13 @@ public:
     return (conj == 'n') ? rep.at(s * ncs + t) : rep.at(t * ncs + s);
   }
 
-  ObjectMatrix<T>& operator= (const ObjectMatrix<T>& m) { if (this != &m); rep = m.rep; nrs = m.nrs; ncs = m.ncs; return *this; }
+  ObjectMatrix<T>& operator= (const ObjectMatrix<T>& m)
+    {
+      if (this != &m) {
+	rep = m.rep; nrs = m.nrs; ncs = m.ncs;
+      }
+      return *this;
+    }
 
   int ncols () const { return ncs; }
   int nrows () const { return nrs; }
@@ -126,7 +132,15 @@ public:
     assert (s >= 0 && t >= 0 && s < n && t < n && s >= t);
     return rep [s][t];
   }
-  void operator= (const ObjectMatrix<T>& m) { if (this != &m); rep = m.rep; n = m.n; }
+
+  ObjectLowerTriangularMatrix<T>& operator= (const ObjectMatrix<T>& m)
+    {
+      if (this != &m)
+	{
+	  rep = m.rep; n = m.n;
+	}
+      return *this;
+    }
 
   int ncols () const { return n; }
   int nrows () const { return n; }

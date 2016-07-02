@@ -13,9 +13,8 @@ Sandeep Sharma and Garnet K.-L. Chan
 #define WANT_MATH
 #define WANT_STREAM
 // Matrix library header files
-#ifndef KCC
-using namespace std;
-#endif
+
+
 #include "timer.h"
 //#include <malloc.h>
 #include <newmat.h>
@@ -41,6 +40,8 @@ using namespace std;
 // Global variables
 #include <boost/interprocess/managed_shared_memory.hpp>
 #include "alloc.h"
+
+using namespace std;
 
 namespace SpinAdapted{
 class OneElectronArray;

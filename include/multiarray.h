@@ -12,6 +12,7 @@ Sandeep Sharma and Garnet K.-L. Chan
 #include <vector>
 #include <string>
 #include <cassert>
+#include <iostream>
 #include <boost/serialization/base_object.hpp>
 #include <boost/serialization/serialization.hpp>
 
@@ -301,7 +302,7 @@ template<class T> class array_6d : public multiarray<T>
   void resize (const size_t i, const size_t j, const size_t k, const size_t l, const size_t m, const size_t n, T* pdata) 
   { 
     if (data != 0) {
-      cout << "cannot resize a non-zero sized array."<<endl;
+      std::cout << "cannot resize a non-zero sized array."<<endl;
       abort();
     }
     data = pdata;

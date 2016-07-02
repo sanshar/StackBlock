@@ -57,7 +57,11 @@ public:
       }
   }
 
-  bool setempty(bool& pempty) {empty=pempty;}
+  bool setempty(bool pempty)
+  {
+    empty=pempty;
+    return empty;
+  }
   bool isempty() const {return empty;}
   int getSign() const {return sign;}
   void setSign(int i) {sign = i;} 

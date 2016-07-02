@@ -259,8 +259,14 @@ class StackSparseMatrix : public Baseoperator<StackMatrix>  // the sparse matrix
       return -deltaQuantum[i];
   }
   IrrepSpace get_symm(int i=0) const  { 
-    if (conj == 'n') return deltaQuantum[i].get_symm();
-    else -deltaQuantum[i].get_symm();
+    if (conj == 'n')
+      {
+	return deltaQuantum[i].get_symm();
+      }
+    else
+      {
+	return -deltaQuantum[i].get_symm();
+      }
   }
   std::vector<SpinQuantum> get_deltaQuantum() const 
   {
