@@ -25,6 +25,11 @@
 using namespace boost;
 using namespace std;
 
+double    block_time      ;
+double    prepare_time    ;
+double    multiply_time   ;
+double    rotate_time     ;
+double    dellocate_time  ;
 
 double SpinAdapted::mps_nevpt::type1::do_one(SweepParams &sweepParams, const bool &warmUp, const bool &forward, const bool &restart, const int &restartSize, perturber& pb, int baseState)
 {
@@ -40,22 +45,17 @@ double SpinAdapted::mps_nevpt::type1::do_one(SweepParams &sweepParams, const boo
   sweepParams.set_sweep_parameters();
   // a new renormalisation sweep routine
   if (forward)
-    if (dmrginp.outputlevel() > 0)
-      pout << "\t\t\t Starting sweep "<< sweepParams.set_sweep_iter()<<" in forwards direction"<<endl;
+    p3out << "\t\t\t Starting sweep "<< sweepParams.set_sweep_iter()<<" in forwards direction"<<endl;
   else
-    if (dmrginp.outputlevel() > 0)
-    {
-      pout << "\t\t\t Starting sweep "<< sweepParams.set_sweep_iter()<<" in backwards direction" << endl;
-      pout << "\t\t\t ============================================================================ " << endl;
-    }
+    p3out << "\t\t\t Starting sweep "<< sweepParams.set_sweep_iter()<<" in backwards direction" << endl;
+  p3out << "\t\t\t ============================================================================ " << endl;
 
   InitBlocks::InitStartingBlock (system,forward, baseState, pb.wavenumber(), sweepParams.get_forward_starting_size(), sweepParams.get_backward_starting_size(), restartSize, restart, warmUp, integralIndex, pb.braquanta, pb.ketquanta);
   if(!restart)
     sweepParams.set_block_iter() = 0;
 
  
-  if (dmrginp.outputlevel() > 0)
-    pout << "\t\t\t Starting block is :: " << endl << system << endl;
+  p3out << "\t\t\t Starting block is :: " << endl << system << endl;
 
   StackSpinBlock::store (forward, system.get_sites(), system, pb.wavenumber(), baseState); // if restart, just restoring an existing block --
   sweepParams.savestate(forward, system.get_sites().size());
@@ -74,20 +74,15 @@ double SpinAdapted::mps_nevpt::type1::do_one(SweepParams &sweepParams, const boo
 
   for (; sweepParams.get_block_iter() < sweepParams.get_n_iters(); ) // get_n_iters() returns the number of blocking iterations needed in one sweep
     {
-      if (dmrginp.outputlevel() > 0)
-      {
-        pout << "\t\t\t Block Iteration :: " << sweepParams.get_block_iter() << endl;
-        pout << "\t\t\t ----------------------------" << endl;
-      }
-      if (dmrginp.outputlevel() > 0) {
+      p3out << "\t\t\t Block Iteration :: " << sweepParams.get_block_iter() << endl;
+      p3out << "\t\t\t ----------------------------" << endl;
 	    if (forward)
       {
-	      pout << "\t\t\t Current direction is :: Forwards " << endl;
+	      p3out << "\t\t\t Current direction is :: Forwards " << endl;
       }
 	    else
       {
-	      pout << "\t\t\t Current direction is :: Backwards " << endl;
-      }
+	      p3out << "\t\t\t Current direction is :: Backwards " << endl;
       }
 
       if (sweepParams.get_block_iter() != 0) 
@@ -97,8 +92,7 @@ double SpinAdapted::mps_nevpt::type1::do_one(SweepParams &sweepParams, const boo
 
 
       
-      if (dmrginp.outputlevel() > 0)
-         pout << "\t\t\t Blocking and Decimating " << endl;
+       p3out << "\t\t\t Blocking and Decimating " << endl;
 	  
       StackSpinBlock newSystem; // new system after blocking and decimating
       newSystem.nonactive_orb() = pb.orb();
@@ -110,14 +104,17 @@ double SpinAdapted::mps_nevpt::type1::do_one(SweepParams &sweepParams, const boo
      //   BlockDecimateAndCompress (sweepParams, system, newSystem, false, dot_with_sys, pb.wavenumber(), baseState);
      // }
       
+      Timer timer;
+    timer.start();
         BlockDecimateAndCompress (sweepParams, system, newSystem, warmUp, dot_with_sys,pb, baseState);
       //Need to substitute by?
+    block_time += timer.elapsedcputime();
 
 
       system = newSystem;
-      if (dmrginp.outputlevel() > 0){
-	    pout << system<<endl;
-	    pout << system.get_braStateInfo()<<endl;
+      if (dmrginp.outputlevel() > 2){
+	    p3out << system<<endl;
+	    p3out << system.get_braStateInfo()<<endl;
 	    system.printOperatorSummary();
       }
       
@@ -129,8 +126,7 @@ double SpinAdapted::mps_nevpt::type1::do_one(SweepParams &sweepParams, const boo
 
       StackSpinBlock::store (forward, system.get_sites(), system, pb.wavenumber(), baseState);	 	
       syssites = system.get_sites();
-      if (dmrginp.outputlevel() > 0)
-	      pout << "\t\t\t saving state " << syssites.size() << endl;
+	    p3out << "\t\t\t saving state " << syssites.size() << endl;
       ++sweepParams.set_block_iter();
       
 #ifndef SERIAL
@@ -166,12 +162,12 @@ double SpinAdapted::mps_nevpt::type1::do_one(SweepParams &sweepParams, const boo
 //  }
 //
 
-  pout << "\t\t\t Largest Error for Sweep with " << sweepParams.get_keep_states() << " states is " << finalError << endl;
-  pout << "\t\t\t Largest overlap for Sweep with " << sweepParams.get_keep_states() << " states is " << finalEnergy[0] << endl;
+  p3out << "\t\t\t Largest Error for Sweep with " << sweepParams.get_keep_states() << " states is " << finalError << endl;
+  p3out << "\t\t\t Largest overlap for Sweep with " << sweepParams.get_keep_states() << " states is " << finalEnergy[0] << endl;
   sweepParams.set_largest_dw() = finalError;
   
 
-  pout << "\t\t\t ============================================================================ " << endl;
+  p3out << "\t\t\t ============================================================================ " << endl;
 
   // update the static number of iterations
 
@@ -182,11 +178,13 @@ double SpinAdapted::mps_nevpt::type1::do_one(SweepParams &sweepParams, const boo
 
 void SpinAdapted::mps_nevpt::type1::BlockDecimateAndCompress (SweepParams &sweepParams, StackSpinBlock& system, StackSpinBlock& newSystem, const bool &useSlater, const bool& dot_with_sys, perturber& pb, int baseState)
 {
+  Timer timer;
+    timer.start();
   int sweepiter = sweepParams.get_sweep_iter();
   if (dmrginp.outputlevel() > 0) {
     mcheck("at the start of block and decimate");
-    pout << "\t\t\t dot with system "<<dot_with_sys<<endl;
-    pout <<endl<< "\t\t\t Performing Blocking"<<endl;
+    p3out << "\t\t\t dot with system "<<dot_with_sys<<endl;
+    p3out <<endl<< "\t\t\t Performing Blocking"<<endl;
   }
   // figure out if we are going forward or backwards
   dmrginp.guessgenT -> start();
@@ -226,15 +224,15 @@ void SpinAdapted::mps_nevpt::type1::BlockDecimateAndCompress (SweepParams &sweep
   dmrginp.multiplierT -> start();
   std::vector<Matrix> rotatematrix;
 
-  if (dmrginp.outputlevel() > 0)
+  if (dmrginp.outputlevel() > 2)
     mcheck(""); 
-  if (dmrginp.outputlevel() > 0) {
-    if (!dot_with_sys && sweepParams.get_onedot())  { pout << "\t\t\t System  Block"<<system;    }
-    else pout << "\t\t\t System  Block"<<newSystem;
-    pout << "\t\t\t Environment Block"<<newEnvironment<<endl;
-    pout << "\t\t\t Solving wavefunction "<<endl;
+  if (dmrginp.outputlevel() > 2) {
+    if (!dot_with_sys && sweepParams.get_onedot())  { p3out << "\t\t\t System  Block"<<system;    }
+    else p3out << "\t\t\t System  Block"<<newSystem;
+    p3out << "\t\t\t Environment Block"<<newEnvironment<<endl;
+    p3out << "\t\t\t Solving wavefunction "<<endl;
   }
-  pout <<"New System"<<endl;
+  p3out <<"New System"<<endl;
   newSystem.printOperatorSummary();
 
   std::vector<StackWavefunction> solution; solution.resize(1);
@@ -257,12 +255,17 @@ void SpinAdapted::mps_nevpt::type1::BlockDecimateAndCompress (SweepParams &sweep
   
   outputState[0].initialise(pb.braquanta,big.get_leftBlock()->get_braStateInfo(), big.get_rightBlock()->get_braStateInfo(),sweepParams.get_onedot());
   outputState[0].Clear();
-  if (pb.type() == TwoPerturbType::Va)
-    big.multiplyCDD_sum(solution[0],&(outputState[0]),MAX_THRD);
-  if (pb.type() == TwoPerturbType::Vi)
-    big.multiplyCCD_sum(solution[0],&(outputState[0]),MAX_THRD);
 
+    prepare_time +=timer.elapsedcputime();
+    timer.start();
+  if (pb.type() == TwoPerturbType::Va)
+    big.multiplyCDD_sum(solution[0],&(outputState[0]),numthrds);
+  if (pb.type() == TwoPerturbType::Vi)
+    big.multiplyCCD_sum(solution[0],&(outputState[0]),numthrds);
+
+    multiply_time +=timer.elapsedcputime();
   //davidson_f(solution[0], outputState[0]);
+    timer.start();
   StackSpinBlock newbig;
 
   if (sweepParams.get_onedot() && !dot_with_sys)
@@ -283,27 +286,65 @@ void SpinAdapted::mps_nevpt::type1::BlockDecimateAndCompress (SweepParams &sweep
   }
   else
     newbig = big;
-  
+
+//**********************
   StackDensityMatrix bratracedMatrix(newSystem.get_braStateInfo());
-  //long requiredData = getRequiredMemory(newSystem.get_braStateInfo(), bratracedMatrix.get_deltaQuantum());
-  //std::vector<double> data(requiredData, 0.0);
-  //bratracedMatrix.allocate(newSystem.get_braStateInfo(), &data[0]);
   bratracedMatrix.allocate(newSystem.get_braStateInfo());
-
+  //FIXME
   //bratracedMatrix.makedensitymatrix(outputState, newbig, dmrginp.weights(sweepiter), 0.0, 0.0, true);
-  bratracedMatrix.makedensitymatrix(outputState, newbig, std::vector<double>(1,1.0), 0.0, 0.0, true);
+  bratracedMatrix.makedensitymatrix(outputState[0], newbig, 1.0);
   if (sweepParams.get_noise() > NUMERICAL_ZERO) {
-    pout << "adding noise  "<<trace(bratracedMatrix)<<"  "<<sweepiter<<"  "<<dmrginp.weights(sweepiter)[0]<<endl;
+    p3out << "adding noise  "<<trace(bratracedMatrix)<<"  "<<sweepiter<<"  "<<dmrginp.weights(sweepiter)[0]<<endl;
+
+    double* backupData;
+    if (mpigetrank() == 0) {
+      double norm = trace(bratracedMatrix);
+      backupData = Stackmem[omprank].allocate(bratracedMatrix.memoryUsed());
+	    memset(backupData, 0, bratracedMatrix.memoryUsed()* sizeof(double));
+      if (fabs(norm) > NUMERICAL_ZERO) {
+	    DAXPY(bratracedMatrix.memoryUsed(), 1.0, bratracedMatrix.get_data(), 1, backupData, 1);
+	    //DAXPY(bratracedMatrix.memoryUsed(), 1.0/norm, bratracedMatrix.get_data(), 1, backupData, 1);
+      }
+    }
+    bratracedMatrix.Clear();
+    //************************
     bratracedMatrix.add_onedot_noise(solution[0], newbig);
-    if (trace(bratracedMatrix) <1e-14) 
-      bratracedMatrix.SymmetricRandomise();
+
+    if (mpigetrank() == 0) {
+      double norm = trace(bratracedMatrix);
+      if (fabs(norm) > 1e-10) {
+	      DAXPY(bratracedMatrix.memoryUsed(), sweepParams.get_noise()/norm, bratracedMatrix.get_data(), 1, backupData, 1);
+      }
+      DCOPY(bratracedMatrix.memoryUsed(), &backupData[0], 1, bratracedMatrix.get_data(), 1);
       
-    pout << "after noise  "<<trace(bratracedMatrix)<<"  "<<sweepParams.get_noise()<<endl;
+      if (trace(bratracedMatrix) <1e-14) 
+	      bratracedMatrix.SymmetricRandomise();
+      
+      p3out << "after noise  "<<trace(bratracedMatrix)<<"  "<<sweepParams.get_noise()<<endl;
+      Stackmem[omprank].deallocate(backupData, bratracedMatrix.memoryUsed());
+    }
   }
-  environment.clear();
-  newEnvironment.clear();
 
-
+  //****************************
+//  
+//  StackDensityMatrix bratracedMatrix(newSystem.get_braStateInfo());
+//  //long requiredData = getRequiredMemory(newSystem.get_braStateInfo(), bratracedMatrix.get_deltaQuantum());
+//  //std::vector<double> data(requiredData, 0.0);
+//  //bratracedMatrix.allocate(newSystem.get_braStateInfo(), &data[0]);
+//  bratracedMatrix.allocate(newSystem.get_braStateInfo());
+//
+//  ////bratracedMatrix.makedensitymatrix(outputState, newbig, dmrginp.weights(sweepiter), 0.0, 0.0, true);
+//  //bratracedMatrix.makedensitymatrix(outputState, newbig, std::vector<double>(1,1.0), 0.0, 0.0, true);
+//  //if (sweepParams.get_noise() > NUMERICAL_ZERO) {
+//  //  pout << "adding noise  "<<trace(bratracedMatrix)<<"  "<<sweepiter<<"  "<<dmrginp.weights(sweepiter)[0]<<endl;
+//    bratracedMatrix.add_onedot_noise(solution[0], newbig);
+//  //  if (trace(bratracedMatrix) <1e-14) 
+//  //    bratracedMatrix.SymmetricRandomise();
+//  //    
+//  //  pout << "after noise  "<<trace(bratracedMatrix)<<"  "<<sweepParams.get_noise()<<endl;
+//  //}
+//
+//
   std::vector<Matrix> brarotateMatrix, ketrotateMatrix;
   LoadRotationMatrix (newSystem.get_sites(), ketrotateMatrix, baseState);
 
@@ -317,8 +358,7 @@ void SpinAdapted::mps_nevpt::type1::BlockDecimateAndCompress (SweepParams &sweep
   broadcast(world, brarotateMatrix, 0);
 #endif
 
-  if (dmrginp.outputlevel() > 0)
-    pout << "\t\t\t Total bra discarded weight "<<braerror<<endl<<endl;
+  p3out << "\t\t\t Total bra discarded weight "<<braerror<<endl<<endl;
 
   sweepParams.set_lowest_error() = braerror;
 
@@ -332,46 +372,83 @@ void SpinAdapted::mps_nevpt::type1::BlockDecimateAndCompress (SweepParams &sweep
   bratracedMatrix.deallocate();
   outputState[0].deallocate();
   solution[0].deallocate();
+
+
+    rotate_time +=timer.elapsedcputime();
+    timer.start();
+  newEnvironment.removeAdditionalOps();
+  newEnvironment.deallocate();
+  environment.removeAdditionalOps();
+  environment.deallocate();
+
   //TODO 
   //Why do I need this?
   //They should have been consistent.
 //  solution[0].SaveWavefunctionInfo (newbig.get_ketStateInfo(), newbig.get_leftBlock()->get_sites(), baseState);
 //  SaveRotationMatrix (newbig.get_leftBlock()->get_sites(), ketrotateMatrix, baseState);
 
-  if (dmrginp.outputlevel() > 0)
-    pout <<"\t\t\t Performing Renormalization "<<endl;
+  p1out <<"\t\t\t Performing Renormalization "<<endl;
   newSystem.transform_operators(brarotateMatrix, ketrotateMatrix);
 
+  {
+    long memoryToFree = newSystem.getdata() - system.getdata();
+    long newsysmem = newSystem.memoryUsed();
+    newSystem.moveToNewMemory(system.getdata());
+    Stackmem[omprank].deallocate(newSystem.getdata()+newsysmem, memoryToFree);
+    //system.clear();
+  }
+
+    dellocate_time +=timer.elapsedcputime();
   if (dmrginp.outputlevel() > 0)
     mcheck("after rotation and transformation of block");
 
-  if (dmrginp.outputlevel() > 0){
-    pout << *dmrginp.guessgenT<<" "<<*dmrginp.multiplierT<<" "<<*dmrginp.operrotT<< "  "<<globaltimer.totalwalltime()<<" timer "<<endl;
-    pout << *dmrginp.makeopsT<<" makeops "<<endl;
-    pout << *dmrginp.datatransfer<<" datatransfer "<<endl;
-    pout <<"oneindexopmult   twoindexopmult   Hc  couplingcoeff"<<endl;  
-    pout << *dmrginp.oneelecT<<" "<<*dmrginp.twoelecT<<" "<<*dmrginp.hmultiply<<" "<<*dmrginp.couplingcoeff<<" hmult"<<endl;
-    pout << *dmrginp.buildsumblock<<" "<<*dmrginp.buildblockops<<" build block"<<endl;
-    pout << "addnoise  S_0_opxop  S_1_opxop"<<endl;
-    pout << *dmrginp.addnoise<<" "<<*dmrginp.s0time<<" "<<*dmrginp.s1time<<endl;
-  }
+  p2out << *dmrginp.guessgenT<<" "<<*dmrginp.multiplierT<<" "<<*dmrginp.operrotT<< "  "<<globaltimer.totalwalltime()<<" timer "<<endl;
+  p2out << *dmrginp.makeopsT<<" makeops "<<endl;
+  p2out << *dmrginp.datatransfer<<" datatransfer "<<endl;
+  p2out <<"oneindexopmult   twoindexopmult   Hc  couplingcoeff"<<endl;  
+  p2out << *dmrginp.oneelecT<<" "<<*dmrginp.twoelecT<<" "<<*dmrginp.hmultiply<<" "<<*dmrginp.couplingcoeff<<" hmult"<<endl;
+  p2out << *dmrginp.buildsumblock<<" "<<*dmrginp.buildblockops<<" build block"<<endl;
+  p2out << "addnoise  S_0_opxop  S_1_opxop"<<endl;
+  p2out << *dmrginp.addnoise<<" "<<*dmrginp.s0time<<" "<<*dmrginp.s1time<<endl;
+
+  p2out << str(boost::format("%-40s - %-10.4f\n") % "Total memory" % (Stackmem[0].size*8/1.e9));
+  p2out << str(boost::format("%-40s - %-10.4f\n") % "  |-->Memory used" % (Stackmem[0].memused*8/1.e9));
+  p2out << str(boost::format("%-40s - %-10.4f\n") % "      |-->system" % ((system.memoryUsed()+system.additionalMemoryUsed())*8/1.e9));
+  p2out << str(boost::format("%-40s - %-10.4f\n") % "      |-->newSystem" % ((newSystem.memoryUsed()+newSystem.additionalMemoryUsed())*8/1.e9));
+  p2out << str(boost::format("%-40s - %-10.4f\n") % "      |-->Envrionment" % ((environment.memoryUsed()+environment.additionalMemoryUsed())*8/1.e9));
+  p2out << str(boost::format("%-40s - %-10.4f\n") % "      |-->newEnvrionment" % ((newEnvironment.memoryUsed()+newEnvironment.additionalMemoryUsed())*8/1.e9));
+  p2out << str(boost::format("%-40s - %-10.4f\n") % "  |-->Memory left" % ((Stackmem[0].size-Stackmem[0].memused)*8/1.e9));
+  p2out << str(boost::format("%-40s - %-10.4f\n") % "      |-->wavefunction"  %((solution[0].memoryUsed())*8/1.e9) );
 
 }
 
-void SpinAdapted::mps_nevpt::type1::cleanup(int baseState, const perturber& pb, int cleanlevel)
+void SpinAdapted::mps_nevpt::type1::cleanup(int left, int right, int cleanlevel)
 {
+  /*
   for (int site=0; site < dmrginp.last_site(); site++)
   {
-    std::string file = str(boost::format("%s%s%d%s%d%s%d%s%d%s%d%s%d%s") % dmrginp.save_prefix() % "/SpinBlock-forward-"% 0 % "-" % site % "." %pb.wavenumber() % "." % baseState % "." %0 % "." % mpigetrank() % ".tmp" );
+    file[i] = str(boost::format("%s%s%d%s%d%s%d%s%d%s%d%s%d%d%s") % dmrginp.save_prefix() % "/Block-f-sites-"% 0 % "." % site % "-states" % left % "." % right % "-integral" %0 % "rank" % mpigetrank() % 0 % ".tmp" );
     if (boost::filesystem::exists(file)) remove(file.c_str());
-    file = str(boost::format("%s%s%d%s%d%s%d%s%d%s%d%s%d%s") % dmrginp.save_prefix() % "/SpinBlock-backward-"% 0 % "-" % site % "." % pb.wavenumber() % "." % baseState % "." %0 % "." % mpigetrank() % ".tmp" );
+    file[i] = str(boost::format("%s%s%d%s%d%s%d%s%d%s%d%s%d%d%s") % dmrginp.save_prefix() % "/Block-b-sites-"% 0 % "." % site % "-states" % left % "." % right % "-integral" %0 % "rank" % mpigetrank() % 0 % ".tmp" );
     if (boost::filesystem::exists(file)) remove(file.c_str());
-    file = str(boost::format("%s%s%d%s%d%s%d%s%d%s%d%s%d%s") % dmrginp.save_prefix() % "/SpinBlock-forward-"% (site+1) % "-" % (dmrginp.last_site()-1) % "." % pb.wavenumber() % "." % baseState % "." %0 % "." % mpigetrank() % ".tmp" );
+    file[i] = str(boost::format("%s%s%d%s%d%s%d%s%d%s%d%s%d%d%s") % dmrginp.save_prefix() % "/Block-f-sites-"% (site+1) % "-" % (dmrginp.last_site()-1)% "-states" % left % "." % right % "-integral" %0 % "rank" % mpigetrank() % 0 % ".tmp" );
     if (boost::filesystem::exists(file)) remove(file.c_str());
-    file = str(boost::format("%s%s%d%s%d%s%d%s%d%s%d%s%d%s") % dmrginp.save_prefix() % "/SpinBlock-backward-"% (site+1) % "-" % (dmrginp.last_site()-1) % "." % pb.wavenumber() % "." % baseState % "." %0 % "." % mpigetrank() % ".tmp" );
+    file[i] = str(boost::format("%s%s%d%s%d%s%d%s%d%s%d%s%d%d%s") % dmrginp.save_prefix() % "/Block-b-sites-"% (site+1) % "-" % (dmrginp.last_site()-1)% "-states" % left % "." % right % "-integral" %0 % "rank" % mpigetrank() % 0 % ".tmp" );
     if (boost::filesystem::exists(file)) remove(file.c_str());
 
   }
+  */
+  boost::filesystem::path p(dmrginp.save_prefix());
+  boost::filesystem::directory_iterator iter(p);
+  std::vector<boost::filesystem::path> deletefiles;
+  while(iter!=boost::filesystem::directory_iterator())
+  {
+    if(iter->path().filename().string().find("Block-")==0)
+      deletefiles.push_back(*iter);
+    iter++;
+  }
+  for(int i=0;i<deletefiles.size();i++)
+    boost::filesystem::remove(deletefiles[i]);
 }
 
 
@@ -408,12 +485,21 @@ void SpinAdapted::mps_nevpt::type1::subspace_Vi(int baseState)
 	      break;
       do_one(sweepParams, false, true, false, 0, pb, baseState);
       if(dmrginp.max_iter() <= sweepParams.get_sweep_iter())
-      {
-        cleanup(baseState, pb);
 	      break;
-      }
     }
-    pout <<"Sweep time :" << timer.elapsedwalltime();
+    cleanup(pb.wavenumber(), baseState);
+    p1out <<"Sweep time :" << timer.elapsedwalltime()<<endl;
+
+p1out << block_time     <<endl ;
+p1out << prepare_time   <<endl ;
+p1out << multiply_time  <<endl ;
+p1out << rotate_time    <<endl ;
+p1out << dellocate_time <<endl ;
+ block_time     =0.0 ;
+ prepare_time   =0.0 ;
+ multiply_time  =0.0 ;
+ rotate_time    =0.0 ;
+ dellocate_time =0.0 ;
 
     MPS pbmps(pb.wavenumber());
     double o, h;
@@ -422,7 +508,7 @@ void SpinAdapted::mps_nevpt::type1::subspace_Vi(int baseState)
     timer.start();
     calcHamiltonianAndOverlap(pbmps, h, o,pb);
 
-    pout <<"Calculate Expectation time :" << timer.elapsedwalltime();
+    p1out <<"Calculate Expectation time :" << timer.elapsedwalltime()<<endl;;
 
 
 
@@ -497,12 +583,10 @@ void SpinAdapted::mps_nevpt::type1::subspace_Va(int baseState)
 	      break;
       do_one(sweepParams, false, true, false, 0, pb, baseState);
       if(dmrginp.max_iter() <= sweepParams.get_sweep_iter())
-      {
-        cleanup(baseState, pb);
 	      break;
-      }
     }
-    pout <<"Sweep time :" << timer.elapsedwalltime();
+    cleanup(pb.wavenumber(), baseState);
+    p1out <<"Sweep time :" << timer.elapsedwalltime()<<endl;
    
     MPS pbmps(pb.wavenumber());
     double o, h;
@@ -512,7 +596,7 @@ void SpinAdapted::mps_nevpt::type1::subspace_Va(int baseState)
 
     calcHamiltonianAndOverlap(pbmps, h, o,pb);
 
-    pout <<"Calculate Expectation time :" << timer.elapsedwalltime();
+    p1out <<"Calculate Expectation time :" << timer.elapsedwalltime()<<endl;
 
     if(!dmrginp.spinAdapted())
     {
@@ -556,7 +640,6 @@ void SpinAdapted::mps_nevpt::type1::calcHamiltonianAndOverlap(const MPS& statea,
 #ifndef SERIAL
   mpi::communicator world;
 #endif
-  pout <<"begin"<<endl;
 
 
   StackSpinBlock system, siteblock;
@@ -566,15 +649,16 @@ void SpinAdapted::mps_nevpt::type1::calcHamiltonianAndOverlap(const MPS& statea,
   int leftState=0, rightState=0, forward_starting_size=1, backward_starting_size=1, restartSize =0;
   InitBlocks::InitStartingBlock(system, forward, leftState, rightState, forward_starting_size, backward_starting_size, restartSize, restart, warmUp, 0,statea.getw().get_deltaQuantum(), statea.getw().get_deltaQuantum()); 
 
-  if (dmrginp.outputlevel() > 0)
+  if (dmrginp.outputlevel() > 2)
   {
-    pout << system<<endl;
+    p3out << system<<endl;
     system.printOperatorSummary();
   }
   //system.transform_operators(const_cast<std::vector<Matrix>&>(statea.getSiteTensors(0)), 
   //    		       const_cast<std::vector<Matrix>&>(statea.getSiteTensors(0)), false, false );
 
   int sys_add = true; bool direct = true; 
+  //int sys_add = true; bool direct = false; 
 
   int normToComp = MPS::sweepIters/2;
   for (int i=0; i<MPS::sweepIters-1; i++) {
@@ -590,7 +674,7 @@ void SpinAdapted::mps_nevpt::type1::calcHamiltonianAndOverlap(const MPS& statea,
     else {
 	    InitBlocks::InitNewSystemBlock(system, MPS::siteBlocks_noDES[i+1], newSystem, leftState, rightState, sys_add, direct, 0, DISTRIBUTED_STORAGE, false, true, NO_PARTICLE_SPIN_NUMBER_CONSTRAINT,statea.getw().get_deltaQuantum(),statea.getw().get_deltaQuantum());
     }
-    pout << newSystem<<endl;
+    p3out << newSystem<<endl;
     newSystem.printOperatorSummary();
 
     //InitBlocks::InitNewSystemBlock(system, MPS::siteBlocks_noDES[i+1], newSystem, leftState, rightState, sys_add, direct, 0, DISTRIBUTED_STORAGE, false, true,NO_PARTICLE_SPIN_NUMBER_CONSTRAINT,statea.getw().get_deltaQuantum(),statea.getw().get_deltaQuantum());
@@ -668,6 +752,7 @@ void SpinAdapted::mps_nevpt::type1::calcHamiltonianAndOverlap(const MPS& statea,
   mpi::broadcast(world, o, 0);
 #endif
 
+  cleanup(pb.wavenumber(), pb.wavenumber());
   return;
 }
 
@@ -754,14 +839,28 @@ void SpinAdapted::mps_nevpt::type1::Startup(const SweepParams &sweepParams, cons
     if (pb.type() == TwoPerturbType::Vi)
       O = newSystem.get_op_array(CCD_SUM).get_element(0).at(0);
     boost::shared_ptr<StackSparseMatrix> overlap = newSystem.get_op_array(OVERLAP).get_element(0).at(0);
-    O->allocate(newSystem.get_braStateInfo(), newSystem.get_ketStateInfo());
-    O->build(newSystem);
-    overlap->allocate(newSystem.get_braStateInfo(), newSystem.get_ketStateInfo());
-    overlap->build(newSystem);
+    bool deallocate1 = O->memoryUsed() == 0 ? true : false; 
+    if (deallocate1) {
+      O->allocate(newSystem.get_braStateInfo(), newSystem.get_ketStateInfo());
+      O->build(newSystem);
+    }
+    bool deallocate2 = overlap->memoryUsed() == 0 ? true : false; 
+    if (deallocate2) {
+      overlap->allocate(newSystem.get_braStateInfo(), newSystem.get_ketStateInfo());
+      overlap->build(newSystem);
+    }
+    //cout <<"leftbra: "<< newSystem.get_braStateInfo()<<endl;
+    //cout <<"right: "<< *(ketStateInfo.rightStateInfo)<<endl;
+    //cout <<"leftket: "<< newSystem.get_ketStateInfo()<<endl;
+    //cout <<"brastateinfo: " <<braStateInfo<<endl;
+    //cout <<"halfbrastateinfo: " <<halfbraStateInfo<<endl;
+    //cout <<"ketstateinfo: " <<ketStateInfo<<endl;
     SpinAdapted::operatorfunctions::TensorMultiply(*O, &braStateInfo, &ketStateInfo , solution, outputState, pb.delta, true, 1.0);
     SpinAdapted::operatorfunctions::TensorMultiply(*overlap, &halfbraStateInfo, &ketStateInfo , solution, solutionprojector, overlap->get_deltaQuantum(0), true, 1.0);
-    overlap->deallocate();
-    O->deallocate();
+    if (deallocate2) overlap->deallocate();
+    if (deallocate1) O->deallocate();
+    //cout <<"outputState\n"<<outputState<<endl;
+    //cout <<"Projector\n"<<solutionprojector<<endl;
 
     StackDensityMatrix bratracedMatrix(newSystem.get_braStateInfo());
     //long requiredData = getRequiredMemory(newSystem.get_braStateInfo(), bratracedMatrix.get_deltaQuantum());
@@ -773,10 +872,14 @@ void SpinAdapted::mps_nevpt::type1::Startup(const SweepParams &sweepParams, cons
       SpinAdapted::operatorfunctions::MultiplyWithOwnTranspose(outputState, bratracedMatrix, 0.5/norm);
     SpinAdapted::operatorfunctions::MultiplyWithOwnTranspose(solutionprojector, bratracedMatrix, 0.5);
     std::vector<Matrix> brarotateMatrix, ketrotateMatrix;
+    //cout <<"bratracedMatrix"<<endl;
+    //cout <<bratracedMatrix<<endl;
+    //cout <<"keep_states"<<sweepParams.get_keep_states()<<"keep_qstates"<<sweepParams.get_keep_qstates()<<endl;
     LoadRotationMatrix (newSystem.get_sites(), ketrotateMatrix, baseState);
     double error;
     if (!mpigetrank())
       error = makeRotateMatrix(bratracedMatrix, brarotateMatrix, sweepParams.get_keep_states(), sweepParams.get_keep_qstates());
+      //error = makeRotateMatrix(bratracedMatrix, brarotateMatrix, max(100,sweepParams.get_keep_states()/4), sweepParams.get_keep_qstates(),0.0);
     #ifndef SERIAL
     broadcast(world, ketrotateMatrix, 0);
     broadcast(world, brarotateMatrix, 0);
@@ -784,7 +887,21 @@ void SpinAdapted::mps_nevpt::type1::Startup(const SweepParams &sweepParams, cons
 
     SaveRotationMatrix (newSystem.get_sites(), brarotateMatrix, pb.wavenumber());
     bratracedMatrix.deallocate();
+
+
+
+    //cout <<"before renormalize: "<<endl<<newSystem.get_braStateInfo()<<endl;
     newSystem.transform_operators(brarotateMatrix,ketrotateMatrix);
+    //cout <<"after renormalize: "<<endl<<newSystem.get_braStateInfo()<<endl;
+
+    {
+      long memoryToFree = newSystem.getdata() - system.getdata();
+      long newsysmem = newSystem.memoryUsed();
+      newSystem.moveToNewMemory(system.getdata());
+      Stackmem[omprank].deallocate(newSystem.getdata()+newsysmem, memoryToFree);
+      //system.clear();
+    }
+
     StackSpinBlock::store (forward, newSystem.get_sites(), newSystem, pb.wavenumber(), baseState); // if restart, just restoring an existing block --
 	  newSystem.printOperatorSummary();
     system=newSystem;

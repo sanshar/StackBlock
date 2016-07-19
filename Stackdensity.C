@@ -154,6 +154,12 @@ public:
     : distributed(false), synced(true), wavefunction(wavefunction_), dm(dm_), big(big_), scale(scale_) { }
   
   void operator()(const boost::shared_ptr<StackSparseMatrix> op) const {
+
+    bool dellocate = !op->memoryUsed();
+    if (dellocate) {
+      op->allocate(big.get_leftBlock()->get_braStateInfo(), big.get_leftBlock()->get_ketStateInfo());
+	    op->build(*big.get_leftBlock());
+    }
     vector<SpinQuantum> wQ = wavefunction.get_deltaQuantum();
     vector<SpinQuantum> oQ = op->get_deltaQuantum();
     vector<IrrepSpace> vec = wQ[0].get_symm() + oQ[0].get_symm();
@@ -168,10 +174,6 @@ public:
           }
         }
         if (!valid_cre && !valid_des) continue;
-        if (!op->memoryUsed()) {
-          op->allocate(big.get_leftBlock()->get_braStateInfo(), big.get_leftBlock()->get_ketStateInfo());
-	        op->build(*big.get_leftBlock());
-        }
         for (int j = 0; j < vec.size(); ++j) {
           for (int i = 0; i < spinvec.size(); ++i) {
             if (valid_cre) {
@@ -206,15 +208,12 @@ public:
           }
         }
       }
-	    op->deallocate();      
     } else {
       for (int k=0; k<wQ.size(); ++k)
       for (int l=0; l<oQ.size(); ++l)
 	    for (int j=0; j<vec.size(); j++)
 	    for (int i=0; i<spinvec.size(); i++) {
 	      SpinQuantum q = SpinQuantum(wQ[k].get_n()+oQ[l].get_n(), spinvec[i], vec[j]);
-	      op->allocate(big.get_leftBlock()->get_braStateInfo(), big.get_leftBlock()->get_ketStateInfo());
-	      op->build(*big.get_leftBlock());
 	      StackWavefunction opxwave;
 	      opxwave.initialise(std::vector<SpinQuantum>(1,q), *big.get_braStateInfo().leftStateInfo, *big.get_ketStateInfo().rightStateInfo, wavefunction.get_onedot());
 	      opxwave.set_onedot(wavefunction.get_onedot());
@@ -245,9 +244,9 @@ public:
 		      opxwave2.deallocate();
 	      }
 	      
-	      op->deallocate();
 	    }
     }
+	   if (dellocate) op->deallocate();      
   }
 };
 

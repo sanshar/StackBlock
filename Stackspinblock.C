@@ -51,8 +51,9 @@ void StackSpinBlock::moveToNewMemory(double* pData)
 {
   double* oldData = data;
   data = pData;
-  for (long i=0; i<totalMemory; i++)
-    data[i] = oldData[i];
+  memmove(data,oldData,totalMemory*sizeof(double));
+//  for (long i=0; i<totalMemory; i++)
+//    data[i] = oldData[i];
   //DCOPY(totalMemory, oldData, 1, data, 1);
   double* localdata = data; 
   for (std::map<opTypes, boost::shared_ptr< StackOp_component_base> >::iterator it = ops.begin(); it != ops.end(); ++it)
@@ -714,12 +715,14 @@ void StackSpinBlock::transform_operators(std::vector<Matrix>& leftrotateMatrix, 
   long requiredMemory = 0;
   for (std::map<opTypes, boost::shared_ptr< StackOp_component_base> >::iterator it = ops.begin(); it != ops.end(); ++it)
     if (dmrginp.do_npdm_in_core() || it->first < CRE_CRE_CRE)
+      if (! it->second->is_core())
       requiredMemory += it->second->getRequiredMemory(newbraStateInfo, newketStateInfo);
   totalMemory = requiredMemory;
   data = Stackmem[omprank].allocate(requiredMemory);
   double* localdata = data;
   for (std::map<opTypes, boost::shared_ptr< StackOp_component_base> >::iterator it = ops.begin(); it != ops.end(); ++it)
     if (dmrginp.do_npdm_in_core() || it->first < CRE_CRE_CRE)
+      if (! it->second->is_core())
       localdata = it->second->allocateOperators(newbraStateInfo, newketStateInfo, localdata);
 
   build_and_renormalise_operators( leftrotateMatrix, &newbraStateInfo, rightrotateMatrix, &newketStateInfo );

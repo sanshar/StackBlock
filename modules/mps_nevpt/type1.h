@@ -16,7 +16,7 @@ namespace SpinAdapted{
 
       void Startup(const SweepParams& sweepParams, const bool &forward, perturber& pb, int baseState);
 
-      void cleanup(int baseState, const perturber& pb, int cleanleve=0);
+      void cleanup(int left, int right, int cleanlevel=0);
       
       void subspace_Va(int baseState);
 
