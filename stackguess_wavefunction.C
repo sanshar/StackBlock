@@ -183,7 +183,11 @@ void GuessWave::transpose_previous_wavefunction(StackWavefunction& trial, const 
   StateInfo intermediate1, intermediate2;
   TensorProduct(*stateInfo.rightStateInfo, *stateInfo.leftStateInfo->rightStateInfo, intermediate1, NO_PARTICLE_SPIN_NUMBER_CONSTRAINT);
   intermediate1.CollectQuanta();
-  TensorProduct(intermediate1, *stateInfo.leftStateInfo->leftStateInfo, intermediate2, PARTICLE_SPIN_NUMBER_CONSTRAINT);
+  if (dmrginp.hamiltonian() == BCS) {
+    TensorProduct(intermediate1, *stateInfo.leftStateInfo->leftStateInfo, intermediate2, SPIN_NUMBER_CONSTRAINT);
+  } else {
+    TensorProduct(intermediate1, *stateInfo.leftStateInfo->leftStateInfo, intermediate2, PARTICLE_SPIN_NUMBER_CONSTRAINT);
+  }
   onedot_transpose_wavefunction(intermediate2, stateInfo, oldWave, trial);
   oldStateInfo.Free();
   oldWave.deallocate();
@@ -198,7 +202,7 @@ void GuessWave::onedot_transpose_wavefunction(const StateInfo& guessstateinfo, c
 					      const StackWavefunction& guesswf, StackWavefunction& transposewf)
 {
   ObjectMatrix3D< vector<Matrix> > threewave;
-  // first convert into three index wavefunction [s.][e] -> [s].[e]                                                                       
+  // first convert into three index wavefunction [s.][e] -> [s].[e]
   onedot_twoindex_to_threeindex_wavefunction(guessstateinfo, guesswf, threewave);
   ObjectMatrix3D< vector<Matrix> > threewavetranspose(threewave.NDim2(), threewave.NDim1(), threewave.NDim0());
 
@@ -543,7 +547,7 @@ void GuessWave::onedot_twoindex_to_threeindex_shufflesysdot(const StateInfo& sta
 void GuessWave::transform_previous_wavefunction(StackWavefunction& trial, const StateInfo& stateInfo, const std::vector<int> &leftsites, const std::vector<int> &rightsites, const int state, const bool &onedot, const bool& transpose_guess_wave)
 {
   p2out << "\t\t\t Transforming previous wavefunction " << endl;
-  
+
   ObjectMatrix3D< vector<Matrix> > oldTrialWavefunction;
   ObjectMatrix3D< vector<Matrix> > newTrialWavefunction;
   StateInfo oldStateInfo;
@@ -580,7 +584,7 @@ void GuessWave::transform_previous_wavefunction(StackWavefunction& trial, const 
 void GuessWave::transform_previous_wavefunction(StackWavefunction& trial, const StackSpinBlock &big, const int state, const bool &onedot, const bool& transpose_guess_wave)
 {
   p2out << "\t\t\t Transforming previous wavefunction " << endl;
-  
+
   ObjectMatrix3D< vector<Matrix> > oldTrialWavefunction;
   ObjectMatrix3D< vector<Matrix> > newTrialWavefunction;
   StateInfo oldStateInfo;
@@ -597,7 +601,6 @@ void GuessWave::transform_previous_wavefunction(StackWavefunction& trial, const 
     oldWave.LoadWavefunctionInfo (oldStateInfo, big.get_leftBlock()->get_sites(), state, true);
     LoadRotationMatrix (big.get_leftBlock()->get_sites(), leftRotationMatrix, state);
   }
-
   for (int q = 0; q < leftRotationMatrix.size (); ++q)
   {
     if (leftRotationMatrix [q].Nrows () > 0)
@@ -615,7 +618,6 @@ void GuessWave::transform_previous_wavefunction(StackWavefunction& trial, const 
     tempoldWave.Clear();
 
     TransformLeftBlock(oldWave, big.get_stateInfo(), leftRotationMatrix, tempoldWave);
-
     StateInfo tempoldStateInfo;
     if (dmrginp.hamiltonian() == BCS)
       TensorProduct (*(big.get_stateInfo().leftStateInfo->leftStateInfo), *oldStateInfo.rightStateInfo, tempoldStateInfo,
@@ -640,7 +642,6 @@ void GuessWave::transform_previous_wavefunction(StackWavefunction& trial, const 
     
     tempnewStateInfo.CollectQuanta();
     onedot_shufflesysdot(tempoldStateInfo, tempnewStateInfo, tempoldWave, tempnewWave);
-
     LoadRotationMatrix (big.get_rightBlock()->get_sites(), rightRotationMatrix, state);
 
     TransformRightBlock(tempnewWave, oldStateInfo, rightRotationMatrix, trial);
@@ -663,6 +664,7 @@ void GuessWave::transform_previous_wavefunction(StackWavefunction& trial, const 
     }
     onedot_transform_wavefunction(oldStateInfo, big.get_stateInfo(), oldWave, leftRotationMatrix, rightRotationMatrix, trial, transpose_guess_wave);
   }
+
 
   oldStateInfo.Free();
   oldWave.deallocate();
@@ -720,7 +722,11 @@ void GuessWave::transform_previous_twodot_to_onedot_wavefunction(StackWavefuncti
   trial.set_fermion() = false;
   trial.set_onedot(true);
 
-  TensorProduct( *big.get_stateInfo().leftStateInfo->leftStateInfo, *oldStateInfo.rightStateInfo,  tempoldStateInfo, PARTICLE_SPIN_NUMBER_CONSTRAINT);
+  if (dmrginp.hamiltonian() == BCS) {
+    TensorProduct( *big.get_stateInfo().leftStateInfo->leftStateInfo, *oldStateInfo.rightStateInfo,  tempoldStateInfo, SPIN_NUMBER_CONSTRAINT);
+  } else {
+    TensorProduct( *big.get_stateInfo().leftStateInfo->leftStateInfo, *oldStateInfo.rightStateInfo,  tempoldStateInfo, PARTICLE_SPIN_NUMBER_CONSTRAINT);
+  }
   onedot_shufflesysdot(  tempoldStateInfo, big.get_stateInfo(), tmpwavefunction, trial);
 
   tmpwavefunction.deallocate();
@@ -735,7 +741,6 @@ void GuessWave::transform_previous_wavefunction(StackWavefunction& trial, const 
 // ket determines use braSateinfo or ketStateinfo to guess_wavefunctions.
 {
   p2out << "\t\t\t Transforming previous wavefunction " << endl;
-  
   ObjectMatrix3D< vector<Matrix> > oldTrialWavefunction;
   ObjectMatrix3D< vector<Matrix> > newTrialWavefunction;
   StateInfo oldStateInfo;
@@ -877,28 +882,27 @@ void GuessWave::onedot_transform_wavefunction(const StateInfo& oldstateinfo, con
     aSz = newstateinfo.leftStateInfo->quanta.size (); 
     cSz = newstateinfo.rightStateInfo->quanta.size();
   }
-
   ObjectMatrix<Matrix> tmp(oldASz, cSz); //cSz
   for (int a = 0; a < oldASz; ++a)
     for (int c = 0; c < oldCSz; ++c) // oldCSz <= cSz
     {
       if (oldwavefunction.allowed(a,c)) {
-	const StackMatrix& oM = oldwavefunction.operator_element(a, c);
+        const StackMatrix& oM = oldwavefunction.operator_element(a, c);
 
-	int transC = oldstateinfo.rightStateInfo->newQuantaMap [c];
+        int transC = oldstateinfo.rightStateInfo->newQuantaMap [c];
 
-	Matrix& tM = tmp (a, transC);
-	Matrix rM = rightRotationMatrix[transC];
-	tM.ReSize (oM.Nrows (), rM.Nrows ());
-	
-	double parity = 1.;
-	
-	SpinAdapted::Clear (tM);
-	// we have the rotation matrices C_r'r, C_l'l, and we are transforming the wavefunction
-	// coefficient d_lr -> consequently, we need to multiply by the transpose, but NOT hermitian
-	// conjugate, of rM
-	rM = rM.t();
-	MatrixMultiply (oM, 'n', rM, 'n', tM, parity); // phi -> c psi : phi d -> psi c c^t d : consequently compute c^t d 
+        Matrix& tM = tmp (a, transC);
+        Matrix rM = rightRotationMatrix[transC];
+        tM.ReSize (oM.Nrows (), rM.Nrows ());
+
+        double parity = 1.;
+
+        SpinAdapted::Clear (tM);
+        // we have the rotation matrices C_r'r, C_l'l, and we are transforming the wavefunction
+        // coefficient d_lr -> consequently, we need to multiply by the transpose, but NOT hermitian
+        // conjugate, of rM
+        rM = rM.t();
+        MatrixMultiply (oM, 'n', rM, 'n', tM, parity); // phi -> c psi : phi d -> psi c c^t d : consequently compute c^t d 
       }
     }
 

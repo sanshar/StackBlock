@@ -299,7 +299,11 @@ namespace SpinAdapted{
 
       }
       StateInfo bigState;
+      if (dmrginp.hamiltonian() == BCS) {
+      TensorProduct(currentState, const_cast<StateInfo&>(MPS::siteBlocks[MPS::sweepIters+1].get_stateInfo()), bigState, SPIN_NUMBER_CONSTRAINT);
+      } else {
       TensorProduct(currentState, const_cast<StateInfo&>(MPS::siteBlocks[MPS::sweepIters+1].get_stateInfo()), bigState, PARTICLE_SPIN_NUMBER_CONSTRAINT);
+      }
 
       if (!dmrginp.spinAdapted())
 	rotSites[1] -= 2;
@@ -399,7 +403,6 @@ namespace SpinAdapted{
     std::vector<int> rotSites(2,0);
     int sweepIters = dmrginp.spinAdapted() ? dmrginp.last_site() -2 : dmrginp.last_site()/2-2;
     for (int i=0; i<sweepIters-1; i++) {
-      pout << i<<" out of "<<sweepIters-1<<endl;
       StackSpinBlock newSystem;
       system.addAdditionalOps();
 
