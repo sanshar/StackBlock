@@ -38,7 +38,7 @@ void SpinAdapted::stackopxop::cdxcdcomp(const StackSpinBlock* otherblock, std::v
       if (otherblock->has(DES_CRECOMP)) {
 	      op1 = loopblock->get_op_array(DES_CRE).get_element(i,j).at(opind);
 	      double parity = 1.0;
-	      if (dmrginp.spinAdapted()  && dmrginp.hamiltonian() != BCS)
+	      if (dmrginp.spinAdapted())
 	        parity = getCommuteParity(-getSpinQuantum(i), getSpinQuantum(j), op1->get_deltaQuantum()[0]);
 	      op2 = otherblock->get_op_array(DES_CRECOMP).get_element(i,j).at(opind);
 	      SpinAdapted::operatorfunctions::TensorProduct(otherblock, *op2, *op1, b, &(b->get_stateInfo()), o[ilock], factor*parity, numthreads);
