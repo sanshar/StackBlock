@@ -77,6 +77,9 @@ void StackSpinBlock::printOperatorSummary()
 #ifndef SERIAL
   mpi::communicator world;
 
+  //pout << "Printing Operators of this Block" << endl;
+  //pout << *this << endl;
+
   if (mpigetrank() != 0) {
     for (std::map<opTypes, boost::shared_ptr< StackOp_component_base> >::const_iterator it = ops.begin(); it != ops.end(); ++it)
       sendobject(it->second->get_size(), 0);
@@ -90,7 +93,7 @@ void StackSpinBlock::printOperatorSummary()
       }
       else
       {
-         p2out << "\t\t\t " << it->second->size()<<" :  "<<it->second->get_op_string()<<"  Virtual Operators  ";      
+         p2out << "\t\t\t " << it->second->size()<<" :  "<<it->second->get_op_string()<<"  Virtual Operators  ";
       }
 
       vector<int> numops(calc.size(), 0);
@@ -102,6 +105,14 @@ void StackSpinBlock::printOperatorSummary()
          p2out << " " << numops[proc]<<"  ";
       }
       p2out << endl;
+      //if (it->second->get_op_string() == "STACKHAM" || it->second->get_op_string() == "STACKCRECREDES_COMP" || it->second->get_op_string() == "STACKDESDES_COMP" || it->second->get_op_string() == "STACKCREDES_COMP" || it->second->get_op_string() == "STACKCRE" || it->second->get_op_string() == "STACKCRECRE" || it->second->get_op_string() == "STACKCREDES" || it->second->get_op_string() == "STACKCRECRE" || it->second->get_op_string() == "STACKOVERLAP") {
+      //if (it->second->get_op_string() == "STACKCREDES_COMP" || it->second->get_op_string() == "STACKDESCRE_COMP") {
+      //  if (it->second->is_core()) {
+      //    for (int i = 0; i < it->second->size(); ++i) {
+      //      pout << *it->second->get_local_element(i)[0] << endl;
+      //    }
+      //  }
+      //}
     }
   }
 #else
