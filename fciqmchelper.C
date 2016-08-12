@@ -441,17 +441,32 @@ namespace SpinAdapted{
     InitBlocks::InitNewSystemBlock(system, dotsite1, newSystem, 0, statebindex, sys_add, direct, integralIndex, DISTRIBUTED_STORAGE, false, true);
     
     newSystem.set_loopblock(false); system.set_loopblock(false);
+    newSystem.addAdditionalOps();
     InitBlocks::InitBigBlock(newSystem, dotsite2, big); 
     
     StackWavefunction stateaw, statebw;
+    stateaw.initialise(dmrginp.effective_molecule_quantum_vec(), newSystem.get_braStateInfo(), dotsite2.get_braStateInfo(),true);
+    statebw.initialise(dmrginp.effective_molecule_quantum_vec(), newSystem.get_ketStateInfo(), dotsite2.get_ketStateInfo(),true);
     StateInfo s;
 
     rotSites[1] += 1;
-    stateaw.LoadWavefunctionInfo(s, rotSites, statea, true);
-    statebw.LoadWavefunctionInfo(s, rotSites, stateb, true);
+    if (mpigetrank() == 0)
+    {
+      stateaw.LoadWavefunctionInfo(s, rotSites, statea, false);
+      statebw.LoadWavefunctionInfo(s, rotSites, stateb, false);
+    }
+#ifndef SERIAL
+      mpi::broadcast(calc, stateaw, 0);
+      mpi::broadcast(calc, statebw, 0);
+#endif
 
+#ifndef SERIAL
+    MPI_Bcast(stateaw.get_data(), stateaw.memoryUsed(), MPI_DOUBLE, 0, Calc);
+    MPI_Bcast(statebw.get_data(), statebw.memoryUsed(), MPI_DOUBLE, 0, Calc);
+#endif
     StackWavefunction temp; temp.initialise(stateaw);
     temp.Clear();
+    cout << "temp mem: "<< temp.memoryUsed()<<endl;
     
 
     big.multiplyH_2index(statebw, &temp, 1);
