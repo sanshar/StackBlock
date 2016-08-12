@@ -184,6 +184,7 @@ void SpinAdapted::Input::initialize_defaults()
   m_maxM = 0;
   m_lastM = 500;
   m_startM = 250;
+  m_bra_M = 0;
   
   m_calc_ri_4pdm=false;
   m_store_ripdm_readable=false;
@@ -967,6 +968,20 @@ SpinAdapted::Input::Input(const string& config_name) {
       {
         m_npdm_multinode = false;
       }
+      else if (boost::iequals(keyword, "specificpdm"))
+      {
+        if(tok.size() ==2)
+          m_specificpdm.push_back(atoi(tok[1].c_str()));
+        else if(tok.size() ==3) 
+        {
+          m_specificpdm.push_back(atoi(tok[1].c_str()));
+          m_specificpdm.push_back(atoi(tok[2].c_str()));
+        }
+        else {
+          pout << "keyword "<<keyword<<" should be followed by one or two numbers and then an endline";
+          abort();
+        }
+      }
 
 
 
@@ -1174,6 +1189,19 @@ SpinAdapted::Input::Input(const string& config_name) {
 
       else if (boost::iequals(keyword,  "reset_iterations") || boost::iequals(keyword,  "reset_iter") || boost::iequals(keyword,  "reset_iters")) {
 	m_reset_iterations = true;
+      }
+      else if (boost::iequals(keyword,  "bra_M"))
+      {
+        //The number of renormalized bases in bra wave function. 
+        //Currently only used in transition denstiy matrix calcualtions.
+	      if (tok.size() != 2) {
+	        pout << "keyword bra_M should be followed by a single integer and then an endline"<<endl;
+	        pout << "error found in the following line "<<endl;
+	        pout << msg<<endl;
+	        abort();
+	      }
+        m_bra_M = atoi(tok[1].c_str());
+
       }
 
       else
