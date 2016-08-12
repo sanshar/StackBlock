@@ -1291,11 +1291,6 @@ SpinAdapted::Input::Input(const string& config_name) {
     abort();
   }
 
-  if (m_Bogoliubov && m_num_Integrals >1 ) {
-    pout << "Currently the response code does not work with non-particle number conserving hamiltonians!!";
-    abort();
-  }
-    
 //if (sym != "c1") // must be initialized even if c1 sym.
     Symmetry::InitialiseTable(sym);
 
@@ -1455,30 +1450,35 @@ SpinAdapted::Input::Input(const string& config_name) {
   mpi::broadcast(world, PROPBITLEN, 0);
 #endif
   //if (mpigetrank() == 0) {
+  //  int s = 0;
   //cout << "v_1" << endl;
   //for (int i = 0; i < m_norbs; ++i)
   //  for (int j = 0; j < m_norbs; ++j)
-  //    cout << fixed << setprecision(12) << v_1[0](i,j) << " " << i << " " << j << endl;
+  //    if (fabs(v_1[s](i,j)) > 1e-12)
+  //      cout << fixed << setprecision(12) << v_1[s](i,j) << " " << i << " " << j << endl;
 
   //cout << "v_2" << endl;
   //for (int i = 0; i < m_norbs; ++i)
   //  for (int j = 0; j < m_norbs; ++j)
   //    for (int k = 0; k < m_norbs; ++k)
   //      for (int l = 0; l < m_norbs; ++l)
-  //        cout << fixed << setprecision(12) << v_2[0](i,j,k,l)  
+  //        if (fabs(v_2[s](i,j,k,l)) > 1e-12)
+  //        cout << fixed << setprecision(12) << v_2[s](i,j,k,l)
   //          << " " << i << " " << j << " " << k << " " << l << endl;
 
   //cout << "v_cc" << endl;
   //for (int i = 0; i < m_norbs; ++i)
   //  for (int j = 0; j < m_norbs; ++j)
-  //    cout << fixed << setprecision(12) << v_cc[0](i,j) << " " << i << " " << j << endl;
+  //    if (fabs(v_cc[s](i,j)) > 1e-12)
+  //    cout << fixed << setprecision(12) << v_cc[s](i,j) << " " << i << " " << j << endl;
 
   //cout << "v_cccc" << endl;
   //for (int i = 0; i < m_norbs; ++i)
   //  for (int j = 0; j < m_norbs; ++j)
   //    for (int k = 0; k < m_norbs; ++k)
   //      for (int l = 0; l < m_norbs; ++l)
-  //        cout << fixed << setprecision(12) << v_cccc[0](i,j,k,l)  
+  //        if (fabs(v_cccc[s](i,j,k,l)) > 1e-12)
+  //        cout << fixed << setprecision(12) << v_cccc[s](i,j,k,l)
   //          << " " << i << " " << j << " " << k << " " << l << endl;
 
   //cout << "v_cccd" << endl;
@@ -1486,11 +1486,11 @@ SpinAdapted::Input::Input(const string& config_name) {
   //  for (int j = 0; j < m_norbs; ++j)
   //    for (int k = 0; k < m_norbs; ++k)
   //      for (int l = 0; l < m_norbs; ++l)
-  //        cout << fixed << setprecision(12) << v_cccd[0](i,j,k,l)  
+  //        if (fabs(v_cccd[s](i,j,k,l))>1e-12)
+  //        cout << fixed << setprecision(12) << v_cccd[s](i,j,k,l)
   //          << " " << i << " " << j << " " << k << " " << l << endl;
   //}
   //world.barrier();
-  //exit(0);
 }
 
 void SpinAdapted::Input::readreorderfile(ifstream& dumpFile, std::vector<int>& oldtonew) {
@@ -1525,7 +1525,6 @@ void SpinAdapted::Input::readreorderfile(ifstream& dumpFile, std::vector<int>& o
     pout << "Numbers or orbitals in reorder file should be equal to "<<m_norbs/2<<" instead "<<oldtonew.size()<<" found "<<endl;
     abort();
   }
-
 }
 
 void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray& v1, TwoElectronArray& v2, double& coreEnergy, int integralIndex)
