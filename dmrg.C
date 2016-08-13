@@ -198,20 +198,20 @@ int calldmrg(char* input, char* output)
   calc = boost::mpi::communicator(Calc, boost::mpi::comm_attach);
 
 
-  //cpu_set_t  *oldmask, newmask;
-  //int oldset, newset;
-  //if only a subset of processors are being used, then unset processor affinity
-  //if (m_calc_procs.size() < world.size()) {
-  //  sched_getaffinity(0, oldset, oldmask);
-  //  CPU_ZERO( &newmask);
-  //  int maxcpus = 2500;
-  //  for (int i=0; i<2500; i++)
-  //    CPU_SET(i, &newmask);
-  //  int success = sched_setaffinity(0, sizeof(&newmask), &newmask);
-  //  if (success == -1) {
-  //    cout << world.rank()<<endl;
-  //  }
-  //}
+  cpu_set_t  *oldmask, newmask;
+  int oldset, newset;
+  // if only a subset of processors are being used, then unset processor affinity
+  if (m_calc_procs.size() < world.size()) {
+    sched_getaffinity(0, oldset, oldmask);
+    CPU_ZERO( &newmask);
+    int maxcpus = 2500;
+    for (int i=0; i<2500; i++)
+      CPU_SET(i, &newmask);
+    int success = sched_setaffinity(0, sizeof(&newmask), &newmask);
+    if (success == -1) {
+      cout << world.rank()<<endl;
+    }
+  }
 #endif
 
 #ifndef SERIAL
@@ -572,10 +572,9 @@ int calldmrg(char* input, char* output)
 #ifndef SERIAL
   }
 
-  //world.barrier();
   sleepBarrier(world, 0, 1);
   MPI_Comm_free(&Calc);
-  //sched_setaffinity(0, sizeof(oldmask), oldmask);
+  sched_setaffinity(0, sizeof(oldmask), oldmask);
 #endif
 
   return 0;
