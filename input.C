@@ -1256,6 +1256,7 @@ SpinAdapted::Input::Input(const string& config_name) {
   mpi::broadcast(world, m_calc_type, 0);
   mpi::broadcast(world, m_calc_procs, 0);
   mpi::broadcast(world, m_baseState, 0);
+  mpi::broadcast(world, m_useSharedMemory, 0);
 #endif
 
   //make the scratch files
@@ -1316,7 +1317,7 @@ SpinAdapted::Input::Input(const string& config_name) {
       v_cccc[integral].rhf = true;
       v_cccd[integral].rhf = true;
     }
-    
+
     // Kij-based ordering by GA opt.
 #ifndef SERIAL
     mpi::broadcast(world,m_reorderType,0);
@@ -1381,7 +1382,7 @@ SpinAdapted::Input::Input(const string& config_name) {
 	}
       }
       else
-	readorbitalsfile(orbitalfile[integral], v_1[integral], v_2[integral], coreEnergy[integral], integral);
+        readorbitalsfile(orbitalfile[integral], v_1[integral], v_2[integral], coreEnergy[integral], integral);
     }
   }
   
@@ -1659,7 +1660,7 @@ void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray&
   // but for this m_reorder the reorder vector below would be 3 1 2 4 and O_unreordered(1,2) -> O_reorder(3, 1)
   bool RHF = true;
   int AOrbOffset = 0, BOrbOffset = 0;
-  
+
   if (rank == 0) {
     reorder.resize(m_norbs/2);
     for (int i=0; i<m_norbs/2; i++) {
@@ -1809,7 +1810,7 @@ void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray&
       }
       value = atof(tok[0].c_str());
       i = atoi(tok[1].c_str())-offset;j = atoi(tok[2].c_str())-offset;k = atoi(tok[3].c_str())-offset;l = atoi(tok[4].c_str())-offset;
-      
+
       if (i==-1 && j==-1 && k==-1 && l==-1) {
 	coreEnergy = value;
 	if (AOrbOffset == 0 && BOrbOffset == 0) //AA
@@ -1899,7 +1900,7 @@ void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray&
 
     sprintf(ReorderFileName, "%s%s", save_prefix().c_str(), "/RestartReorder.dat");
   }
-  boost::filesystem::path p(ReorderFileName);
+  //boost::filesystem::path p(ReorderFileName);
 
 #ifndef SERIAL
   mpi::broadcast(world,m_norbs,0);
