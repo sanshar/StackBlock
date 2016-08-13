@@ -144,7 +144,10 @@ void npdm_block_and_decimate( Npdm_driver_base& npdm_driver, SweepParams &sweepP
     rotateMatrixB.clear();
     if (!mpigetrank()){
       double error = makeRotateMatrix(tracedMatrix, rotateMatrix, sweepParams.get_keep_states(), sweepParams.get_keep_qstates());
-      error = makeRotateMatrix(tracedMatrixB, rotateMatrixB, sweepParams.get_keep_states(), sweepParams.get_keep_qstates());
+      if (dmrginp.bra_M() == 0)
+        error = makeRotateMatrix(tracedMatrixB, rotateMatrixB, sweepParams.get_keep_states(), sweepParams.get_keep_qstates());
+      else
+        error = makeRotateMatrix(tracedMatrixB, rotateMatrixB, dmrginp.bra_M(), sweepParams.get_keep_qstates());
     }
     tracedMatrixB.deallocate();
     tracedMatrix.deallocate();
@@ -410,7 +413,54 @@ void npdm(NpdmOrder npdm_order, bool transitionpdm)
     }
   }
 
+  if (dmrginp.specificpdm().size()!=0) {
+    Timer timer;
+    dmrginp.set_fullrestart() = true;
+    dmrginp.npdm_generate() = true;
+    sweepParams = sweep_copy; direction = direction_copy; restartsize = restartsize_copy;
+    if (dmrginp.specificpdm().size()==1) {
+      dmrginp.setimplicitTranspose() = true;
+      SweepGenblock::do_one(sweepParams, false, !direction, false, 0, dmrginp.specificpdm()[0], dmrginp.specificpdm()[0]);
+    } else if (dmrginp.specificpdm().size()==2) {
+      dmrginp.setimplicitTranspose() = false;
+      SweepGenblock::do_one(sweepParams, false, !direction, false, 0, dmrginp.specificpdm()[0], dmrginp.specificpdm()[1]);
+    } else
+      abort();
+    dmrginp.npdm_generate() = false;
 
+    double cputime = timer.elapsedcputime();
+    p3out << "\t\t\t NPDM SweepGenblock time " << timer.elapsedwalltime() << " " << cputime << endl;
+    dmrginp.set_fullrestart() = false;
+
+    sweepParams = sweep_copy; direction = direction_copy; restartsize = restartsize_copy;
+    Timer timerX;
+
+    npdm_driver->clear();
+    if (dmrginp.specificpdm().size() == 1)
+      npdm_do_one_sweep(*npdm_driver, sweepParams, false, direction, false, 0, dmrginp.specificpdm()[0], dmrginp.specificpdm()[0]);
+    else if (dmrginp.specificpdm().size() == 2)
+      npdm_do_one_sweep(*npdm_driver, sweepParams, false, direction, false, 0, dmrginp.specificpdm()[0], dmrginp.specificpdm()[1]);
+    else
+      abort();
+    cputime = timerX.elapsedcputime();
+    p3out << "\t\t\t NPDM sweep time " << timerX.elapsedwalltime() << " " << cputime << endl;
+
+    if (dmrginp.hamiltonian() == BCS && npdm_order == NPDM_ONEPDM) {
+      Timer timerX1;
+      boost::shared_ptr<Npdm_driver_base> npdm_driver1 = boost::shared_ptr<Npdm_driver_base>( new Pairpdm_driver( dmrginp.last_site() ) );
+      npdm_driver1->clear();
+
+      if (dmrginp.specificpdm().size() == 1)
+        npdm_do_one_sweep(*npdm_driver1, sweepParams, false, direction, false, 0,  dmrginp.specificpdm()[0], dmrginp.specificpdm()[0]);
+      else if (dmrginp.specificpdm().size() == 2)
+        npdm_do_one_sweep(*npdm_driver1, sweepParams, false, direction, false, 0,  dmrginp.specificpdm()[0], dmrginp.specificpdm()[1]);
+      else
+        abort();
+      cputime = timerX1.elapsedcputime();
+      p3out << "\t\t\t NPDM sweep time " << timerX1.elapsedwalltime() << " " << cputime << endl;
+    }
+    return;
+  }
 
   if(dmrginp.transition_diff_irrep()){
     // It is used when bra and ket has different spatial irrep
