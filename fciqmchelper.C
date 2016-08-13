@@ -4,6 +4,7 @@
 #include "Stackspinblock.h"
 #include "initblocks.h"
 #ifndef SERIAL
+#include "mpi.h"
 #include <boost/mpi.hpp>
 #endif
 
@@ -402,8 +403,12 @@ namespace SpinAdapted{
 
     std::vector<int> rotSites(2,0);
     int sweepIters = dmrginp.spinAdapted() ? dmrginp.last_site() -2 : dmrginp.last_site()/2-2;
+    int normToComp = sweepIters/2;
+
     for (int i=0; i<sweepIters-1; i++) {
       StackSpinBlock newSystem;
+      if (i>=normToComp && !system.has(CRE_DESCOMP))
+        system.addAllCompOps();
       system.addAdditionalOps();
 
       StackSpinBlock dotsite(i+1, i+1, integralIndex, false);
@@ -420,7 +425,11 @@ namespace SpinAdapted{
       mpi::broadcast(calc, Rotationa, 0);
       mpi::broadcast(calc, Rotationb, 0);
 #endif
-      InitBlocks::InitNewSystemBlock(system, dotsite, newSystem, 0, statebindex, sys_add, direct, integralIndex, DISTRIBUTED_STORAGE, false, true);
+      if (i < normToComp) {
+        InitBlocks::InitNewSystemBlock(system, dotsite, newSystem, 0, statebindex, sys_add, direct, integralIndex, DISTRIBUTED_STORAGE, true, false);
+      } else {
+        InitBlocks::InitNewSystemBlock(system, dotsite, newSystem, 0, statebindex, sys_add, direct, integralIndex, DISTRIBUTED_STORAGE, false, true);
+      }
 
       newSystem.transform_operators(const_cast<std::vector<Matrix>&>(Rotationa), 
 				    const_cast<std::vector<Matrix>&>(Rotationb));
@@ -450,14 +459,31 @@ namespace SpinAdapted{
     stateaw.LoadWavefunctionInfo(s, rotSites, statea, true);
     statebw.LoadWavefunctionInfo(s, rotSites, stateb, true);
 
+#ifndef SERIAL
+    mpi::broadcast(calc, stateaw, 0);
+    mpi::broadcast(calc, statebw, 0);
+    if (mpigetrank() != 0) {
+      double* dataa = Stackmem[omprank].allocate(stateaw.memoryUsed());
+      stateaw.set_data(dataa);
+      stateaw.allocateOperatorMatrix();
+      double* datab = Stackmem[omprank].allocate(statebw.memoryUsed());
+      statebw.set_data(datab);
+      statebw.allocateOperatorMatrix();
+    }
+    calc.barrier();
+    MPI_Bcast(stateaw.get_data(), stateaw.memoryUsed(), MPI_DOUBLE, 0, Calc);
+    MPI_Bcast(statebw.get_data(), statebw.memoryUsed(), MPI_DOUBLE, 0, Calc);
+#endif
+
     StackWavefunction temp; temp.initialise(stateaw);
     temp.Clear();
-    
+    calc.barrier();
     big.multiplyH_2index(statebw, &temp, 1);
-
+    calc.barrier();
     if (mpigetrank() == 0)
       h = DotProduct(stateaw, temp);
 
+    calc.barrier();
     temp.Clear();
 
     big.multiplyOverlap(statebw, &temp, 1);
@@ -465,7 +491,6 @@ namespace SpinAdapted{
       o = DotProduct(stateaw, temp);
 
 #ifndef SERIAL
-      mpi::communicator world;
     mpi::broadcast(calc, h, 0);
     mpi::broadcast(calc, o, 0);
 #endif
