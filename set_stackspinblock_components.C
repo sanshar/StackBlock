@@ -369,6 +369,9 @@ void StackSpinBlock::default_op_components(bool direct, bool haveNormops, bool h
 	ops[CRE_DES_DESCOMP] = make_new_stackop(CRE_DES_DESCOMP, true);
     }
 
+    if(dmrginp.do_npdm_ops() && (dmrginp.calc_type() == RESTART_ONEPDM || dmrginp.calc_type() == ONEPDM))
+      return;
+
     //for hubbard model if we want to calculate twopdm we still need cd operators
     if (dmrginp.hamiltonian() != HUBBARD || dmrginp.do_npdm_ops()) {
       if (haveNormops || dmrginp.do_npdm_ops()) {
@@ -437,6 +440,10 @@ void StackSpinBlock::default_op_components(bool direct, bool haveNormops, bool h
       if (!dmrginp.do_npdm_ops())
 	ops[CRE_DES_DESCOMP] = make_new_stackop(CRE_DES_DESCOMP, false);
     }
+
+    //Only need one index operators for one pdm calculation except for single dot.
+    if(dmrginp.do_npdm_ops() && (dmrginp.calc_type() == RESTART_ONEPDM || dmrginp.calc_type() == ONEPDM))
+      return;
     
     //for hubbard model if we want to calculate twopdm we still need cd operators
     if (dmrginp.hamiltonian() != HUBBARD || dmrginp.do_npdm_ops()) {
