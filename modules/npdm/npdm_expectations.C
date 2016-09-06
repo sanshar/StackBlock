@@ -537,6 +537,7 @@ Npdm_expectations::get_nonspin_adapted_expectations(NpdmSpinOps_base & lhsOps, N
 {
   // Initialize dimension of spin-adapted to non-spin-adapted transformation
   int dim = 0;
+  assert(dmrginp.spinAdapted());
   if(dmrginp.spinAdapted()){
   if ( npdm_order_ == NPDM_ONEPDM ) dim = 2;
   else if ( npdm_order_ == NPDM_TWOPDM ) dim = 6;
@@ -555,55 +556,6 @@ Npdm_expectations::get_nonspin_adapted_expectations(NpdmSpinOps_base & lhsOps, N
     get_full_op_string( lhsOps, rhsOps, dotOps, op_string, indices );
   }
   if ( screen_op_string_for_duplicates( op_string, indices ) ) return new_pdm_elements;
-
-  if(!dmrginp.spinAdapted()){
-    std::vector<int> cd_order;
-    int k=0;
-    for ( auto it = op_string.begin(); it != op_string.end(); ++it ) {
-      if (*it=='C') cd_order.push_back((indices[k++]));
-      if (*it=='D') cd_order.push_back(1000+indices[k++]);
-    }
-    //sort cd_order; bubble sort
-    int parity=1;
-    double tmp;
-    for( int i=cd_order.size()-1;i >0;i--)
-      for(int j=0; j <i;j++){
-        if(cd_order[j]>cd_order[j+1]){
-          tmp=cd_order[j+1];
-          cd_order[j+1]=cd_order[j];
-          cd_order[j]=tmp;
-          parity*=-1;
-          
-        }
-      }
-
-    //change cd_order back to spinorbital number
-    //And check whether total S_z of operator is zero
-    int sz=0;
-    for(int i=0;i<cd_order.size();i++){
-      if (cd_order[i] < 1000) {
-        if(cd_order[i]%2) sz+=1;
-        else sz+=-1;
-      } else {
-        cd_order[i]-=1000;
-        if(cd_order[i]%2) sz+=-1;
-        else sz+=1;
-      }
-    }
-    //pout << "nonspinadapted spinorbital ordered: ";
-    //for( int i=0;i<cd_order.size();i++)
-    //  pout << cd_order[i]<<',';
-    //pout <<endl;
-    //pout <<"sz: " <<sz<<endl;
-    if(sz!=0) return new_pdm_elements;
-    double nonspinvalue;
-    
-    // pout <<"size of operator: " <<lhsOps.opReps_.size()<<','<<rhsOps.opReps_.size()<<','<<dotOps.opReps_.size()<<endl;
-    nonspinvalue=build_nonspin_adapted_singlet_expectations( lhsOps, rhsOps, dotOps);
-    
-    new_pdm_elements.push_back(std::make_pair(cd_order,nonspinvalue*parity));
-    return new_pdm_elements;
-  }
 
   // Contract spin-adapted spatial operators and build singlet expectation values
   build_spin_adapted_singlet_expectations(lhsOps, rhsOps, dotOps, leftwaves, rightwaves);
@@ -654,7 +606,7 @@ void Npdm_expectations::compute_intermediate( NpdmSpinOps_base & lhsOps, NpdmSpi
      // int ds= hidot? dotOps.opReps_.at(idot)->get_deltaQuantum(0).get_s().getirrep(): 0;
       int ls= !lhsOps.transpose_? lhsOps.opReps_.at(ilhs)->get_deltaQuantum(0).get_s().getirrep(): (-lhsOps.opReps_.at(ilhs)->get_deltaQuantum(0).get_s()).getirrep();
       int ds= !dotOps.transpose_? dotOps.opReps_.at(idot)->get_deltaQuantum(0).get_s().getirrep(): (-dotOps.opReps_.at(idot)->get_deltaQuantum(0).get_s()).getirrep();
-      if((!dmrginp.spinAdapted()? std::abs(ls)+std::abs(ds): std::abs(ls+ds)) <= rindices )
+      if((!dmrginp.spinAdapted()? std::abs(ls+ds): std::abs(ls-ds)) <= rindices )
       {
         boost::shared_ptr<StackSparseMatrix> lhsOp, dotOp;
         {
