@@ -563,29 +563,30 @@ double SpinAdapted::SweepResponse::do_one(SweepParams &sweepParams, const bool &
 
     system.set_twoInt(activeSpaceIntegral);
 
-    for (int l=0; l<projectors.size(); l++)
+      for (int l=0; l<baseStates.size(); l++)
     {
       StackSpinBlock perturbationSystem;
-      perturbationSystem.set_integralIndex() = 0;
-      //if (sweepParams.get_sweep_iter() == 0)
-      //InitBlocks::InitStartingBlock (perturbationSystem,forward, targetState, projectors[l],
-      //			       sweepParams.get_forward_starting_size(), sweepParams.get_backward_starting_size(), 
-      //			       restartSize, restart, warmUp, 0);
-      //else
-      StackSpinBlock::restore (forward, sites, perturbationSystem, targetState, projectors[l]);
-      StackSpinBlock::store (forward, system.get_sites(), perturbationSystem, targetState, projectors[l]);
-    }
-    for (int l=0; l<baseStates.size(); l++)
-    {
-      StackSpinBlock overlapSystem;
-      overlapSystem.set_integralIndex() = l+1;
+      perturbationSystem.set_integralIndex() = l+1;
       //if (sweepParams.get_sweep_iter() == 0)
       //InitBlocks::InitStartingBlock (overlapSystem,forward, targetState, baseStates[l],
       //			       sweepParams.get_forward_starting_size(), sweepParams.get_backward_starting_size(), 
       //			       restartSize, restart, warmUp, perturbationIntegral[l]);
       //else
-      StackSpinBlock::restore (forward, sites, overlapSystem, targetState, baseStates[l]);
-      StackSpinBlock::store (forward, system.get_sites(), overlapSystem, targetState, baseStates[l]);
+      StackSpinBlock::restore (forward, sites, perturbationSystem, targetState, baseStates[l]);
+      StackSpinBlock::store (forward, system.get_sites(), perturbationSystem, targetState, baseStates[l]);
+    }
+
+    for (int l=0; l<projectors.size(); l++)
+    {
+      StackSpinBlock overlapSystem;
+      overlapSystem.set_integralIndex() = 0;
+      //if (sweepParams.get_sweep_iter() == 0)
+      //InitBlocks::InitStartingBlock (perturbationSystem,forward, targetState, projectors[l],
+      //			       sweepParams.get_forward_starting_size(), sweepParams.get_backward_starting_size(), 
+      //			       restartSize, restart, warmUp, 0);
+      //else
+      StackSpinBlock::restore (forward, sites, overlapSystem, targetState, projectors[l]);
+      StackSpinBlock::store (forward, system.get_sites(), overlapSystem, targetState, projectors[l]);
     }
 
   }
@@ -593,25 +594,25 @@ double SpinAdapted::SweepResponse::do_one(SweepParams &sweepParams, const bool &
     InitBlocks::InitStartingBlock (system,forward, targetState, targetState,
 				   sweepParams.get_forward_starting_size(), sweepParams.get_backward_starting_size(), 
 				   restartSize, restart, warmUp, activeSpaceIntegral);
-  
-    for (int l=0; l<projectors.size(); l++)
-    {
-      StackSpinBlock perturbationSystem;
-      perturbationSystem.set_integralIndex() = 0;
-      InitBlocks::InitStartingBlock (perturbationSystem,forward, targetState, projectors[l],
-				     sweepParams.get_forward_starting_size(), sweepParams.get_backward_starting_size(), 
-				     restartSize, restart, warmUp, 0);
-      StackSpinBlock::store (forward, system.get_sites(), perturbationSystem, targetState, projectors[l]);
-    }
-    
+ 
     for (int l=0; l<baseStates.size(); l++)
     {
-      StackSpinBlock overlapSystem;
-      overlapSystem.set_integralIndex() = l+1;
-      InitBlocks::InitStartingBlock (overlapSystem,forward, targetState, baseStates[l],
+      StackSpinBlock perturbationSystem;
+      perturbationSystem.set_integralIndex() = l+1;
+      InitBlocks::InitStartingBlock (perturbationSystem,forward, targetState, baseStates[l],
 				     sweepParams.get_forward_starting_size(), sweepParams.get_backward_starting_size(), 
 				     restartSize, restart, warmUp, perturbationIntegral[l]);
-      StackSpinBlock::store (forward, system.get_sites(), overlapSystem, targetState, baseStates[l]);
+      StackSpinBlock::store (forward, system.get_sites(), perturbationSystem, targetState, baseStates[l]);
+    }
+ 
+    for (int l=0; l<projectors.size(); l++)
+    {
+      StackSpinBlock overlapSystem;
+      overlapSystem.set_integralIndex() = 0;
+      InitBlocks::InitStartingBlock (overlapSystem,forward, targetState, projectors[l],
+				     sweepParams.get_forward_starting_size(), sweepParams.get_backward_starting_size(), 
+				     restartSize, restart, warmUp, 0);
+      StackSpinBlock::store (forward, system.get_sites(), overlapSystem, targetState, projectors[l]);
     }
   }
 

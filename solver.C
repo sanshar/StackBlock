@@ -126,26 +126,25 @@ void SpinAdapted::Solver::solve_wavefunction(vector<StackWavefunction>& solution
 
       guessWaveTypes guesstype = guesswavetype;
       if (guesswavetype == TRANSPOSE && big.get_leftBlock()->get_rightBlock() == 0)
-	guesstype = BASIC;
+	      guesstype = BASIC;
       GuessWave::guess_wavefunctions(solution, e, big, guesstype, onedot, dot_with_sys, nroots, additional_noise, currentRoot); 
       dmrginp.guesswf->stop();
       
       for (int istate=0; istate<lowerStates.size(); istate++)  {
-	for (int jstate=istate+1; jstate<lowerStates.size(); jstate++) {
-	  double overlap = DotProduct(lowerStates[istate], lowerStates[jstate]);
-	  ScaleAdd(-overlap/DotProduct(lowerStates[istate], lowerStates[istate]), lowerStates[istate], lowerStates[jstate]);
-	}
+	      for (int jstate=istate+1; jstate<lowerStates.size(); jstate++) {
+	        double overlap = DotProduct(lowerStates[istate], lowerStates[jstate]);
+	        ScaleAdd(-overlap/DotProduct(lowerStates[istate], lowerStates[istate]), lowerStates[istate], lowerStates[jstate]);
+	      }
       }
     
       dmrginp.blockdavid->start();
       Linear::block_davidson(solution, e, tol, warmUp, *davidson_f, useprecond, currentRoot, lowerStates);
       dmrginp.blockdavid->stop();
-
-      if (mpigetrank() == 0) {
-	for (int i=solution.size()-1; i>=nroots; i--) 
-	  solution[i].deallocate();
-      }
       delete davidson_f;
+      if (mpigetrank() == 0) {
+	      for (int i=solution.size()-1; i>=nroots; i--) 
+	        solution[i].deallocate();
+      }
     }
     else if (dmrginp.solve_method() == CONJUGATE_GRADIENT) {
 
@@ -168,18 +167,14 @@ void SpinAdapted::Solver::solve_wavefunction(vector<StackWavefunction>& solution
 	solution[0].Clear();
 
       double functional = Linear::MinResMethod(solution[0], tol, *davidson_f, lowerStates);
+      delete davidson_f;      
       //double functional = Linear::ConjugateGradient(solution[0], tol, davidson_f, lowerStates);
       if (mpigetrank() == 0)
-	e(1) = functional;
-      delete davidson_f;
+	      e(1) = functional;
     }
     else {
       pout << "Lanczos is no longer supported"<<endl;
       abort();
-      solution.resize(1);
-      multiply_h davidson_f(big, onedot);
-      //*************************
-      //GuessWave::guess_wavefunctions(solution, e, big, guesswavetype, onedot, dot_with_sys, additional_noise, currentRoot); 
     }
   }
 

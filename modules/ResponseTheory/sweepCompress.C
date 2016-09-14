@@ -182,7 +182,12 @@ void SpinAdapted::SweepCompress::BlockDecimateAndCompress (SweepParams &sweepPar
   kettracedMatrix.makedensitymatrix(solution, newbig, dmrginp.weights(sweepiter), 0.0, 0.0, true);
   double braerror, keterror;
   if (!mpigetrank()) {
-    keterror = makeRotateMatrix(kettracedMatrix, ketrotateMatrix, newbig.get_rightBlock()->get_ketStateInfo().totalStates, 0);
+    if (dmrginp.hamiltonian() == BCS) {
+      int largeNumber = 1000000;
+      keterror = makeRotateMatrix(kettracedMatrix, ketrotateMatrix, largeNumber, 0);
+    } else {
+      keterror = makeRotateMatrix(kettracedMatrix, ketrotateMatrix, newbig.get_rightBlock()->get_ketStateInfo().totalStates, 0);
+    }
     braerror = makeRotateMatrix(bratracedMatrix, brarotateMatrix, sweepParams.get_keep_states(), sweepParams.get_keep_qstates());
   }
   kettracedMatrix.deallocate();
@@ -484,8 +489,14 @@ void SpinAdapted::SweepCompress::Startup (SweepParams &sweepParams, StackSpinBlo
 
   double keterror, braerror;
   if (!mpigetrank()) {
-    keterror = makeRotateMatrix(kettracedMatrix, ketrotateMatrix, newbig.get_rightBlock()->get_ketStateInfo().totalStates, 0);
-    braerror = makeRotateMatrix(bratracedMatrix, brarotateMatrix, newbig.get_rightBlock()->get_braStateInfo().totalStates, 0);
+    if (dmrginp.hamiltonian() == BCS) {
+      int largeNumber = 1000000;
+      keterror = makeRotateMatrix(kettracedMatrix, ketrotateMatrix, largeNumber, 0);
+      braerror = makeRotateMatrix(bratracedMatrix, brarotateMatrix, largeNumber, 0);
+    } else {
+      keterror = makeRotateMatrix(kettracedMatrix, ketrotateMatrix, newbig.get_rightBlock()->get_ketStateInfo().totalStates, 0);
+      braerror = makeRotateMatrix(bratracedMatrix, brarotateMatrix, newbig.get_rightBlock()->get_braStateInfo().totalStates, 0);
+    }
   }
 #ifndef SERIAL
   mpi::communicator world;
@@ -636,9 +647,6 @@ void SpinAdapted::SweepCompress::WavefunctionCanonicalize (SweepParams &sweepPar
   //***********
   davidson_f(solution[0], outputState[0]);
 
-  pout << solution[0]<<endl;
-  pout << outputState[0]<<endl;
-  
   std::vector<Matrix> ketrotateMatrix, brarotateMatrix;
   StackDensityMatrix bratracedMatrix(newSystem.get_braStateInfo()), kettracedMatrix(newSystem.get_ketStateInfo());
   bratracedMatrix.allocate(newSystem.get_braStateInfo());

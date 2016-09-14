@@ -528,11 +528,18 @@ namespace SpinAdapted {
       vec.resize(spinvec.size());
       vector<int> orbs(2); orbs[0] = i; orbs[1] = j;
       for (int j=0; j<spinvec.size(); j++) {
-	vec[j]=boost::shared_ptr<StackCreDesComp>(new StackCreDesComp);
-	vec[j]->set_orbs() = orbs;
-	vec[j]->set_initialised() = true;
-	vec[j]->set_fermion() = false;
-	vec[j]->set_deltaQuantum(1, spinvec[j]);
+        vec[j]=boost::shared_ptr<StackCreDesComp>(new StackCreDesComp);
+        vec[j]->set_orbs() = orbs;
+        vec[j]->set_initialised() = true;
+        vec[j]->set_fermion() = false;
+	      if (dmrginp.hamiltonian() == BCS) {
+	        vec[j]->resize_deltaQuantum(3);
+	        vec[j]->set_deltaQuantum(0) = spinvec[j];
+	        vec[j]->set_deltaQuantum(1) = SpinQuantum(2, spinvec[j].get_s(), spinvec[j].get_symm());
+	        vec[j]->set_deltaQuantum(2) = SpinQuantum(-2, spinvec[j].get_s(), spinvec[j].get_symm());
+        } else {
+          vec[j]->set_deltaQuantum(1, spinvec[j]);
+        }
       }
     }
   
@@ -628,11 +635,18 @@ namespace SpinAdapted {
       vec.resize(spinvec.size());
       vector<int> orbs(2); orbs[0] = i; orbs[1] = j;
       for (int j=0; j<spinvec.size(); j++) {
-	vec[j]=boost::shared_ptr<StackDesCreComp>(new StackDesCreComp);
-	vec[j]->set_orbs() = orbs;
-	vec[j]->set_initialised() = true;
-	vec[j]->set_fermion() = false;
-	vec[j]->set_deltaQuantum(1, spinvec[j]);
+        vec[j]=boost::shared_ptr<StackDesCreComp>(new StackDesCreComp);
+        vec[j]->set_orbs() = orbs;
+        vec[j]->set_initialised() = true;
+        vec[j]->set_fermion() = false;
+        if (dmrginp.hamiltonian() == BCS) {
+          vec[j]->resize_deltaQuantum(3);
+          vec[j]->set_deltaQuantum(0) = spinvec[j];
+          vec[j]->set_deltaQuantum(1) = SpinQuantum(2, spinvec[j].get_s(), spinvec[j].get_symm());
+          vec[j]->set_deltaQuantum(2) = SpinQuantum(-2, spinvec[j].get_s(), spinvec[j].get_symm());
+        } else {
+          vec[j]->set_deltaQuantum(1, spinvec[j]);
+        }
       }
     }
   
@@ -729,11 +743,19 @@ namespace SpinAdapted {
       vec.resize(spinvec.size());
       vector<int> orbs(2); orbs[0] = i; orbs[1] = j;
       for (int j=0; j<spinvec.size(); j++) {
-	vec[j]=boost::shared_ptr<StackDesDesComp>(new StackDesDesComp);
-	vec[j]->set_orbs() = orbs;
-	vec[j]->set_initialised() = true;
-	vec[j]->set_fermion() = false;
-	vec[j]->set_deltaQuantum(1, -spinvec[j]);
+        vec[j]=boost::shared_ptr<StackDesDesComp>(new StackDesDesComp);
+        vec[j]->set_orbs() = orbs;
+        vec[j]->set_initialised() = true;
+        vec[j]->set_fermion() = false;
+
+        if (dmrginp.hamiltonian() == BCS) {
+          vec[j]->resize_deltaQuantum(3);
+	        vec[j]->set_deltaQuantum(0) = -spinvec[j];
+	        vec[j]->set_deltaQuantum(1) = -SpinQuantum(0, spinvec[j].get_s(), spinvec[j].get_symm());
+	        vec[j]->set_deltaQuantum(2) = -SpinQuantum(-2, spinvec[j].get_s(), spinvec[j].get_symm());
+        } else {
+          vec[j]->set_deltaQuantum(1, -spinvec[j]);
+        }
       }
     }
   
@@ -829,11 +851,18 @@ namespace SpinAdapted {
       vec.resize(spinvec.size());
       vector<int> orbs(2); orbs[0] = i; orbs[1] = j;
       for (int j=0; j<spinvec.size(); j++) {
-	vec[j]=boost::shared_ptr<StackCreCreComp>(new StackCreCreComp);
-	vec[j]->set_orbs() = orbs;
-	vec[j]->set_initialised() = true;
-	vec[j]->set_fermion() = false;
-	vec[j]->set_deltaQuantum(1, spinvec[j]);
+        vec[j]=boost::shared_ptr<StackCreCreComp>(new StackCreCreComp);
+        vec[j]->set_orbs() = orbs;
+        vec[j]->set_initialised() = true;
+        vec[j]->set_fermion() = false;
+        if (dmrginp.hamiltonian() == BCS) {
+	        vec[j]->resize_deltaQuantum(3);          
+	        vec[j]->set_deltaQuantum(0) = spinvec[j];
+	        vec[j]->set_deltaQuantum(1) = SpinQuantum(0, spinvec[j].get_s(), spinvec[j].get_symm());
+	        vec[j]->set_deltaQuantum(2) = SpinQuantum(-2, spinvec[j].get_s(), spinvec[j].get_symm());
+        } else {
+          vec[j]->set_deltaQuantum(1, spinvec[j]);
+        }
       }
     }
   

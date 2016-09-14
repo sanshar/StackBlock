@@ -77,6 +77,9 @@ void StackSpinBlock::printOperatorSummary()
 #ifndef SERIAL
   mpi::communicator world;
 
+  //pout << "Printing Operators of this Block" << endl;
+  //pout << *this << endl;
+
   if (mpigetrank() != 0) {
     for (std::map<opTypes, boost::shared_ptr< StackOp_component_base> >::const_iterator it = ops.begin(); it != ops.end(); ++it)
       sendobject(it->second->get_size(), 0);
@@ -90,7 +93,7 @@ void StackSpinBlock::printOperatorSummary()
       }
       else
       {
-         p2out << "\t\t\t " << it->second->size()<<" :  "<<it->second->get_op_string()<<"  Virtual Operators  ";      
+         p2out << "\t\t\t " << it->second->size()<<" :  "<<it->second->get_op_string()<<"  Virtual Operators  ";
       }
 
       vector<int> numops(calc.size(), 0);
@@ -102,6 +105,14 @@ void StackSpinBlock::printOperatorSummary()
          p2out << " " << numops[proc]<<"  ";
       }
       p2out << endl;
+      //if (it->second->get_op_string() == "STACKHAM" || it->second->get_op_string() == "STACKCRECREDES_COMP" || it->second->get_op_string() == "STACKDESDES_COMP" || it->second->get_op_string() == "STACKCREDES_COMP" || it->second->get_op_string() == "STACKCRE" || it->second->get_op_string() == "STACKCRECRE" || it->second->get_op_string() == "STACKCREDES" || it->second->get_op_string() == "STACKCRECRE" || it->second->get_op_string() == "STACKOVERLAP") {
+      //if (it->second->get_op_string() == "STACKCREDES_COMP" || it->second->get_op_string() == "STACKDESCRE_COMP") {
+      //  if (it->second->is_core()) {
+      //    for (int i = 0; i < it->second->size(); ++i) {
+      //      pout << *it->second->get_local_element(i)[0] << endl;
+      //    }
+      //  }
+      //}
     }
   }
 #else
@@ -964,6 +975,85 @@ int procWithMinOps(std::vector<boost::shared_ptr<StackSparseMatrix> >& allops)
   return minproc;
 }
 
+std::vector<boost::shared_ptr<StackSparseMatrix>> StackSpinBlock::prebuild(int num_threads) const {
+  std::vector<boost::shared_ptr<StackSparseMatrix>> comps;
+  if (dmrginp.hamiltonian() == HUBBARD) return comps;
+
+  StackSpinBlock* loopBlock=(leftBlock->is_loopblock()) ? leftBlock : rightBlock;
+  StackSpinBlock* otherBlock = loopBlock == leftBlock ? rightBlock : leftBlock;
+
+  if (otherBlock->get_rightBlock() == 0) return comps;
+
+  for (int i = 0; i < loopBlock->get_op_array(CRE_DES).get_size(); ++i)
+    for (int j = 0; j < loopBlock->get_op_array(CRE_DES).get_local_element(i).size(); ++j) {
+      boost::shared_ptr<StackSparseMatrix> op1 = loopBlock->get_op_array(CRE_DES).get_local_element(i)[j];
+      int I = op1->get_orbs(0);
+      int J = op1->get_orbs(1);
+      if (otherBlock->get_op_array(CRE_DESCOMP).has_local_index(I, J)) {
+        boost::shared_ptr<StackSparseMatrix> op2;
+        if (!dmrginp.spinAdapted() || dmrginp.hamiltonian() == BCS)
+          op2 = otherBlock->get_op_array(CRE_DESCOMP).get_element(I, J).at(0);
+        else
+          op2 = otherBlock->get_op_rep(CRE_DESCOMP, -op1->get_deltaQuantum()[0], I, J);
+
+        if (!op2->memoryUsed()) comps.push_back(op2);
+
+        if (otherBlock->has(DES_CRECOMP)) {
+          if (!dmrginp.spinAdapted() || dmrginp.hamiltonian() == BCS)
+            op2 = otherBlock->get_op_array(DES_CRECOMP).get_element(I, J).at(0);
+          else
+            op2 = otherBlock->get_op_rep(DES_CRECOMP, op1->get_deltaQuantum()[0], I, J);
+
+          if (!op2->memoryUsed()) comps.push_back(op2);
+        }
+      }
+    }
+
+  for (int i = 0; i < loopBlock->get_op_array(CRE_CRE).get_size(); ++i)
+    for (int j = 0; j < loopBlock->get_op_array(CRE_CRE).get_local_element(i).size(); ++j) {
+      boost::shared_ptr<StackSparseMatrix> op1 = loopBlock->get_op_array(CRE_CRE).get_local_element(i)[j];
+      int I = op1->get_orbs(0);
+      int J = op1->get_orbs(1);
+      if (otherBlock->get_op_array(DES_DESCOMP).has_local_index(I, J)) {
+        boost::shared_ptr<StackSparseMatrix> op2;
+        if (!dmrginp.spinAdapted() || dmrginp.hamiltonian() == BCS)
+          op2 = otherBlock->get_op_array(DES_DESCOMP).get_element(I, J).at(0);
+        else
+          op2 = otherBlock->get_op_rep(DES_DESCOMP, -op1->get_deltaQuantum()[0], I, J);
+
+        if (!op2->memoryUsed()) comps.push_back(op2);
+
+        if (otherBlock->has(CRE_CRECOMP)) {
+          if (!dmrginp.spinAdapted() || dmrginp.hamiltonian() == BCS)
+            op2 = otherBlock->get_op_array(CRE_CRECOMP).get_element(I, J).at(0);
+          else
+            op2 = otherBlock->get_op_rep(CRE_CRECOMP, op1->get_deltaQuantum()[0], I, J);
+
+          if (!op2->memoryUsed()) comps.push_back(op2);
+        }
+      }
+    }
+
+  // Now allocate comps
+  double additionalMem = 0.;
+  for (int i = 0; i < comps.size(); ++i) {
+    comps.at(i)->allocate(otherBlock->get_braStateInfo(), otherBlock->get_ketStateInfo());
+    additionalMem += comps.at(i) -> memoryUsed();
+  }
+  p3out << "additional memory used for pre-build complimentary operators " 
+    << additionalMem*8/1.e9 << " GB" << endl;
+
+  SplitStackmem();
+
+  // omp parallel build
+#pragma omp parallel for schedule(dynamic) 
+  for (int i = 0; i < comps.size(); ++i)
+    comps.at(i)->build(*otherBlock);
+  MergeStackmem();
+
+  return comps;
+}
+
 void StackSpinBlock::multiplyH(StackWavefunction& c, StackWavefunction* v, int num_threads) const
 {
 
@@ -1159,7 +1249,7 @@ void StackSpinBlock::multiplyH(StackWavefunction& c, StackWavefunction* v, int n
     }
   }
 
-  
+
   for (int i = 0; i<numthrds; i++)  {
     if (collected[i]==2) {
       if (loopBlock == get_leftBlock()) v_array[i].CollectQuantaAlongRows(*loopBlock->get_ketStateInfo().unCollectedStateInfo, otherBlock->get_ketStateInfo());

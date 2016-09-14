@@ -200,7 +200,7 @@ int calldmrg(char* input, char* output)
 
   cpu_set_t  *oldmask, newmask;
   int oldset, newset;
-  //if only a subset of processors are being used, then unset processor affinity
+  // if only a subset of processors are being used, then unset processor affinity
   if (m_calc_procs.size() < world.size()) {
     sched_getaffinity(0, oldset, oldmask);
     CPU_ZERO( &newmask);
@@ -293,20 +293,17 @@ int calldmrg(char* input, char* output)
       dmrginp.set_algorithm_method() = ONEDOT;
       //initialize state info and canonicalize wavefunction is always done using onedot algorithm
       if (mpigetrank()==0) {
-	Sweep::InitializeStateInfo(sweepParams, direction, baseState);
-	Sweep::InitializeStateInfo(sweepParams, !direction, baseState);
-	Sweep::CanonicalizeWavefunction(sweepParams, direction, baseState);
-	Sweep::CanonicalizeWavefunction(sweepParams, !direction, baseState);
-	Sweep::CanonicalizeWavefunction(sweepParams, direction, baseState);
+        Sweep::InitializeStateInfo(sweepParams, direction, baseState);
+        Sweep::InitializeStateInfo(sweepParams, !direction, baseState);
+        Sweep::CanonicalizeWavefunction(sweepParams, direction, baseState);
+        Sweep::CanonicalizeWavefunction(sweepParams, !direction, baseState);
+        Sweep::CanonicalizeWavefunction(sweepParams, direction, baseState);
       }
       dmrginp.set_algorithm_method() = atype;
     }
-
     //this genblock is required to generate all the nontranspose operators
     dmrginp.setimplicitTranspose() = false;
     SweepGenblock::do_one(sweepParams, false, false, false, restartsize, baseState, baseState);
-
-
     compress(sweep_tol, targetState, baseState);
   }
   else if (dmrginp.calc_type() == RESPONSEBW)
@@ -490,6 +487,9 @@ int calldmrg(char* input, char* output)
   else if (dmrginp.calc_type() == TINYCALC) {
     Sweep::tiny(sweep_tol);
   }
+  else if (dmrginp.calc_type() == RESTART_ONEPDM) {
+    Npdm::npdm(NPDM_ONEPDM);
+  }
   else if (dmrginp.calc_type() == RESTART_THREEPDM) {
     Npdm::npdm(NPDM_THREEPDM);
   }
@@ -572,8 +572,7 @@ int calldmrg(char* input, char* output)
 #ifndef SERIAL
   }
 
-  //world.barrier();
-  sleepBarrier(world, 0, 10);
+  sleepBarrier(world, 0, 1);
   MPI_Comm_free(&Calc);
   sched_setaffinity(0, sizeof(oldmask), oldmask);
 #endif
@@ -1136,7 +1135,11 @@ void responsepartialSweep(double sweep_tol, int targetState, vector<int>& projec
 	    }
 	w2.CollectQuantaAlongColumns(*state.leftStateInfo, const_cast<StateInfo&>(*newSystem.get_stateInfo().unCollectedStateInfo));
 	StateInfo bigstate;
-	TensorProduct(*state.leftStateInfo, const_cast<StateInfo&>(newSystem.get_stateInfo()), bigstate,  PARTICLE_SPIN_NUMBER_CONSTRAINT);      
+  if (dmrginp.hamiltonian() == BCS) {
+	  TensorProduct(*state.leftStateInfo, const_cast<StateInfo&>(newSystem.get_stateInfo()), bigstate,  SPIN_NUMBER_CONSTRAINT);
+  } else {
+	  TensorProduct(*state.leftStateInfo, const_cast<StateInfo&>(newSystem.get_stateInfo()), bigstate,  PARTICLE_SPIN_NUMBER_CONSTRAINT);
+  }
 	w2.SaveWavefunctionInfo(bigstate, sites, baseStates[0]);
 	w2.deallocate();
 	w.deallocate();
@@ -1374,7 +1377,6 @@ void compress(double sweep_tol, int targetState, int baseState)
   sweepParams.current_root() = -1;
   //this is the warmup sweep, the baseState is used as the initial guess for the targetState
   last_fe = SweepCompress::do_one(sweepParams, true, true, false, 0, targetState, baseState);
-
   direction = false;
   while ( true)
     {

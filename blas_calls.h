@@ -33,47 +33,56 @@ Sandeep Sharma and Garnet K.-L. Chan
 #ifdef AIX
 extern "C"
 {
+#if !defined(MKL_DIRECT_CALL) && !defined(MKL_DIRECT_CALL_SEQ)
   void daxpy(int *ntot, double *coeff, double *copy_from, int *inc1,
 	     double *copy_to, int *inc2);
-  void dcopy(int *ntot,double *copy_from,int *inc1, double *copy_to,int *inc2);
-  double ddot(int *ntot, double *x, int *incx, double *y, int *incy);
   void dgemm(char *transa, char *transb, int *m, int *n, int *k, double *alpha,
 	     double *A, int *lda, double *B, int *ldb, double *beta, double *C,
 	     int *ldc);
+  double ddot(int *ntot, double *x, int *incx, double *y, int *incy);
+  void saxpy(int *ntot, float *coeff, float *copy_from, int *inc1,
+	     float *copy_to, int *inc2);
+  void sgemm(char *transa, char *transb, int *m, int *n, int *k, float *alpha,
+	     float *A, int *lda, float *B, int *ldb, float *beta, float *C,
+	     int *ldc);
+  float sdot(int *ntot, float *x, int *incx, float *y, int *incy);
+#endif
+
+  void dcopy(int *ntot,double *copy_from,int *inc1, double *copy_to,int *inc2);
+
   void dgemv(char *trans, int *m, int *n, double *alpha,
              double *a, int *lda, double *x, int *incx, double *beta, double *y, int *incy);
   void dscal(int *size,double *coeff,double *matrix,int *inc);
 
-  void saxpy(int *ntot, float *coeff, float *copy_from, int *inc1,
-	     float *copy_to, int *inc2);
   void scopy(int *ntot, float *copy_from, int *inc1, float *copy_to, int *inc2);
-  float sdot(int *ntot, float *x, int *incx, float *y, int *incy);
-  void sgemm(char *transa, char *transb, int *m, int *n, int *k, float *alpha,
-	     float *A, int *lda, float *B, int *ldb, float *beta, float *C,
-	     int *ldc);
   void sscal(int *size, float *coeff, float *matrix,int *inc);
 }
 #else //SGI, Linux
 extern "C"
 {
+#if !defined(MKL_DIRECT_CALL) && !defined(MKL_DIRECT_CALL_SEQ)
   void daxpy_(FORTINT *ntot, double *coeff, double *copy_from, FORTINT *inc1,
 	     double *copy_to, FORTINT *inc2);
-  void dcopy_(FORTINT *ntot,double *copy_from,FORTINT *inc1, double *copy_to,FORTINT *inc2);
   double ddot_(FORTINT *ntot, double *x, FORTINT *incx, double *y, FORTINT *incy);
   void dgemm_(char *transa, char *transb, FORTINT *m, FORTINT *n, FORTINT *k, double *alpha,
 	     double *A, FORTINT *lda, double *B, FORTINT *ldb, double *beta, double *C,
 	     FORTINT *ldc);
-  void dgemv_(char *trans, FORTINT *m, FORTINT *n, double *alpha,
-              double *a, FORTINT *lda, double *x, FORTINT *incx, double *beta, double *y, FORTINT *incy);
-  void dscal_(FORTINT *size, double *coeff, double *matrix,FORTINT *inc);
-
   void saxpy_(FORTINT *ntot, float *coeff, float *copy_from, FORTINT *inc1,
 	     float *copy_to, FORTINT *inc2);
-  void scopy_(FORTINT *ntot, float *copy_from, FORTINT *inc1, float *copy_to, FORTINT *inc2);
   float sdot_(FORTINT *ntot, float *x, FORTINT *incx, float *y, FORTINT *incy);
   void sgemm_(char *transa, char *transb, FORTINT *m, FORTINT *n, FORTINT *k, float *alpha,
 	     float *A, FORTINT *lda, float *B, FORTINT *ldb, float *beta, float *C,
 	     FORTINT *ldc);
+#endif
+
+  void dcopy_(FORTINT *ntot,double *copy_from,FORTINT *inc1, double *copy_to,FORTINT *inc2);
+
+  void dgemv_(char *trans, FORTINT *m, FORTINT *n, double *alpha,
+              double *a, FORTINT *lda, double *x, FORTINT *incx, double *beta, double *y, FORTINT *incy);
+  void dscal_(FORTINT *size, double *coeff, double *matrix,FORTINT *inc);
+
+  void scopy_(FORTINT *ntot, float *copy_from, FORTINT *inc1, float *copy_to, FORTINT *inc2);
+
   void sscal_(FORTINT *size, float *coeff, float *matrix,FORTINT *inc);
   int idamax_(FORTINT &n, double* d, FORTINT &indx);
   //int idamax_(int &n, double* d, int &indx);
@@ -86,26 +95,29 @@ extern "C"
 #ifdef AIX
 extern "C"
 {
-  void dgesvd(char* JOBU, char* JOBVT, int* M, int* N, double* A, int* LDA, double* S, double* U, int* LDU, double* VT, int* LDVT, double* WORK, int* LWORK,
-	 int* INFO);
+#if !defined(MKL_DIRECT_CALL) && !defined(MKL_DIRECT_CALL_SEQ)
   void daxpy(int *ntot, double *coeff, double *copy_from, int *inc1,
 	     double *copy_to, int *inc2);
-  void dcopy(int *ntot,double *copy_from,int *inc1, double *copy_to,int *inc2);
   double ddot(int *ntot, double *x, int *incx, double *y, int *incy);
   void dgemm(char *transa, char *transb, int *m, int *n, int *k, double *alpha,
 	     double *A, int *lda, double *B, int *ldb, double *beta, double *C,
 	     int *ldc);
-  void dgemv(char *trans, int *m, int *n, double *alpha,
-             double *a, int *lda, double *x, int *incx, double *beta, double *y, int *incy);
-  void dscal(int *size,double *coeff,double *matrix,int *inc);
-
   void saxpy(int *ntot, float *coeff, float *copy_from, int *inc1,
 	     float *copy_to, int *inc2);
-  void scopy(int *ntot, float *copy_from, int *inc1, float *copy_to, int *inc2);
   float sdot(int *ntot, float *x, int *incx, float *y, int *incy);
   void sgemm(char *transa, char *transb, int *m, int *n, int *k, float *alpha,
 	     float *A, int *lda, float *B, int *ldb, float *beta, float *C,
 	     int *ldc);
+#endif
+
+  void dgesvd(char* JOBU, char* JOBVT, int* M, int* N, double* A, int* LDA, double* S, double* U, int* LDU, double* VT, int* LDVT, double* WORK, int* LWORK,
+	 int* INFO);
+
+  void dcopy(int *ntot,double *copy_from,int *inc1, double *copy_to,int *inc2);
+  void dgemv(char *trans, int *m, int *n, double *alpha,
+             double *a, int *lda, double *x, int *incx, double *beta, double *y, int *incy);
+  void dscal(int *size,double *coeff,double *matrix,int *inc);
+  void scopy(int *ntot, float *copy_from, int *inc1, float *copy_to, int *inc2);
   void sscal(int *size, float *coeff, float *matrix,int *inc);
   void dstev(char* JOBZ,FORTINT* N,double* A,double* E, double* W, FORTINT* Wlen, double*WORK, FORTINT* INFO);
   void dsyev(char* JOBZ,char* UPLO,int* N,double* A,int* LDA,double* W,double*WORK,int*LWORK,int* INFO);
@@ -114,26 +126,30 @@ extern "C"
 #else //SGI, Linux
 extern "C"
 {
-  void dgesvd_(char* JOBU, char* JOBVT, FORTINT* M, FORTINT* N, double* A, FORTINT* LDA, double* S, double* U, FORTINT* LDU, double* VT, FORTINT* LDVT, double* WORK, FORTINT* LWORK,
-	 FORTINT* INFO);
+#if !defined(MKL_DIRECT_CALL) && !defined(MKL_DIRECT_CALL_SEQ)
   void daxpy_(FORTINT *ntot, double *coeff, double *copy_from, FORTINT *inc1,
 	     double *copy_to, FORTINT *inc2);
-  void dcopy_(FORTINT *ntot,double *copy_from,FORTINT *inc1, double *copy_to,FORTINT *inc2);
   double ddot_(FORTINT *ntot, double *x, FORTINT *incx, double *y, FORTINT *incy);
   void dgemm_(char *transa, char *transb, FORTINT *m, FORTINT *n, FORTINT *k, double *alpha,
 	     double *A, FORTINT *lda, double *B, FORTINT *ldb, double *beta, double *C,
 	     FORTINT *ldc);
-  void dgemv_(char *trans, FORTINT *m, FORTINT *n, double *alpha,
-              double *a, FORTINT *lda, double *x, FORTINT *incx, double *beta, double *y, FORTINT *incy);
-  void dscal_(FORTINT *size, double *coeff, double *matrix,FORTINT *inc);
-
   void saxpy_(FORTINT *ntot, float *coeff, float *copy_from, FORTINT *inc1,
 	     float *copy_to, FORTINT *inc2);
-  void scopy_(FORTINT *ntot, float *copy_from, FORTINT *inc1, float *copy_to, FORTINT *inc2);
   float sdot_(FORTINT *ntot, float *x, FORTINT *incx, float *y, FORTINT *incy);
   void sgemm_(char *transa, char *transb, FORTINT *m, FORTINT *n, FORTINT *k, float *alpha,
 	     float *A, FORTINT *lda, float *B, FORTINT *ldb, float *beta, float *C,
 	     FORTINT *ldc);
+#endif
+
+  void dgesvd_(char* JOBU, char* JOBVT, FORTINT* M, FORTINT* N, double* A, FORTINT* LDA, double* S, double* U, FORTINT* LDU, double* VT, FORTINT* LDVT, double* WORK, FORTINT* LWORK,
+	 FORTINT* INFO);
+
+  void dcopy_(FORTINT *ntot,double *copy_from,FORTINT *inc1, double *copy_to,FORTINT *inc2);
+  void dgemv_(char *trans, FORTINT *m, FORTINT *n, double *alpha,
+              double *a, FORTINT *lda, double *x, FORTINT *incx, double *beta, double *y, FORTINT *incy);
+  void dscal_(FORTINT *size, double *coeff, double *matrix,FORTINT *inc);
+
+  void scopy_(FORTINT *ntot, float *copy_from, FORTINT *inc1, float *copy_to, FORTINT *inc2);
   void sscal_(FORTINT *size, float *coeff, float *matrix,FORTINT *inc);
   void dstev_(char* JOBZ,FORTINT* N,double* A,double* E, double* W, FORTINT* Wlen, double*WORK, FORTINT* INFO);
   void dsyev_(char* JOBZ,char* UPLO,FORTINT* N,double* A,FORTINT* LDA,double* W,double*WORK,FORTINT*LWORK,FORTINT* INFO);
@@ -153,6 +169,10 @@ extern "C"
 ** int ntot: length of data
 ** int inc1,inc2: increments for copy_from, copy_to
 */
+#if defined(MKL_DIRECT_CALL) || defined(MKL_DIRECT_CALL_SEQ)
+#undef DAXPY
+#undef SAXPY
+#endif
 inline void DAXPY(FORTINT ntot, double coeff, double *copy_from, FORTINT inc1,
 	   double *copy_to, FORTINT inc2)
 {
@@ -171,7 +191,6 @@ inline void SAXPY(FORTINT ntot, float coeff, float *copy_from, FORTINT inc1,
   saxpy_(&ntot,&coeff,copy_from,&inc1,copy_to,&inc2);
 #endif
 }
-
 /*
 ** 
 ** void DCOPY(int ntot, double *x, int incx, double *y, int *incy);
@@ -208,6 +227,10 @@ inline void SCOPY(FORTINT ntot,float *copy_from,FORTINT inc1,float *copy_to,FORT
 ** int ntot: length of x,y
 ** int incx,incy: increments for x,y 
 */
+#if defined(MKL_DIRECT_CALL) || defined(MKL_DIRECT_CALL_SEQ)
+#undef DDOT
+#undef SDOT
+#endif
 inline double DDOT(FORTINT ntot, double *x, FORTINT incx, double *y, FORTINT incy)
 {
 #ifdef AIX
@@ -224,7 +247,6 @@ inline float SDOT(FORTINT ntot, float *x, FORTINT incx, float *y, FORTINT incy)
   return sdot_(&ntot,x,&incx,y,&incy);
 #endif
 }
-
 /*
 ** 
 ** void DGEMM(char transa, char transb, int m, int n, int k, double alpha,
@@ -283,6 +305,9 @@ inline float SDOT(FORTINT ntot, float *x, FORTINT incx, float *y, FORTINT incy)
 **                    On exit, ldc is unchanged.
 **
 */
+#if defined(MKL_DIRECT_CALL) || defined(MKL_DIRECT_CALL_SEQ)
+#undef DGEMM
+#endif
 inline void DGEMM(char transa, char transb, FORTINT m, FORTINT n, FORTINT k, double alpha,
 	   double *A, FORTINT lda, double *B, FORTINT ldb, double beta, double *C,
 	   FORTINT ldc)
@@ -331,7 +356,9 @@ inline void GESV(FORTINT n, FORTINT nrhs, double* a, FORTINT lda, FORTINT* ipiv,
 #endif
 }
 
-
+#if defined(MKL_DIRECT_CALL) || defined(MKL_DIRECT_CALL_SEQ)
+#undef SGEMM
+#endif
 inline void SGEMM(char transa, char transb, FORTINT m, FORTINT n, FORTINT k, float alpha,
 	   float *A, FORTINT lda, float *B, FORTINT ldb, float beta, float *C,
 	   FORTINT ldc)

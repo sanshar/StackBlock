@@ -45,7 +45,7 @@ void SpinAdapted::Sweep::CanonicalizeWavefunction(SweepParams &sweepParams, cons
   sweepParams.set_block_iter() = 0;
 
   std::vector<int> sites;
-  int new_site, wave_site;
+  int new_site;
   if (forward) {
     pout << "\t\t\t Starting sweep "<< sweepParams.set_sweep_iter()<<" in forwards direction"<<endl;
     new_site = 0;
@@ -76,12 +76,10 @@ void SpinAdapted::Sweep::CanonicalizeWavefunction(SweepParams &sweepParams, cons
     
     if (forward) {
       new_site++;
-      wave_site = new_site+1;
       p1out << "\t\t\t Current direction is :: Forwards " << endl;
     }
     else {
       new_site--;
-      wave_site = new_site-1;
       p1out << "\t\t\t Current direction is :: Backwards " << endl;
     }
     std::vector<int> complementarySites, spindotsites(1, new_site), oldsites = sites, oldcomplement;
@@ -114,34 +112,39 @@ void SpinAdapted::Sweep::CanonicalizeWavefunction(SweepParams &sweepParams, cons
     else
       StateInfo::restore(!forward, complementarySites, envstate, currentstate);
 
-    TensorProduct(newState1, envstate, bigstate, PARTICLE_SPIN_NUMBER_CONSTRAINT);
+    if (dmrginp.hamiltonian() == BCS) {
+      TensorProduct(newState1, envstate, bigstate, SPIN_NUMBER_CONSTRAINT);
+    } else {
+      TensorProduct(newState1, envstate, bigstate, PARTICLE_SPIN_NUMBER_CONSTRAINT);
+    }
 
     w.initialise(dmrginp.effective_molecule_quantum_vec(), newState1, envstate, true);
     w.Clear();
+
     if (sweepParams.get_block_iter() == 0) 
       GuessWave::transpose_previous_wavefunction(w, bigstate, complementarySites, spindotsites, currentstate, true, true);
     else 
       GuessWave::transform_previous_wavefunction(w, bigstate, oldsites, oldcomplement, currentstate, true, true);
 
-    
     w.SaveWavefunctionInfo(bigstate, sites, currentstate);
-      
+
     //make the newstate
     std::vector<Matrix> rotation1; 
-      
-      
+
     StackDensityMatrix tracedMatrix(*bigstate.leftStateInfo);
     tracedMatrix.allocate(*bigstate.leftStateInfo);
-    operatorfunctions::MultiplyWithOwnTranspose (w, tracedMatrix, 1.0);  
+    operatorfunctions::MultiplyWithOwnTranspose (w, tracedMatrix, 1.0);
 
     int largeNumber = 1000000;
     if (!mpigetrank())
       double error = makeRotateMatrix(tracedMatrix, rotation1, largeNumber, sweepParams.get_keep_qstates());
     SaveRotationMatrix (sites, rotation1, currentstate);
+    //SaveRotationMatrix (sites, rotation1, -1);
 
     StateInfo renormState1;
     SpinAdapted::StateInfo::transform_state(rotation1, newState1, renormState1);
     StateInfo::store(forward, sites, renormState1, currentstate);
+    //StateInfo::store(forward, sites, renormState1, -1);
     stateInfo1 = renormState1;
     ++sweepParams.set_block_iter();
 
@@ -236,7 +239,11 @@ void SpinAdapted::Sweep::CanonicalizeWavefunctionPartialSweep(SweepParams &sweep
     else
       StateInfo::restore(!forward, complementarySites, envstate, currentstate);
 
-    TensorProduct(newState1, envstate, bigstate, PARTICLE_SPIN_NUMBER_CONSTRAINT);
+    if (dmrginp.hamiltonian() == BCS) {
+      TensorProduct(newState1, envstate, bigstate, SPIN_NUMBER_CONSTRAINT);
+    } else {
+      TensorProduct(newState1, envstate, bigstate, PARTICLE_SPIN_NUMBER_CONSTRAINT);
+    }
 
     w.initialise(dmrginp.effective_molecule_quantum_vec(), newState1, envstate, true);    w.Clear();
 

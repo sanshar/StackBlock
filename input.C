@@ -130,6 +130,7 @@ void SpinAdapted::Input::initialize_defaults()
   m_guess_permutations = 10;
 
   m_direct = true;
+  m_prebuild = false;
   m_nroots = 1;
   m_weights.resize(m_nroots);
   m_weights[0] = 1.;
@@ -184,6 +185,7 @@ void SpinAdapted::Input::initialize_defaults()
   m_maxM = 0;
   m_lastM = 500;
   m_startM = 250;
+  m_bra_M = 0;
   
   m_calc_ri_4pdm=false;
   m_store_ripdm_readable=false;
@@ -303,8 +305,17 @@ SpinAdapted::Input::Input(const string& config_name) {
 	}
     m_Bogoliubov = true;
     m_ham_type = BCS;
-      }
-      else if (boost::iequals(keyword, "warmup")) {
+      } else if (boost::iequals(keyword, "prebuild")) {
+        if (usedkey[PREBUILD] == 0)
+          usedkey_error(keyword, msg);
+        usedkey[PREBUILD] = 0;
+        if (tok.size() != 1) {
+          pout << "keyword prebuild is a stand alone keyword" << endl;
+          pout << msg << endl;
+          abort();
+        }
+        m_prebuild = true;
+      } else if (boost::iequals(keyword, "warmup")) {
         if (usedkey[WARMUP] == 0)
           usedkey_error(keyword, msg);
         usedkey[WARMUP] = 0;
@@ -967,9 +978,18 @@ SpinAdapted::Input::Input(const string& config_name) {
       {
         m_npdm_multinode = false;
       }
-
-
-
+      else if (boost::iequals(keyword, "specificpdm"))
+      {
+        if(tok.size() == 2) {
+          m_specificpdm.push_back(atoi(tok[1].c_str()));
+        } else if (tok.size() == 3) {
+          m_specificpdm.push_back(atoi(tok[1].c_str()));
+          m_specificpdm.push_back(atoi(tok[2].c_str()));
+        } else {
+          pout << "keyword "<<keyword<<" should be followed by one or two numbers and then an endline";
+          abort();
+        }
+      }
       else if(boost::iequals(keyword,  "deflation_max_size") || boost::iequals(keyword,  "max_deflation_size"))
       {
 	if (tok.size() !=  2) {
@@ -1175,7 +1195,17 @@ SpinAdapted::Input::Input(const string& config_name) {
       else if (boost::iequals(keyword,  "reset_iterations") || boost::iequals(keyword,  "reset_iter") || boost::iequals(keyword,  "reset_iters")) {
 	m_reset_iterations = true;
       }
-
+      else if (boost::iequals(keyword,  "bra_M")) {
+        //The number of renormalized bases in bra wave function.
+        //Currently only used in transition denstiy matrix calcualtions.
+        if (tok.size() != 2) {
+          pout << "keyword bra_M should be followed by a single integer and then an endline"<<endl;
+          pout << "error found in the following line "<<endl;
+          pout << msg<<endl;
+          abort();
+        }
+        m_bra_M = atoi(tok[1].c_str());
+      }
       else
       {
         pout << "Unrecognized option :: " << keyword << endl;
@@ -1246,6 +1276,7 @@ SpinAdapted::Input::Input(const string& config_name) {
   mpi::broadcast(world, m_calc_type, 0);
   mpi::broadcast(world, m_calc_procs, 0);
   mpi::broadcast(world, m_baseState, 0);
+  mpi::broadcast(world, m_useSharedMemory, 0);
 #endif
 
   //make the scratch files
@@ -1281,11 +1312,6 @@ SpinAdapted::Input::Input(const string& config_name) {
     abort();
   }
 
-  if (m_Bogoliubov && m_num_Integrals >1 ) {
-    pout << "Currently the response code does not work with non-particle number conserving hamiltonians!!";
-    abort();
-  }
-    
 //if (sym != "c1") // must be initialized even if c1 sym.
     Symmetry::InitialiseTable(sym);
 
@@ -1311,7 +1337,7 @@ SpinAdapted::Input::Input(const string& config_name) {
       v_cccc[integral].rhf = true;
       v_cccd[integral].rhf = true;
     }
-    
+
     // Kij-based ordering by GA opt.
 #ifndef SERIAL
     mpi::broadcast(world,m_reorderType,0);
@@ -1376,7 +1402,7 @@ SpinAdapted::Input::Input(const string& config_name) {
 	}
       }
       else
-	readorbitalsfile(orbitalfile[integral], v_1[integral], v_2[integral], coreEnergy[integral], integral);
+        readorbitalsfile(orbitalfile[integral], v_1[integral], v_2[integral], coreEnergy[integral], integral);
     }
   }
   
@@ -1445,30 +1471,35 @@ SpinAdapted::Input::Input(const string& config_name) {
   mpi::broadcast(world, PROPBITLEN, 0);
 #endif
   //if (mpigetrank() == 0) {
+  //  int s = 0;
   //cout << "v_1" << endl;
   //for (int i = 0; i < m_norbs; ++i)
   //  for (int j = 0; j < m_norbs; ++j)
-  //    cout << fixed << setprecision(12) << v_1[0](i,j) << " " << i << " " << j << endl;
+  //    if (fabs(v_1[s](i,j)) > 1e-12)
+  //      cout << fixed << setprecision(12) << v_1[s](i,j) << " " << i << " " << j << endl;
 
   //cout << "v_2" << endl;
   //for (int i = 0; i < m_norbs; ++i)
   //  for (int j = 0; j < m_norbs; ++j)
   //    for (int k = 0; k < m_norbs; ++k)
   //      for (int l = 0; l < m_norbs; ++l)
-  //        cout << fixed << setprecision(12) << v_2[0](i,j,k,l)  
+  //        if (fabs(v_2[s](i,j,k,l)) > 1e-12)
+  //        cout << fixed << setprecision(12) << v_2[s](i,j,k,l)
   //          << " " << i << " " << j << " " << k << " " << l << endl;
 
   //cout << "v_cc" << endl;
   //for (int i = 0; i < m_norbs; ++i)
   //  for (int j = 0; j < m_norbs; ++j)
-  //    cout << fixed << setprecision(12) << v_cc[0](i,j) << " " << i << " " << j << endl;
+  //    if (fabs(v_cc[s](i,j)) > 1e-12)
+  //    cout << fixed << setprecision(12) << v_cc[s](i,j) << " " << i << " " << j << endl;
 
   //cout << "v_cccc" << endl;
   //for (int i = 0; i < m_norbs; ++i)
   //  for (int j = 0; j < m_norbs; ++j)
   //    for (int k = 0; k < m_norbs; ++k)
   //      for (int l = 0; l < m_norbs; ++l)
-  //        cout << fixed << setprecision(12) << v_cccc[0](i,j,k,l)  
+  //        if (fabs(v_cccc[s](i,j,k,l)) > 1e-12)
+  //        cout << fixed << setprecision(12) << v_cccc[s](i,j,k,l)
   //          << " " << i << " " << j << " " << k << " " << l << endl;
 
   //cout << "v_cccd" << endl;
@@ -1476,11 +1507,11 @@ SpinAdapted::Input::Input(const string& config_name) {
   //  for (int j = 0; j < m_norbs; ++j)
   //    for (int k = 0; k < m_norbs; ++k)
   //      for (int l = 0; l < m_norbs; ++l)
-  //        cout << fixed << setprecision(12) << v_cccd[0](i,j,k,l)  
+  //        if (fabs(v_cccd[s](i,j,k,l))>1e-12)
+  //        cout << fixed << setprecision(12) << v_cccd[s](i,j,k,l)
   //          << " " << i << " " << j << " " << k << " " << l << endl;
   //}
   //world.barrier();
-  //exit(0);
 }
 
 void SpinAdapted::Input::readreorderfile(ifstream& dumpFile, std::vector<int>& oldtonew) {
@@ -1515,7 +1546,6 @@ void SpinAdapted::Input::readreorderfile(ifstream& dumpFile, std::vector<int>& o
     pout << "Numbers or orbitals in reorder file should be equal to "<<m_norbs/2<<" instead "<<oldtonew.size()<<" found "<<endl;
     abort();
   }
-
 }
 
 void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray& v1, TwoElectronArray& v2, double& coreEnergy, int integralIndex)
@@ -1650,7 +1680,7 @@ void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray&
   // but for this m_reorder the reorder vector below would be 3 1 2 4 and O_unreordered(1,2) -> O_reorder(3, 1)
   bool RHF = true;
   int AOrbOffset = 0, BOrbOffset = 0;
-  
+
   if (rank == 0) {
     reorder.resize(m_norbs/2);
     for (int i=0; i<m_norbs/2; i++) {
@@ -1756,8 +1786,8 @@ void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray&
   else {
     long v = m_openorbs.size();
     long a = m_norbs/2 - v;
-    if (RHF) { oneIntegralMem = (m_norbs/2*(m_norbs/2+1))/2; twoIntegralMem = twoedim*a*(a+1)/2;}
-    else { oneIntegralMem = m_norbs/2*(m_norbs/2+1); twoIntegralMem = twoedim*a*(a+1)/2;}
+    if (RHF) { oneIntegralMem = (m_norbs/2*(m_norbs/2+1))/2; twoIntegralMem = twoedim*a*(a+1)/2 + ((v+a)*a * ((v+a)*a+1)/2);}
+    else { oneIntegralMem = m_norbs/2*(m_norbs/2+1); twoIntegralMem = twoedim*a*(a+1)/2 + (v+a)*a * ((v+a)*a+1)/2;}
   }
 
 #ifndef SERIAL
@@ -1800,7 +1830,7 @@ void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray&
       }
       value = atof(tok[0].c_str());
       i = atoi(tok[1].c_str())-offset;j = atoi(tok[2].c_str())-offset;k = atoi(tok[3].c_str())-offset;l = atoi(tok[4].c_str())-offset;
-      
+
       if (i==-1 && j==-1 && k==-1 && l==-1) {
 	coreEnergy = value;
 	if (AOrbOffset == 0 && BOrbOffset == 0) //AA
@@ -1890,7 +1920,7 @@ void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray&
 
     sprintf(ReorderFileName, "%s%s", save_prefix().c_str(), "/RestartReorder.dat");
   }
-  boost::filesystem::path p(ReorderFileName);
+  //boost::filesystem::path p(ReorderFileName);
 
 #ifndef SERIAL
   mpi::broadcast(world,m_norbs,0);

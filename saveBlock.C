@@ -337,12 +337,13 @@ void StackSpinBlock::sendcompOps(StackOp_component_base& opcomp, int I, int J, i
 #ifndef SERIAL
   boost::mpi::communicator world;
   std::vector<boost::shared_ptr<StackSparseMatrix> > oparray = opcomp.get_element(I,J);
+  int nsites = dmrginp.last_site();
   for(int i=0; i<oparray.size(); i++) {
-    calc.send(processorindex(compsite), optype+i*10+1000*J+100000*I, *oparray[i]);
+    calc.send(processorindex(compsite), ((100*optype+i)*nsites+J)*nsites+I, *oparray[i]);
 
     //now broadcast the data
     //MPI::COMM_WORLD.Bcast(oparray[i]->get_data(), oparray[i]->memoryUsed(), MPI_DOUBLE, trimap_2d(I, J, dmrginp.last_site()));
-    MPI_Send(oparray[i]->get_data(), oparray[i]->memoryUsed(), MPI_DOUBLE, processorindex(compsite), optype+i*10+1000*J+100000*I, Calc);
+    MPI_Send(oparray[i]->get_data(), oparray[i]->memoryUsed(), MPI_DOUBLE, processorindex(compsite), ((100*optype+i)*nsites+J)*nsites+I, Calc);
   }  
 #endif
 }
@@ -352,8 +353,9 @@ void StackSpinBlock::recvcompOps(StackOp_component_base& opcomp, int I, int J, i
 #ifndef SERIAL
   boost::mpi::communicator world;
   std::vector<boost::shared_ptr<StackSparseMatrix> > oparray = opcomp.get_element(I,J);
+  int nsites = dmrginp.last_site();
   for(int i=0; i<oparray.size(); i++) {
-    calc.recv(processorindex(trimap_2d(I, J, dmrginp.last_site())), optype+i*10+1000*J+100000*I, *oparray[i]);
+    calc.recv(processorindex(trimap_2d(I, J, nsites)), ((100*optype+i)*nsites+J)*nsites+I, *oparray[i]);
 
     double* data = Stackmem[omprank].allocate(oparray[i]->memoryUsed());
     if (additionalMemory == 0) 
@@ -364,7 +366,7 @@ void StackSpinBlock::recvcompOps(StackOp_component_base& opcomp, int I, int J, i
     oparray[i]->allocateOperatorMatrix();
 
     //now broadcast the data
-    MPI_Recv(oparray[i]->get_data(), oparray[i]->memoryUsed(), MPI_DOUBLE, processorindex(trimap_2d(I, J, dmrginp.last_site())), optype+i*10+1000*J+100000*I, Calc,MPI_STATUS_IGNORE);
+    MPI_Recv(oparray[i]->get_data(), oparray[i]->memoryUsed(), MPI_DOUBLE, processorindex(trimap_2d(I, J, dmrginp.last_site())),((100*optype+i)*nsites+J)*nsites+I, Calc,MPI_STATUS_IGNORE);
   }
 #endif
 }

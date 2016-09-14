@@ -173,14 +173,14 @@ namespace SpinAdapted{
   //this is a helper function to make a MPS from a occupation number representation of determinant
   //this representation is slightly different than the usual occupation, here each integer
   //element is a spatial orbital which can have a value 0, -1, 1, or 2.
-  MPS::MPS(ulong *occnum, int length)
+  MPS::MPS(unsigned long *occnum, int length)
   {
     assert(length*64 >= dmrginp.last_site());
     
     //convert the int array into a vector<bool>
     std::vector<bool> occ(dmrginp.last_site(), 0);
     
-    ulong temp = 1;
+    unsigned long temp = 1;
     int index = 0;
     for (int i=0; i <length ; i++) {
       long occtemp = occnum[i];
@@ -300,7 +300,11 @@ namespace SpinAdapted{
 
       }
       StateInfo bigState;
+      if (dmrginp.hamiltonian() == BCS) {
+      TensorProduct(currentState, const_cast<StateInfo&>(MPS::siteBlocks[MPS::sweepIters+1].get_stateInfo()), bigState, SPIN_NUMBER_CONSTRAINT);
+      } else {
       TensorProduct(currentState, const_cast<StateInfo&>(MPS::siteBlocks[MPS::sweepIters+1].get_stateInfo()), bigState, PARTICLE_SPIN_NUMBER_CONSTRAINT);
+      }
 
       if (!dmrginp.spinAdapted())
 	rotSites[1] -= 2;
@@ -385,57 +389,35 @@ namespace SpinAdapted{
   }
   */
 
-  void calcHamiltonianAndOverlap(int statea, int stateb, double& h, double& o, bool sameStates) {
+  void calcHamiltonianAndOverlap(int statea, int stateb, double& h, double& o, bool sameStates, int integralIndex) {
 
     StackSpinBlock system, siteblock;
     bool forward = true, restart=false, warmUp = false;
     int leftState=0, rightState=1, forward_starting_size=1, backward_starting_size=0, restartSize =0;
     int statebindex = sameStates ? 0 : 1;
-    InitBlocks::InitStartingBlock(system, forward, leftState, statebindex, forward_starting_size, backward_starting_size, restartSize, restart, warmUp, 0); 
+    InitBlocks::InitStartingBlock(system, forward, leftState, statebindex, forward_starting_size, backward_starting_size, restartSize, restart, warmUp, integralIndex); 
     SpinQuantum hq(0, SpinSpace(0), IrrepSpace(0));
 
-    p2out << system<<endl;
-
     std::vector<Matrix> Rotationa, Rotationb;
-    /*
-    int sysquanta = system.get_stateInfo().quanta.size();
-    if (mpigetrank() == 0) {
-      Rotationa = statea.getSiteTensors(0);
-      Rotationb = stateb.getSiteTensors(0);
-      Rotationa.resize(sysquanta);
-      Rotationb.resize(sysquanta);
-    }
-
-#ifndef SERIAL
-    mpi::communicator world;
-    mpi::broadcast(world, Rotationa, 0);
-    mpi::broadcast(world, Rotationb, 0);
-#endif
-
-    system.transform_operators(const_cast<std::vector<Matrix>&>(Rotationa), 
-			       const_cast<std::vector<Matrix>&>(Rotationb));
-    */
     int sys_add = true; bool direct = true; 
-
 
     std::vector<int> rotSites(2,0);
     int sweepIters = dmrginp.spinAdapted() ? dmrginp.last_site() -2 : dmrginp.last_site()/2-2;
     int normToComp = sweepIters/2;
 
     for (int i=0; i<sweepIters-1; i++) {
-      pout << i<<" out of "<<sweepIters-1<<"  ";
       StackSpinBlock newSystem;
       if (i>=normToComp && !system.has(CRE_DESCOMP))
-	system.addAllCompOps();
+        system.addAllCompOps();
       system.addAdditionalOps();
 
-      StackSpinBlock dotsite(i+1, i+1, 0, false);
+      StackSpinBlock dotsite(i+1, i+1, integralIndex, false);
       if (mpigetrank() == 0) {
-	rotSites[1] = i+1;
-	LoadRotationMatrix(rotSites, Rotationa, statea);
-	LoadRotationMatrix(rotSites, Rotationb, stateb);
-	//Rotationa = statea.getSiteTensors(i+1);
-	//Rotationb = stateb.getSiteTensors(i+1);
+        rotSites[1] = dmrginp.spinAdapted() ? i+1 : i*2+3;
+        LoadRotationMatrix(rotSites, Rotationa, statea);
+        LoadRotationMatrix(rotSites, Rotationb, stateb);
+        //Rotationa = statea.getSiteTensors(i+1);
+        //Rotationb = stateb.getSiteTensors(i+1);
       }
 
 #ifndef SERIAL
@@ -443,14 +425,12 @@ namespace SpinAdapted{
       mpi::broadcast(calc, Rotationa, 0);
       mpi::broadcast(calc, Rotationb, 0);
 #endif
-      if (i <normToComp)  {
-	pout << "norm ops "<<endl;
-	InitBlocks::InitNewSystemBlock(system, dotsite, newSystem, 0, statebindex, sys_add, direct, 0, DISTRIBUTED_STORAGE, true, false);
+      if (i < normToComp) {
+        InitBlocks::InitNewSystemBlock(system, dotsite, newSystem, 0, statebindex, sys_add, direct, integralIndex, DISTRIBUTED_STORAGE, true, false);
+      } else {
+        InitBlocks::InitNewSystemBlock(system, dotsite, newSystem, 0, statebindex, sys_add, direct, integralIndex, DISTRIBUTED_STORAGE, false, true);
       }
-      else {
-	pout << "comp ops "<<endl;
-	InitBlocks::InitNewSystemBlock(system, dotsite, newSystem, 0, statebindex, sys_add, direct, 0, DISTRIBUTED_STORAGE, false, true);
-      }
+
       newSystem.transform_operators(const_cast<std::vector<Matrix>&>(Rotationa), 
 				    const_cast<std::vector<Matrix>&>(Rotationb));
       {
@@ -463,23 +443,23 @@ namespace SpinAdapted{
     }
 
     StackSpinBlock newSystem, big;
-    StackSpinBlock dotsite1(sweepIters, sweepIters, 0, false);
-    StackSpinBlock dotsite2(sweepIters+1, sweepIters+1, 0, false);
-
+    StackSpinBlock dotsite1(sweepIters, sweepIters, integralIndex, sameStates);
+    StackSpinBlock dotsite2(sweepIters+1, sweepIters+1, integralIndex, sameStates);
 
     system.addAdditionalOps();
-    InitBlocks::InitNewSystemBlock(system, dotsite1, newSystem, 0, statebindex, sys_add, direct, 0, DISTRIBUTED_STORAGE, false, true);
+    InitBlocks::InitNewSystemBlock(system, dotsite1, newSystem, 0, statebindex, sys_add, direct, integralIndex, DISTRIBUTED_STORAGE, false, true);
     
     newSystem.set_loopblock(false); system.set_loopblock(false);
-    InitBlocks::InitBigBlock(newSystem, dotsite2, big); 
+    InitBlocks::InitBigBlock(newSystem, dotsite2, big);
     
     StackWavefunction stateaw, statebw;
     StateInfo s;
 
-    rotSites[1] += 1;
+    rotSites[1] += dmrginp.spinAdapted() ? 1 : 2;
     stateaw.LoadWavefunctionInfo(s, rotSites, statea, true);
     statebw.LoadWavefunctionInfo(s, rotSites, stateb, true);
 
+#ifndef SERIAL
     mpi::broadcast(calc, stateaw, 0);
     mpi::broadcast(calc, statebw, 0);
     if (mpigetrank() != 0) {
@@ -493,16 +473,17 @@ namespace SpinAdapted{
     calc.barrier();
     MPI_Bcast(stateaw.get_data(), stateaw.memoryUsed(), MPI_DOUBLE, 0, Calc);
     MPI_Bcast(statebw.get_data(), statebw.memoryUsed(), MPI_DOUBLE, 0, Calc);
+#endif
 
     StackWavefunction temp; temp.initialise(stateaw);
     temp.Clear();
-    
-
+    calc.barrier();
     big.multiplyH_2index(statebw, &temp, 1);
-
+    calc.barrier();
     if (mpigetrank() == 0)
       h = DotProduct(stateaw, temp);
 
+    calc.barrier();
     temp.Clear();
 
     big.multiplyOverlap(statebw, &temp, 1);
@@ -510,7 +491,6 @@ namespace SpinAdapted{
       o = DotProduct(stateaw, temp);
 
 #ifndef SERIAL
-      mpi::communicator world;
     mpi::broadcast(calc, h, 0);
     mpi::broadcast(calc, o, 0);
 #endif

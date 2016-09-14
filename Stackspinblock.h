@@ -212,6 +212,7 @@ class StackSpinBlock
   void BuildSingleSlaterBlock(std::vector<int> sts);
   void set_loopblock(bool p_loopblock){loopblock = p_loopblock;}
   friend ostream& operator<< (ostream& os, const StackSpinBlock& b);
+  std::vector<boost::shared_ptr<StackSparseMatrix>> prebuild(int num_threads) const;
   void multiplyH(StackWavefunction& c, StackWavefunction* v, int num_threads) const;
   void multiplyH_2index(StackWavefunction& c, StackWavefunction* v, int num_threads) const;
   void multiplyOverlap(StackWavefunction& c, StackWavefunction* v, int num_threads) const;
