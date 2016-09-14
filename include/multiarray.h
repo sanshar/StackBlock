@@ -12,6 +12,7 @@ Sandeep Sharma and Garnet K.-L. Chan
 #include <vector>
 #include <string>
 #include <cassert>
+#include <iostream>
 #include <boost/serialization/base_object.hpp>
 #include <boost/serialization/serialization.hpp>
 
