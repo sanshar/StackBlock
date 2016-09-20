@@ -5,6 +5,7 @@
 #include "MatrixBLAS.h"
 #include <boost/format.hpp>
 #ifndef SERIAL
+#include "mpi.h"
 #include <boost/mpi/communicator.hpp>
 #include <boost/mpi.hpp>
 #endif
@@ -506,7 +507,7 @@ p1out << dellocate_time <<endl ;
     dmrginp.set_calc_type() = DMRG;
 
     timer.start();
-    calcHamiltonianAndOverlap(pbmps, h, o,pb);
+    calcHamiltonianAndOverlap(pb.wavenumber(), pb.wavenumber() ,h, o, pb.braquanta);
 
     p1out <<"Calculate Expectation time :" << timer.elapsedwalltime()<<endl;;
 
@@ -527,6 +528,7 @@ p1out << dellocate_time <<endl ;
       //overlap +=o;
       overlap += o/((perturber::ZeroEnergy[baseState]- perturberEnergy)*(perturber::ZeroEnergy[baseState]- perturberEnergy));
       p1out << "Zero Energy: " << perturber::ZeroEnergy[baseState]<<endl;
+      p1out << "Norm of contracted MPO on MPS : " << o <<endl;
       p1out << "Amplitude : " << o/((perturber::ZeroEnergy[baseState]- perturberEnergy)*(perturber::ZeroEnergy[baseState]- perturberEnergy)) <<endl;
       p1out << "Ener(only CAS part) : " << h/o<<endl;
       p1out << "Energy : " << perturberEnergy<<endl;
@@ -594,7 +596,7 @@ void SpinAdapted::mps_nevpt::type1::subspace_Va(int baseState)
 
     timer.start();
 
-    calcHamiltonianAndOverlap(pbmps, h, o,pb);
+    calcHamiltonianAndOverlap(pb.wavenumber(), pb.wavenumber() ,h, o, pb.braquanta);
 
     p1out <<"Calculate Expectation time :" << timer.elapsedwalltime()<<endl;
 
@@ -612,6 +614,7 @@ void SpinAdapted::mps_nevpt::type1::subspace_Va(int baseState)
       energy += o/(perturber::ZeroEnergy[baseState]- perturberEnergy) ;
       //overlap +=o;
       overlap += o/((perturber::ZeroEnergy[baseState]- perturberEnergy)*(perturber::ZeroEnergy[baseState]- perturberEnergy));
+      p1out << "Norm of contracted MPO on MPS : " << o <<endl;
       p1out << "Amplitude : " << o/((perturber::ZeroEnergy[baseState]- perturberEnergy)*(perturber::ZeroEnergy[baseState]- perturberEnergy)) <<endl;
       p1out << "Ener(only CAS part) : " << h/o<<endl;
       p1out << "Energy : " << perturberEnergy<<endl;
@@ -635,8 +638,151 @@ void SpinAdapted::mps_nevpt::type1::subspace_Va(int baseState)
   f.close();
 }
 
-void SpinAdapted::mps_nevpt::type1::calcHamiltonianAndOverlap(const MPS& statea, double& h, double& o, perturber& pb) {
 
+  void SpinAdapted::mps_nevpt::type1::calcHamiltonianAndOverlap(int statea, int stateb, double& h, double& o, const vector<SpinQuantum>& contracted_quanta, int integralIndex) {
+
+    StackSpinBlock system, siteblock;
+    bool forward = true, restart=false, warmUp = false;
+    int forward_starting_size=1, backward_starting_size=0, restartSize =0;
+    InitBlocks::InitStartingBlock(system, forward, statea, stateb, forward_starting_size, backward_starting_size, restartSize, restart, warmUp, integralIndex, contracted_quanta, contracted_quanta); 
+
+    p2out << system<<endl;
+
+    std::vector<Matrix> Rotationa, Rotationb;
+    /*
+    int sysquanta = system.get_stateInfo().quanta.size();
+    if (mpigetrank() == 0) {
+      Rotationa = statea.getSiteTensors(0);
+      Rotationb = stateb.getSiteTensors(0);
+      Rotationa.resize(sysquanta);
+      Rotationb.resize(sysquanta);
+    }
+
+#ifndef SERIAL
+    mpi::communicator world;
+    mpi::broadcast(world, Rotationa, 0);
+    mpi::broadcast(world, Rotationb, 0);
+#endif
+
+    system.transform_operators(const_cast<std::vector<Matrix>&>(Rotationa), 
+			       const_cast<std::vector<Matrix>&>(Rotationb));
+    */
+    int sys_add = true; bool direct = true; 
+
+
+    std::vector<int> rotSites(2,0);
+    int sweepIters = dmrginp.spinAdapted() ? dmrginp.last_site() -2 : dmrginp.last_site()/2-2;
+    int normToComp = sweepIters/2;
+
+    for (int i=0; i<sweepIters-1; i++) {
+      pout << i<<" out of "<<sweepIters-1<<"  ";
+      StackSpinBlock newSystem;
+      if (i>=normToComp && !system.has(CRE_DESCOMP))
+	system.addAllCompOps();
+      system.addAdditionalOps();
+
+      StackSpinBlock dotsite(i+1, i+1, integralIndex, true);
+      if (mpigetrank() == 0) {
+	rotSites[1] = i+1;
+	LoadRotationMatrix(rotSites, Rotationa, statea);
+	LoadRotationMatrix(rotSites, Rotationb, stateb);
+	//Rotationa = statea.getSiteTensors(i+1);
+	//Rotationb = stateb.getSiteTensors(i+1);
+      }
+
+#ifndef SERIAL
+      mpi::communicator world;
+      mpi::broadcast(calc, Rotationa, 0);
+      mpi::broadcast(calc, Rotationb, 0);
+#endif
+      if (i <normToComp)  {
+	pout << "norm ops "<<endl;
+	InitBlocks::InitNewSystemBlock(system, dotsite, newSystem, statea, stateb, sys_add, direct, integralIndex, DISTRIBUTED_STORAGE, true, false, NO_PARTICLE_SPIN_NUMBER_CONSTRAINT, contracted_quanta, contracted_quanta);
+      }
+      else {
+	pout << "comp ops "<<endl;
+	InitBlocks::InitNewSystemBlock(system, dotsite, newSystem, statea, stateb, sys_add, direct, integralIndex, DISTRIBUTED_STORAGE, false, true, NO_PARTICLE_SPIN_NUMBER_CONSTRAINT, contracted_quanta, contracted_quanta);
+      }
+      newSystem.transform_operators(const_cast<std::vector<Matrix>&>(Rotationa), 
+				    const_cast<std::vector<Matrix>&>(Rotationb));
+      {
+	long memoryToFree = newSystem.getdata() - system.getdata();
+	long newsysmem = newSystem.memoryUsed();
+	newSystem.moveToNewMemory(system.getdata());
+	Stackmem[omprank].deallocate(newSystem.getdata()+newsysmem, memoryToFree);
+      }
+      system = newSystem;
+    }
+
+    StackSpinBlock newSystem, big;
+    StackSpinBlock dotsite1(sweepIters, sweepIters, integralIndex, true);
+    StackSpinBlock dotsite2(sweepIters+1, sweepIters+1, integralIndex, true);
+
+    //For molecule has at most 4 orbitals, there is at most one iteration.
+    //System does not have CompOps.
+	  system.addAllCompOps();
+
+    system.addAdditionalOps();
+    InitBlocks::InitNewSystemBlock(system, dotsite1, newSystem, statea, stateb, sys_add, direct, integralIndex, DISTRIBUTED_STORAGE, false, true, NO_PARTICLE_SPIN_NUMBER_CONSTRAINT, contracted_quanta, contracted_quanta);
+    
+    
+    newSystem.set_loopblock(false); system.set_loopblock(false);
+    InitBlocks::InitBigBlock(newSystem, dotsite2, big, contracted_quanta, contracted_quanta); 
+    
+    StackWavefunction stateaw, statebw;
+    StateInfo s;
+
+    rotSites[1] += 1;
+    stateaw.LoadWavefunctionInfo(s, rotSites, statea, true);
+    statebw.LoadWavefunctionInfo(s, rotSites, stateb, true);
+
+#ifndef SERIAL
+    mpi::broadcast(calc, stateaw, 0);
+    mpi::broadcast(calc, statebw, 0);
+#endif
+    if (mpigetrank() != 0) {
+      double* dataa = Stackmem[omprank].allocate(stateaw.memoryUsed());
+      stateaw.set_data(dataa);
+      stateaw.allocateOperatorMatrix();
+      double* datab = Stackmem[omprank].allocate(statebw.memoryUsed());
+      statebw.set_data(datab);
+      statebw.allocateOperatorMatrix();
+    }
+#ifndef SERIAL
+    calc.barrier();
+    MPI_Bcast(stateaw.get_data(), stateaw.memoryUsed(), MPI_DOUBLE, 0, Calc);
+    MPI_Bcast(statebw.get_data(), statebw.memoryUsed(), MPI_DOUBLE, 0, Calc);
+#endif
+
+    StackWavefunction temp; temp.initialise(stateaw);
+    temp.Clear();
+    
+
+    big.multiplyH_2index(statebw, &temp, 1);
+
+    if (mpigetrank() == 0)
+      h = DotProduct(stateaw, temp);
+
+    temp.Clear();
+
+    big.multiplyOverlap(statebw, &temp, 1);
+    if (mpigetrank() == 0)
+      o = DotProduct(stateaw, temp);
+
+#ifndef SERIAL
+      mpi::communicator world;
+    mpi::broadcast(calc, h, 0);
+    mpi::broadcast(calc, o, 0);
+#endif
+    temp.deallocate();
+    statebw.deallocate();
+    stateaw.deallocate();
+
+    return;
+  }
+
+/*
+void SpinAdapted::mps_nevpt::type1::calcHamiltonianAndOverlap(const MPS& statea, double& h, double& o, perturber& pb) {
 #ifndef SERIAL
   mpi::communicator world;
 #endif
@@ -681,7 +827,7 @@ void SpinAdapted::mps_nevpt::type1::calcHamiltonianAndOverlap(const MPS& statea,
 
     //newSystem.transform_operators(const_cast<std::vector<Matrix>&>(statea.getSiteTensors(i+1)));
     newSystem.transform_operators(const_cast<std::vector<Matrix>&>(statea.getSiteTensors(i+1)), 
-      			    const_cast<std::vector<Matrix>&>(statea.getSiteTensors(i+1)),false);
+      			    const_cast<std::vector<Matrix>&>(statea.getSiteTensors(i+1)), false);
     //newSystem.transform_operators(const_cast<std::vector<Matrix>&>(statea.getSiteTensors(i+1)), 
     //  			    const_cast<std::vector<Matrix>&>(statea.getSiteTensors(i+1)), false );
 
@@ -756,6 +902,7 @@ void SpinAdapted::mps_nevpt::type1::calcHamiltonianAndOverlap(const MPS& statea,
   return;
 }
 
+*/
 
 void SpinAdapted::mps_nevpt::type1::Startup(const SweepParams &sweepParams, const bool &forward, perturber& pb, int baseState) {
 
@@ -909,5 +1056,4 @@ void SpinAdapted::mps_nevpt::type1::Startup(const SweepParams &sweepParams, cons
   //TODO
   //It seems that there is no need to do Last Step of Sweep.
 }
-
 

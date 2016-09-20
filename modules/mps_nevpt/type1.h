@@ -22,7 +22,8 @@ namespace SpinAdapted{
 
       void subspace_Vi(int baseState);
 
-      void calcHamiltonianAndOverlap(const MPS& statea, double& h, double& o, perturber& pb);
+      void calcHamiltonianAndOverlap(int statea, int stateb, double& h, double& o,  const vector<SpinQuantum>& contracted_quanta, int integralIndex=0) ;
+      //void calcHamiltonianAndOverlap(const MPS& statea, double& h, double& o, perturber& pb);
     }
   }
 }

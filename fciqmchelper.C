@@ -466,6 +466,10 @@ namespace SpinAdapted{
     StackSpinBlock dotsite1(sweepIters, sweepIters, 0, false);
     StackSpinBlock dotsite2(sweepIters+1, sweepIters+1, 0, false);
 
+    //For molecule has at most 4 orbitals, there is at most one iteration.
+    //System does not have CompOps.
+	  system.addAllCompOps();
+
 
     system.addAdditionalOps();
     InitBlocks::InitNewSystemBlock(system, dotsite1, newSystem, 0, statebindex, sys_add, direct, 0, DISTRIBUTED_STORAGE, false, true);
