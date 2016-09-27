@@ -53,8 +53,7 @@ namespace SpinAdapted {
   template<> long StackOp_component<StackCDD_CreDesComp>::build_iterators(StackSpinBlock& b, bool calcMem)
     {
       if (b.get_sites().size () == 0) return 0 ; // blank construction (used in unset_initialised() Block copy construction, for use with STL)
-      double screen_tol = dmrginp.oneindex_screen_tol();
-    //screen_tol = 0.0;
+      const double screen_tol = dmrginp.oneindex_screen_tol();
       std::vector<int> screened_d_ix = screened_cdd_d_indices(b.get_complementary_sites(), b.get_sites(), b.nonactive_orb()[0], vpt_1, vpt_2[Va], screen_tol);
       m_op.set_indices(screened_d_ix, dmrginp.last_site());      
       std::vector<int> orbs(1);
@@ -118,7 +117,7 @@ namespace SpinAdapted {
   template<> long StackOp_component<StackCDD_DesDesComp>::build_iterators(StackSpinBlock& b, bool calcMem)
   {
     if (b.get_sites().size () == 0) return 0; // blank construction (used in unset_initialised() Block copy construction, for use with STL)
-    double screen_tol = dmrginp.oneindex_screen_tol();
+    const double screen_tol = dmrginp.oneindex_screen_tol();
     //screen_tol = 0.0;
     std::vector<int> screened_c_ix = screened_cdd_c_indices(b.get_complementary_sites(), b.get_sites(), b.nonactive_orb()[0], vpt_1, vpt_2[Va], screen_tol);
     m_op.set_indices(screened_c_ix, dmrginp.last_site());      
@@ -215,6 +214,7 @@ namespace SpinAdapted {
       if (b.get_sites().size () == 0) return 0; // blank construction (used in unset_initialised() Block copy construction, for use with STL)
       const double screen_tol = dmrginp.oneindex_screen_tol();
       std::vector<int> screened_c_ix = screened_ccd_c_indices(b.get_complementary_sites(), b.get_sites(), b.nonactive_orb()[0], vpt_1, vpt_2[Vi], screen_tol);
+
       m_op.set_indices(screened_c_ix, dmrginp.last_site());      
       std::vector<int> orbs(1);
       long requiredMemory = 0;
@@ -271,7 +271,7 @@ namespace SpinAdapted {
 
   // -------------------- CCD_CreCrecomp_ ---------------------------  
   template<> string StackOp_component<StackCCD_CreCreComp>::get_op_string() const {
-    return "CCD_DesDES_COMP";
+    return "CCD_CRECRE_COMP";
   }
   template<> long StackOp_component<StackCCD_CreCreComp>::build_iterators(StackSpinBlock& b, bool calcMem)
   {
