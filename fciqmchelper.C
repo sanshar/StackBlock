@@ -443,7 +443,7 @@ namespace SpinAdapted{
       mpi::broadcast(calc, Rotationa, 0);
       mpi::broadcast(calc, Rotationb, 0);
 #endif
-      if (i <normToComp)  {
+      if (i <normToComp )  {
 	pout << "norm ops "<<endl;
 	InitBlocks::InitNewSystemBlock(system, dotsite, newSystem, 0, statebindex, sys_add, direct, integralIndex, DISTRIBUTED_STORAGE, true, false);
       }
@@ -466,6 +466,9 @@ namespace SpinAdapted{
     StackSpinBlock dotsite1(sweepIters, sweepIters, integralIndex, false);
     StackSpinBlock dotsite2(sweepIters+1, sweepIters+1, integralIndex, false);
 
+    //For molecule has at most 4 orbitals, there is at most one iteration.
+    //System does not have CompOps.
+	  system.addAllCompOps();
 
     system.addAdditionalOps();
     InitBlocks::InitNewSystemBlock(system, dotsite1, newSystem, 0, statebindex, sys_add, direct, integralIndex, DISTRIBUTED_STORAGE, false, true);

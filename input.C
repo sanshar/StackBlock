@@ -1274,6 +1274,8 @@ SpinAdapted::Input::Input(const string& config_name) {
   mpi::broadcast(world, m_calc_type, 0);
   mpi::broadcast(world, m_calc_procs, 0);
   mpi::broadcast(world, m_baseState, 0);
+  mpi::broadcast(world, m_useSharedMemory, 0);
+ 
 #endif
 
   //make the scratch files
