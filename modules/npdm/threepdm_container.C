@@ -85,8 +85,7 @@ void Threepdm_container::save_npdms(const int& i, const int& j, int integralInde
   }
   if ( !dmrginp.spatpdm_disk_dump() ) {
     accumulate_spatial_npdm();
-    if (spatial_threepdm.dim1() <= 20 )
-      save_spatial_npdm_text(i, j, integralIndex);
+    save_spatial_npdm_text(i, j, integralIndex);
   }
   save_spatial_npdm_binary(i, j);
 
