@@ -490,6 +490,18 @@ int calldmrg(char* input, char* output)
   else if (dmrginp.calc_type() == TINYCALC) {
     Sweep::tiny(sweep_tol);
   }
+  else if (dmrginp.calc_type() == RESTART_ONEPDM) {
+    Npdm::npdm(NPDM_ONEPDM);
+  }
+  else if (dmrginp.calc_type() == RESTART_T_ONEPDM) {
+    Npdm::npdm(NPDM_ONEPDM,true);
+  }
+  else if (dmrginp.calc_type() == RESTART_TWOPDM) {
+    Npdm::npdm(NPDM_TWOPDM);
+  }
+  else if (dmrginp.calc_type() == RESTART_T_TWOPDM) {
+    Npdm::npdm(NPDM_TWOPDM,true);
+  }
   else if (dmrginp.calc_type() == RESTART_THREEPDM) {
     Npdm::npdm(NPDM_THREEPDM);
   }

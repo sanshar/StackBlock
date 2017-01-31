@@ -878,6 +878,26 @@ void StackSpinBlock::BuildSumBlock(int condition, StackSpinBlock& lBlock, StackS
   }
   dmrginp.buildsumblock -> start();
   BuildSumBlockSkeleton(condition, lBlock, rBlock, collectQuanta, compState);
+  //To reduced the number of operators in onepdm calculation, two index operators are removed. However, they are still needed for single orbital sites.
+  //For the sum block built from dummy sites (singlet embedding), there are no two index operators.
+  if(dmrginp.do_npdm_ops() && (dmrginp.calc_type() == RESTART_ONEPDM || dmrginp.calc_type() == ONEPDM))
+    if(sites.size()==1)
+    {
+      if (!is_direct()) {
+        ops[CRE_DES] = make_new_stackop(CRE_DES, true);
+        ops[CRE_CRE] = make_new_stackop(CRE_CRE, true);
+        ops[DES_CRE] = make_new_stackop(DES_CRE, true);
+        ops[DES_DES] = make_new_stackop(DES_DES, true);
+      }
+      else
+      {
+        ops[CRE_DES] = make_new_stackop(CRE_DES, false);
+        ops[CRE_CRE] = make_new_stackop(CRE_CRE, false);
+        ops[DES_CRE] = make_new_stackop(DES_CRE, false);
+        ops[DES_DES] = make_new_stackop(DES_DES, false);
+
+      }
+    }
 
   totalMemory = build_iterators();
   if (totalMemory != 0)

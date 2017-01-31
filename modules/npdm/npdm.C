@@ -143,8 +143,11 @@ void npdm_block_and_decimate( Npdm_driver_base& npdm_driver, SweepParams &sweepP
     tracedMatrixB.makedensitymatrix(solution[1], big, 1.0);
     rotateMatrixB.clear();
     if (!mpigetrank()){
-      double error = makeRotateMatrix(tracedMatrix, rotateMatrix, sweepParams.get_keep_states(), sweepParams.get_keep_qstates());
-      error = makeRotateMatrix(tracedMatrixB, rotateMatrixB, sweepParams.get_keep_states(), sweepParams.get_keep_qstates());
+      double error = makeRotateMatrix(tracedMatrixB, rotateMatrixB, sweepParams.get_keep_states(), sweepParams.get_keep_qstates());
+      if (dmrginp.bra_M() == 0)
+        error = makeRotateMatrix(tracedMatrix, rotateMatrix, sweepParams.get_keep_states(), sweepParams.get_keep_qstates());
+      else
+        error = makeRotateMatrix(tracedMatrix, rotateMatrix, dmrginp.bra_M(), sweepParams.get_keep_qstates());
     }
     tracedMatrixB.deallocate();
     tracedMatrix.deallocate();
@@ -408,6 +411,38 @@ void npdm(NpdmOrder npdm_order, bool transitionpdm)
     //else if (npdm_order == NPDM_PAIRMATRIX) npdm_driver = boost::shared_ptr<Npdm_driver_base>( new Pairpdm_driver( dmrginp.last_site() ) );
     else abort();
     }
+  }
+
+  if (dmrginp.specificpdm().size()!=0)
+  {
+    Timer timer;
+    dmrginp.set_fullrestart() = true;
+    sweepParams = sweep_copy; direction = direction_copy; restartsize = restartsize_copy;
+	  dmrginp.npdm_generate() = true;
+    if (dmrginp.specificpdm().size()==1)
+      SweepGenblock::do_one(sweepParams, false, !direction, false, 0, dmrginp.specificpdm()[0], dmrginp.specificpdm()[0]); //this will generate the cd operators                               
+    else if (dmrginp.specificpdm().size()==2)
+      SweepGenblock::do_one(sweepParams, false, !direction, false, 0, dmrginp.specificpdm()[0], dmrginp.specificpdm()[1]); //this will generate the cd operators                               
+    else 
+      abort();
+		dmrginp.npdm_generate() = false;
+    double ecpu = timer.elapsedcputime();
+    double ewall=timer.elapsedwalltime();
+    p3out << "\t\t\t NPDM SweepGenblock time " << ewall << " " << ecpu << endl;
+    dmrginp.set_fullrestart() = false;
+
+    sweepParams = sweep_copy; direction = direction_copy; restartsize = restartsize_copy;
+    Timer timerX;
+    npdm_driver->clear();
+    if (dmrginp.specificpdm().size()==1)
+      npdm_do_one_sweep(*npdm_driver, sweepParams, false, direction, false, 0,dmrginp.specificpdm()[0],dmrginp.specificpdm()[0]);
+    else if (dmrginp.specificpdm().size()==2)
+      npdm_do_one_sweep(*npdm_driver, sweepParams, false, direction, false, 0,dmrginp.specificpdm()[0],dmrginp.specificpdm()[1]);
+    else
+      abort();
+    ecpu = timerX.elapsedcputime();ewall=timerX.elapsedwalltime();
+    p3out << "\t\t\t NPDM sweep time " << ewall << " " << ecpu << endl;
+    return;
   }
 
 
