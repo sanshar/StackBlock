@@ -160,8 +160,8 @@ void block_calldmrg (
         break;
       case 3:
         fcon << "threepdm" << endl;
-        fcon << "disk_dump_pdm" << endl;
-        fcon << "npdm_no_intermediate" << endl; // FIXME: this is temporary fix to avoid failure in multi-node/disk run...
+//        fcon << "disk_dump_pdm" << endl;
+//        fcon << "npdm_no_intermediate" << endl; // FIXME: this is temporary fix to avoid failure in multi-node/disk run...
         break;
       case 4:
         fcon << "fourpdm" << endl;
