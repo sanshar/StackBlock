@@ -9,6 +9,7 @@
 #include "boost/variant.hpp"
 #include "sweep_params.h"
 #include <newmat.h>
+#include "perturb.h"
 
 
 namespace SpinAdapted{
@@ -53,6 +54,11 @@ class StackSpinBlock
 
       ar.register_type(static_cast<StackOp_component<StackHam> *>(NULL));
       ar.register_type(static_cast<StackOp_component<StackOverlap> *>(NULL));
+      ar.register_type(static_cast<StackOp_component<StackCDD_CreDesComp> *>(NULL));
+      ar.register_type(static_cast<StackOp_component<StackCDD_DesDesComp> *>(NULL));
+      ar.register_type(static_cast<StackOp_component<StackCCD_sum> *>(NULL));
+      ar.register_type(static_cast<StackOp_component<StackCCD_CreDesComp> *>(NULL));
+      ar.register_type(static_cast<StackOp_component<StackCCD_CreCreComp> *>(NULL));
 
       ar & ops;
     }
@@ -75,6 +81,7 @@ class StackSpinBlock
   StateInfo ketStateInfo;
   std::vector<int> sites;
   std::vector<int> complementary_sites;
+  std::vector<int> nonactive_orbs;
   long totalMemory;
   double* data;
   long additionalMemory;
@@ -91,6 +98,7 @@ class StackSpinBlock
 
   //can only be called after the data has been initialized
   StackSpinBlock (int start, int finish, int integralIndex, bool implicitTranspose, bool is_complement = false);
+  StackSpinBlock (int start, int finish, int integralIndex, std::vector<int> non_active_orbs, bool implicitTranspose, bool is_complement = false);
 
 
 
@@ -103,6 +111,7 @@ class StackSpinBlock
   //These functions decide what operators are to be built and stored in memory
   void default_op_components(bool complementary_, bool implicitTranspose);
   void default_op_components(bool direct, bool haveNormops, bool haveCompops, bool implicitTranspose);
+  void nevpt_op_components(bool direct, StackSpinBlock& lBlock, StackSpinBlock& rBlock, const perturber& pb);
   void setstoragetype(Storagetype st);
   void set_big_components();
   void initialise_op_array(opTypes optype, bool is_core);
@@ -143,6 +152,10 @@ class StackSpinBlock
   bool getlocalstorage() const {return localstorage;}
   StackSpinBlock* get_leftBlock() const {return leftBlock;}
   StackSpinBlock* get_rightBlock() const {return rightBlock;}
+  const vector<int>& nonactive_orb() const { return nonactive_orbs;}
+  vector<int>& nonactive_orb() { return nonactive_orbs;}
+  const int& nonactive_orb(int i) const { return nonactive_orbs[i];}
+  int& nonactive_orb(int i) { return nonactive_orbs[i];}
 
   //related to retriving information from oparray
   void CleanUpOperators();
@@ -206,7 +219,9 @@ class StackSpinBlock
   void renormalise_transform(const std::vector<Matrix>& leftMat, const StateInfo *bra, const std::vector<Matrix>& rightMat, const StateInfo *ket);
 
   void BuildSumBlock(int condition, StackSpinBlock& b_1, StackSpinBlock& b_2, bool collectQuanta = true, StateInfo* compState=0);
+  void BuildSumBlock(int condition, StackSpinBlock& lBlock, StackSpinBlock& rBlock, const std::vector<SpinQuantum>& braquantum, const std::vector<SpinQuantum>& ketquantum, bool collectQuanta= true);
   void BuildSumBlockSkeleton(int condition, StackSpinBlock& lBlock, StackSpinBlock& rBlock, bool collectQuanta = true, StateInfo* compState=0);
+  void BuildSumBlockSkeleton(int condition, StackSpinBlock& lBlock, StackSpinBlock& rBlock, const std::vector<SpinQuantum>& braquantum, const std::vector<SpinQuantum>& ketquantum, bool collectQuanta= true);
   void BuildSlaterBlock (std::vector<int> sts, std::vector<SpinQuantum> qnumbers, std::vector<int> distribution, bool random, 
 			 const bool haveNormops);
   void BuildSingleSlaterBlock(std::vector<int> sts);
@@ -215,6 +230,8 @@ class StackSpinBlock
   void multiplyH(StackWavefunction& c, StackWavefunction* v, int num_threads) const;
   void multiplyH_2index(StackWavefunction& c, StackWavefunction* v, int num_threads) const;
   void multiplyOverlap(StackWavefunction& c, StackWavefunction* v, int num_threads) const;
+  void multiplyCDD_sum(StackWavefunction& c, StackWavefunction* v, int num_threads) const;
+  void multiplyCCD_sum(StackWavefunction& c, StackWavefunction* v, int num_threads) const;
   void diagonalH(DiagonalMatrix& e) const;
   void clear();
 

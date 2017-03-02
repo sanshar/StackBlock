@@ -14,6 +14,7 @@ namespace SpinAdapted{
   int MPS::sweepIters ;
   bool MPS::spinAdapted ;
   std::vector<StackSpinBlock> MPS::siteBlocks;
+  std::vector<StackSpinBlock> MPS::siteBlocks_noDES;
 
 
   //assumes that the state has been canonicalized in the left canonical form already and stored on disk

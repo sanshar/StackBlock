@@ -57,6 +57,7 @@ Sandeep Sharma and Garnet K.-L. Chan
 #include "Stackdensity.h"
 #include "initblocks.h"
 #include <boost/filesystem.hpp>
+#include "mps_nevpt.h"
 
 #ifdef USE_BTAS
 void calculateOverlap();
@@ -91,6 +92,8 @@ namespace SpinAdapted{
   double BWPTenergy = 0.0;
   std::vector<OneElectronArray> v_1;
   std::vector<TwoElectronArray> v_2;
+  std::map<TwoPerturbType,PerturbTwoElectronArray> vpt_2;
+  OneElectronArray vpt_1;
   std::vector<PairArray> v_cc;
   std::vector<CCCCArray> v_cccc;
   std::vector<CCCDArray> v_cccd;
@@ -508,6 +511,9 @@ int calldmrg(char* input, char* output)
   else if (dmrginp.calc_type() == RESTART_T_THREEPDM) {
     Npdm::npdm(NPDM_THREEPDM,true);
   }
+  else if (dmrginp.calc_type() == MPS_NEVPT || dmrginp.calc_type() == RESTART_MPS_NEVPT){
+    mps_nevpt::mps_nevpt(sweep_tol);
+  }
   else {
     pout << "Invalid calculation types" << endl; abort();
   }
@@ -588,6 +594,12 @@ int calldmrg(char* input, char* output)
   sleepBarrier(world, 0, 10);
   MPI_Comm_free(&Calc);
   sched_setaffinity(0, sizeof(oldmask), oldmask);
+#endif
+
+#ifdef SERIAL
+  //Memory for integral was allocated by new[].
+  if(dmrginp.calc_type() == MPS_NEVPT)
+    delete[] v_1[0].set_data();
 #endif
 
   return 0;

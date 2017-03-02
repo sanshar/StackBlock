@@ -25,6 +25,8 @@ namespace SpinAdapted{
 class StackSpinBlock;
 class OneElectronArray;
 class TwoElectronArray;
+class TwoElectronArray;
+class PerturbTwoElectronArray;
 class PairArray;
 class CCCCArray;
 class CCCDArray;
@@ -162,6 +164,15 @@ class Input {
   std::vector<int> m_spatial_to_spin;
   std::vector<int> m_spin_to_spatial;
 
+  int m_act_size;
+  int m_core_size;
+  int m_virt_size;
+  int m_total_orbs;
+  int m_nevpt_state_num;
+  std::vector<int> m_total_spin_orbs_symmetry;
+  std::vector<int> m_total_spatial_to_spin;
+  std::vector<int> m_total_spin_to_spatial;
+
   int m_outputlevel;
   orbitalFormat m_orbformat;
 
@@ -199,6 +210,7 @@ class Input {
     ar & m_spatial_to_spin & m_spin_to_spatial & m_maxM & m_bra_M & m_schedule_type_backward & m_schedule_type_default &m_integral_disk_storage_thresh;
     ar & n_twodot_noise & m_twodot_noise & m_twodot_gamma & m_guessState & m_useSharedMemory ;
     ar & m_calc_ri_4pdm & m_store_ripdm_readable & m_nevpt2 & m_conventional_nevpt2 & m_kept_nevpt2_states & NevPrint;
+    ar & m_act_size & m_core_size & m_virt_size & m_total_orbs & m_total_spin_orbs_symmetry & m_total_spatial_to_spin & m_total_spin_to_spatial;
   }
 
 
@@ -277,12 +289,14 @@ class Input {
   void generateDefaultSchedule();
   void readorbitalsfile(string& dumpFile, OneElectronArray& v1, TwoElectronArray& v2, double& coreEnergy, int integralIndex);
   void readorbitalsfile(string& dumpFile, OneElectronArray& v1, TwoElectronArray& v2, double& coreEnergy, PairArray& vcc, CCCCArray& vcccc, CCCDArray& vcccd, int integralIndex);  
+  void readorbitalsfile(string& orbitalfile,OneElectronArray& v1, TwoElectronArray& v2, OneElectronArray& vpt1, std::map<TwoPerturbType,PerturbTwoElectronArray>& vpt2, double& coreEnergy);
   int getNumIntegrals() { return m_num_Integrals;}
   void readreorderfile(ifstream& dumpFile, std::vector<int>& reorder);
   bool& performResponseSolution() {return m_performResponseSolution;}
   std::vector<int> getgaorder(ifstream& gaconfFile, string& orbitalfile, std::vector<int>& fiedlerorder);
   std::vector<int> getgaorder_bcs(ifstream& gaconfFile, string& orbitalfile, std::vector<int>& fiedlerorder);
   std::vector<int> get_fiedler(string& dumpname);
+  std::vector<int> get_fiedler_nevpt(string& dumpname, int nact);
   std::vector<int> get_fiedler_bcs(string& dumpname);  
   void usedkey_error(string& key, string& line);
   void makeInitialHFGuess();
@@ -438,9 +452,19 @@ class Input {
   int last_site() const 
   { 
     if(m_spinAdapted) 
-      return m_num_spatial_orbs; 
+    {
+      if(m_calc_type == MPS_NEVPT)
+        return m_act_size;
+      else
+        return m_num_spatial_orbs; 
+    }
     else 
-      return 2*m_num_spatial_orbs; 
+    {
+      if(m_calc_type == MPS_NEVPT)
+        return 2*m_act_size;
+      else
+        return 2*m_num_spatial_orbs; 
+    }
   }
   const bool &no_transform() const { return m_no_transform; }
   const int &deflation_min_size() const { return m_deflation_min_size; }
@@ -532,6 +556,11 @@ class Input {
   bool &store_nonredundant_pdm() { return m_store_nonredundant_pdm;}
   int slater_size() const {return m_norbs;}
   const std::vector<int> &reorder_vector() {return m_reorder;}
+  const int &act_size() const { return m_act_size;}
+  const int &core_size() const { return m_core_size;}
+  const int &virt_size() const { return m_virt_size;}
+  const int &total_size() const { return m_total_orbs;}
+  const int &nevpt_state_num() const {return m_nevpt_state_num;}
   bool spinAdapted() {return m_spinAdapted;}
   bool &npdm_intermediate() { return m_npdm_intermediate; }
   const bool &npdm_intermediate() const { return m_npdm_intermediate; }

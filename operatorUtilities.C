@@ -412,6 +412,153 @@ double SpinAdapted::StackSparseMatrix::calcCompfactor(TensorOp& op1, TensorOp& o
   return factor;
 }
 
+double SpinAdapted::StackSparseMatrix::calcCompfactor(TensorOp& op1, TensorOp& op2, CompType comp, const PerturbTwoElectronArray& v_2, int integralIndex)
+{
+  double factor = 0.0;
+  vector<double>& iSz1 = op1.Szops[0];
+  bool found = false;
+  for (int ilz2=0; ilz2 <op2.rows; ilz2++) 
+  for (int sz2=-op2.Spin; sz2< (dmrginp.spinAdapted() ? op2.Spin+1 : -op2.Spin+1); sz2+=2) {
+    if (found) break;
+    
+    int ilz1 = 0;
+
+    int sz2index = dmrginp.spinAdapted() ? ilz2*(op2.Spin+1)+(-sz2+op2.Spin)/2 : 0;
+    std::vector<double>&  iSz2 = op2.Szops[sz2index];
+    
+    double cleb = clebsch(op1.Spin, op1.Spin, op2.Spin, sz2, 0, 0);
+
+    cleb *= Symmetry::spatial_cg(op1.irrep, op2.irrep, 0, ilz1, ilz2, 0);
+    if (fabs(cleb) <= 1.0e-14)
+      continue;
+    else 
+      found = true;
+    int i1, i2;
+
+    for (i1=0; i1<iSz1.size(); i1++)
+      for (i2 =0; i2<iSz2.size(); i2++) {
+	vector<int>& Ind1 = op1.opindices[i1], Ind2 = op2.opindices[i2]; 
+	if (comp == CDD_CD) {
+	  factor += (v_2(Ind1[0], Ind2[0], Ind1[1], Ind2[1])-v_2(Ind1[0], Ind2[0], Ind2[1], Ind1[1]) )*iSz1.at(i1)*iSz2.at(i2)/cleb;
+	  //factor +=  (v_2(Ind1[0], Ind2[0], Ind1[1], Ind2[1])- v_2(Ind1[0], Ind2[0], Ind2[1], Ind1[1]))*iSz1.at(i1)*iSz2.at(i2)/cleb;
+	}
+  else if (comp == CCD_CD){
+	  factor += (v_2(Ind2[0], Ind1[0], Ind2[1], Ind1[1])-v_2(Ind1[0], Ind2[0], Ind2[1], Ind1[1]))*iSz1.at(i1)*iSz2.at(i2)/cleb;
+  }
+	else if (comp == DD) {
+	  //factor += 0.5*v_2(Ind1[0], Ind1[1], Ind2[1], Ind2[0])*iSz1.at(i1)*iSz2.at(i2)/cleb;	  
+	  factor += v_2(Ind1[0], Ind1[1], Ind2[1], Ind2[0])*iSz1.at(i1)*iSz2.at(i2)/cleb;	  
+	}
+  else if (comp == CDD) {
+	  //factor += v_2(Ind1[0], Ind2[0], Ind2[2], Ind2[1])*iSz1.at(i1)*iSz2.at(i2)/cleb;	  
+	  factor += (v_2(Ind1[0], Ind2[0], Ind2[2], Ind2[1]))*iSz1.at(i1)*iSz2.at(i2)/cleb;	  
+  }
+  else if (comp == CCD) {
+	  //factor += v_2(Ind1[0], Ind2[0], Ind2[2], Ind2[1])*iSz1.at(i1)*iSz2.at(i2)/cleb;	  
+	  factor += (v_2(Ind1[0], Ind1[1], Ind2[0], Ind1[2]))*iSz1.at(i1)*iSz2.at(i2)/cleb;	  
+  }
+	else {
+          assert(false);
+        }
+      }
+  }
+  return factor;
+}
+
+
+double SpinAdapted::StackSparseMatrix::calcCompfactor(TensorOp& op1, TensorOp& op2, CompType comp, int op2index, const PerturbTwoElectronArray& v_2, int integralIndex)
+{
+  if(!dmrginp.spinAdapted())
+    return calcCompfactor(op1, op2, comp, v_2, integralIndex);
+  double factor = 0.0;
+  vector<double>& iSz2 = op2.Szops[op2index];
+  bool found = false;
+  for (int ilz1=0; ilz1 <op1.rows; ilz1++)	
+  for (int sz1=-op1.Spin; sz1< op1.Spin+1; sz1+=2) {
+    if (found) break;
+    
+    int ilz2 = op2index/(op2.Spin+1);
+    int sz2index = (op2index - ilz2*(op2.Spin+1)), sz2 = op2.Spin - 2*sz2index;
+    std::vector<double>&  iSz1 = op1.Szops[ilz1*(op1.Spin+1)+(-sz1+op1.Spin)/2];
+    
+    //double cleb = cleb_(op1.Spin, sz1, op2.Spin, sz2, 0, 0);
+    double cleb = clebsch(op1.Spin, sz1, op2.Spin, sz2, 0, 0);
+    cleb *= Symmetry::spatial_cg(op1.irrep, op2.irrep, 0, ilz1, ilz2, 0);
+    if (fabs(cleb) <= 1.0e-14)
+      continue;
+    else 
+      found = true;
+    int i1, i2;
+
+    for (i1=0; i1<iSz1.size(); i1++)
+      for (i2 =0; i2<iSz2.size(); i2++) {
+	vector<int>& Ind1 = op1.opindices[i1], Ind2 = op2.opindices[i2]; 
+	if (comp == CDD_CD) {
+	  //factor += 0.5*(-v_2(Ind1[0], Ind2[0], Ind2[1], Ind1[1])  
+	  //  		  + v_2(Ind1[0], Ind2[0], Ind1[1], Ind2[1]))*iSz1.at(i1)*iSz2.at(i2)/cleb;
+	  factor +=  (v_2(Ind1[0], Ind2[0], Ind1[1], Ind2[1])-v_2(Ind1[0], Ind2[0], Ind2[1], Ind1[1])) *iSz1.at(i1)*iSz2.at(i2)/cleb;
+	}
+  else if (comp == CCD_CD){
+	  factor += (v_2(Ind2[0], Ind1[0], Ind2[1], Ind1[1])-v_2(Ind1[0], Ind2[0], Ind2[1], Ind1[1]))*iSz1.at(i1)*iSz2.at(i2)/cleb;
+  }
+	else if (comp == DD) {
+	  //factor += 0.5*v_2(Ind1[0], Ind1[1], Ind2[1], Ind2[0])*iSz1.at(i1)*iSz2.at(i2)/cleb;	  
+	  factor += v_2(Ind1[0], Ind1[1], Ind2[1], Ind2[0])*iSz1.at(i1)*iSz2.at(i2)/cleb;	  
+	}
+  else if (comp == CDD) {
+	  factor += v_2(Ind1[0], Ind2[0], Ind2[2], Ind2[1])*iSz1.at(i1)*iSz2.at(i2)/cleb;	  
+  }
+  else if (comp == CCD) {
+	  //factor += v_2(Ind1[0], Ind2[0], Ind2[2], Ind2[1])*iSz1.at(i1)*iSz2.at(i2)/cleb;	  
+	  factor += (v_2(Ind1[0], Ind1[1], Ind2[0], Ind1[2]))*iSz1.at(i1)*iSz2.at(i2)/cleb;	  
+  }
+	else {
+          assert(false);
+        }
+      }
+  }
+  return factor;
+}
+
+double SpinAdapted::StackSparseMatrix::calcCompfactor(TensorOp& op1, TensorOp& op2, CompType comp, const OneElectronArray& v_1, int integralIndex)
+{
+  double factor = 0.0;
+  vector<double>& iSz1 = op1.Szops[0];
+  bool found = false;
+  for (int ilz2=0; ilz2 <op2.rows; ilz2++) 
+  for (int sz2=-op2.Spin; sz2< (dmrginp.spinAdapted() ? op2.Spin+1 : -op2.Spin+1); sz2+=2) {
+    if (found) break;
+    
+    int ilz1 = 0;
+
+    int sz2index = dmrginp.spinAdapted() ? ilz2*(op2.Spin+1)+(-sz2+op2.Spin)/2 : 0;
+    std::vector<double>&  iSz2 = op2.Szops[sz2index];
+    
+    double cleb = clebsch(op1.Spin, op1.Spin, op2.Spin, sz2, 0, 0);
+
+    cleb *= Symmetry::spatial_cg(op1.irrep, op2.irrep, 0, ilz1, ilz2, 0);
+    if (fabs(cleb) <= 1.0e-14)
+      continue;
+    else 
+      found = true;
+    int i1, i2;
+
+    for (i1=0; i1<iSz1.size(); i1++)
+      for (i2 =0; i2<iSz2.size(); i2++) {
+	vector<int>& Ind1 = op1.opindices[i1], Ind2 = op2.opindices[i2]; 
+	if (comp == C) {
+	  factor += v_1(Ind1[0], Ind2[0])*iSz1.at(i1)*iSz2.at(i2)/cleb;
+	}
+	else {
+          assert(false);
+        }
+      }
+  }
+  return factor;
+}
+
+
+
 double SpinAdapted::StackSparseMatrix::calcCompfactor(TensorOp& op1, TensorOp& op2, CompType comp, int op2index, const CCCCArray& vcccc) {
   if(!dmrginp.spinAdapted())
     return calcCompfactor(op1, op2, comp, vcccc);

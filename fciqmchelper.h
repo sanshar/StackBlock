@@ -12,7 +12,6 @@
 namespace SpinAdapted{
 
 
-
 //the MPS is stored in the left canonical form
 //LLLLL..LC 
 
@@ -35,6 +34,7 @@ class MPS{
   static int sweepIters;
   static bool spinAdapted;
   static std::vector<StackSpinBlock> siteBlocks;
+  static std::vector<StackSpinBlock> siteBlocks_noDES;
 
   MPS() {};
   MPS(int stateindex); 
@@ -59,6 +59,8 @@ class MPS{
 
  //calculate hamiltonian matrix between a and b <Mpsa|H|Mpsb>
  void calcHamiltonianAndOverlap(int statea, int stateb, double& h, double& o, bool sameStates=false, int integralIndex=0) ;
+
+
 
 }
 

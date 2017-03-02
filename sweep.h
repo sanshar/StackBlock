@@ -11,6 +11,7 @@ Sandeep Sharma and Garnet K.-L. Chan
 #define SPIN_SWEEP_HEADER
 
 #include <vector>
+#include "SpinQuantum.h"
 
 class Matrix;
 namespace SpinAdapted{
@@ -37,7 +38,7 @@ namespace Sweep
   void makeSystemEnvironmentBigBlocks(StackSpinBlock& system, StackSpinBlock& systemDot, StackSpinBlock& newSystem, 
 				      StackSpinBlock& environment, StackSpinBlock& environmentDot, StackSpinBlock& newEnvironment,
 				      StackSpinBlock& big, SweepParams& sweepParams, const bool& dot_with_sys, const bool& useSlater,
-				      int integralIndex, int braState=-1, int ketState=-1);
+				      int integralIndex, int braState=-1, int ketState=-1, const vector<SpinQuantum>& braquanta= vector<SpinQuantum>(), const vector<SpinQuantum>& ketquanta= vector<SpinQuantum>());
   void makeSystemEnvironmentBigOverlapBlocks(const std::vector<int>& systemSites, StackSpinBlock& systemDot, StackSpinBlock& environmentDot,
 					     StackSpinBlock& system, StackSpinBlock& newSystem, StackSpinBlock& environment, StackSpinBlock& newEnvironment,
 					     StackSpinBlock& big, SweepParams& sweepParams, const bool& dot_with_sys, const bool& useSlater,

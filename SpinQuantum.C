@@ -78,10 +78,32 @@ vector<SpinQuantum> SpinQuantum::operator+ (const SpinQuantum q) const
   return quanta;
 }
 
+vector<SpinQuantum> SpinQuantum::operator+ (const vector<SpinQuantum>& q) const
+{
+  vector<SpinQuantum> quanta;
+  for (int i=0; i< q.size(); i++){
+    vector<SpinQuantum> tmp=*this+q[i] ;
+    quanta.reserve(quanta.size()+tmp.size());
+    quanta.insert(quanta.end(),tmp.begin(),tmp.end());
+  }
+  return quanta;
+}
+
 vector<SpinQuantum> SpinQuantum::operator- (const SpinQuantum q) const
 {
   SpinQuantum negative = -q;
   return *this+negative;
+}
+
+vector<SpinQuantum> SpinQuantum::operator- (const vector<SpinQuantum>& q) const
+{
+  vector<SpinQuantum> quanta;
+  for (int i=0; i< q.size(); i++){
+    vector<SpinQuantum> tmp=*this-q[i] ;
+    quanta.reserve(quanta.size()+tmp.size());
+    quanta.insert(quanta.end(),tmp.begin(),tmp.end());
+  }
+  return quanta;
 }
 
 SpinQuantum SpinQuantum::operator-() const

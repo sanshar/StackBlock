@@ -67,6 +67,16 @@ void StackSpinBlock::setstoragetype(Storagetype st)
     if (has(DES_DES_DES))
       set_op_array(DES_DES_DES)->set_local() = true;
 
+    //mps_nevpt2
+    if (has(CDD_CRE_DESCOMP))
+      set_op_array(CDD_CRE_DESCOMP)->set_local() = true;
+    if (has(CDD_DES_DESCOMP))
+      set_op_array(CDD_DES_DESCOMP)->set_local() = true;
+    if (has(CCD_CRE_DESCOMP))
+      set_op_array(CCD_CRE_DESCOMP)->set_local() = true;
+    if (has(CCD_CRE_CRECOMP))
+      set_op_array(CCD_CRE_CRECOMP)->set_local() = true;
+
   }
   else if (st == DISTRIBUTED_STORAGE)
   {
@@ -119,6 +129,16 @@ void StackSpinBlock::setstoragetype(Storagetype st)
       set_op_array(DES_CRE_CRE)->set_local() = false;
     if (has(DES_DES_DES))
       set_op_array(DES_DES_DES)->set_local() = false;
+
+    //mps_nevpt2
+    if (has(CDD_CRE_DESCOMP))
+      set_op_array(CDD_CRE_DESCOMP)->set_local() = false;
+    if (has(CDD_DES_DESCOMP))
+      set_op_array(CDD_DES_DESCOMP)->set_local() = false;
+    if (has(CCD_CRE_DESCOMP))
+      set_op_array(CCD_CRE_DESCOMP)->set_local() = false;
+    if (has(CCD_CRE_CRECOMP))
+      set_op_array(CCD_CRE_CRECOMP)->set_local() = false;
 
   }
 
@@ -242,6 +262,24 @@ boost::shared_ptr<StackOp_component_base> make_new_stackop(const opTypes &optype
       ret = boost::shared_ptr<StackOp_component<StackCreCreDesDes> >(new StackOp_component<StackCreCreDesDes>(is_core));
       break;
       */
+    case CDD_SUM:
+      ret = boost::shared_ptr<StackOp_component<StackCDD_sum> >(new StackOp_component<StackCDD_sum>(is_core));
+      break;
+    case CDD_CRE_DESCOMP:
+      ret = boost::shared_ptr<StackOp_component<StackCDD_CreDesComp> >(new StackOp_component<StackCDD_CreDesComp>(is_core));
+      break;
+    case CDD_DES_DESCOMP:
+      ret = boost::shared_ptr<StackOp_component<StackCDD_DesDesComp> >(new StackOp_component<StackCDD_DesDesComp>(is_core));
+      break;
+    case CCD_SUM:
+      ret = boost::shared_ptr<StackOp_component<StackCCD_sum> >(new StackOp_component<StackCCD_sum>(is_core));
+      break;
+    case CCD_CRE_DESCOMP:
+      ret = boost::shared_ptr<StackOp_component<StackCCD_CreDesComp> >(new StackOp_component<StackCCD_CreDesComp>(is_core));
+      break;
+    case CCD_CRE_CRECOMP:
+      ret = boost::shared_ptr<StackOp_component<StackCCD_CreCreComp> >(new StackOp_component<StackCCD_CreCreComp>(is_core));
+      break;
     default:
       assert(false);
       break;
@@ -266,6 +304,24 @@ void StackSpinBlock::default_op_components(bool complementary_, bool implicitTra
   normal = !complementary_;
 
   this->direct = false;
+  this->loopblock = true;
+  if(dmrginp.calc_type() == MPS_NEVPT)
+  {
+     ops[CRE] = make_new_stackop(CRE, true);
+     ops[DES] = make_new_stackop(DES, true);
+     ops[OVERLAP] = make_new_stackop(OVERLAP, true);
+     if(this->nonactive_orb()[0] >=  (dmrginp.spinAdapted()? dmrginp.core_size()+dmrginp.act_size(): (dmrginp.core_size()+dmrginp.act_size())*2)){
+       ops[CDD_CRE_DESCOMP] = make_new_stackop(CDD_CRE_DESCOMP, true);
+       ops[CDD_DES_DESCOMP] = make_new_stackop(CDD_DES_DESCOMP, true);
+       ops[CDD_SUM] = make_new_stackop(CDD_SUM, true);
+     }
+     else{
+       ops[CCD_CRE_DESCOMP] = make_new_stackop(CCD_CRE_DESCOMP, true);
+       ops[CCD_CRE_CRECOMP] = make_new_stackop(CCD_CRE_CRECOMP, true);
+       ops[CCD_SUM] = make_new_stackop(CCD_SUM, true);
+     }
+  return; 
+  }
 
   //for a dot operator generate all possible operators
   //they are not rigorously needed in all possible scenarios, e.g. not needed
@@ -323,7 +379,6 @@ void StackSpinBlock::default_op_components(bool complementary_, bool implicitTra
 
   }
 
-  this->loopblock = true;
 
 }
 
@@ -333,7 +388,18 @@ void StackSpinBlock::set_big_components()
 {
   setstoragetype(DISTRIBUTED_STORAGE);
 
-  ops[HAM] = make_new_stackop(HAM, false);
+   if(dmrginp.calc_type() == MPS_NEVPT)
+   {
+      if(this->nonactive_orb()[0] >=  (dmrginp.spinAdapted()? dmrginp.core_size()+dmrginp.act_size(): (dmrginp.core_size()+dmrginp.act_size())*2)){
+        ops[CDD_SUM] = make_new_stackop(CDD_SUM, false);
+      }
+      else{
+        ops[CCD_SUM] = make_new_stackop(CCD_SUM, false);
+      }
+      return; 
+   }
+   else
+     ops[HAM] = make_new_stackop(HAM, false);
 }
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -349,10 +415,31 @@ void StackSpinBlock::default_op_components(bool direct, bool haveNormops, bool h
   //************
   //implicitTranspose = false;
   //*******
+  if (haveNormops)
+    this->loopblock = true;
+  else
+    this->loopblock = false;
 
   // Not direct
   //------------------
   if (!is_direct()) {
+   if(dmrginp.calc_type() == MPS_NEVPT)
+   {
+      ops[CRE] = make_new_stackop(CRE, true);
+      ops[DES] = make_new_stackop(DES, true);
+      ops[OVERLAP] = make_new_stackop(OVERLAP, true);
+      if(this->nonactive_orb()[0] >=  (dmrginp.spinAdapted()? dmrginp.core_size()+dmrginp.act_size(): (dmrginp.core_size()+dmrginp.act_size())*2)){
+        ops[CDD_CRE_DESCOMP] = make_new_stackop(CDD_CRE_DESCOMP, true);
+        ops[CDD_DES_DESCOMP] = make_new_stackop(CDD_DES_DESCOMP, true);
+        ops[CDD_SUM] = make_new_stackop(CDD_SUM, true);
+      }
+      else{
+        ops[CCD_CRE_DESCOMP] = make_new_stackop(CCD_CRE_DESCOMP, true);
+        ops[CCD_CRE_CRECOMP] = make_new_stackop(CCD_CRE_CRECOMP, true);
+        ops[CCD_SUM] = make_new_stackop(CCD_SUM, true);
+      }
+      return; 
+   }
     if ( dmrginp.new_npdm_code() && sites.size() > 1) assert(false);
 
     ops[CRE] = make_new_stackop(CRE, true);
@@ -425,6 +512,23 @@ void StackSpinBlock::default_op_components(bool direct, bool haveNormops, bool h
   // Is direct
   //------------------
   else {
+   if(dmrginp.calc_type() == MPS_NEVPT)
+   {
+      ops[CRE] = make_new_stackop(CRE, false);
+      ops[DES] = make_new_stackop(DES, false);
+      ops[OVERLAP] = make_new_stackop(OVERLAP, false);
+     if(this->nonactive_orb()[0] >=  (dmrginp.spinAdapted()? dmrginp.core_size()+dmrginp.act_size(): (dmrginp.core_size()+dmrginp.act_size())*2)){
+        ops[CDD_CRE_DESCOMP] = make_new_stackop(CDD_CRE_DESCOMP, false);
+        ops[CDD_DES_DESCOMP] = make_new_stackop(CDD_DES_DESCOMP, false);
+        ops[CDD_SUM] = make_new_stackop(CDD_SUM, false);
+      }
+      else{
+        ops[CCD_CRE_DESCOMP] = make_new_stackop(CCD_CRE_DESCOMP, false);
+        ops[CCD_CRE_CRECOMP] = make_new_stackop(CCD_CRE_CRECOMP, false);
+        ops[CCD_SUM] = make_new_stackop(CCD_SUM, false);
+      }
+      return; 
+   }
     //we need CCDcomp to be on core, the rest of them can be generated very quickly
     //and dont really required incore storage
     ops[CRE] = make_new_stackop(CRE, false); 
@@ -500,6 +604,54 @@ void StackSpinBlock::default_op_components(bool direct, bool haveNormops, bool h
   
 }
 
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------
+void StackSpinBlock::nevpt_op_components(bool direct, StackSpinBlock& lBlock, StackSpinBlock& rBlock, const perturber& pb)
+{
+  this->direct = direct;
+  if (lBlock.is_complementary() || rBlock.is_complementary()) {
+    this->complementary = true;
+    this->normal = false;
+  } else {
+    this->complementary = false;
+    this->normal = true;
+  }
+  if (is_direct()) {
+    ops[CRE] = make_new_stackop(CRE, false);
+    ops[DES] = make_new_stackop(DES, false);
+    ops[OVERLAP] = make_new_stackop(OVERLAP, false);
+
+    if(pb.type() == Va){
+      ops[CDD_CRE_DESCOMP] = make_new_stackop(CDD_CRE_DESCOMP, false);
+      ops[CDD_DES_DESCOMP] = make_new_stackop(CDD_DES_DESCOMP, false);
+      ops[CDD_SUM] = make_new_stackop(CDD_SUM, false);
+    }
+    else if(pb.type() == TwoPerturbType::Vi){
+      ops[CCD_CRE_DESCOMP] = make_new_stackop(CCD_CRE_DESCOMP, false);
+      ops[CCD_CRE_CRECOMP] = make_new_stackop(CCD_CRE_CRECOMP, false);
+      ops[CCD_SUM] = make_new_stackop(CCD_SUM, false);
+    }
+  } 
+  else
+  {
+    ops[CRE] = make_new_stackop(CRE, true);
+    ops[DES] = make_new_stackop(DES, true);
+    ops[OVERLAP] = make_new_stackop(OVERLAP, true);
+
+    if(pb.type() == TwoPerturbType::Va){
+      ops[CDD_CRE_DESCOMP] = make_new_stackop(CDD_CRE_DESCOMP, true);
+      ops[CDD_DES_DESCOMP] = make_new_stackop(CDD_DES_DESCOMP, true);
+      ops[CDD_SUM] = make_new_stackop(CDD_SUM, true);
+    }
+    else if(pb.type() == TwoPerturbType::Vi){
+      ops[CCD_CRE_DESCOMP] = make_new_stackop(CCD_CRE_DESCOMP, true);
+      ops[CCD_CRE_CRECOMP] = make_new_stackop(CCD_CRE_CRECOMP, true);
+      ops[CCD_SUM] = make_new_stackop(CCD_SUM, true);
+    }
+
+  } 
+
+
+}
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
 
 }

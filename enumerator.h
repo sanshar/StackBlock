@@ -5,6 +5,9 @@ namespace SpinAdapted{
   enum opTypes{ HAM, CRE, CRE_CRE, DES_DESCOMP, CRE_DES, CRE_DESCOMP, CRE_CRE_DESCOMP, 
 		DES, DES_DES, CRE_CRECOMP, DES_CRE, DES_CRECOMP, CRE_DES_DESCOMP, OVERLAP,
 
+    //mps_sc_nevpt
+    CDD_SUM, CDD_CRE_DESCOMP, CDD_DES_DESCOMP, CCD_SUM, CCD_CRE_DESCOMP, CCD_CRE_CRECOMP,
+
 		// Extra (empty) operator classes for RI-approx NPDM                                                                                                                 
 		RI_3INDEX, RI_4INDEX,
 
@@ -15,7 +18,7 @@ namespace SpinAdapted{
 		CRE_CRE_DES_DES, CRE_DES_CRE_DES, CRE_DES_DES_CRE, CRE_DES_DES_DES,
 		CRE_CRE_CRE_DES, CRE_CRE_DES_CRE, CRE_DES_CRE_CRE, CRE_CRE_CRE_CRE };
 
-  enum CompType{CD, DD, CCD, C, CDD};
+  enum CompType{CD, DD, CCD, C, CDD, CDD_CD, CCD_CD};
   enum sweepType {FULL, PARTIAL};
   enum guessWaveTypes {BASIC, TRANSFORM, TRANSPOSE};
   enum Storagetype {LOCAL_STORAGE, DISTRIBUTED_STORAGE, DISTRIBUTED_STORAGE_FOR_ONEPDM};
@@ -28,7 +31,7 @@ namespace SpinAdapted{
 		 RESTART_ONEPDM, RESTART_THREEPDM, RESTART_FOURPDM, RESTART_NEVPT2PDM, TINYCALC, FCI,
 		 EXCITEDDMRG, CALCOVERLAP, CALCHAMILTONIAN, COMPRESS, RESPONSE, RESPONSEBW,
 		 TRANSITION_ONEPDM, TRANSITION_TWOPDM, TRANSITION_THREEPDM, RESTART_T_ONEPDM, RESTART_T_TWOPDM, RESTART_T_THREEPDM,
-		 NEVPT2,RESTART_NEVPT2, RESPONSELCC, RESPONSEAAAV, RESPONSEAAAC};
+		 NEVPT2,RESTART_NEVPT2, RESPONSELCC, RESPONSEAAAV, RESPONSEAAAC, MPS_NEVPT, RESTART_MPS_NEVPT};
   enum orbitalFormat{MOLPROFORM, DMRGFORM};
   enum reorderType{FIEDLER, GAOPT, MANUAL, NOREORDER};
   enum keywords{ORBS, LASTM, STARTM, MAXM,  REORDER, HF_OCC, SCHEDULE, SYM, NELECS, SPIN, IRREP,
@@ -53,6 +56,9 @@ namespace SpinAdapted{
     LessThanH,
     WITH_LIST /*< states are added together if the are allowed by the quantaList */
   };
+
+  enum OnePerturbType{ Va_1=0, Vi_1, Vai_1, OnePertEnd};
+  enum TwoPerturbType{Va=0,Vi,Vab,Vij,Vai,Vabi,Vaij,Vabij,TwoPertEnd};
 
 
 };

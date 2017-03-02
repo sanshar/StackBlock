@@ -158,6 +158,64 @@ class StackOverlap: public SpinAdapted::StackSparseMatrix
   void build(StackMatrix &m, int row, int col, const StackSpinBlock& block) ;
 };
 
+//CDD_sum is used in V_a subspace of nevpt2.
+//It is the sum of perturber operator on one block.
+class StackCDD_sum: public SpinAdapted::StackSparseMatrix
+{
+ public:
+  StackCDD_sum() { fermion = true;}
+  void build(const StackSpinBlock& b) ;
+  boost::shared_ptr<StackSparseMatrix> getworkingrepresentation(const StackSpinBlock* block);
+  double redMatrixElement(Csf c1, vector<Csf>& ladder, const StackSpinBlock* b);
+};
+
+class StackCDD_CreDesComp: public SpinAdapted::StackSparseMatrix
+{
+ public:
+  StackCDD_CreDesComp() { fermion = false;}
+  void build(const StackSpinBlock& b) ;
+  boost::shared_ptr<StackSparseMatrix> getworkingrepresentation(const StackSpinBlock* block);
+  double redMatrixElement(Csf c1, vector<Csf>& ladder, const StackSpinBlock* b);
+};
+
+class StackCDD_DesDesComp: public SpinAdapted::StackSparseMatrix
+{
+ public:
+  StackCDD_DesDesComp() { fermion = false;}
+  void build(const StackSpinBlock& b) ;
+  boost::shared_ptr<StackSparseMatrix> getworkingrepresentation(const StackSpinBlock* block);
+  double redMatrixElement(Csf c1, vector<Csf>& ladder, const StackSpinBlock* b);
+};
+
+//CCD_sum is used in V_i subspace of nevpt2.
+//It is the sum of perturber operator on one block.
+class StackCCD_sum: public SpinAdapted::StackSparseMatrix
+{
+ public:
+  StackCCD_sum() { fermion = true;}
+  void build(const StackSpinBlock& b) ;
+  boost::shared_ptr<StackSparseMatrix> getworkingrepresentation(const StackSpinBlock* block);
+  double redMatrixElement(Csf c1, vector<Csf>& ladder, const StackSpinBlock* b);
+};
+
+class StackCCD_CreDesComp: public SpinAdapted::StackSparseMatrix
+{
+ public:
+  StackCCD_CreDesComp() { fermion = false;}
+  void build(const StackSpinBlock& b) ;
+  boost::shared_ptr<StackSparseMatrix> getworkingrepresentation(const StackSpinBlock* block);
+  double redMatrixElement(Csf c1, vector<Csf>& ladder, const StackSpinBlock* b);
+};
+
+class StackCCD_CreCreComp: public SpinAdapted::StackSparseMatrix
+{
+ public:
+  StackCCD_CreCreComp() { fermion = false;}
+  void build(const StackSpinBlock& b) ;
+  boost::shared_ptr<StackSparseMatrix> getworkingrepresentation(const StackSpinBlock* block);
+  double redMatrixElement(Csf c1, vector<Csf>& ladder, const StackSpinBlock* b);
+};
+
 }
 
 

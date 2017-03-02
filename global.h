@@ -50,6 +50,9 @@ class PairArray;
 class CCCCArray;
 class CCCDArray;
 class StackSpinBlock;
+class PerturbTwoElectronArray;
+enum OnePerturbType;
+enum TwoPerturbType;
 
 extern boost::interprocess::shared_memory_object segment;
 extern boost::interprocess::mapped_region region;
@@ -61,6 +64,8 @@ extern Timer globaltimer;
 
 extern std::vector<OneElectronArray> v_1;
 extern std::vector<TwoElectronArray> v_2;
+extern std::map<TwoPerturbType,PerturbTwoElectronArray> vpt_2;
+extern OneElectronArray vpt_1;
 extern std::vector<PairArray> v_cc;
 extern std::vector<CCCCArray> v_cccc;
 extern std::vector<CCCDArray> v_cccd;

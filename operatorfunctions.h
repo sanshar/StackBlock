@@ -134,6 +134,10 @@ void TensorProduct (const StackSpinBlock *ablock, const StackSparseMatrix& a, co
 void MultiplyWithOwnTranspose(const StackSparseMatrix& a, StackSparseMatrix& c, double scale);
 
  void braTensorMultiply(const StackSpinBlock *ablock, const StackSparseMatrix &a, const StackSpinBlock *cblock, StackWavefunction &c, StackWavefunction &v, double scale, int num_thrds=1);
+
+  void TensorMultiply(const StackSparseMatrix& a, const StackSparseMatrix& b, const StateInfo *brastateinfo, const StateInfo *ketstateinfo, const StackWavefunction& c, StackWavefunction* v, const SpinQuantum opQ, bool aIsLeft, double scale);
+
+  void TensorMultiply(const StackSparseMatrix a, const StateInfo *brastateinfo, const StateInfo *ketstateinfo, const StackWavefunction& c, StackWavefunction& v, const SpinQuantum dQ, bool left, double scale);
 }
 }
 #endif

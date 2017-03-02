@@ -318,6 +318,9 @@ class StackSparseMatrix : public Baseoperator<StackMatrix>  // the sparse matrix
   double calcCompfactor(TensorOp& Top1, TensorOp& op2, CompType comp, int op2index, const CCCCArray& vcccc);
   double calcCompfactor(TensorOp& Top1, TensorOp& op2, CompType comp, int op2index, const CCCDArray& vcccd);
   bool nonZeroTensorComponent(Csf& c1, SpinQuantum& opsym, Csf& ladder, int& nonzeroindex, double& cleb);
+  double calcCompfactor(TensorOp& op1, TensorOp& op2, CompType comp, const PerturbTwoElectronArray& v_2, int integralIndex);
+  double calcCompfactor(TensorOp& op1, TensorOp& op2, CompType comp, int op2index, const PerturbTwoElectronArray& v_2, int integralIndex);
+  double calcCompfactor(TensorOp& op1, TensorOp& op2, CompType comp, const OneElectronArray& v_1, int integralIndex);
   std::vector<double> calcMatrixElements(Csf& c1, TensorOp& Top, Csf& c2, std::vector<bool>& backup1, std::vector<bool>& backup2);
   double calcMatrixElements(Csf& c1, TensorOp& Top, Csf& c2, std::vector<bool>& backup1, std::vector<bool>& backup2, int index);
 };

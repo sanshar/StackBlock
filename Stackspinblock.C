@@ -253,6 +253,49 @@ StackSpinBlock::StackSpinBlock(int start, int finish, int p_integralIndex, bool 
   BuildTensorProductBlock(sites);
 }
 
+StackSpinBlock::StackSpinBlock(int start, int finish, int p_integralIndex, std::vector<int> non_active_orbs, bool implicitTranspose, bool is_complement) :  
+  name (rand()), 
+  integralIndex(p_integralIndex),
+  nonactive_orbs(non_active_orbs),
+  direct(false), leftBlock(0), rightBlock(0),  additionalMemory(0),
+  additionaldata(0)
+{
+  complementary = is_complement;
+  normal = !is_complement;
+
+  //this is used to make dot block and we make the 
+  //additional operators by default because they are cheap
+  default_op_components(is_complement, implicitTranspose);
+
+  std::vector<int> sites; 
+  if (dmrginp.use_partial_two_integrals()) {
+    if (start != finish) {
+      pout << "Cannot use partial two electron integrals, when making spin block with more than two orbitals"<<endl;
+      abort();
+    }
+    std::vector<int> o;
+    for (int i=dmrginp.spatial_to_spin()[start]; i<dmrginp.spatial_to_spin()[start+1]; i+=2)
+      o.push_back(i/2);
+    twoInt = boost::shared_ptr<PartialTwoElectronArray> (new PartialTwoElectronArray(o));
+    twoInt->Load(dmrginp.load_prefix(), integralIndex);
+#ifndef SERIAL
+    mpi::communicator world;
+    PartialTwoElectronArray& ar = dynamic_cast<PartialTwoElectronArray&>(*twoInt.get());
+    mpi::broadcast(calc, ar, 0);
+#endif
+  }
+  else
+    twoInt = boost::shared_ptr<TwoElectronArray>( &v_2[integralIndex], boostutils::null_deleter());
+
+  int lower = min(start, finish);
+  int higher = max(start, finish);
+  sites.resize(higher - lower + 1);
+  for (int i=0; i < sites.size(); i++)
+      sites[i] = lower + i;
+
+  BuildTensorProductBlock(sites);
+}
+
 void StackSpinBlock::set_twoInt(int pintegralIndex) {
   twoInt = boost::shared_ptr<TwoElectronArray>( &v_2[pintegralIndex], boostutils::null_deleter());
   integralIndex = pintegralIndex;
@@ -798,6 +841,25 @@ void StackSpinBlock::BuildSumBlockSkeleton(int condition, StackSpinBlock& lBlock
   leftBlock = &lBlock;
   rightBlock = &rBlock;
 
+  if(lBlock.nonactive_orbs.size()!=0 && rBlock.nonactive_orbs.size()==0 )
+    nonactive_orbs= lBlock.nonactive_orbs;
+  else if(lBlock.nonactive_orbs.size()!=0 && rBlock.nonactive_orbs.size()==0 )
+    nonactive_orbs= rBlock.nonactive_orbs;
+  else if(lBlock.nonactive_orbs.size()!=0 && rBlock.nonactive_orbs.size()!=0 ){
+    if(lBlock.nonactive_orbs.size() != rBlock.nonactive_orbs.size()){
+      pout << "Nonactive_orbs in left block and right block are different.";
+      abort();
+    }
+    else{
+      nonactive_orbs= rBlock.nonactive_orbs;
+      for(int i=0; i<nonactive_orbs.size(); i++)
+        if(lBlock.nonactive_orbs[i]!= rBlock.nonactive_orbs[i]){
+          pout << "Nonactive_orbs in left block and right block are different.";
+          abort();
+        }
+    }
+  }
+
   sites.reserve (lBlock.sites.size () + rBlock.sites.size ());
 
   dmrginp.blockintegrals -> start();
@@ -869,6 +931,110 @@ void StackSpinBlock::BuildSumBlockSkeleton(int condition, StackSpinBlock& lBlock
 
 }
 
+//Build Sum Block with different quanta num in bra and ket.
+void StackSpinBlock::BuildSumBlockSkeleton(int condition, StackSpinBlock& lBlock, StackSpinBlock& rBlock, const std::vector<SpinQuantum>& braquantum, const std::vector<SpinQuantum>& ketquantum, bool collectQuanta)
+{
+
+  name = get_name();
+  if (dmrginp.outputlevel() > 0) 
+    pout << "\t\t\t Building Sum Block " << name << endl;
+  leftBlock = &lBlock;
+  rightBlock = &rBlock;
+
+  if(lBlock.nonactive_orbs.size()!=0 && rBlock.nonactive_orbs.size()==0 )
+    nonactive_orbs= lBlock.nonactive_orbs;
+  else if(lBlock.nonactive_orbs.size()!=0 && rBlock.nonactive_orbs.size()==0 )
+    nonactive_orbs= rBlock.nonactive_orbs;
+  else if(lBlock.nonactive_orbs.size()!=0 && rBlock.nonactive_orbs.size()!=0 ){
+    if(lBlock.nonactive_orbs.size() != rBlock.nonactive_orbs.size()){
+      pout << "Nonactive_orbs in left block and right block are different.";
+      abort();
+    }
+    else{
+      nonactive_orbs= rBlock.nonactive_orbs;
+      for(int i=0; i<nonactive_orbs.size(); i++)
+        if(lBlock.nonactive_orbs[i]!= rBlock.nonactive_orbs[i]){
+          pout << "Nonactive_orbs in left block and right block are different.";
+          abort();
+        }
+    }
+  }
+
+
+  dmrginp.blockintegrals -> start();
+  
+  if (dmrginp.use_partial_two_integrals()) {
+    if (rBlock.sites.size() == 1) {
+      std::vector<int> o;
+      for (int i=dmrginp.spatial_to_spin().at(rBlock.sites[0]); i<dmrginp.spatial_to_spin().at(rBlock.sites[0]+1); i+=2)
+	o.push_back(i/2);
+      twoInt = boost::shared_ptr<PartialTwoElectronArray> (new PartialTwoElectronArray(o));
+      twoInt->Load(dmrginp.load_prefix(), integralIndex);
+#ifndef SERIAL
+      mpi::communicator world;
+      PartialTwoElectronArray& ar = dynamic_cast<PartialTwoElectronArray&>(*twoInt.get());
+      mpi::broadcast(world, ar, 0);
+#endif
+
+    }
+    //pout << "Cannot use partial two electron integrals, when the dot block has more than one orbital"<<endl;
+    //abort();
+
+  }
+  else 
+    twoInt = boost::shared_ptr<TwoElectronArray>( &v_2[integralIndex],  boostutils::null_deleter());
+
+  dmrginp.blockintegrals -> stop();
+
+  dmrginp.blocksites -> start();
+
+  sites.reserve (lBlock.sites.size () + rBlock.sites.size ());
+  sites = lBlock.sites;
+  copy (rBlock.sites.begin(), rBlock.sites.end (), back_inserter (sites));
+  sort(sites.begin(), sites.end());
+  complementary_sites = make_complement(sites);
+  if (dmrginp.outputlevel() > 0) {
+    pout << "\t\t\t ";
+    for (int i = 0; i < sites.size(); ++i) pout << sites[i] << " ";
+    pout << endl;
+  }
+  dmrginp.blocksites -> stop();
+
+  dmrginp.statetensorproduct -> start();
+  //TODO
+  //It is very possible that several quantum numbers for bra.
+  //For example, Perturber can have different Spatial Symmetry.
+  //TODO
+  //What does compState do? 
+  //It is not used at all in the whole block code.
+  if( condition== PARTICLE_SPIN_NUMBER_CONSTRAINT)
+  {
+    TensorProduct (lBlock.braStateInfo, rBlock.braStateInfo, braquantum[0], EqualQ, braStateInfo);
+    TensorProduct (lBlock.ketStateInfo, rBlock.ketStateInfo, ketquantum[0], EqualQ, ketStateInfo);
+  }
+  else if (condition== NO_PARTICLE_SPIN_NUMBER_CONSTRAINT) 
+  {
+    TensorProduct (lBlock.braStateInfo, rBlock.braStateInfo, braquantum[0], LessThanQ, braStateInfo);
+    TensorProduct (lBlock.ketStateInfo, rBlock.ketStateInfo, ketquantum[0], LessThanQ, ketStateInfo);
+  }
+  dmrginp.statetensorproduct -> stop();
+
+  dmrginp.statecollectquanta -> start();
+  if (collectQuanta) {
+  if (!( (dmrginp.hamiltonian() == BCS && condition == SPIN_NUMBER_CONSTRAINT)  ||
+	 (dmrginp.hamiltonian() != BCS && condition == PARTICLE_SPIN_NUMBER_CONSTRAINT))) {
+    braStateInfo.CollectQuanta();
+    ketStateInfo.CollectQuanta();
+  }
+  }
+  else {
+    braStateInfo.hasCollectedQuanta = false;
+    ketStateInfo.hasCollectedQuanta = false;
+  }
+  dmrginp.statecollectquanta -> stop();
+
+}
+
 void StackSpinBlock::BuildSumBlock(int condition, StackSpinBlock& lBlock, StackSpinBlock& rBlock, bool collectQuanta, StateInfo* compState)
 {
   if (!(lBlock.integralIndex == rBlock.integralIndex && lBlock.integralIndex == integralIndex))  {
@@ -909,6 +1075,26 @@ void StackSpinBlock::BuildSumBlock(int condition, StackSpinBlock& lBlock, StackS
   dmrginp.buildsumblock -> stop();
 }
 
+//Build Sum Block with different quanta num in bra and ket.
+void StackSpinBlock::BuildSumBlock(int condition, StackSpinBlock& lBlock, StackSpinBlock& rBlock, const std::vector<SpinQuantum>& braquantum, const std::vector<SpinQuantum>& ketquantum, bool collectQuanta)
+{
+  if (!(lBlock.integralIndex == rBlock.integralIndex && lBlock.integralIndex == integralIndex))  {
+    pout << "The left, right and dot block should use the same integral indices"<<endl;
+    pout << "ABORTING!!"<<endl;
+    exit(0);
+  }
+  dmrginp.buildsumblock -> start();
+  BuildSumBlockSkeleton(condition, lBlock, rBlock, braquantum,ketquantum, collectQuanta);
+
+  totalMemory = build_iterators();
+  if (totalMemory != 0)
+    data = Stackmem[omprank].allocate(totalMemory);
+
+  dmrginp.buildblockops -> start();
+  build_operators();
+  dmrginp.buildblockops -> stop();
+  dmrginp.buildsumblock -> stop();
+}
 
 void StackSpinBlock::operator= (const StackSpinBlock& b)
 {
@@ -959,6 +1145,145 @@ void StackSpinBlock::multiplyOverlap(StackWavefunction& c, StackWavefunction* v,
   if (deallocate2) overlap->deallocate();
   if (deallocate1) op->deallocate();
   
+}
+
+void StackSpinBlock::multiplyCDD_sum(StackWavefunction& c, StackWavefunction* v, int num_threads) const
+{
+
+  StackSpinBlock* loopBlock=(leftBlock->is_loopblock()) ? leftBlock : rightBlock;
+  StackSpinBlock* otherBlock = loopBlock == leftBlock ? rightBlock : leftBlock;
+
+  std::vector<boost::shared_ptr<StackSparseMatrix> >  allops;
+  std::vector<FUNCTOR2> allfuncs;
+  StackWavefunction *v_array;
+
+  initiateMultiThread(v, v_array, numthrds);
+  dmrginp.oneelecT -> start();
+  dmrginp.s0time -> start();
+
+  SpinQuantum q= -getSpinQuantum( nonactive_orb(0));  
+  FUNCTOR2 f = boost::bind(&stackopxop::CDDandoverlap, leftBlock, _1, this, boost::ref(c), v_array, q);
+  if (mpigetsize()-1 == mpigetrank()) {
+    allops.push_back(rightBlock->get_op_array(OVERLAP).get_element(0).at(0)); allfuncs.push_back(f);//this is just a placeholder function  
+  }
+
+  dmrginp.s0time -> stop();
+#ifndef SERIAL
+  boost::mpi::communicator world;
+  int size = world.size();
+#endif
+
+  dmrginp.s1time -> start();
+  FUNCTOR2 f2 = boost::bind(&stackopxop::cdd_dxcdcomp, leftBlock, _1, this, boost::ref(c), v_array,q); 
+  for (int i=0; i<rightBlock->get_op_array(DES).get_size(); i++)
+    for (int j=0; j<rightBlock->get_op_array(DES).get_local_element(i).size(); j++) {
+      allops.push_back(rightBlock->get_op_array(DES).get_local_element(i)[j]);
+	    allfuncs.push_back(f2);
+    }
+
+  FUNCTOR2 f3 = boost::bind(&stackopxop::cdd_dxcdcomp, rightBlock, _1, this, boost::ref(c), v_array, q ); 
+  for (int i=0; i<leftBlock->get_op_array(DES).get_size(); i++)
+    for (int j=0; j<leftBlock->get_op_array(DES).get_local_element(i).size(); j++) {
+      allops.push_back(leftBlock->get_op_array(DES).get_local_element(i)[j]);
+	    allfuncs.push_back(f3);
+    }
+    
+  FUNCTOR2 f4 = boost::bind(&stackopxop::cdd_cxddcomp, leftBlock, _1, this, boost::ref(c), v_array, q);
+  for (int i=0; i<rightBlock->get_op_array(CRE).get_size(); i++)
+    for (int j=0; j<rightBlock->get_op_array(CRE).get_local_element(i).size(); j++) {
+      allops.push_back(rightBlock->get_op_array(CRE).get_local_element(i)[j]);
+	    allfuncs.push_back(f4);
+    }
+  
+  FUNCTOR2 f5 = boost::bind(&stackopxop::cdd_cxddcomp, rightBlock, _1, this, boost::ref(c), v_array, q);
+  for (int i=0; i<leftBlock->get_op_array(CRE).get_size(); i++)
+    for (int j=0; j<leftBlock->get_op_array(CRE).get_local_element(i).size(); j++) {
+      allops.push_back(leftBlock->get_op_array(CRE).get_local_element(i)[j]);
+	    allfuncs.push_back(f5);
+    }
+  
+  SplitStackmem();
+#pragma omp parallel for  schedule(dynamic) 
+  for (int i = 0; i<allops.size(); i++)  {
+      allfuncs[i](allops[i]);
+  }
+
+  MergeStackmem();
+  accumulateMultiThread(v, v_array, numthrds);
+  distributedaccumulate(*v);
+  dmrginp.oneelecT -> stop();
+
+}
+
+void StackSpinBlock::multiplyCCD_sum(StackWavefunction& c, StackWavefunction* v, int num_threads) const
+{
+
+  StackSpinBlock* loopBlock=(leftBlock->is_loopblock()) ? leftBlock : rightBlock;
+  StackSpinBlock* otherBlock = loopBlock == leftBlock ? rightBlock : leftBlock;
+
+  std::vector<boost::shared_ptr<StackSparseMatrix> >  allops;
+  std::vector<FUNCTOR2> allfuncs;
+  StackWavefunction *v_array;
+
+  initiateMultiThread(v, v_array, numthrds);
+
+  dmrginp.oneelecT -> start();
+  dmrginp.s0time -> start();
+
+  SpinQuantum q= getSpinQuantum( nonactive_orb(0));  
+  FUNCTOR2 f = boost::bind(&stackopxop::CCDandoverlap, leftBlock, _1, this, boost::ref(c), v_array, q);
+  if (mpigetsize()-1 == mpigetrank()) {
+    allops.push_back(rightBlock->get_op_array(OVERLAP).get_element(0).at(0)); allfuncs.push_back(f);//this is just a placeholder function  
+  }
+
+
+  dmrginp.s0time -> stop();
+#ifndef SERIAL
+  boost::mpi::communicator world;
+  int size = world.size();
+#endif
+
+  dmrginp.s1time -> start();
+  FUNCTOR2 f2 = boost::bind(&stackopxop::ccd_cxcdcomp, leftBlock, _1, this, boost::ref(c), v_array, q); 
+  for (int i=0; i<rightBlock->get_op_array(CRE).get_size(); i++)
+    for (int j=0; j<rightBlock->get_op_array(CRE).get_local_element(i).size(); j++) {
+      allops.push_back(rightBlock->get_op_array(CRE).get_local_element(i)[j]);
+	    allfuncs.push_back(f2);
+    }
+
+  FUNCTOR2 f3 = boost::bind(&stackopxop::ccd_cxcdcomp, rightBlock, _1, this, boost::ref(c), v_array, q ); 
+  for (int i=0; i<leftBlock->get_op_array(CRE).get_size(); i++)
+    for (int j=0; j<leftBlock->get_op_array(CRE).get_local_element(i).size(); j++) {
+      allops.push_back(leftBlock->get_op_array(CRE).get_local_element(i)[j]);
+	    allfuncs.push_back(f3);
+    }
+    
+  FUNCTOR2 f4 = boost::bind(&stackopxop::ccd_dxcccomp, leftBlock, _1, this, boost::ref(c), v_array, q);
+  for (int i=0; i<rightBlock->get_op_array(DES).get_size(); i++)
+    for (int j=0; j<rightBlock->get_op_array(DES).get_local_element(i).size(); j++) {
+      allops.push_back(rightBlock->get_op_array(DES).get_local_element(i)[j]);
+	    allfuncs.push_back(f4);
+    }
+  
+  FUNCTOR2 f5 = boost::bind(&stackopxop::ccd_dxcccomp, rightBlock, _1, this, boost::ref(c), v_array, q);
+  for (int i=0; i<leftBlock->get_op_array(DES).get_size(); i++)
+    for (int j=0; j<leftBlock->get_op_array(DES).get_local_element(i).size(); j++) {
+      allops.push_back(leftBlock->get_op_array(DES).get_local_element(i)[j]);
+	    allfuncs.push_back(f5);
+    }
+  
+  SplitStackmem();
+#pragma omp parallel for  schedule(dynamic) 
+  for (int i = 0; i<allops.size(); i++)  {
+      allfuncs[i](allops[i]);
+  }
+  MergeStackmem();
+
+  accumulateMultiThread(v, v_array, numthrds);
+  distributedaccumulate(*v);
+
+  dmrginp.oneelecT -> stop();
+
 }
 
 int procWithMinOps(std::vector<boost::shared_ptr<StackSparseMatrix> >& allops)
