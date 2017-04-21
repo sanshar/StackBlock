@@ -338,10 +338,16 @@ void Threepdm_container::save_spatial_npdm_binary(const int &I, const int &J)
       
       char file[5000];
       sprintf (file, "%s%s%d.%d%s", dmrginp.save_prefix().c_str(),"/spatial_threepdm.",I,J,".bin");
+#ifndef MOLCAS
       std::ofstream ofs(file, std::ios::binary);
       //boost::archive::binary_oarchive save(ofs);
       ofs.write( (char*)(spatial_threepdm.data), sizeof(double)*spatial_threepdm.get_size());
       ofs.close();
+#else
+      FILE* f = fopen(file,"wb");
+      fwrite(spatial_threepdm.data(),sizeof(double),spatial_threepdm.size(),f);
+      fclose(f);
+#endif
     }
   }
   else{

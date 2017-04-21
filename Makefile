@@ -104,6 +104,10 @@ ifeq ($(MOLPRO), yes)
 
 endif
 
+ifeq ($(MOLCAS), yes)
+	MOLCAS_BLOCK= -DMOLCAS
+endif
+
 FLAGS =  -I${MKLFLAGS} -I$(INCLUDE1) -I$(INCLUDE2) -I$(NEWMATINCLUDE) -I$(BOOSTINCLUDE) -I$(MOLPROINCLUDE) \
          -I$(HOME)/modules/generate_blocks/ -I$(HOME)/modules/onepdm -I$(HOME)/modules/twopdm/ \
          -I$(HOME)/modules/npdm -I$(HOME)/modules/two_index_ops -I$(HOME)/modules/three_index_ops -I$(HOME)/modules/four_index_ops -std=c++0x \
@@ -162,7 +166,7 @@ ifeq ($(USE_MPI), yes)
 endif
 
 
-OPT	+= $(OPENMP_FLAGS) -DBLAS -DUSELAPACK $(MPI_OPT) $(I8) $(B56) $(MOLPRO_BLOCK)  -DFAST_MTP -D_HAS_CBLAS  ${MKLOPT} ${UNITTEST} 
+OPT	+= $(OPENMP_FLAGS) -DBLAS -DUSELAPACK $(MPI_OPT) $(I8) $(B56) $(MOLPRO_BLOCK) $(MOLCAS_BLOCK)  -DFAST_MTP -D_HAS_CBLAS  ${MKLOPT} ${UNITTEST}
 
 SRC_genetic = genetic/CrossOver.C genetic/Evaluate.C genetic/GAInput.C genetic/GAOptimize.C genetic/Generation.C genetic/Mutation.C genetic/RandomGenerator.C genetic/ReadIntegral.C
 
