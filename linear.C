@@ -132,7 +132,8 @@ void SpinAdapted::Linear::block_davidson(vector<StackWavefunction>& b, DiagonalM
   int sigmasize=0, bsize= currentRoot == -1 ? dmrginp.nroots() : 1;
   int converged_roots = 0;
   int maxiter = h_diag.Ncols() - lowerStates.size();
-  while(true && iter < 100)
+  maxiter = min(100 * nroots, maxiter);
+  while(true && iter < maxiter)
   {
     //p3out << "\t\t\t Davidson Iteration :: " << iter << endl;
     
@@ -317,7 +318,15 @@ void SpinAdapted::Linear::block_davidson(vector<StackWavefunction>& b, DiagonalM
       //copy(r.get_operatorMatrix(), b[bsize].get_operatorMatrix());
       bsize++;
     }
-    
+
+    // save converged eigenvalues in last iteration
+    if (iter + 1 == maxiter && mpigetrank() == 0) {
+        printf("WARN %d states are converged in davidson diagonalization.\n"
+               "Block energy for state %d and above are meaningless.\n",
+               converged_roots, converged_roots + 1);
+        for (int i = 0; i < converged_roots; ++i)
+            h_diag.element(i) = subspace_eigenvalues.element(i);
+    }
     
   }
 
