@@ -133,7 +133,10 @@ void SpinAdapted::Linear::block_davidson(vector<StackWavefunction>& b, DiagonalM
   int converged_roots = 0;
   int maxiter = h_diag.Ncols() - lowerStates.size();
   maxiter = min(100 * nroots, maxiter);
-  while(true && iter < maxiter)
+#ifndef SERIAL
+  mpi::broadcast(calc, maxiter, 0);
+#endif
+  while(iter < maxiter)
   {
     //p3out << "\t\t\t Davidson Iteration :: " << iter << endl;
     
