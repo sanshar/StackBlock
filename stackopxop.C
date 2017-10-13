@@ -19,7 +19,7 @@ Formulas for making hamiltonian matrix while blocking a block with a dot block
 ********************************************/
 
 
-void SpinAdapted::stackopxop::cdxcdcomp(const StackSpinBlock* otherblock, std::vector<boost::shared_ptr<StackSparseMatrix> >& opvec1, const StackSpinBlock* b, StackSparseMatrix* o) {
+void SpinAdapted::stackopxop::cdxcdcomp(const StackSpinBlock* otherblock, const std::vector<boost::shared_ptr<StackSparseMatrix> >& opvec1, const StackSpinBlock* b, StackSparseMatrix* o) {
   int ilock = 0;
   int numthreads = 1;//MAX_THRD;
   const StackSpinBlock* loopblock = (otherblock==b->get_leftBlock()) ? b->get_rightBlock() : b->get_leftBlock();
@@ -49,7 +49,7 @@ void SpinAdapted::stackopxop::cdxcdcomp(const StackSpinBlock* otherblock, std::v
   }
 }
 
-void SpinAdapted::stackopxop::ddxcccomp(const StackSpinBlock* otherblock, std::vector<boost::shared_ptr<StackSparseMatrix> >& opvec1, const StackSpinBlock* b, StackSparseMatrix* o)
+void SpinAdapted::stackopxop::ddxcccomp(const StackSpinBlock* otherblock, const std::vector<boost::shared_ptr<StackSparseMatrix> >& opvec1, const StackSpinBlock* b, StackSparseMatrix* o)
 {
   int ilock = 0;
   int numthreads = 1;//MAX_THRD;
@@ -94,7 +94,7 @@ void SpinAdapted::stackopxop::ddxcccomp(const StackSpinBlock* otherblock, std::v
   }
 }
 
-void SpinAdapted::stackopxop::cxcddcomp(const StackSpinBlock* otherblock, std::vector<boost::shared_ptr<StackSparseMatrix> >& opvec1, const StackSpinBlock* b, StackSparseMatrix* o)
+void SpinAdapted::stackopxop::cxcddcomp(const StackSpinBlock* otherblock, const std::vector<boost::shared_ptr<StackSparseMatrix> >& opvec1, const StackSpinBlock* b, StackSparseMatrix* o)
 {
   int ilock = 0;
   int numthreads = 1;//MAX_THRD;
@@ -146,7 +146,7 @@ void SpinAdapted::stackopxop::cxcddcomp(const StackSpinBlock* otherblock, std::v
   }
 }
 
-void SpinAdapted::stackopxop::cdxcdcomp_Element(const StackSpinBlock* otherblock, std::vector<boost::shared_ptr<StackSparseMatrix> >& opvec1, const StackSpinBlock* b, StackSparseMatrix* o, StackMatrix& m,int row, int col) {
+void SpinAdapted::stackopxop::cdxcdcomp_Element(const StackSpinBlock* otherblock, const std::vector<boost::shared_ptr<StackSparseMatrix> >& opvec1, const StackSpinBlock* b, StackSparseMatrix* o, StackMatrix& m,int row, int col) {
   int ilock = 0;
   int numthreads = 1;//MAX_THRD;
   const StackSpinBlock* loopblock = (otherblock==b->get_leftBlock()) ? b->get_rightBlock() : b->get_leftBlock();    
@@ -177,7 +177,7 @@ void SpinAdapted::stackopxop::cdxcdcomp_Element(const StackSpinBlock* otherblock
   }
 }
 
-void SpinAdapted::stackopxop::ddxcccomp_Element(const StackSpinBlock* otherblock, std::vector<boost::shared_ptr<StackSparseMatrix> >& opvec1, const StackSpinBlock* b, StackSparseMatrix* o, StackMatrix& m, int row, int col)
+void SpinAdapted::stackopxop::ddxcccomp_Element(const StackSpinBlock* otherblock, const std::vector<boost::shared_ptr<StackSparseMatrix> >& opvec1, const StackSpinBlock* b, StackSparseMatrix* o, StackMatrix& m, int row, int col)
 {
   int ilock = 0;
   int numthreads = 1;//MAX_THRD;
@@ -223,7 +223,7 @@ void SpinAdapted::stackopxop::ddxcccomp_Element(const StackSpinBlock* otherblock
   }
 }
 
-void SpinAdapted::stackopxop::cxcddcomp_Element(const StackSpinBlock* otherblock, std::vector<boost::shared_ptr<StackSparseMatrix> >& opvec1, const StackSpinBlock* b, StackSparseMatrix* o, StackMatrix& m, int row, int col)
+void SpinAdapted::stackopxop::cxcddcomp_Element(const StackSpinBlock* otherblock, const std::vector<boost::shared_ptr<StackSparseMatrix> >& opvec1, const StackSpinBlock* b, StackSparseMatrix* o, StackMatrix& m, int row, int col)
 {
   int ilock = 0;
   int numthreads = 1;//MAX_THRD;
@@ -1537,7 +1537,7 @@ void SpinAdapted::stackopxop::ham_d(const StackSpinBlock* thisBlock, boost::shar
 Formulas for making CCdcomp operators while blocking a block with a dot block
 ********************************************/
 
-void SpinAdapted::stackopxop::cxcdcompElement(const StackSpinBlock* otherBlock, std::vector<boost::shared_ptr<StackSparseMatrix> >& opvec1, const StackSpinBlock* b, int I, StackSparseMatrix* o, StackMatrix& m, int row, int col, double scale)
+void SpinAdapted::stackopxop::cxcdcompElement(const StackSpinBlock* otherBlock, const std::vector<boost::shared_ptr<StackSparseMatrix> >& opvec1, const StackSpinBlock* b, int I, StackSparseMatrix* o, StackMatrix& m, int row, int col, double scale)
 {
   int ilock = 0;//omp_get_thread_num();
   int numthreads = 1;
@@ -1610,7 +1610,7 @@ void SpinAdapted::stackopxop::cxcdcompElement(const StackSpinBlock* otherBlock, 
 }
 
 
-void SpinAdapted::stackopxop::dxcccompElement(const StackSpinBlock* otherBlock, std::vector<boost::shared_ptr<StackSparseMatrix> >& opvec1, const StackSpinBlock* b, int K, StackSparseMatrix* o, StackMatrix& m, int row, int col, double scale)
+void SpinAdapted::stackopxop::dxcccompElement(const StackSpinBlock* otherBlock, const std::vector<boost::shared_ptr<StackSparseMatrix> >& opvec1, const StackSpinBlock* b, int K, StackSparseMatrix* o, StackMatrix& m, int row, int col, double scale)
 { 
   int ilock = 0;//omp_get_thread_num();
   int numthreads = 1;
@@ -1702,7 +1702,7 @@ void SpinAdapted::stackopxop::dxcccompElement(const StackSpinBlock* otherBlock, 
 Formulas for making CCdcomp operators while blocking a block with a dot block
 ********************************************/
 
-void SpinAdapted::stackopxop::cxcdcomp(const StackSpinBlock* otherBlock, std::vector<boost::shared_ptr<StackSparseMatrix> >& opvec1, const StackSpinBlock* b, int I, StackSparseMatrix* o, double scale)
+void SpinAdapted::stackopxop::cxcdcomp(const StackSpinBlock* otherBlock, const std::vector<boost::shared_ptr<StackSparseMatrix> >& opvec1, const StackSpinBlock* b, int I, StackSparseMatrix* o, double scale)
 {
   int ilock = 0;//omp_get_thread_num();
   int numthreads = 1;
@@ -1776,7 +1776,7 @@ void SpinAdapted::stackopxop::cxcdcomp(const StackSpinBlock* otherBlock, std::ve
   }
 }
 
-void SpinAdapted::stackopxop::dxcccomp(const StackSpinBlock* otherBlock, std::vector<boost::shared_ptr<StackSparseMatrix> >& opvec1, const StackSpinBlock* b, int K, StackSparseMatrix* o, double scale)
+void SpinAdapted::stackopxop::dxcccomp(const StackSpinBlock* otherBlock, const std::vector<boost::shared_ptr<StackSparseMatrix> >& opvec1, const StackSpinBlock* b, int K, StackSparseMatrix* o, double scale)
 { 
   int ilock = 0;//omp_get_thread_num();
   int numthreads = 1;
@@ -1867,7 +1867,7 @@ void SpinAdapted::stackopxop::dxcccomp(const StackSpinBlock* otherBlock, std::ve
 Formulas for making Cddcomp operators while blocking a block with a dot block
 ********************************************/
 
-void SpinAdapted::stackopxop::dxcdcomp(const StackSpinBlock* otherBlock, std::vector<boost::shared_ptr<StackSparseMatrix> >& opvec1, const StackSpinBlock* b, int I, StackSparseMatrix* o, double scale)
+void SpinAdapted::stackopxop::dxcdcomp(const StackSpinBlock* otherBlock, const std::vector<boost::shared_ptr<StackSparseMatrix> >& opvec1, const StackSpinBlock* b, int I, StackSparseMatrix* o, double scale)
 {
   int ilock = 0;//omp_get_thread_num();
   int numthreads = 1;
@@ -1903,7 +1903,7 @@ void SpinAdapted::stackopxop::dxcdcomp(const StackSpinBlock* otherBlock, std::ve
   } 
 }
 
-void SpinAdapted::stackopxop::cxddcomp(const StackSpinBlock* otherBlock, std::vector<boost::shared_ptr<StackSparseMatrix> >& opvec1, const StackSpinBlock* b, int K, StackSparseMatrix* o, double scale)
+void SpinAdapted::stackopxop::cxddcomp(const StackSpinBlock* otherBlock, const std::vector<boost::shared_ptr<StackSparseMatrix> >& opvec1, const StackSpinBlock* b, int K, StackSparseMatrix* o, double scale)
 { 
   int ilock = 0;//omp_get_thread_num();
   int numthreads = 1;
@@ -2877,7 +2877,7 @@ void SpinAdapted::stackopxop::OverlaponRight(boost::shared_ptr<StackSparseMatrix
 
 //**********************************************************************************************************
   
-void SpinAdapted::stackopxop::cdd_cxddcomp(const StackSpinBlock* otherblock, std::vector<boost::shared_ptr<StackSparseMatrix> >& opvec1, const StackSpinBlock* b, StackSparseMatrix* o)
+void SpinAdapted::stackopxop::cdd_cxddcomp(const StackSpinBlock* otherblock, const std::vector<boost::shared_ptr<StackSparseMatrix> >& opvec1, const StackSpinBlock* b, StackSparseMatrix* o)
 {
   int ilock = 0;
   const StackSpinBlock* loopblock = (otherblock==b->get_leftBlock()) ? b->get_rightBlock() : b->get_leftBlock();
@@ -2919,7 +2919,7 @@ void SpinAdapted::stackopxop::cdd_cxddcomp(const StackSpinBlock* otherblock, std
   }
 }
 
-void SpinAdapted::stackopxop::cdd_dxcdcomp(const StackSpinBlock* otherblock, std::vector<boost::shared_ptr<StackSparseMatrix> >& opvec1, const StackSpinBlock* b, StackSparseMatrix* o)
+void SpinAdapted::stackopxop::cdd_dxcdcomp(const StackSpinBlock* otherblock, const std::vector<boost::shared_ptr<StackSparseMatrix> >& opvec1, const StackSpinBlock* b, StackSparseMatrix* o)
 {
   int ilock = 0;
   const StackSpinBlock* loopblock = (otherblock==b->get_leftBlock()) ? b->get_rightBlock() : b->get_leftBlock();
@@ -2961,7 +2961,7 @@ void SpinAdapted::stackopxop::cdd_dxcdcomp(const StackSpinBlock* otherblock, std
   }
 }
 
-void SpinAdapted::stackopxop::ccd_dxcccomp(const StackSpinBlock* otherblock, std::vector<boost::shared_ptr<StackSparseMatrix> >& opvec1, const StackSpinBlock* b, StackSparseMatrix* o)
+void SpinAdapted::stackopxop::ccd_dxcccomp(const StackSpinBlock* otherblock, const std::vector<boost::shared_ptr<StackSparseMatrix> >& opvec1, const StackSpinBlock* b, StackSparseMatrix* o)
 {
   int ilock = 0;
   const StackSpinBlock* loopblock = (otherblock==b->get_leftBlock()) ? b->get_rightBlock() : b->get_leftBlock();
@@ -2998,7 +2998,7 @@ void SpinAdapted::stackopxop::ccd_dxcccomp(const StackSpinBlock* otherblock, std
   }
 }
 
-void SpinAdapted::stackopxop::ccd_cxcdcomp(const StackSpinBlock* otherblock, std::vector<boost::shared_ptr<StackSparseMatrix> >& opvec1, const StackSpinBlock* b, StackSparseMatrix* o)
+void SpinAdapted::stackopxop::ccd_cxcdcomp(const StackSpinBlock* otherblock, const std::vector<boost::shared_ptr<StackSparseMatrix> >& opvec1, const StackSpinBlock* b, StackSparseMatrix* o)
 {
   int ilock = 0;
   const StackSpinBlock* loopblock = (otherblock==b->get_leftBlock()) ? b->get_rightBlock() : b->get_leftBlock();
@@ -3034,7 +3034,7 @@ void SpinAdapted::stackopxop::ccd_cxcdcomp(const StackSpinBlock* otherblock, std
   }
 }
 
-//void SpinAdapted::stackopxop::cdd_cxddcomp(const StackSpinBlock* otherblock, std::vector<boost::shared_ptr<StackSparseMatrix> >& opvec1, const StackSpinBlock* b, StackWavefunction& c, StackWavefunction* v, const StackSpinQuantum& q)
+//void SpinAdapted::stackopxop::cdd_cxddcomp(const StackSpinBlock* otherblock, const std::vector<boost::shared_ptr<StackSparseMatrix> >& opvec1, const StackSpinBlock* b, StackWavefunction& c, StackWavefunction* v, const StackSpinQuantum& q)
 //{
 //  int ilock = 0;
 //  const StackSpinBlock* loopblock = (otherblock==b->get_leftBlock()) ? b->get_rightBlock() : b->get_leftBlock();
@@ -3062,7 +3062,7 @@ void SpinAdapted::stackopxop::ccd_cxcdcomp(const StackSpinBlock* otherblock, std
 //  }
 //}
 //
-//void SpinAdapted::stackopxop::cdd_dxcdcomp(const StackSpinBlock* otherblock, std::vector<boost::shared_ptr<StackSparseMatrix> >& opvec1, const StackSpinBlock* b, StackWavefunction& c, StackWavefunction* v, const SpinQuantum& q)
+//void SpinAdapted::stackopxop::cdd_dxcdcomp(const StackSpinBlock* otherblock, const std::vector<boost::shared_ptr<StackSparseMatrix> >& opvec1, const StackSpinBlock* b, StackWavefunction& c, StackWavefunction* v, const SpinQuantum& q)
 //{
 //  int ilock = 0;
 //  const StackSpinBlock* loopblock = (otherblock==b->get_leftBlock()) ? b->get_rightBlock() : b->get_leftBlock();
@@ -3095,7 +3095,7 @@ void SpinAdapted::stackopxop::ccd_cxcdcomp(const StackSpinBlock* otherblock, std
 //
 ////**********************************************************************************************************
 
-//void SpinAdapted::stackopxop::ccd_dxcccomp(const StackSpinBlock* otherblock, std::vector<boost::shared_ptr<StackSparseMatrix> >& opvec1, const StackSpinBlock* b, StackWavefunction& c, StackWavefunction* v, const SpinQuantum& q)
+//void SpinAdapted::stackopxop::ccd_dxcccomp(const StackSpinBlock* otherblock, const std::vector<boost::shared_ptr<StackSparseMatrix> >& opvec1, const StackSpinBlock* b, StackWavefunction& c, StackWavefunction* v, const SpinQuantum& q)
 //{
 //  int ilock = 0;
 //  const StackSpinBlock* loopblock = (otherblock==b->get_leftBlock()) ? b->get_rightBlock() : b->get_leftBlock();
@@ -3123,7 +3123,7 @@ void SpinAdapted::stackopxop::ccd_cxcdcomp(const StackSpinBlock* otherblock, std
 //  }
 //}
 //
-//void SpinAdapted::stackopxop::ccd_cxcdcomp(const StackSpinBlock* otherblock, std::vector<boost::shared_ptr<StackSparseMatrix> >& opvec1, const StackSpinBlock* b, StackWavefunction& c, StackWavefunction* v, const SpinQuantum& q)
+//void SpinAdapted::stackopxop::ccd_cxcdcomp(const StackSpinBlock* otherblock, const std::vector<boost::shared_ptr<StackSparseMatrix> >& opvec1, const StackSpinBlock* b, StackWavefunction& c, StackWavefunction* v, const SpinQuantum& q)
 //{
 //  int ilock = 0;
 //  const StackSpinBlock* loopblock = (otherblock==b->get_leftBlock()) ? b->get_rightBlock() : b->get_leftBlock();
