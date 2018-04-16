@@ -131,7 +131,7 @@ void block_calldmrg (
     fcon << "end" << endl;
 
     if(Restart == 0) {
-      fcon << "warmup local_3site" << endl;
+      fcon << "warmup local_4site" << endl;
     }
     else {
       if(Restart == 1 && N_roots > 1)
