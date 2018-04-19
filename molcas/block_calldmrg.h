@@ -21,7 +21,8 @@ void block_calldmrg_ (
       const FORTINT* N_pdm,
       const double* T_sweep,
       const double* T_noise,
-            double* E_sweep);
+            double* E_sweep,
+      const char* hf_occ);
 
 } // extern "C"
 
@@ -37,10 +38,11 @@ void block_calldmrg (
       const double& E_core,
       const double* h0,
       const double* tuvx,
-      const FORTINT& M_state,
-      const FORTINT& N_pdm,
-      const double& T_sweep,
-      const double& T_noise,
-            double* E_sweep);
+            FORTINT  M_state,
+            FORTINT  N_pdm,
+            double  T_sweep,
+            double  T_noise,
+            double* E_sweep,
+      const char* hf_occ);
 
 #endif // __BLOCK_CALL_DMRG_H

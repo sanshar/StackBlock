@@ -19,9 +19,10 @@ void block_calldmrg_ (
       const FORTINT* N_pdm,
       const double* T_sweep,
       const double* T_noise,
-            double* E_sweep)
+            double* E_sweep,
+      const char* hf_occ)
 {
-  block_calldmrg(*Restart, *N_roots, *N_act, *N_elec, *M_s, Sym, *iSym, OrbSym, *E_core, h0, tuvx, *M_state, *N_pdm, *T_sweep, *T_noise, E_sweep);
+  block_calldmrg(*Restart, *N_roots, *N_act, *N_elec, *M_s, Sym, *iSym, OrbSym, *E_core, h0, tuvx, *M_state, *N_pdm, *T_sweep, *T_noise, E_sweep, hf_occ);
 }
 
 extern int calldmrg(char*, char*);
@@ -54,11 +55,12 @@ void block_calldmrg (
       const double& E_core,
       const double* h0,
       const double* tuvx,
-      const FORTINT& M_state,
-      const FORTINT& N_pdm,
-      const double& T_sweep,
-      const double& T_noise,
-            double* E_sweep)
+            FORTINT  M_state,
+            FORTINT  N_pdm,
+            double  T_sweep,
+            double  T_noise,
+            double* E_sweep,
+      const char* hf_occ)
 {
   using std::endl;
   using std::setw;
@@ -138,7 +140,7 @@ void block_calldmrg (
         fcon << "restart" << endl;
       else
         fcon << "fullrestart" << endl;
-      fcon << "reset_iter" << endl;
+        fcon << "reset_iter" << endl;
     }
 
     if(Restart != 1)
@@ -176,8 +178,20 @@ void block_calldmrg (
 //  fcon << "prefix " << prefix << endl;
     fcon << "orbitals FCIDUMP" << endl;
     fcon << "symmetry " << symlab << endl;
-    fcon << "gaopt default" << endl;
-    fcon << "hf_occ integral" << endl;
+//    fcon << "gaopt default" << endl;
+    fcon << "hf_occ " << hf_occ << endl;
+
+
+    if (std::ifstream("ReOrder.dat"))
+    {
+           fcon << "reorder ReOrder.dat" << endl;
+           std::cout << "Read orbital order from ReOrder.dat" << std::endl;
+    }
+    else
+    {
+           fcon << "gaopt default" << endl;
+//           std::cout << "Use genetic algorithm for orbital reordering" << std::endl;
+    }
 
     if(N_roots > 1) {
       fcon << "nroots " << N_roots << endl;
