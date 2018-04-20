@@ -20,9 +20,10 @@ void block_calldmrg_ (
       const double* T_sweep,
       const double* T_noise,
             double* E_sweep,
-      const char* hf_occ)
+      const FORTINT* hf_occ,
+            FORTINT* nrs2t)
 {
-  block_calldmrg(*Restart, *N_roots, *N_act, *N_elec, *M_s, Sym, *iSym, OrbSym, *E_core, h0, tuvx, *M_state, *N_pdm, *T_sweep, *T_noise, E_sweep, hf_occ);
+  block_calldmrg(*Restart, *N_roots, *N_act, *N_elec, *M_s, Sym, *iSym, OrbSym, *E_core, h0, tuvx, *M_state, *N_pdm, *T_sweep, *T_noise, E_sweep, hf_occ, *nrs2t);
 }
 
 extern int calldmrg(char*, char*);
@@ -60,7 +61,8 @@ void block_calldmrg (
             double  T_sweep,
             double  T_noise,
             double* E_sweep,
-      const char* hf_occ)
+      const FORTINT* hf_occ,
+            FORTINT nrs2t)
 {
   using std::endl;
   using std::setw;
@@ -179,7 +181,24 @@ void block_calldmrg (
     fcon << "orbitals FCIDUMP" << endl;
     fcon << "symmetry " << symlab << endl;
 //    fcon << "gaopt default" << endl;
-    fcon << "hf_occ " << hf_occ << endl;
+
+    int nhf_occ = 0;
+    for (int k=0;k<nrs2t;++k) {
+          nhf_occ = nhf_occ + hf_occ[k];
+    }
+
+    if (nhf_occ == N_elec)
+    {
+        fcon << "hf_occ ";
+        for(int k=0;k<nrs2t;++k){
+        fcon << hf_occ[k] << ' ';
+        }
+        fcon << endl;
+    }
+    else
+    {
+        fcon << "hf_occ integral" <<  endl;
+    }
 
 
     if (std::ifstream("ReOrder.dat"))
