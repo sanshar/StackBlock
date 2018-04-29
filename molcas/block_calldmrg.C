@@ -139,7 +139,7 @@ void block_calldmrg (
     }
     else {
       if(Restart == 1 && N_roots > 1)
-        fcon << "restart" << endl;
+        fcon << "fullrestart" << endl;
       else
         fcon << "fullrestart" << endl;
         fcon << "reset_iter" << endl;
