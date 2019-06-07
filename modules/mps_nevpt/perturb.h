@@ -65,8 +65,8 @@ namespace SpinAdapted{
       public:
         TwoPerturbType type_;
         bool initialized_ = false;
-        const bool initialized() const {return initialized_; }
-        const TwoPerturbType type() const { return type_; }
+        bool initialized() const {return initialized_; }
+        TwoPerturbType type() const { return type_; }
         vector<int> orbs;
         perturber(){;}
         static vector<double> ZeroEnergy;
@@ -97,7 +97,7 @@ namespace SpinAdapted{
         //const Wavefunction& w0;
         int w0;
         //virtual const int wavenumber(){ return static_cast<int>(type_)*10000;}
-        virtual const int wavenumber() const =0;
+        virtual int wavenumber() const =0;
         //const PerturbArray& v;
         //const ActivePerturbArray& ActiveV;
         std::vector<SpinQuantum> braquanta;
@@ -143,7 +143,7 @@ namespace SpinAdapted{
           init(std::vector<int>(1,orb));
         }
 
-        const int wavenumber() const { return static_cast<int>(type_)*10000+orbs[0]+100000;}
+        int wavenumber() const { return static_cast<int>(type_)*10000+orbs[0]+100000;}
         
     };
 
@@ -183,7 +183,7 @@ namespace SpinAdapted{
           init(std::vector<int>(1,orb));
         }
 
-        const int wavenumber() const { return static_cast<int>(type_)*10000+orbs[0]+100000;}
+        int wavenumber() const { return static_cast<int>(type_)*10000+orbs[0]+100000;}
         
     };
 
