@@ -220,6 +220,19 @@ void block_calldmrg (
     }
 
 //  fcon << "outputlevel 2" << endl;
+    char* pMem;
+    pMem = getenv ("MOLCAS_MEM");
+    if (pMem!=NULL)
+      fcon << "memory " << pMem << " m" << endl;
+    else
+      fcon << "memory 2000 m" << endl;
+
+    char* pONT;
+    pONT = getenv ("OMP_NUM_THREADS");
+    if (pONT!=NULL)
+      fcon << "num_thrds " << pONT << endl;
+    else
+      fcon << "num_thrds 1" << endl;
 
     fcon.close();
   }
