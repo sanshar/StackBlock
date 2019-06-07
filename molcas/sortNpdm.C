@@ -8,7 +8,7 @@
 
 void sort1pdm (FORTINT N_act, FORTINT iRoot, FORTINT jRoot)
 {
-  // Sorting 3PDMs as Chemist's order
+  // Sorting 1PDMs as Chemist's order
   if(mpigetrank() == 0) {
 
     std::ostringstream ifname;
@@ -58,11 +58,11 @@ void sort1pdm (FORTINT N_act, FORTINT iRoot, FORTINT jRoot)
 
 void sort2pdm (FORTINT N_act, FORTINT iRoot, FORTINT jRoot)
 {
-  // Sorting 3PDMs as Chemist's order
+  // Sorting 2PDMs as Chemist's order
   if(mpigetrank() == 0) {
 
     std::ostringstream ifname;
-    ifname << "./node0/spatial_twopdm." << iRoot << "." << jRoot << ".bin";
+    ifname << "./node0/spatial_twopdm." << iRoot << "." << jRoot << ".txt";
 
     std::ostringstream ofname;
     ofname << "./SORTED2PDM." << iRoot << "." << jRoot << ".0";
@@ -82,12 +82,19 @@ void sort2pdm (FORTINT N_act, FORTINT iRoot, FORTINT jRoot)
     // sort <i,j,k,l> (in row-major) to G(i,l,j,k) (in col-major)
     // i.e. G(i,j,k,l) = <i,k,l,j>
 
-//  int Ndum;
-//  fread(&Ndum,sizeof(int),1,ifp);
-//  assert(Ndum == N_act);
+    int Ndum;
+    int scanf_return = 0;
+    // fread(&Ndum,sizeof(int),1,ifp);
+    scanf_return = fscanf(ifp,"%d",&Ndum);
+    assert(scanf_return == 1);
+    assert(Ndum == N_act);
 
     double *xbuf = new double[N4];
-    fread(xbuf,sizeof(double),N4,ifp);
+    // fread(xbuf,sizeof(double),N4,ifp);
+    for (int i = 0; i < N4; i++) {
+      scanf_return = fscanf(ifp,"%*d %*d %*d %*d %lf", &xbuf[i]);
+      assert(scanf_return == 1);
+    }
 
     double *vbuf = new double[N2];
     for(int l = 0; l < N_act; ++l) {
