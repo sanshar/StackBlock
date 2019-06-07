@@ -345,7 +345,7 @@ void Threepdm_container::save_spatial_npdm_binary(const int &I, const int &J)
       ofs.close();
 #else
       FILE* f = fopen(file,"wb");
-      fwrite(spatial_threepdm.data(),sizeof(double),spatial_threepdm.size(),f);
+      fwrite( (char*)(spatial_threepdm.data),sizeof(double),spatial_threepdm.get_size(),f);
       fclose(f);
 #endif
     }
