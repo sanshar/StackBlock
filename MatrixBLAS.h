@@ -94,8 +94,8 @@ namespace SpinAdapted{
     T1& a = const_cast<T1&>(a_ref); // for BLAS calls
     T2& b = const_cast<T2&>(b_ref);
     
-    int arows = a.Nrows();
-    int acols = a.Ncols();
+    FORTINT arows = a.Nrows();
+    FORTINT acols = a.Ncols();
     
     // some specialisations
 #ifdef FAST_MTP
@@ -131,10 +131,10 @@ namespace SpinAdapted{
 	if (conjA == 'n' && conjB == 'n')
 	  {
 #ifdef BLAS
-	    int aRows = a.Nrows ();
-	    int aCols = a.Ncols ();
-	    int bRows = b.Nrows ();
-	    int bCols = b.Ncols ();
+	    FORTINT aRows = a.Nrows ();
+	    FORTINT aCols = a.Ncols ();
+	    FORTINT bRows = b.Nrows ();
+	    FORTINT bCols = b.Ncols ();
 	    
 	    for (int i = 0; i < aRows; ++i)
 	      for (int j = 0; j < aCols; ++j)
@@ -152,10 +152,10 @@ namespace SpinAdapted{
 	else if (conjA == 't' && conjB == 'n')
 	  {
 #ifdef BLAS
-	    int aRows = a.Ncols ();
-	    int aCols = a.Nrows ();
-	    int bRows = b.Nrows ();
-	    int bCols = b.Ncols ();
+	    FORTINT aRows = a.Ncols ();
+	    FORTINT aCols = a.Nrows ();
+	    FORTINT bRows = b.Nrows ();
+	    FORTINT bCols = b.Ncols ();
 	    
 	    for (int i = 0; i < aRows; ++i)
 	      for (int j = 0; j < aCols; ++j)
@@ -173,10 +173,10 @@ namespace SpinAdapted{
 	else if (conjA == 'n' && conjB == 't')
 	  {
 #ifdef BLAS
-	    int aRows = a.Nrows ();
-	    int aCols = a.Ncols ();
-	    int bRows = b.Ncols ();
-	    int bCols = b.Nrows ();
+	    FORTINT aRows = a.Nrows ();
+	    FORTINT aCols = a.Ncols ();
+	    FORTINT bRows = b.Ncols ();
+	    FORTINT bCols = b.Nrows ();
 	    
 	    for (int i = 0; i < aRows; ++i)
 	      for (int j = 0; j < aCols; ++j)
@@ -194,10 +194,10 @@ namespace SpinAdapted{
 	else if (conjA == 't' && conjB == 't')
 	  {
 #ifdef BLAS
-	    int aRows = a.Ncols ();
-	    int aCols = a.Nrows ();
-	    int bRows = b.Ncols ();
-	    int bCols = b.Nrows ();
+	    FORTINT aRows = a.Ncols ();
+	    FORTINT aCols = a.Nrows ();
+	    FORTINT bRows = b.Ncols ();
+	    FORTINT bCols = b.Nrows ();
 	    
 	    for (int i = 0; i < aRows; ++i)
 	      for (int j = 0; j < aCols; ++j)
@@ -234,7 +234,7 @@ namespace SpinAdapted{
       //  b += d * a;
 #ifdef BLAS 
       assert ((a.Nrows () == b.Nrows ()) && (a.Ncols () == b.Ncols ()));
-      int n = a.Nrows () * a.Ncols ();
+      FORTINT n = a.Nrows () * a.Ncols ();
       DAXPY (n, d, a.Store (), 1, b.Store (), 1);
 #else
       b += d * a;
@@ -249,12 +249,12 @@ namespace SpinAdapted{
     T2& b_ref = const_cast<T2&>(b);
     try
       {
-	int aRows = a_ref.Nrows ();
-	int aCols = a_ref.Ncols ();
-	int bRows = b_ref.Nrows ();
-	int bCols = b_ref.Ncols ();
-	int cRows = c.Nrows ();
-	int cCols = c.Ncols ();
+	FORTINT aRows = a_ref.Nrows ();
+	FORTINT aCols = a_ref.Ncols ();
+	FORTINT bRows = b_ref.Nrows ();
+	FORTINT bCols = b_ref.Ncols ();
+	FORTINT cRows = c.Nrows ();
+	FORTINT cCols = c.Ncols ();
 	dmrginp.matmultNum++;
 	if (conjA == 'n' && conjB == 'n')
 	  {	  
@@ -342,7 +342,7 @@ template<class T> void MatrixDiagonalScale(double d, const T& a, double* b)
 {
   //assert (a.Nrows () == a.Ncols () && a.Nrows () == b.Ncols ());
 #ifdef BLAS
-  int n = a.Nrows ();
+  FORTINT n = a.Nrows ();
   DAXPY (n, d, a.Store (), n+1, b, 1);
 #else
   //b += d * a; Should add the non-blas analogue
