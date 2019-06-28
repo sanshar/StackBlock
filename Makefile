@@ -6,13 +6,15 @@
 ######### GENERAL OPTIONS FOR USER #########
 
 # change to icpc for Intel
+#CXX = clang++
+#MPICXX = mpiicpc
 CXX = g++
 MPICXX = mpic++
 export CXX
 export MPICXX
 
 # BOOST include directory
-#BOOSTDIR=/software/StackBlock/boost_1_58_0/HRL_INSTALL
+#BOOSTDIR=/software/StackBlock/boost_1_58_0
 #BOOSTINCLUDE = ${BOOSTDIR}/include
 BOOSTDIR=/usr/lib
 BOOSTINCLUDE =/usr/include
