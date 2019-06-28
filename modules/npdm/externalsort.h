@@ -7,6 +7,7 @@
 #include <boost/filesystem.hpp>
 #include <boost/archive/binary_oarchive.hpp>
 #include <boost/archive/binary_iarchive.hpp>
+#include <boost/serialization/vector.hpp>
 #include <vector> 
 #include <fstream>
 #include <iostream>
