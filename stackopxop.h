@@ -64,10 +64,10 @@ namespace stackopxop
 
   //**********************************************************************************************************
   
-  void cdd_cxddcomp(const StackSpinBlock* otherblock, boost::shared_ptr<StackSparseMatrix> & op1, const StackSpinBlock* b, StackWavefunction& c, StackWavefunction* v, const SpinQuantum& q);
-  void cdd_dxcdcomp(const StackSpinBlock* otherblock, boost::shared_ptr<StackSparseMatrix> & op1, const StackSpinBlock* b, StackWavefunction& c, StackWavefunction* v, const SpinQuantum& q);
-  void ccd_dxcccomp(const StackSpinBlock* otherblock, boost::shared_ptr<StackSparseMatrix> & op1, const StackSpinBlock* b, StackWavefunction& c, StackWavefunction* v, const SpinQuantum& q);
-  void ccd_cxcdcomp(const StackSpinBlock* otherblock, boost::shared_ptr<StackSparseMatrix> & op1, const StackSpinBlock* b, StackWavefunction& c, StackWavefunction* v, const SpinQuantum& q);
+  void cdd_cxddcomp(const StackSpinBlock* otherblock, const boost::shared_ptr<StackSparseMatrix> & op1, const StackSpinBlock* b, StackWavefunction& c, StackWavefunction* v, const SpinQuantum& q);
+  void cdd_dxcdcomp(const StackSpinBlock* otherblock, const boost::shared_ptr<StackSparseMatrix> & op1, const StackSpinBlock* b, StackWavefunction& c, StackWavefunction* v, const SpinQuantum& q);
+  void ccd_dxcccomp(const StackSpinBlock* otherblock, const boost::shared_ptr<StackSparseMatrix> & op1, const StackSpinBlock* b, StackWavefunction& c, StackWavefunction* v, const SpinQuantum& q);
+  void ccd_cxcdcomp(const StackSpinBlock* otherblock, const boost::shared_ptr<StackSparseMatrix> & op1, const StackSpinBlock* b, StackWavefunction& c, StackWavefunction* v, const SpinQuantum& q);
   
   //*********************************************************************************
   

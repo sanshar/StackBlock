@@ -6,18 +6,19 @@
 ######### GENERAL OPTIONS FOR USER #########
 
 # change to icpc for Intel
-CXX = clang++
-MPICXX = mpiicpc
+CXX = g++
+MPICXX = mpic++
 export CXX
 export MPICXX
 
 # BOOST include directory
-#BOOSTINCLUDE = /home/sharma/apps/forServer/boost_1_53_0_mt/boost_1_53_0/
-#BOOSTINCLUDE = /home/sharma/apps/boost/boost_1_55_0/
-BOOSTINCLUDE = /opt/local/include
+#BOOSTDIR=/software/StackBlock/boost_1_58_0/HRL_INSTALL
+#BOOSTINCLUDE = ${BOOSTDIR}/include
+BOOSTDIR=/usr/lib
+BOOSTINCLUDE =/usr/include
 
 # set to yes if using BOOST version >= 1.56.0
-USE_BOOST56 = no
+USE_BOOST56 = yes
 ifeq ($(USE_BOOST56), yes)
 	B56 = -DBOOST_1_56_0
 endif
@@ -26,10 +27,13 @@ endif
 #BOOSTLIB = -L/home/sharma/apps/forServer/boost_1_53_0_mt/boost_1_53_0/stage/lib -lboost_serialization -lboost_system -lboost_filesystem
 #BOOSTLIB = -L/home/sharma/apps/boost/boost_1_55_0/stage/lib -lboost_serialization -lboost_system -lboost_filesystem 
 #BOOSTLIB = -lboost_serialization -lboost_system -lboost_filesystem
-BOOSTLIB = -L/opt/local/lib  -lboost_system-mt -lboost_filesystem-mt -lboost_serialization-mt
+#BOOSTLIB = -L${BOOSTDIR}/lib -lboost_system-mt -lboost_filesystem-mt -lboost_serialization-mt
+# Note: Newer boost libraries are typically thread-safe => "-mt" suffix not required. 
+BOOSTLIB = -L${BOOSTDIR}/lib -lboost_system -lboost_filesystem -lboost_serialization
 
 #LAPACKBLAS = -lblas -llapack
-LAPACKBLAS =    /usr/lib/liblapack.dylib /usr/lib/libblas.dylib
+#LAPACKBLAS =    /usr/lib/liblapack.dylib /usr/lib/libblas.dylib
+LAPACKBLAS = 
 
 # set if we will use MPI or OpenMP
 USE_MPI = no
@@ -39,9 +43,9 @@ OPENMP = no
 USE_MKL = no
 
 ifeq ($(USE_MKL), yes)
-MKLLIB = .
-LAPACKBLAS = -L${MKLLIB} -lmkl_gf_lp64 -lmkl_sequential -lmkl_core #-lrt #-liomp5 
-MKLFLAGS = /usr/local/server/IntelStudio_2015/mkl/include/
+# LAPACKBLAS = -L${MKLLIB} -lmkl_gf_lp64 -lmkl_sequential -lmkl_core #-lrt #-liomp5 
+LAPACKBLAS = -Wl,--no-as-needed -L${MKLROOT}/lib/intel64 -lmkl_gf_lp64 -lmkl_core -lmkl_sequential -lm -ldl -lrt
+MKLFLAGS = ${MKLROOT}/include
 MKLOPT = -D_HAS_INTEL_MKL
 else
 MKLFLAGS = .
@@ -132,7 +136,7 @@ ifeq (g++, $(CXX))
 	#endif
    endif
 # GNU compiler
-   OPT = -DNDEBUG -O2 -g -funroll-loops -Werror
+   OPT = -DNDEBUG -O2 -g -funroll-loops -Werror -Wno-error=deprecated-declarations -fdiagnostics-color=always
 #   OPT = -g -pg
 endif
 
@@ -263,7 +267,7 @@ $(NEWMATLIB)/libnewmat.a :
 	cd $(NEWMATLIB) && $(MAKE) -f makefile libnewmat.a
 
 clean:
-	rm *.o include/*.o modules/generate_blocks/*.o modules/onepdm/*.o modules/twopdm/*.o modules/npdm/*.o $(NEWMATLIB)*.o libqcdmrg.a libqcdmrg.so $(EXECUTABLE) $(NEWMATLIB)/libnewmat.a genetic/gaopt genetic/*.o btas/lib/*.o btas/lib/libbtas.a modules/two_index_ops/*.o modules/three_index_ops/*.o modules/four_index_ops/*.o modules/ResponseTheory/*.o modules/nevpt2/*.o molcas/*.o modules/mps_nevpt/*o
+	rm -f *.o include/*.o modules/generate_blocks/*.o modules/onepdm/*.o modules/twopdm/*.o modules/npdm/*.o $(NEWMATLIB)*.o libqcdmrg.a libqcdmrg.so $(EXECUTABLE) $(NEWMATLIB)/libnewmat.a genetic/gaopt genetic/*.o btas/lib/*.o btas/lib/libbtas.a modules/two_index_ops/*.o modules/three_index_ops/*.o modules/four_index_ops/*.o modules/ResponseTheory/*.o modules/nevpt2/*.o molcas/*.o modules/mps_nevpt/*o
 	find . -name "*.o" |xargs rm
 check-syntax:
 	$(CXX) $(FLAGS) $(OPT) -o nul -S -Wall -Wextra -pedantic -fsyntax-only -Wno-variadic-macros $(CHK_SOURCES)

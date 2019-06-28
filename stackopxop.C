@@ -3252,7 +3252,7 @@ void SpinAdapted::stackopxop::ccd_cxcdcomp(const StackSpinBlock* otherblock, con
 //    }
 //}
 //
-void SpinAdapted::stackopxop::cdd_cxddcomp(const StackSpinBlock* otherblock, boost::shared_ptr<StackSparseMatrix> & op1, const StackSpinBlock* b, StackWavefunction& c, StackWavefunction* v, const SpinQuantum& q)
+void SpinAdapted::stackopxop::cdd_cxddcomp(const StackSpinBlock* otherblock, const boost::shared_ptr<StackSparseMatrix> & op1, const StackSpinBlock* b, StackWavefunction& c, StackWavefunction* v, const SpinQuantum& q)
 {
   int ilock = 0;
   const StackSpinBlock* loopblock = (otherblock==b->get_leftBlock()) ? b->get_rightBlock() : b->get_leftBlock();
@@ -3289,7 +3289,7 @@ void SpinAdapted::stackopxop::cdd_cxddcomp(const StackSpinBlock* otherblock, boo
     if (deallocate1) op1->deallocate();
 }
 
-void SpinAdapted::stackopxop::cdd_dxcdcomp(const StackSpinBlock* otherblock, boost::shared_ptr<StackSparseMatrix> & op1, const StackSpinBlock* b, StackWavefunction& c, StackWavefunction* v, const SpinQuantum& q)
+void SpinAdapted::stackopxop::cdd_dxcdcomp(const StackSpinBlock* otherblock, const boost::shared_ptr<StackSparseMatrix> & op1, const StackSpinBlock* b, StackWavefunction& c, StackWavefunction* v, const SpinQuantum& q)
 {
   int ilock = 0;
   const StackSpinBlock* loopblock = (otherblock==b->get_leftBlock()) ? b->get_rightBlock() : b->get_leftBlock();
@@ -3329,7 +3329,7 @@ void SpinAdapted::stackopxop::cdd_dxcdcomp(const StackSpinBlock* otherblock, boo
     if (deallocate1) op1->deallocate();
 }
 
-void SpinAdapted::stackopxop::ccd_dxcccomp(const StackSpinBlock* otherblock, boost::shared_ptr<StackSparseMatrix> & op1, const StackSpinBlock* b, StackWavefunction& c, StackWavefunction* v, const SpinQuantum& q)
+void SpinAdapted::stackopxop::ccd_dxcccomp(const StackSpinBlock* otherblock, const boost::shared_ptr<StackSparseMatrix> & op1, const StackSpinBlock* b, StackWavefunction& c, StackWavefunction* v, const SpinQuantum& q)
 {
   const StackSpinBlock* loopblock = (otherblock==b->get_leftBlock()) ? b->get_rightBlock() : b->get_leftBlock();
     
@@ -3365,7 +3365,7 @@ void SpinAdapted::stackopxop::ccd_dxcccomp(const StackSpinBlock* otherblock, boo
     if (deallocate1) op1->deallocate();
 }
 
-void SpinAdapted::stackopxop::ccd_cxcdcomp(const StackSpinBlock* otherblock, boost::shared_ptr<StackSparseMatrix> & op1, const StackSpinBlock* b, StackWavefunction& c, StackWavefunction* v, const SpinQuantum& q)
+void SpinAdapted::stackopxop::ccd_cxcdcomp(const StackSpinBlock* otherblock, const boost::shared_ptr<StackSparseMatrix> & op1, const StackSpinBlock* b, StackWavefunction& c, StackWavefunction* v, const SpinQuantum& q)
 {
   int ilock = 0;
   const StackSpinBlock* loopblock = (otherblock==b->get_leftBlock()) ? b->get_rightBlock() : b->get_leftBlock();
