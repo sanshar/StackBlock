@@ -268,7 +268,7 @@ $(NEWMATLIB)/libnewmat.a :
 
 clean:
 	rm -f *.o include/*.o modules/generate_blocks/*.o modules/onepdm/*.o modules/twopdm/*.o modules/npdm/*.o $(NEWMATLIB)*.o libqcdmrg.a libqcdmrg.so $(EXECUTABLE) $(NEWMATLIB)/libnewmat.a genetic/gaopt genetic/*.o btas/lib/*.o btas/lib/libbtas.a modules/two_index_ops/*.o modules/three_index_ops/*.o modules/four_index_ops/*.o modules/ResponseTheory/*.o modules/nevpt2/*.o molcas/*.o modules/mps_nevpt/*o
-	find . -name "*.o" |xargs rm
+	find . -name "*.o" |xargs rm -f
 check-syntax:
 	$(CXX) $(FLAGS) $(OPT) -o nul -S -Wall -Wextra -pedantic -fsyntax-only -Wno-variadic-macros $(CHK_SOURCES)
 # DO NOT DELETE
