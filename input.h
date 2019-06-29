@@ -18,7 +18,6 @@ Sandeep Sharma and Garnet K.-L. Chan
 #include "SpinQuantum.h"
 #include "timer.h"
 #include "couplingCoeffs.h"
-#include <boost/tr1/unordered_map.hpp>
 #include "enumerator.h"
 
 namespace SpinAdapted{

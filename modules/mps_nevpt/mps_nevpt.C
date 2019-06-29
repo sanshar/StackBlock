@@ -8,7 +8,7 @@ void dmrg(double sweep_tol);
 vector<double> perturber::ZeroEnergy;
 //vector<double> perturber::CoreEnergy;
 
-double readZeroEnergy(){
+void readZeroEnergy(){
   perturber::ZeroEnergy.resize(dmrginp.nroots());
 //  perturber::CoreEnergy.resize(dmrginp.nroots(),0.0);
 
