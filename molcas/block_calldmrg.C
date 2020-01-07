@@ -201,6 +201,8 @@ void block_calldmrg (
     }
 
 
+    char* p_nogaopt;
+    p_nogaopt = getenv ("NOGAOPT");
     if (std::ifstream("ReOrder.dat"))
     {
            fcon << "reorder ReOrder.dat" << endl;
@@ -208,6 +210,7 @@ void block_calldmrg (
     }
     else
     {
+      if (p_nogaopt==NULL)
            fcon << "gaopt default" << endl;
 //           std::cout << "Use genetic algorithm for orbital reordering" << std::endl;
     }
