@@ -270,7 +270,7 @@ void SpinAdapted::SweepResponse::BlockAndDecimate (SweepParams &sweepParams, Sta
 			     sweepParams.set_lowest_error(), rotatematrix, 
 			     sweepParams.get_keep_states(), sweepParams.get_keep_qstates(), 
 			     sweepParams.get_davidson_tol(), big, sweepParams.get_guesstype(), 
-			     sweepParams.get_noise(), sweepParams.get_additional_noise(), //noise 
+			     0.0, 0.0, //noise
 			     sweepParams.get_onedot(), system, systemDot, environment, 
 			     dot_with_sys, useSlater, sweepParams.get_sweep_iter(), targetState, 
 			     lowerStates, &bratracedMatrix);
@@ -279,12 +279,12 @@ void SpinAdapted::SweepResponse::BlockAndDecimate (SweepParams &sweepParams, Sta
 
   p1out <<"\t\t\t Performing Renormalization "<<endl;
 
-  //rotatematrix.resize(0);
+  rotatematrix.resize(0);
   pout << "**** STACK MEMORY REMAINING before renormalization***** "<<1.0*(Stackmem[0].size-Stackmem[0].memused)*sizeof(double)/1.e9<<" GB"<<endl;
 
   if(mpigetrank() == 0) {
-    //ScaleAdd(sweepParams.get_noise()*(max(1.e-5, trace(branoiseMatrix))), branoiseMatrix, bratracedMatrix);
-    //sweepParams.set_lowest_error() = makeRotateMatrix(bratracedMatrix, rotatematrix, sweepParams.get_keep_states(), sweepParams.get_keep_qstates());
+    ScaleAdd(sweepParams.get_noise()*(max(1.e-5, trace(branoiseMatrix))), branoiseMatrix, bratracedMatrix);
+    sweepParams.set_lowest_error() = makeRotateMatrix(bratracedMatrix, rotatematrix, sweepParams.get_keep_states(), sweepParams.get_keep_qstates());
     bratracedMatrix.deallocate();
   }
   branoiseMatrix.deallocate();
