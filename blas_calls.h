@@ -28,6 +28,9 @@ Sandeep Sharma and Garnet K.-L. Chan
 #endif
 
 #ifdef _HAS_INTEL_MKL 
+#ifdef _FORTINT_64
+#define MKL_INT long
+#endif
 #include "mkl.h"
 //#include "mkl_blacs.h"
 #ifdef AIX

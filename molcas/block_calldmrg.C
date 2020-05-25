@@ -19,9 +19,11 @@ void block_calldmrg_ (
       const FORTINT* N_pdm,
       const double* T_sweep,
       const double* T_noise,
-            double* E_sweep)
+            double* E_sweep,
+      const FORTINT* hf_occ,
+            FORTINT* nrs2t)
 {
-  block_calldmrg(*Restart, *N_roots, *N_act, *N_elec, *M_s, Sym, *iSym, OrbSym, *E_core, h0, tuvx, *M_state, *N_pdm, *T_sweep, *T_noise, E_sweep);
+  block_calldmrg(*Restart, *N_roots, *N_act, *N_elec, *M_s, Sym, *iSym, OrbSym, *E_core, h0, tuvx, *M_state, *N_pdm, *T_sweep, *T_noise, E_sweep, hf_occ, *nrs2t);
 }
 
 extern int calldmrg(char*, char*);
@@ -54,11 +56,13 @@ void block_calldmrg (
       const double& E_core,
       const double* h0,
       const double* tuvx,
-      const FORTINT& M_state,
-      const FORTINT& N_pdm,
-      const double& T_sweep,
-      const double& T_noise,
-            double* E_sweep)
+            FORTINT  M_state,
+            FORTINT  N_pdm,
+            double  T_sweep,
+            double  T_noise,
+            double* E_sweep,
+      const FORTINT* hf_occ,
+            FORTINT nrs2t)
 {
   using std::endl;
   using std::setw;
@@ -110,7 +114,7 @@ void block_calldmrg (
     fcon << "schedule" << endl;
     while(M_start < M_state) {
       fcon << setw(2) << N_sweep << setw(5) << M_start << " " << T_start << " " << T_start << endl;
-      N_sweep += 2;
+      N_sweep += 8;
       M_start *= 2;
     }
 //  while(T_start > T_sweep && T_start > 1.0e-6) {
@@ -120,70 +124,48 @@ void block_calldmrg (
 //  }
     while(T_start >= T_sweep) {
       fcon << setw(2) << N_sweep << setw(5) << M_state << " " << T_start << " " << T_start << endl;
-      N_sweep += 2;
+      N_sweep += 4;
       T_start /= 10;
     }
     fcon << setw(2) << N_sweep << setw(5) << M_state << " " << T_sweep/10 << " 0.0" << endl;
+    if(Restart != 1) {
+      N_sweep += 8;
+      fcon << setw(2) << N_sweep << setw(5) << M_state << " " << T_sweep/10 << " 0.0" << endl;
+    }
     fcon << "end" << endl;
-    fcon << "maxiter 100" << endl;
 
-    fcon << "sweep_tol " << T_sweep << endl;
-
-    switch (Restart) {
-      // No restart
-      case 0:
-        // FIXME: not sure whether this is the best choice
-        //        in practice, i found that guess calc. often fails for high-spin state with symmetry
-//      if(M_s > 2 && symlab != "c1 ") {
-//        // use wilson guess to avoid the bug for the time
-//        // since this makes slower convergence, perform 4 extra sweeps w/ twodot
-//        N_sweep += 4;
-//        fcon << "warmup wilson" << endl;
-//      }
-//      else {
-          fcon << "warmup local_3site" << endl;
-//      }
-        break;
-
-      // Restart from onedot
-      case 1:
-        // FIXME:
-        // when using restart for N_roots = 1, energy oscillation occurs somehow...
-        // it might be a bug for restart at restoring previous state info?
-        // fullrestart with SA-DMRG and onedot fails
-        if(N_roots == 1)
-          fcon << "fullrestart" << endl;
-        else
-          fcon << "restart" << endl;
-        fcon << "reset_iter" << endl;
-        break;
-
-      // Full-Restart
-      case 2:
+    if(Restart == 0) {
+      fcon << "warmup local_4site" << endl;
+    }
+    else {
+      if(Restart == 1 && N_roots > 1)
+        fcon << "fullrestart" << endl;
+      else
         fcon << "fullrestart" << endl;
         fcon << "reset_iter" << endl;
-        break;
-
-      default:
-        abort();
     }
 
     if(Restart != 1)
-      fcon << "twodot_to_onedot " << N_sweep+4 << endl;
+      fcon << "twodot_to_onedot " << N_sweep << endl;
     else
       fcon << "onedot" << endl;
+
+    fcon << "maxiter " << N_sweep+20 << endl;
+    fcon << "sweep_tol " << T_sweep << endl;
 
     switch (N_pdm) {
       case 1:
         fcon << "onepdm" << endl;
+        fcon << "new_npdm_code" << endl;
         break;
       case 2:
         fcon << "twopdm" << endl;
+        fcon << "new_npdm_code" << endl;
         break;
       case 3:
         fcon << "threepdm" << endl;
-        fcon << "disk_dump_pdm" << endl;
-        fcon << "npdm_no_intermediate" << endl; // FIXME: this is temporary fix to avoid failure in multi-node/disk run...
+//        fcon << "disk_dump_pdm" << endl;
+//        fcon << "npdm_no_intermediate" << endl; // FIXME: this is temporary fix to avoid failure in multi-node/disk run...
         break;
       case 4:
         fcon << "fourpdm" << endl;
@@ -198,8 +180,40 @@ void block_calldmrg (
 //  fcon << "prefix " << prefix << endl;
     fcon << "orbitals FCIDUMP" << endl;
     fcon << "symmetry " << symlab << endl;
-    fcon << "gaopt default" << endl;
-    fcon << "hf_occ integral" << endl;
+//    fcon << "gaopt default" << endl;
+
+    int nhf_occ = 0;
+    for (int k=0;k<nrs2t;++k) {
+          nhf_occ = nhf_occ + hf_occ[k];
+    }
+
+    if (nhf_occ == N_elec)
+    {
+        fcon << "hf_occ ";
+        for(int k=0;k<nrs2t;++k){
+        fcon << hf_occ[k] << ' ';
+        }
+        fcon << endl;
+    }
+    else
+    {
+        fcon << "hf_occ integral" <<  endl;
+    }
+
+
+    char* p_nogaopt;
+    p_nogaopt = getenv ("NOGAOPT");
+    if (std::ifstream("ReOrder.dat"))
+    {
+           fcon << "reorder ReOrder.dat" << endl;
+           std::cout << "Read orbital order from ReOrder.dat" << std::endl;
+    }
+    else
+    {
+      if (p_nogaopt==NULL)
+           fcon << "gaopt default" << endl;
+//           std::cout << "Use genetic algorithm for orbital reordering" << std::endl;
+    }
 
     if(N_roots > 1) {
       fcon << "nroots " << N_roots << endl;
@@ -209,6 +223,19 @@ void block_calldmrg (
     }
 
 //  fcon << "outputlevel 2" << endl;
+    char* pMem;
+    pMem = getenv ("MOLCAS_MEM");
+    if (pMem!=NULL)
+      fcon << "memory " << pMem << " m" << endl;
+    else
+      fcon << "memory 2000 m" << endl;
+
+    char* pONT;
+    pONT = getenv ("OMP_NUM_THREADS");
+    if (pONT!=NULL)
+      fcon << "num_thrds " << pONT << endl;
+    else
+      fcon << "num_thrds 1" << endl;
 
     fcon.close();
   }

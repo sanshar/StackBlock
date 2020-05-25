@@ -71,6 +71,11 @@ void SpinAdapted::Linear::block_davidson(vector<StackWavefunction>& b, DiagonalM
 #ifndef SERIAL
   mpi::communicator world;
 #endif
+
+  // save pout format
+  std::ios poutFormat(nullptr);
+  poutFormat.copyfmt(cout);
+
   int iter = 0;
   double levelshift = 0.0;
   int nroots = dmrginp.setStateSpecific() ? 1 : dmrginp.nroots();
@@ -127,7 +132,12 @@ void SpinAdapted::Linear::block_davidson(vector<StackWavefunction>& b, DiagonalM
     r.initialise(b[0]);
 
   if (mpigetrank() == 0) {
-    printf("\t\t %15s  %5s  %15s  %9s  %10s %10s \n", "iter", "Root", "Energy", "Error", "Time", "FLOPS");
+    // printf("\t\t %15s  %5s  %15s  %9s  %10s %10s \n", "iter", "Root", "Energy", "Error", "Time", "FLOPS");
+    pout << "\t\t" << right << setfill(' ') << setw(16) << "iter"
+         << setw(7) << "Root" << setw(17) << "Energy" << setw(11) << "Error"
+         << setw(12) << "Time" << setw(11) << "FLOPS" << endl;
+    // restore pout format
+    cout.copyfmt(poutFormat);
   }
   int sigmasize=0, bsize= currentRoot == -1 ? dmrginp.nroots() : 1;
   int converged_roots = 0;
@@ -259,8 +269,16 @@ void SpinAdapted::Linear::block_davidson(vector<StackWavefunction>& b, DiagonalM
 	totalFlops += dmrginp.matmultFlops[thrd];
 	dmrginp.matmultFlops[thrd] = 0.0;
       }
-      printf("\t\t %15i  %5i  %15.8f  %9.2e %10.2f (s)  %10.3e\n", iter, converged_roots, currentEnergy, rnorm, globaltimer.totalwalltime()-timer, totalFlops);
-
+      // printf("\t\t %15i  %5i  %15.8f  %9.2e %10.2f (s)  %10.3e\n", iter, converged_roots, currentEnergy, rnorm, globaltimer.totalwalltime()-timer, totalFlops);
+      pout << "\t\t" << right << setfill(' ') << setw(16) << iter
+           << setw(7) << converged_roots
+           << setw(17) << fixed << setprecision(8) << currentEnergy
+           << setw(11) << scientific << setprecision(2) << rnorm
+           << setw(11)<< fixed << setprecision(2)
+           << globaltimer.totalwalltime()-timer << setw(4) << "(s)"
+           << setw(12) << scientific << setprecision(3) << totalFlops << endl;
+      // restore pout format
+      cout.copyfmt(poutFormat);
       timer = globaltimer.totalwalltime();
     }
 
@@ -324,9 +342,13 @@ void SpinAdapted::Linear::block_davidson(vector<StackWavefunction>& b, DiagonalM
 
     // save converged eigenvalues in last iteration
     if (iter + 1 == maxiter && mpigetrank() == 0) {
-        printf("WARN %d states are converged in davidson diagonalization.\n"
-               "Block energy for state %d and above are meaningless.\n",
-               converged_roots, converged_roots + 1);
+        // printf("WARN %d states are converged in davidson diagonalization.\n"
+        //        "Block energy for state %d and above are meaningless.\n",
+        //        converged_roots, converged_roots + 1);
+        pout << "WARN " << converged_roots
+             << " states are converged in davidson diagonalization." << endl;
+        pout << "Block energy for state " << converged_roots + 1
+             << "  and above are meaningless." << endl;
         for (int i = 0; i < converged_roots; ++i)
             h_diag.element(i) = subspace_eigenvalues.element(i);
     }
@@ -355,6 +377,11 @@ void makeOrthogonalToLowerStates(StackWavefunction& targetState, std::vector<Sta
 
 double SpinAdapted::Linear::ConjugateGradient(StackWavefunction& xi, double normtol, Davidson_functor& h_multiply, std::vector<StackWavefunction>& lowerStates)
 {
+
+  // save pout format
+  std::ios poutFormat(nullptr);
+  poutFormat.copyfmt(cout);
+
   setbuf(stdout, NULL);
   p3out.precision (12);
   int iter = 0, maxIter = 10;
@@ -412,7 +439,11 @@ double SpinAdapted::Linear::ConjugateGradient(StackWavefunction& xi, double norm
     DCOPY(ri.memoryUsed(), ri.get_data(), 1, pi.get_data(), 1); 
 
     oldError = DotProduct(ri, ri);
-    printf("\t\t\t %15s  %15s  %15s\n", "iter", "Functional", "Error");
+    // printf("\t\t\t %15s  %15s  %15s\n", "iter", "Functional", "Error");
+    pout << "\t\t\t" << right << setfill(' ') << setw(17) << "iter"
+         << "Functional" << "Error" << endl;
+    // restore pout format
+    cout.copyfmt(poutFormat);
   }
 
 
@@ -425,7 +456,11 @@ double SpinAdapted::Linear::ConjugateGradient(StackWavefunction& xi, double norm
   if (oldError < normtol) {
     if (mpigetrank() == 0) {
       functional = DotProduct(xi, ri) - 2.*DotProduct(xi, targetState);
-      printf("\t\t\t %15i  %15.8e  %15.8e\n", 0, functional, oldError);
+      // printf("\t\t\t %15i  %15.8e  %15.8e\n", 0, functional, oldError);
+      pout << "\t\t\t" << right << setfill(' ') << setw(17) << 0
+           << scientific << setprecision(8) << functional << oldError << endl;
+      // restore pout format
+      cout.copyfmt(poutFormat);
     }
 #ifndef SERIAL
     mpi::broadcast(calc, functional, 0);
@@ -459,7 +494,11 @@ double SpinAdapted::Linear::ConjugateGradient(StackWavefunction& xi, double norm
       
       Error = DotProduct(ri, ri);
       functional = -DotProduct(xi, ri) - DotProduct(xi, targetState);
-      printf("\t\t\t %15i  %15.8e  %15.8e\n", iter, functional, Error);
+      // printf("\t\t\t %15i  %15.8e  %15.8e\n", iter, functional, Error);
+      pout << "\t\t\t" << right << setfill(' ') << setw(17) << iter
+           << scientific << setprecision(8) << functional << Error << endl;
+      // restore pout format
+      cout.copyfmt(poutFormat);
     }
 
     //exit(0);
@@ -490,6 +529,11 @@ double SpinAdapted::Linear::ConjugateGradient(StackWavefunction& xi, double norm
 double SpinAdapted::Linear::MinResMethod(StackWavefunction& xi, double normtol, Davidson_functor& h_multiply, std::vector<StackWavefunction>& lowerStates)
 {
   setbuf(stdout, NULL);
+
+  // save pout format
+  std::ios poutFormat(nullptr);
+  poutFormat.copyfmt(cout);
+
   int iter = 0, maxIter = 20;
   double levelshift = 0.0, overlap2 = 0.0, oldError=0.0, functional=0.0, Error=0.0;
 
@@ -545,7 +589,11 @@ double SpinAdapted::Linear::MinResMethod(StackWavefunction& xi, double normtol, 
     //pi = ri;
 
     oldError = DotProduct(ri, ri);
-    printf("\t\t\t %15s  %15s  %15s\n", "iter", "Functional", "Error");
+    // printf("\t\t\t %15s  %15s  %15s\n", "iter", "Functional", "Error");
+    pout << "\t\t\t" << right << setfill(' ') << setw(17) << "iter"
+         << "Functional" << "Error" << endl;
+    // restore pout format
+    cout.copyfmt(poutFormat);
   }
 
 #ifndef SERIAL
@@ -555,7 +603,11 @@ double SpinAdapted::Linear::MinResMethod(StackWavefunction& xi, double normtol, 
   if (oldError < normtol) {
     if (mpigetrank() == 0) {
       functional = -DotProduct(xi, ri) -  DotProduct(xi, targetState);
-      printf("\t\t\t %15i  %15.8e  %15.8e\n", 0, functional, oldError);
+      // printf("\t\t\t %15i  %15.8e  %15.8e\n", 0, functional, oldError);
+      pout << "\t\t\t" << right << setfill(' ') << setw(17) << 0
+           << scientific << setprecision(8) << functional << oldError << endl;
+      // restore pout format
+      cout.copyfmt(poutFormat);
     }
 #ifndef SERIAL
     mpi::broadcast(calc, functional, 0);
@@ -592,7 +644,11 @@ double SpinAdapted::Linear::MinResMethod(StackWavefunction& xi, double normtol, 
       Error = DotProduct(ri, ri);
 
       functional = -DotProduct(xi, targetState);
-      printf("\t\t\t %15i  %15.8e  %15.8e \n", iter, functional, Error);
+      // printf("\t\t\t %15i  %15.8e  %15.8e \n", iter, functional, Error);
+      pout << "\t\t\t" << right << setfill(' ') << setw(17) << iter
+           << scientific << setprecision(8) << functional << Error << endl;
+      // restore pout format
+      cout.copyfmt(poutFormat);
     }
 
 #ifndef SERIAL
