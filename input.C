@@ -1862,7 +1862,7 @@ void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray&
     }
 #ifndef SERIAL
     //wait for all procs to zero out the memory
-    MPI::COMM_WORLD.Barrier();
+    world.barrier();
 #endif
     v1.set_data() = static_cast<double*>(region.get_address()) + (oneIntegralMem+twoIntegralMem)*integralIndex;
     v2.set_data() = static_cast<double*>(region.get_address()) + oneIntegralMem + (oneIntegralMem+twoIntegralMem)*integralIndex;
@@ -1930,16 +1930,16 @@ void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray&
   }
 
 #ifndef SERIAL
-  MPI::COMM_WORLD.Barrier();
+  world.barrier();
   long intdim = oneIntegralMem+twoIntegralMem;
   long  maxint = 26843540; //mpi cannot transfer more than these number of doubles
   long maxIter = intdim/maxint; 
   for (int i=0; i<maxIter; i++) {
-    MPI::COMM_WORLD.Bcast(v1.set_data()+i*maxint, maxint, MPI_DOUBLE, 0);
-    MPI::COMM_WORLD.Barrier();
+    mpi::broadcast(world, v1.set_data()+i*maxint, maxint, 0);
+    world.barrier();
   }
-  MPI::COMM_WORLD.Bcast(v1.set_data()+(maxIter)*maxint, oneIntegralMem+twoIntegralMem - maxIter*maxint, MPI_DOUBLE, 0);
-  MPI::COMM_WORLD.Barrier();
+  mpi::broadcast(world, v1.set_data()+(maxIter)*maxint, oneIntegralMem+twoIntegralMem - maxIter*maxint, 0);
+  world.barrier();
 
 #endif
 }
@@ -2197,7 +2197,7 @@ void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray&
   }
 #ifndef SERIAL
   //wait for all procs to zero out the memory
-  MPI::COMM_WORLD.Barrier();
+  world.barrier();
 #endif
   v1.set_data() = static_cast<double*>(region.get_address()) + intdim*integralIndex;
   vcc.set_data() = static_cast<double*>(region.get_address()) + oneIntegralMem + intdim*integralIndex;
@@ -2302,15 +2302,15 @@ void SpinAdapted::Input::readorbitalsfile(string& orbitalfile, OneElectronArray&
     dumpFile.close();
   }
 #ifndef SERIAL
-  MPI::COMM_WORLD.Barrier();
+  world.barrier();
   long maxint = 26843540; //mpi cannot transfer more than these number of doubles
   long maxIter = intdim/maxint; 
   for (int i=0; i<maxIter; i++) {
-    MPI::COMM_WORLD.Bcast(v1.set_data()+i*maxint, maxint, MPI_DOUBLE, 0);
-    MPI::COMM_WORLD.Barrier();
+    mpi::broadcast(world, v1.set_data()+i*maxint, maxint, 0);
+    world.barrier();
   }
-  MPI::COMM_WORLD.Bcast(v1.set_data()+(maxIter)*maxint, intdim - maxIter*maxint, MPI_DOUBLE, 0);
-  MPI::COMM_WORLD.Barrier();
+  mpi::broadcast(world, v1.set_data()+(maxIter)*maxint, intdim - maxIter*maxint, 0);
+  world.barrier();
 
 #endif
 }
@@ -2577,7 +2577,7 @@ void SpinAdapted::Input::readorbitalsfile(string& orbitalfile,OneElectronArray& 
     region = boost::interprocess::mapped_region{segment, boost::interprocess::read_write};
     memset(region.get_address(), 0., (oneIntegralMem+twoIntegralMem+PerturboneIntegralMem)*m_num_Integrals*sizeof(double));
     //wait for all procs to zero out the memory
-    MPI::COMM_WORLD.Barrier();
+    world.barrier();
     v1.set_data() = static_cast<double*>(region.get_address());
     v2.set_data() = static_cast<double*>(region.get_address()) + oneIntegralMem;
     vpt1.set_data() = static_cast<double*>(region.get_address()) + oneIntegralMem + twoIntegralMem;
@@ -2692,16 +2692,16 @@ void SpinAdapted::Input::readorbitalsfile(string& orbitalfile,OneElectronArray& 
   dumpFile.close();  
   }
 #ifndef SERIAL
-  MPI::COMM_WORLD.Barrier();
+  world.barrier();
   long intdim = oneIntegralMem+twoIntegralMem+PerturboneIntegralMem;
   long  maxint = 26843540; //mpi cannot transfer more than these number of doubles
   long maxIter = intdim/maxint; 
   for (int i=0; i<maxIter; i++) {
-    MPI::COMM_WORLD.Bcast(v1.set_data()+i*maxint, maxint, MPI_DOUBLE, 0);
-    MPI::COMM_WORLD.Barrier();
+    mpi::broadcast(world, v1.set_data()+i*maxint, maxint, 0);
+    world.barrier();
   }
-  MPI::COMM_WORLD.Bcast(v1.set_data()+(maxIter)*maxint, oneIntegralMem+twoIntegralMem+PerturboneIntegralMem- maxIter*maxint, MPI_DOUBLE, 0);
-  MPI::COMM_WORLD.Barrier();
+  mpi::broadcast(world, v1.set_data()+(maxIter)*maxint, oneIntegralMem+twoIntegralMem+PerturboneIntegralMem- maxIter*maxint, 0);
+  world.barrier();
 
 #endif
 }
